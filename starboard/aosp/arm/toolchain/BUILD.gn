@@ -51,7 +51,7 @@ template("android_clang_toolchain") {
 android_clang_toolchain("starboard") {
   toolchain_args = {
     current_cpu = "arm"
-    is_starboard = true
+    use_starboard = true
     use_cxx17 = true
     build_base_with_cpp17 = true
     enable_base_tracing = false
@@ -64,7 +64,7 @@ android_clang_toolchain("starboard") {
 android_clang_toolchain("native_target") {
   toolchain_args = {
     current_cpu = "arm"
-    is_starboard = false
+    use_starboard = false
     use_cxx17 = true
     build_base_with_cpp17 = true
     enable_base_tracing = false

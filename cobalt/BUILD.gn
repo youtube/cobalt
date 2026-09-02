@@ -70,7 +70,7 @@ group("gn_all") {
       "//starboard/tools/zstd_compress:zstd_compress_unittest($host_toolchain)",
     ]
   }
-  if (is_starboard && build_updater_sandbox) {
+  if (use_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
   if (use_crashpad) {
@@ -78,7 +78,7 @@ group("gn_all") {
     # crashpad_database_util tool. On other platforms (e.g. ATV, tvOS) it is
     # still useful to build the crashpad_database_util binary to inspect crash
     # databases on the host.
-    if (is_starboard) {
+    if (use_starboard) {
       deps += [
         "//third_party/crashpad/crashpad/handler:crashpad_handler($native_toolchain)",
         "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_toolchain)",
@@ -225,7 +225,7 @@ if (is_ios && target_platform == "tvos") {
       # Needed for third_party/musl/src/starboard/internal/hwcap_impl.h
       deps += [ "//third_party/musl:headers" ]
     }
-    if (is_starboard) {
+    if (use_starboard) {
       deps += [ "//ui/ozone/platform/starboard" ]
     } else {
       # Web test support only built for the linux-x64x11-no-starboard target.
@@ -266,7 +266,7 @@ source_set("common") {
     "app/cobalt_switch_defaults.h",
   ]
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
   } else if (is_ios && target_platform == "tvos") {
     sources += [ "app/cobalt_switch_defaults_tvos.cc" ]
@@ -309,7 +309,7 @@ source_set("common") {
     deps += [ "//ui/ozone:ozone_switches" ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     deps += [ "//ui/ozone/platform/starboard" ]
   }
 
@@ -365,18 +365,18 @@ test("cobalt_unittests") {
   # Memory instrumentation host-side tool tests require launching external
   # Python processes, which is not supported on Starboard and modular/Evergreen
   # platforms due to subprocess spawning restrictions.
-  if (!is_starboard && !sb_is_modular) {
+  if (!use_starboard && !sb_is_modular) {
     sources += [
       "//cobalt/tools/performance/memory/symbolize_in_process_heap_unittest.cc",
       "//cobalt/tools/performance/memory/verify_memory_trace_unittest.cc",
     ]
   }
 
-  if (is_starboard || is_androidtv) {
+  if (use_starboard || is_androidtv) {
     sources += [ "//cobalt/browser/hang_watcher_delegate_impl_unittest.cc" ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources += [
       "//cobalt/app/app_event_delegate_unittest.cc",
       "//cobalt/app/app_event_runner_unittest.cc",
@@ -456,7 +456,7 @@ test("cobalt_unittests") {
     "//ui/events/devices",
   ]
 
-  if (is_starboard) {
+  if (use_starboard) {
     deps += [ "//ui/ozone/platform/starboard" ]
   }
 

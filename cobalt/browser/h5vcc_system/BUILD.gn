@@ -25,7 +25,7 @@ source_set("h5vcc_system") {
 
   if (is_android) {
     sources += [ "h5vcc_system_impl_android.cc" ]
-  } else if (is_starboard) {
+  } else if (use_starboard) {
     sources += [ "h5vcc_system_impl_starboard.cc" ]
   } else if (is_ios && target_platform == "tvos") {
     sources += [ "h5vcc_system_impl_tvos.mm" ]
@@ -40,7 +40,7 @@ source_set("h5vcc_system") {
     "//starboard/common",
   ]
 
-  if (is_starboard) {
+  if (use_starboard) {
     deps += [ "//cobalt/configuration" ]
   }
 

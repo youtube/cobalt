@@ -13,9 +13,13 @@
 # limitations under the License.
 
 declare_args() {
-  is_starboard = is_cobalt && target_os != "android" && target_os != "ios" &&
-                 current_toolchain == default_toolchain
+  use_starboard = is_cobalt && target_os != "android" && target_os != "ios" &&
+                  current_toolchain == default_toolchain
 }
+
+# TODO(https://crbug.com/494478521): Temporary workaround while renaming
+# is_starboard to use_starboard.
+is_starboard = use_starboard
 
 declare_args() {
   # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
@@ -24,8 +28,8 @@ declare_args() {
 
 if (is_cobalt) {
   # Differentiates our 1P ATV platform from 3P AOSP.
-  is_androidtv = is_android && !is_starboard
+  is_androidtv = is_android && !use_starboard
 }
 
 # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
-is_cobalt_hermetic_build = is_starboard && use_custom_libc
+is_cobalt_hermetic_build = use_starboard && use_custom_libc

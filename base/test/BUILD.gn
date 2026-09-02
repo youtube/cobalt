@@ -289,7 +289,7 @@ static_library("test_support") {
     ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources += [
       "test_support_starboard.cc",
       "test_support_starboard.h",
@@ -489,12 +489,12 @@ shared_library("immediate_crash_test_helper") {
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     deps += [ "//starboard:starboard_group" ]
   }
 }
 
-if (!is_starboard) {
+if (!use_starboard) {
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
   testonly = true
@@ -615,7 +615,7 @@ if (is_ios) {
   }
 }
 
-if (!is_starboard) {
+if (!use_starboard) {
 # Trivial executable which outputs space-delimited argv to stdout,
 # used for testing.
 executable("test_child_process") {

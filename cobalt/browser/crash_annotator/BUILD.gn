@@ -25,7 +25,7 @@ source_set("crash_annotator") {
     "//mojo/public/cpp/bindings",
   ]
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources += [ "crash_annotator_impl_starboard.cc" ]
     deps += [ "//starboard:starboard_headers_only" ]
   } else if (is_ios) {

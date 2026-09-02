@@ -2665,7 +2665,7 @@ source_set("browser") {
     ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources += [ "speech/tts_starboard.cc" ]
     deps += [
       "//starboard:starboard_group",

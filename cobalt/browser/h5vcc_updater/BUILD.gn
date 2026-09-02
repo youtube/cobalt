@@ -33,7 +33,7 @@ source_set("h5vcc_updater") {
     "//starboard/common",
   ]
 
-  if (is_starboard) {
+  if (use_starboard) {
     deps += [ "//cobalt/configuration" ]
   }
 

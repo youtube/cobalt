@@ -52,7 +52,7 @@ generate_jni("jni_headers") {
     ]
   }
 
-  if (!is_starboard) {
+  if (!use_starboard) {
     sources += [ "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java" ]
   }
 }
@@ -161,7 +161,7 @@ android_library("cobalt_main_java") {
     ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     # TODO(https://crbug.com/534656433): Temporary StarboardBridge stub to fix
     # a symbol resolution error on BaseStarboardBridge and CobaltService.
     sources +=

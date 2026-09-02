@@ -22,7 +22,7 @@ overridable_clang_toolchain("starboard") {
   toolchain_args = {
     current_os = "linux"
     current_cpu = "x64"
-    is_starboard = true
+    use_starboard = true
     enable_base_tracing = false
   }
   propagates_configs = !enable_cobalt_hermetic_hacks
@@ -30,7 +30,7 @@ overridable_clang_toolchain("starboard") {
 
 clang_toolchain("native_target") {
   toolchain_args = {
-    is_starboard = false
+    use_starboard = false
     current_os = "linux"
     current_cpu = "x64"
     enable_base_tracing = false

@@ -1024,12 +1024,12 @@ component("base") {
     ]
   }
 
-  if ((is_linux && !is_starboard) || is_chromeos || is_android) {
+  if ((is_linux && !use_starboard) || is_chromeos || is_android) {
     sources += [
       "files/file_path_watcher_inotify.cc",
       "files/file_path_watcher_inotify.h",
     ]
-  } else if (is_starboard) {
+  } else if (use_starboard) {
     sources += [
       "files/file_path_watcher_stub.cc",
     ]
@@ -1344,7 +1344,7 @@ component("base") {
     # compiles debug/stack_trace_android.cc but links neither an unwinder nor
     # Starboard's unwind_starboard, leaving the _Unwind_* symbols it references
     # undefined.
-    if (!is_starboard) {
+    if (!use_starboard) {
       sources += [ "debug/cobalt_unwind_stubs.cc" ]
     }
 
@@ -1707,7 +1707,7 @@ component("base") {
         "profiler/thread_delegate_posix.h",
       ]
 
-      if (is_starboard) {
+      if (use_starboard) {
         sources -= ["native_library_posix.cc"]
         sources += ["native_library_starboard.cc"]
       }
@@ -1769,7 +1769,7 @@ component("base") {
     ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources -= [ "process/launch_posix.cc" ]
     sources += [
       "message_loop/message_pump_ui_starboard.cc",
@@ -1782,7 +1782,7 @@ component("base") {
     ]
 
     # TODO(crbug.com/509811765): Android is the only platform whose starboard
-    # library depends on //base. On AOSP, `is_starboard` is true, so this leads
+    # library depends on //base. On AOSP, `use_starboard` is true, so this leads
     # to a circular dependency.
     if (is_android) {
       deps -= [ "//starboard:starboard_group" ]
@@ -2740,7 +2740,7 @@ static_library("base_static") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     deps += [ "//starboard/common" ]
   }
 }
@@ -2753,7 +2753,7 @@ if (use_custom_libcxx && enable_safe_libcxx && !is_debug) {
     defines = [ "BASE_IMPLEMENTATION" ]
     sources = [ "nodebug_assertion.cc" ]
     deps = [ ":base_static" ]
-    if (is_starboard) {
+    if (use_starboard) {
       deps += [ "//starboard:starboard_group" ]
     }
   }
@@ -3576,7 +3576,7 @@ test("base_unittests") {
     "//third_party/modp_b64",
   ]
 
-  if (is_starboard) {
+  if (use_starboard) {
     deps += [
       "//starboard:starboard_group",
       "//starboard/common",
@@ -3695,7 +3695,7 @@ test("base_unittests") {
     }
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources -= [
       "debug/stack_trace_unittest.cc",
       "files/file_path_watcher_unittest.cc",
@@ -3772,12 +3772,12 @@ test("base_unittests") {
       "posix/file_descriptor_shuffle_unittest.cc",
       "posix/unix_domain_socket_unittest.cc",
     ]
-    if (is_starboard) {
+    if (use_starboard) {
       sources -= [
         "posix/unix_domain_socket_unittest.cc",
       ]
     }
-    if (!is_nacl && !is_apple && !is_starboard) {
+    if (!is_nacl && !is_apple && !use_starboard) {
       sources += [
         "profiler/stack_base_address_posix_unittest.cc",
         "profiler/stack_copier_signal_unittest.cc",
@@ -3972,7 +3972,7 @@ test("base_unittests") {
         "allocator/partition_allocator/starscan/stack/stack_unittest.cc",
         "allocator/partition_allocator/starscan/state_bitmap_unittest.cc",
       ]
-      if (is_starboard) {
+      if (use_starboard) {
         sources -= [
           "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
           # TODO: b/402471389 Cobalt: - try to enable these tests.
@@ -4114,7 +4114,7 @@ test("base_unittests") {
         [ "//build/config/fuchsia/test/logger.shard.test-cml" ]
   }
 
-  if (!is_fuchsia && !is_ios && !is_starboard) {
+  if (!is_fuchsia && !is_ios && !use_starboard) {
     sources += [ "files/file_locking_unittest.cc" ]
   }
 

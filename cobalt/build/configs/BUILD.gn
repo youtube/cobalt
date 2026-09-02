@@ -94,11 +94,11 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_IS_COBALT" ]
   }
 
-  # is_starboard and BUILDFLAG(IS_STARBOARD) should be used for platforms that
+  # use_starboard and BUILDFLAG(IS_STARBOARD) should be used for platforms that
   # treat Starboard as their OS layer (Evergreen and hermetic linux). Use this
   # when calling Starboard OS-replacement functions. Note that
   # use_starboard_media should be used instead for Starboard media functions.
-  if (is_starboard) {
+  if (use_starboard) {
     defines += [ "OS_STARBOARD" ]
   }
 
@@ -123,14 +123,14 @@ config("buildflag_defines") {
   # use_evergreen and BUILDFLAG(USE_EVERGREEN) should be used for
   # Evergreen-specific functionality, i.e. the Evergreen loader_app. Do not use
   # this flag for hermetic build functionality, instead use
-  # is_cobalt_hermetic_build or is_starboard.
+  # is_cobalt_hermetic_build or use_starboard.
   if (use_evergreen) {
     defines += [ "ENABLE_BUILDFLAG_USE_EVERGREEN" ]
   }
 
   # TODO(b/400818107): Consider deprecating sb_is_modular.
   # In general, you should instead be using is_cobalt_hermetic_build or
-  # is_starboard.
+  # use_starboard.
   if (sb_is_modular) {
     defines += [ "ENABLE_BUILDFLAG_MODULAR_BUILD" ]
   }

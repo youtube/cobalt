@@ -18,6 +18,6 @@ clang_toolchain("starboard") {
   toolchain_args = {
     current_cpu = "x64"
     current_os = "linux"
-    is_starboard = true
+    use_starboard = true
   }
 }

@@ -5934,7 +5934,7 @@ if (!is_android) {
   }
 }
 
-if (!is_starboard) {
+if (!use_starboard) {
 if (!is_android) {
   performance_test_suite_template("performance_test_suite") {
   }
@@ -5951,7 +5951,7 @@ if (!is_android) {
   group("performance_test_suite") {}
 }
 
-if (!is_android && !is_starboard) {
+if (!is_android && !use_starboard) {
   script_test("crossbench_smoketests") {
     script = "//testing/scripts/run_performance_tests.py"
 

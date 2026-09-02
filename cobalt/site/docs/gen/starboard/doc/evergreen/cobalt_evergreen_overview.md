@@ -106,11 +106,11 @@ changes are needed by the partner here.
 However, a few small changes are needed in the partner's port, which is used to
 build the partner-built components, to make it compatible with Evergreen.
 
-First, ensure that your platform is built with Starboard enabled (`is_starboard = true`, which is the default for all Starboard platforms). Please DO NOT set `sb_is_evergreen` to `true`, as this should only be set in the Evergreen platforms that are maintained by Google and used to build Cobalt core.
+First, ensure that your platform is built with Starboard enabled (`use_starboard = true`, which is the default for all Starboard platforms). Please DO NOT set `sb_is_evergreen` to `true`, as this should only be set in the Evergreen platforms that are maintained by Google and used to build Cobalt core.
 
 Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
 "starboard" toolchain to add a "native_target" toolchain that is identical
-except that it sets `is_starboard = false`.
+except that it sets `use_starboard = false`.
 
 For example:
 
@@ -121,7 +121,7 @@ gcc_toolchain("target") {
 
 gcc_toolchain("native_target") {
   ...
-  is_starboard = false
+  use_starboard = false
 }
 ```
 
@@ -289,7 +289,7 @@ In order to verify the platform requirements you should run the
 `nplb_evergreen_compat_tests`. These tests ensure that the platform is
 configured appropriately for Evergreen.
 
-These tests are enabled automatically for all Starboard platforms (`is_starboard = true`).
+These tests are enabled automatically for all Starboard platforms (`use_starboard = true`).
 
 ### Verifying Crashpad Uploads
 

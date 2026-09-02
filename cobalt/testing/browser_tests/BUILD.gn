@@ -250,7 +250,7 @@ test("cobalt_browsertests") {
     sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources += [ "cobalt_browser_tests_main.cc" ]
   }
 
@@ -269,7 +269,7 @@ test("cobalt_browsertests") {
     "//content/test:web_ui_mojo_test_resources",
   ]
 
-  if (is_starboard) {
+  if (use_starboard) {
     public_deps += [
       "//cobalt:common",
       "//cobalt/shell:cobalt_shell_lib",
@@ -444,7 +444,7 @@ test("cobalt_browsertests") {
     ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     deps += [
       ":cobalt_shell_test_lib",
       "//content/test:test_support",

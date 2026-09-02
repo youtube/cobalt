@@ -31,7 +31,7 @@ if (is_ios) {
 shell_use_toolkit_views = toolkit_views && !is_castos
 
 support_web_tests =
-    !is_android && !(is_ios && target_platform == "tvos") && !is_starboard
+    !is_android && !(is_ios && target_platform == "tvos") && !use_starboard
 
 buildflag_header("buildflags") {
   header = "buildflags.h"
@@ -154,7 +154,7 @@ group("cobalt_shell_lib_deps") {
       "//ui/events",
       "//ui/wm",
     ]
-    if (is_starboard) {
+    if (use_starboard) {
       public_deps += [ "//ui/ozone/platform/starboard" ]
     }
 
@@ -191,7 +191,7 @@ group("cobalt_shell_lib_deps") {
     public_deps += [ "//cobalt/android/oom_intervention" ]
   }
 
-  if (is_starboard || is_androidtv) {
+  if (use_starboard || is_androidtv) {
     public_deps += [ "//cobalt/browser:hang_watcher_delegate" ]
   }
 }
@@ -336,7 +336,7 @@ static_library("cobalt_shell_lib") {
     sources += [ "browser/shell_devtools_manager_delegate_stub.cc" ]
   }
 
-  if (is_starboard) {
+  if (use_starboard) {
     sources += [
       "common/device_authentication.cc",
       "common/device_authentication.h",
