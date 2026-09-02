@@ -188,6 +188,7 @@ void PlatformWindowStarboard::Hide() {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
+  DestroySbWindowInstance();
 }
 
 void PlatformWindowStarboard::Close() {
@@ -235,6 +236,7 @@ void PlatformWindowStarboard::Minimize() {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
+  DestroySbWindowInstance();
 }
 
 void PlatformWindowStarboard::DestroySbWindowInstance() {

@@ -51,22 +51,20 @@ int CalculateFramesPerInputBuffer(int sample_rate,
   return AudioDurationToFrames(duration, sample_rate);
 }
 
-scoped_refptr<DecodedAudio> CreateDecodedAudio(
-    int64_t timestamp,
-    SbMediaAudioSampleType sample_type,
-    int number_of_channels,
-    int frames) {
+DecodedAudio CreateDecodedAudio(int64_t timestamp,
+                                SbMediaAudioSampleType sample_type,
+                                int number_of_channels,
+                                int frames) {
   int sample_size = GetBytesPerSample(sample_type);
-  scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
-      number_of_channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      timestamp, sample_size * number_of_channels * frames));
+  DecodedAudio decoded_audio(number_of_channels, sample_type, timestamp,
+                             sample_size * number_of_channels * frames);
 
-  for (int j = 0; j < decoded_audio->size_in_bytes() / sample_size; ++j) {
+  for (int j = 0; j < decoded_audio.size_in_bytes() / sample_size; ++j) {
     if (sample_size == 2) {
-      *(reinterpret_cast<int16_t*>(decoded_audio->data()) + j) = j;
+      *(reinterpret_cast<int16_t*>(decoded_audio.data()) + j) = j;
     } else {
       SB_DCHECK_EQ(sample_size, 4);
-      *(reinterpret_cast<float*>(decoded_audio->data()) + j) =
+      *(reinterpret_cast<float*>(decoded_audio.data()) + j) =
           ((j % 1024) - 512) / 512.0f;
     }
   }
@@ -119,19 +117,19 @@ void StubAudioDecoder::WriteEndOfStream() {
         std::bind(&StubAudioDecoder::DecodeEndOfStream, this));
     return;
   }
-  decoded_audios_.push(new DecodedAudio());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
   output_cb_();
 }
 
-scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
+std::optional<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
   SB_CHECK(BelongsToCurrentThread());
 
   *samples_per_second = samples_per_second_;
   std::lock_guard lock(decoded_audios_mutex_);
   if (decoded_audios_.empty()) {
-    return scoped_refptr<DecodedAudio>();
+    return std::nullopt;
   }
-  auto result = decoded_audios_.front();
+  std::optional<DecodedAudio> result = std::move(decoded_audios_.front());
   decoded_audios_.pop();
   return result;
 }
@@ -175,11 +173,11 @@ void StubAudioDecoder::DecodeOneBuffer(
       frames_per_input_ = frames_per_input;
     }
 
-    scoped_refptr<DecodedAudio> decoded_audio =
+    DecodedAudio decoded_audio =
         CreateDecodedAudio(last_input_buffer_->timestamp(), sample_type_,
                            number_of_channels_, *frames_per_input_);
 
-    decoded_audio->AdjustForDiscardedDurations(
+    decoded_audio.AdjustForDiscardedDurations(
         samples_per_second_,
         last_input_buffer_->audio_sample_info().discarded_duration_from_front,
         last_input_buffer_->audio_sample_info().discarded_duration_from_back);
@@ -198,14 +196,14 @@ void StubAudioDecoder::DecodeOneBuffer(
 
       for (int i = 0; i < kNumDecodedAudioObjects; ++i) {
         size_t frames_of_output =
-            decoded_audio->frames() / kNumDecodedAudioObjects;
+            decoded_audio.frames() / kNumDecodedAudioObjects;
         size_t size_in_bytes_of_output =
             frames_of_output * sample_size * number_of_channels_;
 
         if (i == kNumDecodedAudioObjects - 1) {
           // It's the last one, send out all remaining data.
           size_in_bytes_of_output =
-              decoded_audio->size_in_bytes() - offset_in_bytes;
+              decoded_audio.size_in_bytes() - offset_in_bytes;
           SB_DCHECK(size_in_bytes_of_output %
                         (sample_size * number_of_channels_) ==
                     0);
@@ -214,16 +212,13 @@ void StubAudioDecoder::DecodeOneBuffer(
         auto offset_in_frames =
             offset_in_bytes / (sample_size * number_of_channels_);
         int64_t timestamp =
-            decoded_audio->timestamp() +
+            decoded_audio.timestamp() +
             AudioDurationToFrames(offset_in_frames, samples_per_second_);
 
-        scoped_refptr<DecodedAudio> current_decoded_audio(
-            new DecodedAudio(number_of_channels_, sample_type_,
-                             kSbMediaAudioFrameStorageTypeInterleaved,
-                             timestamp, size_in_bytes_of_output));
-        memcpy(current_decoded_audio->data(),
-               decoded_audio->data() + offset_in_bytes,
-               size_in_bytes_of_output);
+        DecodedAudio current_decoded_audio(number_of_channels_, sample_type_,
+                                           timestamp, size_in_bytes_of_output);
+        memcpy(current_decoded_audio.data(),
+               decoded_audio.data() + offset_in_bytes, size_in_bytes_of_output);
         offset_in_bytes += size_in_bytes_of_output;
 
         std::lock_guard lock(decoded_audios_mutex_);
@@ -255,7 +250,7 @@ void StubAudioDecoder::DecodeEndOfStream() {
 
     SB_DCHECK(frames_per_input_);
 
-    scoped_refptr<DecodedAudio> decoded_audio =
+    DecodedAudio decoded_audio =
         CreateDecodedAudio(last_input_buffer_->timestamp(), sample_type_,
                            number_of_channels_, *frames_per_input_);
 
@@ -266,18 +261,18 @@ void StubAudioDecoder::DecodeEndOfStream() {
     SB_DCHECK(AudioDurationToFrames(
                   discarded_duration_from_front + discarded_duration_from_back,
                   last_input_buffer_->audio_stream_info().samples_per_second) <=
-              decoded_audio->frames());
+              decoded_audio.frames());
 
-    decoded_audio->AdjustForDiscardedDurations(samples_per_second_,
-                                               discarded_duration_from_front,
-                                               discarded_duration_from_back);
+    decoded_audio.AdjustForDiscardedDurations(samples_per_second_,
+                                              discarded_duration_from_front,
+                                              discarded_duration_from_back);
 
     std::lock_guard lock(decoded_audios_mutex_);
     decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
   }
   std::lock_guard lock(decoded_audios_mutex_);
-  decoded_audios_.push(new DecodedAudio());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
   Schedule(output_cb_);
 }
 

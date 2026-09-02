@@ -254,6 +254,9 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
   GetRenderer()->SetBufferedRangesCB(
       base::BindRepeating(&StarboardRendererWrapper::OnBufferedTimeRangesChange,
                           weak_factory_.GetWeakPtr()));
+  GetRenderer()->SetEncryptedMediaInitDataCB(
+      base::BindRepeating(&StarboardRendererWrapper::OnEncryptedMediaInitData,
+                          weak_factory_.GetWeakPtr()));
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   base::ScopedClosureRunner scoped_init_cb(
@@ -635,6 +638,14 @@ void StarboardRendererWrapper::OnGetSbWindowHandle() {
 }
 
 #if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererWrapper::OnEncryptedMediaInitData(
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnEncryptedMediaInitDataEncountered(init_data_type,
+                                                                init_data);
+}
+
 void StarboardRendererWrapper::OnDurationChange(base::TimeDelta duration) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->OnDurationChange(duration);

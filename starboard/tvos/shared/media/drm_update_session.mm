@@ -59,5 +59,7 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
 
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
-  drm_system->UpdateSession(ticket, key, key_size, session_id, session_id_size);
+  drm_system->UpdateSession(
+      ticket, std::string_view(static_cast<const char*>(key), key_size),
+      std::string_view(static_cast<const char*>(session_id), session_id_size));
 }

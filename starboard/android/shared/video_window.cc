@@ -60,6 +60,14 @@ void ClearNativeWindow(void* raw_context) {
     return;
   }
 
+  // Save pre-existing EGL context state to restore at the end of this function.
+  // This prevents unbinding the shared GPU thread's context from other active
+  // players.
+  EGLDisplay old_display = eglGetCurrentDisplay();
+  EGLSurface old_draw_surface = eglGetCurrentSurface(EGL_DRAW);
+  EGLSurface old_read_surface = eglGetCurrentSurface(EGL_READ);
+  EGLContext old_context = eglGetCurrentContext();
+
   const EGLint kAttributeList[] = {
       EGL_RED_SIZE,
       8,
@@ -128,9 +136,9 @@ void ClearNativeWindow(void* raw_context) {
 
   EGL_CALL(eglSwapBuffers(display, surface));
 
-  // Cleanup all used resources.
-  EGL_CALL(
-      eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+  // Restore pre-existing EGL state and destroy temporary cleanup resources.
+  EGL_CALL(eglMakeCurrent(old_context == EGL_NO_CONTEXT ? display : old_display,
+                          old_draw_surface, old_read_surface, old_context));
   EGL_CALL(eglDestroyContext(display, context));
   EGL_CALL(eglDestroySurface(display, surface));
 }

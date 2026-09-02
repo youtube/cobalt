@@ -1674,7 +1674,22 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
 
   // Make sure to clean up the in-process renderer before the channel, otherwise
   // it may still run and have its IPCs fail, causing asserts.
+#if BUILDFLAG(IS_STARBOARD)
+  // In single-process mode on Starboard, RenderProcessHostImpl is destroyed only
+  // during final application termination. When the application is suspended or
+  // concealed, Blink's WebThreadScheduler pauses/throttles its renderer task
+  // queues, preventing the thread from processing the quit task posted by
+  // base::Thread::Stop() and causing PlatformThread::Join to hang indefinitely.
+  // Unpausing the renderer scheduler during teardown is risky because executing
+  // queued JS/DOM tasks while Browser and GPU IPC channels are closing can
+  // trigger synchronous IPC deadlocks and Mojo assertions. Releasing the thread
+  // object here allows the process to terminate cleanly via exit(0). Because
+  // RenderProcessHostImpl is never recreated during steady-state suspend/resume,
+  // this causes no accumulated memory leaks.
+  std::ignore = in_process_renderer_.release();
+#else
   in_process_renderer_.reset();
+#endif
   g_in_process_thread = nullptr;
 
   ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetDeprecatedID());
@@ -1812,7 +1827,7 @@ bool RenderProcessHostImpl::Init() {
         base::checked_cast<int32_t>(id_.GetUnsafeValue())));
 
     base::Thread::Options options;
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
     // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
     // helper threads is reduced to 256KB to save virtual memory. However, the
     // in-process renderer thread is a high-risk thread that can use a

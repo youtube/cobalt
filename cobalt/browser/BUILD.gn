@@ -220,6 +220,7 @@ source_set("global_features") {
     ":metrics",
     "//base",
     "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/constants:cobalt_pref_names",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",

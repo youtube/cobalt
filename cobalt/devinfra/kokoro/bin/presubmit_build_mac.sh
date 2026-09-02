@@ -16,6 +16,38 @@ cd "${WORKSPACE_COBALT}"
 # Clean up workspace on exit or error.
 trap "bash ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/cleanup.sh" EXIT INT TERM
 
+# TODO(b/538697105): Unify build_mac.sh and presubmit_build_mac.sh, and consolidate
+# tvOS app code-signing logic into the unified CI build script.
+resign_tvos_app_if_needed () {
+  local target_name="$1"
+  local out_dir="$2"
+
+  if [[ -z "${KOKORO_PIPER_DIR:-}" ]]; then
+    echo "Not running in internal Kokoro (KOKORO_PIPER_DIR absent). Skipping re-signing for simulator build."
+    return 0
+  fi
+
+  local tvos_profile="${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/YouTube/YouTube_Dev_tvOS.mobileprovision"
+  if [[ ! -f "${tvos_profile}" ]]; then
+    echo "ERROR: Provisioning profile not found at ${tvos_profile}" >&2
+    exit 1
+  fi
+
+  echo "Embedding ${tvos_profile} into ${target_name}.app..."
+  cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
+
+  # Extract entitlements from the provisioning profile
+  local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
+  if ! security cms -D -i "${tvos_profile}" 2>/dev/null | plutil -extract Entitlements xml1 -o "${entitlements_plist}" - 2>/dev/null; then
+    echo "ERROR: Failed to extract entitlements from ${tvos_profile}" >&2
+    exit 1
+  fi
+
+  # Re-sign app bundle using Kokoro's installed development certificate
+  echo "Signing ${target_name}.app for physical lab devices..."
+  codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
+  rm -f "${entitlements_plist}"
+}
 
 # Mac build script.
 pipeline () {
@@ -81,14 +113,16 @@ EOF
   # Build Cobalt.
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
 
-  # Extract test targets from JSON.
+  # Extract test targets from JSON for non-nightly (e.g. presubmit) builds.
   local json_targets=""
-  local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json"
-  if [[ -f "${test_targets_json}" ]]; then
-    # Extract test targets from the JSON file (list of dicts schema)
-    # and format them as a space-separated list of target names (after the colon).
-    json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e]; print(' '.join(t.split(':')[-1] for t in targets))")
-    GN_TARGET="${GN_TARGET:-} ${json_targets}"
+  if ! is_nightly_build; then
+    local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/${TARGET_PLATFORM}/test_targets.json"
+    if [[ -f "${test_targets_json}" ]]; then
+      # Extract test targets from the JSON file (list of dicts schema)
+      # and format them as a space-separated list of target names (after the colon).
+      json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e]; print(' '.join(t.split(':')[-1] for t in targets))")
+      GN_TARGET="${GN_TARGET:-} ${json_targets}"
+    fi
   fi
 
   autoninja -C "${out_dir}" ${GN_TARGET}
@@ -130,6 +164,10 @@ EOF
 
     elif [[ " ${json_targets} " == *" ${target_name} "* ]] && [[ -d "${out_dir}/${target_name}.app" ]]; then
       echo "Archiving and uploading test package ${target_name}.app..."
+
+      # Re-sign app for physical lab devices if running in internal Kokoro
+      resign_tvos_app_if_needed "${target_name}" "${out_dir}"
+
       local archive_file="${WORKSPACE_COBALT}/package/${target_name}.tar.gz"
       mkdir -p "${WORKSPACE_COBALT}/package"
 
