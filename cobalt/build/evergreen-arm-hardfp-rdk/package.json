@@ -9,15 +9,13 @@
             ],
             "files": [
                 "app/cobalt/lib/libcobalt.lz4",
+                "app/cobalt/lib/libcobalt.zst",
                 "cobalt_shell.pak",
                 "fonts/fonts.xml",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
                 "libcobalt.so",
-                "app/crash_sandbox/lib/libcrash_sandbox.lz4",
-                "app/noop_sandbox/lib/libnoop_sandbox.lz4",
-                "app/one_app_only_sandbox/lib/libone_app_only_sandbox.lz4",
                 "libloader_app.so",
                 "native_target/crashpad_handler",
                 {
@@ -35,6 +33,10 @@
                     "to_file": "lib/compressed/libcobalt.lz4"
                 },
                 {
+                    "from_file": "app/cobalt/lib/libcobalt.zst",
+                    "to_file": "lib/compressed/libcobalt.zst"
+                },
+                {
                     "from_file": "fonts/fonts.xml",
                     "to_file": "content/fonts/fonts.xml"
                 },
@@ -49,18 +51,6 @@
                 {
                     "from_file": "gen/licenses_cobalt.txt",
                     "to_file": "licenses_cobalt.txt"
-                },
-                {
-                    "from_file": "app/crash_sandbox/lib/libcrash_sandbox.lz4",
-                    "to_file": "lib/test_apps/tcrash/libcobalt.lz4"
-                },
-                {
-                    "from_file": "app/noop_sandbox/lib/libnoop_sandbox.lz4",
-                    "to_file": "lib/test_apps/tnoop/libcobalt.lz4"
-                },
-                {
-                    "from_file": "app/one_app_only_sandbox/lib/libone_app_only_sandbox.lz4",
-                    "to_file": "lib/test_apps/t1app/libcobalt.lz4"
                 }
             ],
             "dirs": [

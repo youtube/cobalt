@@ -17,6 +17,8 @@
 
 #include <sched.h>
 
+#include <cstdint>
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
@@ -36,13 +38,19 @@ namespace starboard {
 // calling SetInitialized() or else other threads waiting for initialization
 // to complete will wait forever.)
 static inline bool EnsureInitialized(InitializedState* state) {
+  // Fast path: if already initialized, ensure we synchronize with
+  // SetInitialized() via an acquire load so all writes prior to initialization
+  // are visible to this thread.
+  if (state->load(std::memory_order_acquire) == INITIALIZED_STATE_INITIALIZED) {
+    return true;
+  }
+
   // Check what state we're in, and if we find that we are uninitialized,
   // simultaneously mark us as initializing and return to the caller.
-  int original{INITIALIZED_STATE_UNINITIALIZED};
-  state->compare_exchange_weak(original, INITIALIZED_STATE_INITIALIZING,
-                               std::memory_order_release,
-                               std::memory_order_relaxed);
-  if (original == INITIALIZED_STATE_UNINITIALIZED) {
+  // Use compare_exchange_strong to prevent spurious failure on LL/SC (ARM).
+  InitializedState::value_type original{INITIALIZED_STATE_UNINITIALIZED};
+  if (state->compare_exchange_strong(original, INITIALIZED_STATE_INITIALIZING,
+                                     std::memory_order_acquire)) {
     // If we were uninitialized, we are now marked as initializing and so
     // we relay this information to the caller, so that they may initialize.
     return false;
@@ -65,7 +73,8 @@ static inline bool EnsureInitialized(InitializedState* state) {
 // use the outcome of this function to make a decision on whether to initialize
 // or not, use EnsureInitialized() for that.
 static inline bool IsInitialized(InitializedState* state) {
-  return state->load(std::memory_order_relaxed);
+  return state->load(std::memory_order_acquire) ==
+         INITIALIZED_STATE_INITIALIZED;
 }
 
 // Sets the state as being initialized.

@@ -42,6 +42,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
@@ -132,17 +133,17 @@ const int kNonInitialPrerollFrameCount = 1;
 // rendered, the rest of the playback should play without frame drops. So,
 // tunnel mode prerolling only needs 1 frame.
 const int kTunnelModePrerollFrameCount = 1;
-// The maximum number of pending inputs allowed in the decoder queue.
+// The default maximum number of pending inputs allowed in the decoder queue.
 // We set this to 128 frames (approx 2.1 seconds of 60fps video or 4.2 seconds
 // of 30fps video) to provide a buffer safety cushion that helps survive
 // V8 JavaScript main-thread congestion without video starvation.
-constexpr int kMaxPendingInputsSize = 128;
+constexpr int kDefaultMaxPendingInputsSize = 128;
 
 // VideoFrameTracker tracks frames in the entire media pipeline (decoder queue,
 // codec, and renderer). We set its capacity to accommodate the maximum input
-// queue size (`kMaxPendingInputsSize`) plus a margin of 100 frames for frames
-// in the codec and renderer.
-constexpr int kVideoFrameTrackerCapacity = kMaxPendingInputsSize + 100;
+// queue size (`max_pending_inputs_size_`) plus a margin of 100 frames for
+// frames in the codec and renderer.
+constexpr int kVideoFrameTrackerMargin = 100;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
@@ -194,6 +195,12 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
 const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
     StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
     StubDrmSessionKeyStatusesChangedFunc};
+
+bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
+                                      const Size& max_video_size) {
+  return frame_size.width > max_video_size.width ||
+         frame_size.height > max_video_size.height;
+}
 
 }  // namespace
 
@@ -340,7 +347,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
           stream_config.decode_target_graphics_context_provider),
-      max_video_capabilities_(stream_config.max_video_capabilities),
+      max_video_size_(
+          ParseMaxResolution(stream_config.max_video_capabilities,
+                             stream_config.video_stream_info.frame_size)),
       require_software_codec_(
           IsSoftwareDecoderRequired(stream_config.max_video_capabilities)),
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
@@ -370,6 +379,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       ignore_mediacodec_callbacks_during_flushing_(
           pipeline_config.experimental_features.GetBool(
               kMediaIgnoreMediaCodecCallbacksDuringFlushing)),
+      ignore_stale_rendered_frames_after_seek_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaIgnoreStaleRenderedFramesAfterSeek)),
       enable_trivial_optimizations_(
           pipeline_config.experimental_features.GetBool(
               kMediaEnableTrivialOptimizations)),
@@ -378,6 +390,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       fix_need_more_input_backpressure_(
           pipeline_config.experimental_features.GetBool(
               kMediaFixNeedMoreInputBackpressure)),
+      max_pending_inputs_size_(pipeline_config.experimental_features
+                                   .Get(kMediaVideoDecoderMaxPendingInputsSize)
+                                   .value_or(kDefaultMaxPendingInputsSize)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -413,8 +428,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   }
 
   if (is_video_frame_tracker_enabled_) {
-    video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kVideoFrameTrackerCapacity);
+    video_frame_tracker_ = std::make_unique<VideoFrameTracker>(
+        max_pending_inputs_size_ + kVideoFrameTrackerMargin,
+        ignore_stale_rendered_frames_after_seek_);
   }
 
   if (require_software_codec_) {
@@ -435,12 +451,15 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << GetMediaVideoCodecName(video_codec_)
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
-               << ", max pending input size=" << kMaxPendingInputsSize
-               << ", max video capabilities=\"" << max_video_capabilities_
+               << ", max pending input size=" << max_pending_inputs_size_
+               << ", max video capabilities=\""
+               << stream_config.max_video_capabilities
                << "\", tunnel mode audio session id="
                << ToString(tunnel_mode_audio_session_id_)
                << ", is_video_frame_tracker_enabled="
-               << ToString(is_video_frame_tracker_enabled_);
+               << ToString(is_video_frame_tracker_enabled_)
+               << ", ignore_stale_rendered_frames_after_seek="
+               << ToString(ignore_stale_rendered_frames_after_seek_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -449,7 +468,7 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   // video distortion on some platforms. For details, see http://b/182610842.
   if (tunnel_mode_audio_session_id_.has_value()) {
     ResetVideoSurface();
-  } else {
+  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
     CleanUpVideoSurface(decode_target_graphics_context_provider_);
   }
 }
@@ -527,6 +546,24 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
+
+  if (max_video_size_.has_value()) {
+    for (const auto& input_buffer : input_buffers) {
+      if (input_buffer->video_sample_info().is_key_frame) {
+        const Size& frame_size = input_buffer->video_stream_info().frame_size;
+        if (IsFrameSizeExceedingCapabilities(frame_size,
+                                             max_video_size_.value())) {
+          SB_LOG(ERROR) << "Video frame size " << frame_size
+                        << " exceeds max_video_capabilities "
+                        << max_video_size_.value()
+                        << ". Raising kSbPlayerErrorCapabilityChanged.";
+          ReportError(kSbPlayerErrorCapabilityChanged,
+                      "Video frame size exceeds max_video_capabilities.");
+          return;
+        }
+      }
+    }
+  }
 
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
@@ -853,15 +890,25 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     SB_DCHECK_EQ(video_fps_, 0);
   }
 
+  // If initial stream resolution exceeds max_video_capabilities, update
+  // max_video_size_ to requested stream resolution so MediaCodec is initialized
+  // with adequate buffer allocation instead of returning an error.
+  if (max_video_size_.has_value() &&
+      IsFrameSizeExceedingCapabilities(video_stream_info.frame_size,
+                                       max_video_size_.value())) {
+    SB_LOG(WARNING) << "Video stream frame size "
+                    << video_stream_info.frame_size
+                    << " exceeds max_video_size " << max_video_size_.value()
+                    << ". Updating max_video_size to requested stream size.";
+    max_video_size_ = video_stream_info.frame_size;
+  }
+
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
-  std::optional<Size> max_frame_size =
-      ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size);
-
   auto result = MediaCodecDecoder::CreateForVideo(
       *media_codec_factory_, job_queue(), /*host=*/this,
-      video_stream_info.codec, video_stream_info.frame_size, max_frame_size,
+      video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
       video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
@@ -956,7 +1003,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() <
+      static_cast<size_t>(max_pending_inputs_size_)) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -1008,8 +1056,8 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
 
   if (fix_need_more_input_backpressure_) {
-    bool need_more_input =
-        !is_end_of_stream && number_of_pending_inputs < kMaxPendingInputsSize;
+    bool need_more_input = !is_end_of_stream &&
+                           number_of_pending_inputs < max_pending_inputs_size_;
     decoder_status_cb_(
         need_more_input ? kNeedMoreInput : kBufferFull,
         make_scoped_refptr<VideoFrameImpl>(
@@ -1152,7 +1200,8 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() <
+      static_cast<size_t>(max_pending_inputs_size_)) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
@@ -1198,7 +1247,7 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
     return;
   }
 
-  error_cb_(kSbPlayerErrorDecode, error_message);
+  error_cb_(error, error_message);
 }
 
 void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {

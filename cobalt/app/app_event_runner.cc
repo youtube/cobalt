@@ -25,6 +25,7 @@
 #include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
@@ -44,6 +45,7 @@
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_memory/low_memory_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
@@ -144,6 +146,8 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void DoStop() override {
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_blocking;
+
     content::Shell::OnStop();
 
     content::Shell::Shutdown();
@@ -214,6 +218,31 @@ class AppEventRunnerImpl : public AppEventRunner,
   void DoConceal() override {
     content::Shell::OnConceal();
     WaitForAck(PendingAck::kConceal);
+
+    // Run memory pressure notification and partition alloc reclamation in a
+    // posted task. This prevents slowing down the synchronous conceal step.
+    // We are guaranteed that this task will be executed before any subsequent
+    // DoFreeze() returns, because DoFreeze invokes a blocking RunLoop inside
+    // WaitForAck(PendingAck::kCookieFlush) which will drain this task queue.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](AppEventRunner* runner) {
+              DCHECK(!runner->is_visible());
+              if (!runner->is_visible()) {
+                base::MemoryPressureListener::NotifyMemoryPressure(
+                    base::MemoryPressureListener::
+                        MEMORY_PRESSURE_LEVEL_CRITICAL);
+                // Chromium's memory pressure listeners are invoked
+                // asynchronously on all threads. Explicitly calling
+                // ReclaimAll here forces PartitionAlloc to
+                // synchronously purge its thread caches for the main
+                // thread right now, avoiding relying solely on the
+                // asynchronous signal propagation.
+                ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+              }
+            },
+            this));
   }
 
   void DoReveal() override {
@@ -453,7 +482,10 @@ class AppEventRunnerImpl : public AppEventRunner,
     }
   }
 
-  void OnAllFramesConcealed(content::WebContents* web_contents) override {
+  // Called by CobaltLifecycleManager when the full conceal sequence (renderer
+  // frame ACKs, platform window unmapping, and GPU resource/EGLDisplay
+  // teardown) has completed, unblocking WaitForAck(PendingAck::kConceal).
+  void OnConcealCompleted(content::WebContents* web_contents) override {
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kConceal) {
       if (quit_closure_) {
