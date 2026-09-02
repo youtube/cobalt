@@ -111,6 +111,31 @@ DecodedAudio::DecodedAudio(int channels,
                0);
 }
 
+DecodedAudio::DecodedAudio(DecodedAudio&& other) noexcept
+    : channels_(std::exchange(other.channels_, 0)),
+      sample_type_(other.sample_type_),
+      storage_type_(other.storage_type_),
+      timestamp_(std::exchange(other.timestamp_, 0)),
+      storage_(std::move(other.storage_)),
+      offset_in_bytes_(std::exchange(other.offset_in_bytes_, 0)),
+      size_in_bytes_(std::exchange(other.size_in_bytes_, 0)) {}
+
+DecodedAudio& DecodedAudio::operator=(DecodedAudio&& other) noexcept {
+  if (this == &other) {
+    return *this;
+  }
+
+  channels_ = std::exchange(other.channels_, 0);
+  sample_type_ = other.sample_type_;
+  storage_type_ = other.storage_type_;
+  timestamp_ = std::exchange(other.timestamp_, 0);
+  storage_ = std::move(other.storage_);
+  offset_in_bytes_ = std::exchange(other.offset_in_bytes_, 0);
+  size_in_bytes_ = std::exchange(other.size_in_bytes_, 0);
+
+  return *this;
+}
+
 void DecodedAudio::EnableSimdBasedAudioFormatSwitching() {
   g_enable_simd_based_audio_format_switching.store(true,
                                                    std::memory_order_release);
