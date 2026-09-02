@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/run_loop.h"
 #include "cobalt/browser/h5vcc_memory/low_memory_manager.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
@@ -49,6 +50,10 @@ IN_PROC_BROWSER_TEST_F(H5vccMemoryBrowserTest, LowMemoryEventListener) {
   GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
+  base::RunLoop run_loop;
+  browser::LowMemoryManager::GetInstance()
+      ->SetOnListenerAddedCallbackForTesting(run_loop.QuitClosure());
+
   // Set up event listener in JavaScript.
   EXPECT_TRUE(content::ExecJs(shell()->web_contents(), R"(
     window.lowMemoryReceived = 0;
@@ -58,6 +63,12 @@ IN_PROC_BROWSER_TEST_F(H5vccMemoryBrowserTest, LowMemoryEventListener) {
       }
     });
   )"));
+
+  if (browser::LowMemoryManager::GetInstance()->num_listeners() == 0) {
+    run_loop.Run();
+  }
+  browser::LowMemoryManager::GetInstance()
+      ->SetOnListenerAddedCallbackForTesting(base::RepeatingClosure());
 
   // Trigger low memory event from browser process.
   browser::LowMemoryManager::GetInstance()->OnLowMemory();
@@ -84,6 +95,10 @@ IN_PROC_BROWSER_TEST_F(H5vccMemoryBrowserTest, LowMemoryOnAttributeHandler) {
   GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
+  base::RunLoop run_loop;
+  browser::LowMemoryManager::GetInstance()
+      ->SetOnListenerAddedCallbackForTesting(run_loop.QuitClosure());
+
   // Set up onlowmemory handler property in JavaScript.
   EXPECT_TRUE(content::ExecJs(shell()->web_contents(), R"(
     window.onLowMemoryHandled = 0;
@@ -93,6 +108,12 @@ IN_PROC_BROWSER_TEST_F(H5vccMemoryBrowserTest, LowMemoryOnAttributeHandler) {
       }
     };
   )"));
+
+  if (browser::LowMemoryManager::GetInstance()->num_listeners() == 0) {
+    run_loop.Run();
+  }
+  browser::LowMemoryManager::GetInstance()
+      ->SetOnListenerAddedCallbackForTesting(base::RepeatingClosure());
 
   // Trigger low memory event from browser process.
   browser::LowMemoryManager::GetInstance()->OnLowMemory();

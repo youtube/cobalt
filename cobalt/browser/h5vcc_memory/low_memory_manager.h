@@ -15,6 +15,9 @@
 #ifndef COBALT_BROWSER_H5VCC_MEMORY_LOW_MEMORY_MANAGER_H_
 #define COBALT_BROWSER_H5VCC_MEMORY_LOW_MEMORY_MANAGER_H_
 
+#include <stddef.h>
+
+#include "base/functional/callback.h"
 #include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_memory/public/mojom/h5vcc_memory.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
@@ -41,6 +44,9 @@ class LowMemoryManager {
   void AddListener(mojo::PendingRemote<LowMemoryListener> listener);
   void OnLowMemory();
 
+  size_t num_listeners() const;
+  void SetOnListenerAddedCallbackForTesting(base::RepeatingClosure callback);
+
  private:
   friend class base::NoDestructor<LowMemoryManager>;
 
@@ -48,6 +54,7 @@ class LowMemoryManager {
   ~LowMemoryManager();
 
   mojo::RemoteSet<LowMemoryListener> listeners_;
+  base::RepeatingClosure on_listener_added_callback_;
 
   COBALT_THREAD_CHECKER(thread_checker_);
 };

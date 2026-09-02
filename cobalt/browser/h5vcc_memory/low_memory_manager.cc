@@ -40,6 +40,9 @@ void LowMemoryManager::AddListener(
     mojo::PendingRemote<LowMemoryListener> listener) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   listeners_.Add(std::move(listener));
+  if (on_listener_added_callback_) {
+    on_listener_added_callback_.Run();
+  }
 }
 
 void LowMemoryManager::OnLowMemory() {
@@ -47,6 +50,17 @@ void LowMemoryManager::OnLowMemory() {
   for (auto& listener : listeners_) {
     listener->OnLowMemory();
   }
+}
+
+size_t LowMemoryManager::num_listeners() const {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  return listeners_.size();
+}
+
+void LowMemoryManager::SetOnListenerAddedCallbackForTesting(
+    base::RepeatingClosure callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  on_listener_added_callback_ = std::move(callback);
 }
 
 }  // namespace browser

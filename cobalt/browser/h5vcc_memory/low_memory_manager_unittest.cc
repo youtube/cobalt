@@ -79,5 +79,20 @@ TEST(LowMemoryManagerTest, BroadcastsLowMemoryToListener) {
   EXPECT_EQ(1, listener.notifications_count());
 }
 
+TEST(LowMemoryManagerTest, InvokesListenerAddedCallback) {
+  base::test::SingleThreadTaskEnvironment task_environment;
+  auto* manager = LowMemoryManager::GetInstance();
+
+  base::RunLoop run_loop;
+  manager->SetOnListenerAddedCallbackForTesting(run_loop.QuitClosure());
+
+  FakeLowMemoryListener listener;
+  manager->AddListener(listener.BindNewPipeAndPassRemote());
+  run_loop.Run();
+
+  EXPECT_GE(manager->num_listeners(), 1u);
+  manager->SetOnListenerAddedCallbackForTesting(base::RepeatingClosure());
+}
+
 }  // namespace browser
 }  // namespace cobalt
