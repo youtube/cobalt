@@ -271,14 +271,6 @@ vars = {
   # pathname relative to build/config/siso/backend_config, or absolute path.
   'reapi_backend_config_path': Str(''),
   # siso CIPD package version.
-<<<<<<< HEAD
-=======
-  # Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
-  # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
-  # modifications to build/config/siso/configure_siso.py can also be removed
-  # in favor of setting the '--reapi_backend_config_path' argument to
-  # 'cobalt.star'
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
 
   # reclient options.

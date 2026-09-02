@@ -8,6 +8,9 @@ inputs:
   rbe_instance:
     description: The RBE instance to use.
     default: projects/cobalt-actions-prod/instances/default_instance
+  reapi_backend_config_path:
+    description: The path to the REAPI backend star configuration file.
+    default: src/build/config/siso/cobalt.star
   use_cache:
     description: Whether or not to use runner cache.
     default: 'false'
@@ -63,6 +66,7 @@ runs:
     - name: Run gclient config
       env:
         RBE_INSTANCE: ${{ inputs.rbe_instance }}
+        REAPI_BACKEND_CONFIG_PATH: ${{ inputs.reapi_backend_config_path }}
         REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
         CACHE_PATH: ${{ steps.cache-path.outputs.path }}
       run: |
@@ -73,6 +77,7 @@ runs:
           gclient config \
             --name=src \
             --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
+            --custom-var="reapi_backend_config_path=\"${REAPI_BACKEND_CONFIG_PATH}\"" \
             "${REPOSITORY}"
         else
           echo ".gclient already exists. Skipping gclient config."

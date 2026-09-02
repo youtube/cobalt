@@ -68,7 +68,7 @@ pipeline () {
   # Conditionally enable RBE variables
   local custom_vars=""
   if [[ "${CONFIG}" == "devel" || "${CONFIG}" == "qa" ]]; then
-    custom_vars="\"custom_vars\": {'download_remoteexec_cfg': True, 'rbe_instance': 'projects/cobalt-actions-prod/instances/default_instance'},"
+    custom_vars="\"custom_vars\": {'download_remoteexec_cfg': True, 'rbe_instance': 'projects/cobalt-actions-prod/instances/default_instance', 'reapi_backend_config_path': 'src/build/config/siso/cobalt.star'},"
   fi
 
   # Write the .gclient file directly with managed = False
