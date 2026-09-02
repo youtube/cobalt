@@ -28,6 +28,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/constants/cobalt_pref_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -165,6 +166,9 @@ void GlobalFeatures::CreateMetricsLocalState() {
   // reference to it.
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
   metrics::MetricsService::RegisterPrefs(pref_registry.get());
+  metrics::FileMetricsProvider::RegisterPrefs(pref_registry.get());
+  metrics::FileMetricsProvider::RegisterSourcePrefs(pref_registry.get(),
+                                                    "BrowserStabilityMetrics");
   // This is the pref used to globally enable/disable metrics reporting. When
   // metrics reporting is toggled via any method (e.g., command line, JS API
   // call, etc., this is the setting that's overridden).

@@ -16,8 +16,12 @@
 
 #include <memory>
 
+#include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/files/file_util.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/persistent_histogram_allocator.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -37,9 +41,12 @@
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
+#include "components/metrics/persistent_histograms.h"
+#include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
+#include "content/public/common/result_codes.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -174,7 +181,96 @@ void InitializeCobaltHeapProfiler() {
 }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
+constexpr char kBrowserStabilityMetricsName[] = "BrowserStabilityMetrics";
+constexpr size_t kStabilityMetricsAllocSize = 512 * 1024;  // 512 KiB limit
+constexpr uint32_t kStabilityMetricsAllocId = 0x53544142;  // "STAB"
+
+void LogStabilityMetricsCapacity(const char* stage_label) {
+  auto* allocator = base::GlobalHistogramAllocator::Get();
+  if (!allocator) {
+    return;
+  }
+  auto* mem_allocator = allocator->memory_allocator();
+  if (!mem_allocator) {
+    return;
+  }
+
+  size_t used = mem_allocator->used();
+  size_t total = mem_allocator->size();
+  int percent_full = total > 0 ? static_cast<int>((used * 100) / total) : 0;
+
+  base::UmaHistogramPercentage("Cobalt.StabilityMetrics.PercentFull",
+                               percent_full);
+  base::UmaHistogramCounts1000("Cobalt.StabilityMetrics.UsedKilobytes",
+                               static_cast<int>(used / 1024));
+
+  bool is_near_capacity = mem_allocator->IsFull() || percent_full >= 90;
+  base::UmaHistogramBoolean("Cobalt.StabilityMetrics.IsNearCapacity",
+                            is_near_capacity);
+
+  if (is_near_capacity) {
+    LOG(WARNING) << "Cobalt Stability Metrics PMA approaching capacity at "
+                 << stage_label << "! Used: " << (used / 1024) << "KB / "
+                 << (total / 1024) << "KB (" << percent_full << "% full)";
+  }
+}
+
 }  // namespace
+
+int CobaltBrowserMainParts::PreEarlyInitialization() {
+  if (!base::GlobalHistogramAllocator::Get()) {
+    base::FilePath base_dir;
+    bool path_ok = false;
+#if BUILDFLAG(IS_ANDROID)
+    path_ok = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir);
+#else
+    path_ok = base::PathService::Get(base::DIR_TEMP, &base_dir);
+#endif
+    if (!path_ok) {
+      LOG(WARNING) << "Failed to get base directory for "
+                   << kBrowserStabilityMetricsName
+                   << ", falling back to 512 KB local memory.";
+      base::GlobalHistogramAllocator::CreateWithLocalMemory(
+          kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
+          kBrowserStabilityMetricsName);
+    } else {
+      base::FilePath metrics_dir =
+          base_dir.AppendASCII(kBrowserStabilityMetricsName);
+
+      base::CreateDirectory(metrics_dir);
+
+      base::FilePath active_file =
+          base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+              metrics_dir, kBrowserStabilityMetricsName, base::Time::Now(),
+              base::GetCurrentProcId());
+
+      // Instantiate 512 KB memory-mapped PMA
+      if (base::GlobalHistogramAllocator::CreateWithFile(
+              active_file, kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
+              kBrowserStabilityMetricsName, /*exclusive_write=*/true)) {
+        LOG(INFO) << "Cobalt Persistent Histogram Allocator ("
+                  << kBrowserStabilityMetricsName
+                  << ", 512 KB) initialized at: " << active_file.value();
+      } else {
+        LOG(WARNING) << "Failed to initialize file-backed PMA for "
+                     << kBrowserStabilityMetricsName
+                     << ", falling back to 512 KB local memory.";
+        base::GlobalHistogramAllocator::CreateWithLocalMemory(
+            kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
+            kBrowserStabilityMetricsName);
+      }
+    }
+
+    auto* allocator = base::GlobalHistogramAllocator::Get();
+    if (allocator) {
+      metrics::GlobalPersistentSystemProfile::GetInstance()
+          ->RegisterPersistentAllocator(allocator->memory_allocator());
+      allocator->CreateTrackingHistograms(kBrowserStabilityMetricsName);
+    }
+  }
+
+  return ShellBrowserMainParts::PreEarlyInitialization();
+}
 
 void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // On Android, we completely defer WebContents creation until the Java layer
@@ -198,6 +294,8 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
+  base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 17);
+  LogStabilityMetricsCapacity("PreCreateThreads");
   SetupMetrics();
 
   InitializeBrowserMemoryInstrumentationClient();
@@ -220,6 +318,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
