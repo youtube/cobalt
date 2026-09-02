@@ -105,25 +105,18 @@ BASE_FEATURE(kDisableSplashScreen,
              "DisableSplashScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_IOS_TVOS)
-BASE_FEATURE(kForceVideoSplashScreen,
-             "ForceVideoSplashScreen",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#else   // BUILDFLAG(IS_IOS_TVOS)
 BASE_FEATURE(kForceVideoSplashScreen,
              "ForceVideoSplashScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_IOS_TVOS)
 
+BASE_FEATURE(kEnablePictureInPicture,
+             "PictureInPicture",
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kEnablePictureInPicture,
-             "PictureInPicture",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT
 #else   // BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kEnablePictureInPicture,
-             "PictureInPicture",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT
 #endif  // BUILDFLAG(IS_ANDROID)
+);
 
 BASE_FEATURE(kCobaltNativeMemoryAblation,
              "CobaltNativeMemoryAblation",
