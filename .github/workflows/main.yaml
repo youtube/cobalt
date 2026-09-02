@@ -1048,7 +1048,7 @@ jobs:
     if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_validation
+    name: ${{ matrix.name }}_tests_passing
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
