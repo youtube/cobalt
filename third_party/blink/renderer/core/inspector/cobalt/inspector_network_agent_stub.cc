@@ -112,11 +112,12 @@ void InspectorNetworkAgent::DidReceiveWebSocketMessage(
     uint64_t,
     int,
     bool,
-    const Vector<base::span<const char>>&) {}
+    const Vector<base::span<const uint8_t>>&) {}
 void InspectorNetworkAgent::DidSendWebSocketMessage(uint64_t,
                                                     int,
                                                     bool,
-                                                    base::span<const char>) {}
+                                                    base::span<const uint8_t>) {
+}
 void InspectorNetworkAgent::DidReceiveWebSocketMessageError(uint64_t,
                                                             const String&) {}
 void InspectorNetworkAgent::WebTransportCreated(ExecutionContext*,
