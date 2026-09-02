@@ -43,6 +43,7 @@ import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.media.MediaCodecCache;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
@@ -310,7 +311,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
                   Log.i(TAG, "Browser process init succeeded");
 
                   if (isDestroyed() || isFinishing()) {
-                    Log.w(TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
+                    Log.w(
+                        TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
                     return;
                   }
 
@@ -620,6 +622,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onStop() {
     long stopTimestamp = System.nanoTime() / 1000L;
+    MediaCodecCache.discard();
     if (isNvidiaShield()) {
       unregisterDisplayListener();
     }
@@ -930,6 +933,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
+    MediaCodecCache.discard();
     ViewParent parent = mVideoSurfaceView.getParent();
     if (parent instanceof FrameLayout frameLayout) {
       int index = frameLayout.indexOfChild(mVideoSurfaceView);
