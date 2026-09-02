@@ -36,6 +36,7 @@
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "cobalt/shell/common/shell_paths.h"
+#include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -395,6 +396,9 @@ class CobaltMetricsServiceClientBaseTest : public ::testing::Test {
     // Register all metric-related prefs, otherwise tests crash when calling
     // upstream metrics code.
     metrics::MetricsService::RegisterPrefs(prefs_.registry());
+    metrics::FileMetricsProvider::RegisterPrefs(prefs_.registry());
+    metrics::FileMetricsProvider::RegisterSourcePrefs(
+        prefs_.registry(), "BrowserStabilityMetrics");
     prefs_.registry()->RegisterBooleanPref(
         metrics::prefs::kMetricsReportingEnabled, false);
 

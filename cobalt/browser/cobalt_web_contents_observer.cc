@@ -140,6 +140,11 @@ void CobaltWebContentsObserver::DidStartNavigation(
   }
 
   latest_navigation_id_ = handle->GetNavigationId();
+  if (handle->IsInPrimaryMainFrame() && !has_recorded_startup_navigation_ &&
+      navigation_start_ticks_.is_null()) {
+    navigation_start_ticks_ = base::TimeTicks::Now();
+    base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 22);
+  }
 
   // Start a navigation timer with a timeout callback to raise a
   // network error dialog
@@ -166,6 +171,19 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   }
 
   timeout_timer_->Stop();
+  if (navigation_handle->IsInPrimaryMainFrame() &&
+      !has_recorded_startup_navigation_ && !navigation_start_ticks_.is_null() &&
+      navigation_handle->HasCommitted() && !navigation_handle->IsErrorPage() &&
+      navigation_handle->GetNetErrorCode() == net::OK) {
+    base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 26);
+    base::TimeDelta nav_duration =
+        base::TimeTicks::Now() - navigation_start_ticks_;
+    base::UmaHistogramCustomTimes(
+        "Cobalt.Startup.Time.NavigationDispatchToCommit", nav_duration,
+        base::Milliseconds(10), base::Seconds(60), 50);
+    has_recorded_startup_navigation_ = true;
+    navigation_start_ticks_ = base::TimeTicks();
+  }
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
