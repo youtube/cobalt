@@ -34,10 +34,14 @@
 #include "starboard/shared/starboard/features_test_util.h"
 #endif
 
+namespace {
+
 elf_loader::ElfLoader& GetElfLoader() {
   static starboard::NoDestructor<elf_loader::ElfLoader> s_elf_loader;
   return *s_elf_loader;
 }
+
+}  // namespace
 
 void (*g_sb_event_func)(const SbEvent*) = NULL;
 
