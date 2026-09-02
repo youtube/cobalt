@@ -151,7 +151,8 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
       std::optional<int> tunnel_mode_audio_session_id,
       bool allow_audio_writing_on_pause,
       bool enable_video_renderer_vsp_adjustment,
-      bool allow_flush_during_seek)
+      bool allow_flush_during_seek,
+      bool pause_using_audio_track_state)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -174,7 +175,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   {update_source_status_func, consume_frames_func, error_func},
                   start_media_time, tunnel_mode_audio_session_id,
                   /*is_web_audio=*/false, allow_audio_writing_on_pause,
-                  context);
+                  pause_using_audio_track_state, context);
             }),
         is_tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
         enable_video_renderer_vsp_adjustment_(
@@ -587,6 +588,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
           << "enable_video_renderer_vsp_adjustment is set to true.";
 
+      const bool pause_using_audio_track_state =
+          experimental_features.GetBool(kMediaPauseUsingAudioTrackState);
+      SB_LOG_IF(INFO, pause_using_audio_track_state)
+          << "pause_using_audio_track_state is set to true.";
+
       const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
           [enable_flush_during_seek, force_platform_opus_decoder, job_queue](
@@ -619,7 +625,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           std::make_unique<AudioRendererSinkAndroid>(
               tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
               enable_video_renderer_vsp_adjustment,
-              allow_flush_audio_track_during_seek);
+              allow_flush_audio_track_during_seek,
+              pause_using_audio_track_state);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
