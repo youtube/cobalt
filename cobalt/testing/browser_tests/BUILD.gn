@@ -225,6 +225,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "//cobalt/browser/metrics/highest_pmf_reporter_browsertest.cc",
+    "cobalt_constants_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
 
     #"encrypted_media_browsertest.cc",
@@ -287,6 +288,8 @@ test("cobalt_browsertests") {
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser:switches",
+    "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/constants:cobalt_pref_names",
     "//cobalt/common/features",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
