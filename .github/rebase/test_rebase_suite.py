@@ -15,11 +15,14 @@ from autoninja import (
     parse_compiler_errors,
 )
 from base_resolver import (
+    _COBALT_GIT_HISTORY_CACHE,
     apply_patch_or_replacement,
     execute_local_tool,
     extract_build_progress,
     extract_tool_commands,
     get_chromium_milestone,
+    has_cobalt_git_history,
+    is_unmodified_third_party,
 )
 from conflicts import (
     detect_language,
@@ -1160,6 +1163,132 @@ target("foo") {{}}
         review_pipeline.sanitize_filepath_token(raw4),
         "DEPS",
     )
+
+  def test_has_cobalt_git_history(self):
+    """Verifies that has_cobalt_git_history accurately identifies Cobalt PRs."""
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 1. Pure upstream Chromium commits should return False
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=(
+              "jlulejian@chromium.org\t[M138] Revert \"[Extensions] Log crash"
+              " keys\"\n"
+              "upstream@chromium.org\tRoll third_party/foo\n"),
+      )
+      self.assertFalse(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 2. Automated rolling PRs should be skipped and return False
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=(
+              "cobalt-github-releaser-bot@google.com\tCONFLICTED Cherry pick"
+              " commit f9d38917: Update to 139.7258. (#12003)\n"
+              "95661244+cobalt-github-releaser-bot@users.noreply.github.com\t"
+              "Autoroll from main to staging (#11194)\n"
+              "jlulejian@chromium.org\tUpstream change\n"),
+      )
+      self.assertFalse(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 3. Genuine Cobalt PR from Googler should return True
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=(
+              "cobalt-github-releaser-bot@google.com\tCONFLICTED Cherry pick"
+              " commit f9d38917: Update to 139.7258. (#12003)\n"
+              "andrewsavage@google.com\tAdd copied_base to crashpad build and"
+              " compile with c++17 (#7599)\n"
+              "jlulejian@chromium.org\tUpstream change\n"),
+      )
+      self.assertTrue(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 4. Genuine Cobalt PR from Igalia contractor should return True
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=("kubo@igalia.com\tFix staging build after #12126, #12123"
+                  " (#12141)\n"),
+      )
+      self.assertTrue(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 5. Genuine Cobalt PR from Collabora contractor should return True
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=("denis.shimizu@collabora.com\tCherry pick PR #10222:"
+                  " starboard/tests: wire opus_tests\n"),
+      )
+      self.assertTrue(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    # 6. Cache verification: repeated call should not invoke subprocess.run
+    with mock.patch("subprocess.run") as mock_run:
+      self.assertTrue(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+      mock_run.assert_not_called()
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 7. Subprocess error should gracefully return False
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.side_effect = OSError("git not found")
+      self.assertFalse(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+  def test_is_unmodified_third_party(self):
+    """Verifies third-party file classification guards against clobbering."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      # 1. Non-third-party files are never treated as unmodified third-party
+      base_file = os.path.join(tmpdir, "base", "logging.cc")
+      os.makedirs(os.path.dirname(base_file), exist_ok=True)
+      with open(base_file, "w", encoding="utf-8") as f:
+        f.write("// normal file")
+      self.assertFalse(is_unmodified_third_party(base_file, tmpdir))
+
+      # 2. Tooling under third_party (e.g. jni_zero) is allowed to be modified
+      jni_file = os.path.join(tmpdir, "third_party", "jni_zero", "tool.py")
+      os.makedirs(os.path.dirname(jni_file), exist_ok=True)
+      with open(jni_file, "w", encoding="utf-8") as f:
+        f.write("# tooling")
+      self.assertFalse(is_unmodified_third_party(jni_file, tmpdir))
+
+      # 3. Pure third-party file with no Cobalt git history or macros
+      pure_tp = os.path.join(tmpdir, "third_party", "zlib", "zlib.h")
+      os.makedirs(os.path.dirname(pure_tp), exist_ok=True)
+      with open(pure_tp, "w", encoding="utf-8") as f:
+        f.write("// upstream zlib header\n")
+      with mock.patch(
+          "base_resolver.has_cobalt_git_history", return_value=False):
+        self.assertTrue(is_unmodified_third_party(pure_tp, tmpdir))
+
+      # 4. Third-party file with Cobalt git history is recognized as modified
+      with mock.patch(
+          "base_resolver.has_cobalt_git_history", return_value=True):
+        self.assertFalse(is_unmodified_third_party(pure_tp, tmpdir))
+
+      # 5. Third-party file containing Cobalt macro is recognized as modified
+      cobalt_tp = os.path.join(tmpdir, "third_party", "absl", "traits.h")
+      os.makedirs(os.path.dirname(cobalt_tp), exist_ok=True)
+      with open(cobalt_tp, "w", encoding="utf-8") as f:
+        f.write("#if defined(ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17)\n")
+      with mock.patch(
+          "base_resolver.has_cobalt_git_history", return_value=False):
+        self.assertFalse(is_unmodified_third_party(cobalt_tp, tmpdir))
 
 
 if __name__ == "__main__":
