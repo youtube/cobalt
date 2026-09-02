@@ -83,6 +83,19 @@ class MediaCodecBridge {
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
+  private String mMime = null;
+  private Surface mSurface = null;
+  private boolean mHasCrypto = false;
+  private boolean mIsHdr = false;
+  private int mConfiguredWidth = 0;
+  private int mConfiguredHeight = 0;
+  private int mMaxWidth = 0;
+  private int mMaxHeight = 0;
+  private boolean mEnableReuseVideoCodec = false;
+  private volatile boolean mHasEncounteredError = false;
+  private volatile boolean mIsFirstFrameAfterReuse = false;
+  private volatile boolean mHasReleasedOutputBufferForRender = false;
+
   private boolean shouldSkipVideoFrame(long presentationTimeUs, boolean isDecodeOnly) {
     final double kMaxAcceptedOperatingRate = 60.0;
     if (isDecodeOnly) {
@@ -249,24 +262,24 @@ class MediaCodecBridge {
     }
   }
 
-  private static class CreateMediaCodecBridgeResult {
-    private MediaCodecBridge mMediaCodecBridge;
+  static class CreateMediaCodecBridgeResult {
+    MediaCodecBridge mMediaCodecBridge;
     // Contains the error message when mMediaCodecBridge is null.
-    private String mErrorMessage;
+    String mErrorMessage;
 
     @CalledByNative("CreateMediaCodecBridgeResult")
-    private CreateMediaCodecBridgeResult() {
+    CreateMediaCodecBridgeResult() {
       mMediaCodecBridge = null;
       mErrorMessage = "";
     }
 
     @CalledByNative("CreateMediaCodecBridgeResult")
-    private MediaCodecBridge mediaCodecBridge() {
+    MediaCodecBridge mediaCodecBridge() {
       return mMediaCodecBridge;
     }
 
     @CalledByNative("CreateMediaCodecBridgeResult")
-    private String errorMessage() {
+    String errorMessage() {
       return mErrorMessage;
     }
   }
@@ -291,6 +304,8 @@ class MediaCodecBridge {
         new MediaCodec.Callback() {
           @Override
           public void onError(MediaCodec codec, MediaCodec.CodecException e) {
+            mHasEncounteredError = true;
+            MediaCodecReuseCache.onError(MediaCodecBridge.this);
             synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
@@ -366,6 +381,7 @@ class MediaCodecBridge {
           new MediaCodec.OnFrameRenderedListener() {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
+              MediaCodecReuseCache.onFrameRendered(MediaCodecBridge.this);
               synchronized (mNativeBridgeLock) {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
@@ -418,9 +434,34 @@ class MediaCodecBridge {
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
       boolean ignoreCodecCallbacksDuringFlushing,
+      boolean enableReuseVideoCodec,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
+
+    if (enableReuseVideoCodec) {
+      MediaCodecBridge reusedBridge =
+          MediaCodecReuseCache.acquire(
+              nativeMediaCodecBridge,
+              mime,
+              decoderName,
+              widthHint,
+              heightHint,
+              fps,
+              maxWidth,
+              maxHeight,
+              surface,
+              crypto,
+              colorInfo != null,
+              tunnelModeAudioSessionId,
+              skipVideoFramesOver60Fps);
+      if (reusedBridge != null) {
+        outCreateMediaCodecBridgeResult.mMediaCodecBridge = reusedBridge;
+        return;
+      }
+    } else {
+      MediaCodecReuseCache.discard();
+    }
 
     if (decoderName.equals("")) {
       String message = "Invalid decoder name.";
@@ -601,16 +642,27 @@ class MediaCodecBridge {
     if (!bridge.configureVideo(
         mediaFormat, surface, crypto, 0, maxWidth, maxHeight, outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to configure video codec.");
-      bridge.release();
+      bridge.doRelease();
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside configureVideo() on error.
       return;
     }
     if (!bridge.start(outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to start video codec.");
-      bridge.release();
+      bridge.doRelease();
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside start() on error.
       return;
     }
+
+    bridge.mMime = mime;
+    bridge.mSurface = surface;
+    bridge.mHasCrypto = crypto != null;
+    bridge.mIsHdr = (colorInfo != null) || shouldConfigureHdr;
+    bridge.mConfiguredWidth = widthHint;
+    bridge.mConfiguredHeight = heightHint;
+    bridge.mMaxWidth = maxWidth;
+    bridge.mMaxHeight = maxHeight;
+    bridge.mEnableReuseVideoCodec = enableReuseVideoCodec;
+    bridge.mIsFirstFrameAfterReuse = enableReuseVideoCodec;
 
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }
@@ -691,7 +743,7 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  private int flush() {
+  int flush() {
     // When a flush is initiated on the player thread, there could still be pending
     // callbacks (e.g. onOutputBufferAvailable) already posted to the main thread's
     // looper queue from before the flush.
@@ -729,9 +781,118 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
+  void prepareForReuse(long nativeMediaCodecBridge, boolean skipVideoFramesOver60Fps, int fps) {
+    synchronized (mNativeBridgeLock) {
+      mNativeMediaCodecBridge = nativeMediaCodecBridge;
+    }
+    mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
+    mPlaybackRate = 1.0;
+    mFps = fps > 0 ? fps : 30;
+    mOperatingRate = -1.0;
+    updateOperatingRate();
+    mHasEncounteredError = false;
+    mIsFirstFrameAfterReuse = true;
+    mHasReleasedOutputBufferForRender = false;
+    mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
+
+    if (mEnableFrameRendererListener && mFrameRendererListener != null && mMediaCodec.isSet()) {
+      if (mEnableIgnoreCallbacksDuringFlushing) {
+        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
+      } else {
+        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
+      }
+    }
+  }
+
+  void startMediaCodec() {
+    mMediaCodec.get().start();
+  }
+
+  void detachNativeBridge() {
+    synchronized (mNativeBridgeLock) {
+      mNativeMediaCodecBridge = 0;
+    }
+  }
+
+  boolean isReuseEnabled() {
+    return mEnableReuseVideoCodec;
+  }
+
+  Surface getSurface() {
+    return mSurface;
+  }
+
+  boolean isTunnelingPlayback() {
+    return mIsTunnelingPlayback;
+  }
+
+  boolean hasCrypto() {
+    return mHasCrypto;
+  }
+
+  boolean isHdr() {
+    return mIsHdr;
+  }
+
+  String getMime() {
+    return mMime;
+  }
+
+  String getCodecName() {
+    return mCodecName;
+  }
+
+  boolean hasEncounteredError() {
+    return mHasEncounteredError;
+  }
+
+  boolean isMediaCodecSet() {
+    return mMediaCodec.isSet();
+  }
+
+  int getConfiguredWidth() {
+    return mConfiguredWidth;
+  }
+
+  int getConfiguredHeight() {
+    return mConfiguredHeight;
+  }
+
+  int getMaxWidth() {
+    return mMaxWidth;
+  }
+
+  int getMaxHeight() {
+    return mMaxHeight;
+  }
+
+  boolean isAwaitingFirstFrameAfterReuse() {
+    return mIsFirstFrameAfterReuse;
+  }
+
+  void setAwaitingFirstFrameAfterReuse(boolean awaiting) {
+    mIsFirstFrameAfterReuse = awaiting;
+  }
+
+  boolean hasReleasedOutputBufferForRender() {
+    return mHasReleasedOutputBufferForRender;
+  }
+
+  boolean isFrameRendererListenerEnabled() {
+    return mEnableFrameRendererListener;
+  }
+
   @CalledByNative
   public void release() {
+    if (MediaCodecReuseCache.maybeCacheOnRelease(this)) {
+      return;
+    }
+    doRelease();
+  }
+
+  public void doRelease() {
     try {
+      MediaCodecReuseCache.onBridgeReleased(this);
       MediaCodecOutputTracker.get().unregister(this);
       synchronized (mNativeBridgeLock) {
         mNativeMediaCodecBridge = 0;
@@ -765,7 +926,7 @@ class MediaCodecBridge {
       // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
       // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
       // in teardown. See b/455621481.
-      Log.e(TAG, "Exception or Error during MediaCodecBridge release(): codec=" + mCodecName, t);
+      Log.e(TAG, "Exception or Error during MediaCodecBridge doRelease(): codec=" + mCodecName, t);
     }
   }
 
@@ -907,8 +1068,14 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
+      if (render) {
+        mHasReleasedOutputBufferForRender = true;
+      }
       mMediaCodec.get().releaseOutputBuffer(index, render);
       mActiveOutputBuffers.decrementAndGet();
+      if (render) {
+        MediaCodecReuseCache.onOutputBufferReleased(this);
+      }
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
@@ -918,8 +1085,10 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
+      mHasReleasedOutputBufferForRender = true;
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
       mActiveOutputBuffers.decrementAndGet();
+      MediaCodecReuseCache.onOutputBufferReleased(this);
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);

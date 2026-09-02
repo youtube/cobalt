@@ -604,6 +604,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onStop() {
     long stopTimestamp = System.nanoTime() / 1000L;
+    VideoSurfaceView.discardCachedCodec();
     if (isNvidiaShield()) {
       unregisterDisplayListener();
     }
@@ -912,6 +913,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
+    VideoSurfaceView.discardCachedCodec();
     ViewParent parent = mVideoSurfaceView.getParent();
     if (parent instanceof FrameLayout frameLayout) {
       int index = frameLayout.indexOfChild(mVideoSurfaceView);

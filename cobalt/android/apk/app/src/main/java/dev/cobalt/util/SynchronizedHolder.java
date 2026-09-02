@@ -41,4 +41,8 @@ public class SynchronizedHolder<T, E extends RuntimeException> {
   public synchronized void set(T value) {
     mValue = value;
   }
+
+  public synchronized boolean isSet() {
+    return mValue != null;
+  }
 }
