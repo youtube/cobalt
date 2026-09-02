@@ -15,7 +15,7 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_GL_OZONE_EGL_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_GL_OZONE_EGL_STARBOARD_H_
 
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/ozone/common/gl_ozone_egl.h"
 
 namespace ui {
