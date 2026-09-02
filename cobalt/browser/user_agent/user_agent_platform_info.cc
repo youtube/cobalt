@@ -190,23 +190,6 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
   // Rasterizer type is gles for both Linux and Android.
   set_rasterizer_type("gles");
 }
-#elif BUILDFLAG(IS_STARBOARD)
-void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
-  std::string os_name = base::SysInfo::OperatingSystemName();
-  const std::string os_friendly_name =
-      base::starboard::SbSysInfo::OSFriendlyName();
-  if (!os_friendly_name.empty()) {
-    os_name = os_friendly_name + "; " + os_name;
-  }
-  const std::string os_version = base::SysInfo::OperatingSystemVersion();
-  set_os_name_and_version(
-      base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
-  set_firmware_version(
-      starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
-  // Rasterizer type is gles for both Linux and Android.
-  set_rasterizer_type("gles");
-}
-
 #elif BUILDFLAG(IS_IOS_TVOS)
 void UserAgentPlatformInfo::InitializePlatformDependentFieldsTvOS() {
   const std::string os_name = base::SysInfo::OperatingSystemName();
@@ -233,6 +216,22 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsTvOS() {
   set_model(formatted_model);
 }
 
+#elif BUILDFLAG(IS_STARBOARD)
+void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
+  std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_platform_name =
+      base::starboard::SbSysInfo::OSPlatformName();
+  if (!os_platform_name.empty()) {
+    os_name = os_platform_name + "; " + os_name;
+  }
+  const std::string os_version = base::SysInfo::OperatingSystemVersion();
+  set_os_name_and_version(
+      base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
+  set_firmware_version(
+      starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
+  // Rasterizer type is gles for both Linux and Android.
+  set_rasterizer_type("gles");
+}
 #endif  // BUILDFLAG(IS_ANDROID)
 
 void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
@@ -248,10 +247,10 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
 // platforms, which are IS_ANDROID but also IS_STARBOARD.
 #if BUILDFLAG(IS_ANDROID)
   InitializePlatformDependentFieldsAndroid();
-#elif BUILDFLAG(IS_STARBOARD)
-  InitializePlatformDependentFieldsStarboard();
 #elif BUILDFLAG(IS_IOS_TVOS)
   InitializePlatformDependentFieldsTvOS();
+#elif BUILDFLAG(IS_STARBOARD)
+  InitializePlatformDependentFieldsStarboard();
 #endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)

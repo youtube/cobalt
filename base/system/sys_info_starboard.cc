@@ -14,24 +14,23 @@
 
 #include "base/system/sys_info_starboard.h"
 
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/system_properties.h>
-#elif BUILDFLAG(IS_STARBOARD)
-#include "base/system/sys_info.h"
-#include "starboard/common/system_property.h"
-using starboard::GetSystemPropertyString;
 #elif BUILDFLAG(IS_IOS_TVOS)
 #include <map>
 
 #include <sys/utsname.h>
 
-#include "base/containers/contains.h"
-#include "base/notimplemented.h"
+#elif BUILDFLAG(IS_STARBOARD)
+#include "base/system/sys_info.h"
+#include "starboard/common/system_property.h"
+using starboard::GetSystemPropertyString;
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS)
 namespace base {
 std::string SysInfo::HardwareModelName() {
   return GetSystemPropertyString(kSbSystemPropertyModelName);
@@ -80,29 +79,9 @@ std::string SbSysInfo::Brand() {
   return std::string(brand_str);
 }
 
-std::string SbSysInfo::OSFriendlyName() {
-  return "AOSP";
-}
-
-#elif BUILDFLAG(IS_STARBOARD)
-std::string SbSysInfo::OriginalDesignManufacturer() {
-  return GetSystemPropertyString(kSbSystemPropertySystemIntegratorName);
-}
-
-std::string SbSysInfo::ChipsetModelNumber() {
-  return GetSystemPropertyString(kSbSystemPropertyChipsetModelNumber);
-}
-
-std::string SbSysInfo::ModelYear() {
-  return GetSystemPropertyString(kSbSystemPropertyModelYear);
-}
-
-std::string SbSysInfo::Brand() {
-  return GetSystemPropertyString(kSbSystemPropertyBrandName);
-}
-
-std::string SbSysInfo::OSFriendlyName() {
-  return GetSystemPropertyString(kSbSystemPropertyFriendlyName);
+std::string SbSysInfo::OSPlatformName() {
+  NOTIMPLEMENTED();
+  return "";
 }
 
 #elif BUILDFLAG(IS_IOS_TVOS)
@@ -162,9 +141,35 @@ std::string SbSysInfo::Brand() {
   return "Apple";
 }
 
-std::string SbSysInfo::OSFriendlyName() {
+std::string SbSysInfo::OSPlatformName() {
   NOTIMPLEMENTED();
   return "";
+}
+
+#elif BUILDFLAG(IS_STARBOARD)
+std::string SbSysInfo::OriginalDesignManufacturer() {
+  return GetSystemPropertyString(kSbSystemPropertySystemIntegratorName);
+}
+
+std::string SbSysInfo::ChipsetModelNumber() {
+  return GetSystemPropertyString(kSbSystemPropertyChipsetModelNumber);
+}
+
+std::string SbSysInfo::ModelYear() {
+  return GetSystemPropertyString(kSbSystemPropertyModelYear);
+}
+
+std::string SbSysInfo::Brand() {
+  return GetSystemPropertyString(kSbSystemPropertyBrandName);
+}
+
+std::string SbSysInfo::OSPlatformName() {
+  std::string platform_name =
+      GetSystemPropertyString(kSbSystemPropertyPlatformName);
+  if (platform_name.empty()) {
+    return GetSystemPropertyString(kSbSystemPropertyFriendlyName);
+  }
+  return platform_name;
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)
