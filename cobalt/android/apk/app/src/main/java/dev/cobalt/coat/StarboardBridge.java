@@ -48,9 +48,17 @@ public class StarboardBridge extends BaseStarboardBridge {
   }
 
   @Override
+  protected void onServiceCreated(CobaltService service) {
+    super.onServiceCreated(service);
+    service.receiveStarboardBridge(this);
+  }
+
+  @Override
   protected void onActivityStop(Activity activity) {
     super.onActivityStop(activity);
-    mCobaltMediaSession.onActivityStop();
+    if (!hasStartedActivities()) {
+      mCobaltMediaSession.onActivityStop();
+    }
   }
 
   @Override

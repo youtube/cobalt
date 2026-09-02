@@ -292,6 +292,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
                 // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
                 Log.i(TAG, "Browser process init succeeded");
 
+                if (isDestroyed() || isFinishing()) {
+                  Log.w(TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
+                  return;
+                }
+
                 finishInitialization(savedInstanceState);
                 getStarboardBridge().measureAppStartTimestamp();
               }
@@ -525,7 +530,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
    */
   protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
-  protected StarboardBridge getStarboardBridge() {
+  @Override
+  public StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
 
@@ -656,7 +662,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mShellManager != null) {
       mShellManager.destroy();
     }
-    mWindowAndroid.destroy();
+    if (mWindowAndroid != null) {
+      mWindowAndroid.destroy();
+    }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
       mBackInvokedCallback = null;
