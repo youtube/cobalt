@@ -41,6 +41,7 @@ class CobaltConstantsBrowserTest : public content::ContentBrowserTest {
     if (base::PathService::Get(base::DIR_CACHE, &native_cache_dir)) {
       base::DeleteFile(native_cache_dir.Append(kMetricsConfigFilename));
       base::DeleteFile(native_cache_dir.Append(kExperimentConfigFilename));
+      base::DeleteFile(native_cache_dir.Append(kVariationsBeaconFilename));
     }
     content::ContentBrowserTest::TearDown();
   }
@@ -103,6 +104,27 @@ IN_PROC_BROWSER_TEST_F(CobaltConstantsBrowserTest,
   std::string read_experiment_str =
       base::android::ConvertJavaStringToUTF8(env, read_experiment_content);
   EXPECT_EQ(kExperimentPayload, read_experiment_str);
+
+  // 6. Native writes to kVariationsBeaconFilename ("Variations") in
+  // base::DIR_CACHE.
+  base::FilePath beacon_file =
+      native_cache_dir.Append(kVariationsBeaconFilename);
+  const std::string kBeaconPayload =
+      "{\"variations_crash_streak\": 2, "
+      "\"user_experience_metrics.stability.exited_cleanly\": false}";
+  ASSERT_TRUE(base::WriteFile(beacon_file, kBeaconPayload));
+
+  // 7. Java reads the file using Java's
+  // CobaltPrefNames.VARIATIONS_BEACON_FILENAME.
+  base::android::ScopedJavaLocalRef<jstring> beacon_filename_java =
+      Java_CobaltPrefNamesTestHelper_getVariationsBeaconFilename(env);
+  base::android::ScopedJavaLocalRef<jstring> read_beacon_content =
+      Java_CobaltPrefNamesTestHelper_readCacheFile(env, beacon_filename_java);
+  ASSERT_TRUE(read_beacon_content);
+
+  std::string read_beacon_str =
+      base::android::ConvertJavaStringToUTF8(env, read_beacon_content);
+  EXPECT_EQ(kBeaconPayload, read_beacon_str);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
