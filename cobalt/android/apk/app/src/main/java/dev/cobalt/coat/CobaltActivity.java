@@ -515,7 +515,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
           CobaltJavaScriptInterface.class,
-          /* originAllowlist= */ new ArrayList<String>());
+          // An empty allowlist matches no origin at all, which silently disables every
+          // injected Java object. "*" restores the pre-M138 behaviour of allowing all
+          // origins.
+          // TODO(b/543808733): consider a stricter allowlist than "*".
+          /* originAllowlist= */ List.of("*"));
     }
   }
 
