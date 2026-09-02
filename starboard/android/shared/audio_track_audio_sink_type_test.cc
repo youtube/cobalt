@@ -99,7 +99,8 @@ TEST_F(AudioTrackAudioSinkTest, CreateAndDestroy) {
       &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
       512, callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false, std::move(fake_track), this);
+      /*allow_audio_writing_on_pause=*/false,
+      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
   EXPECT_TRUE(sink->IsType(&type));
@@ -131,7 +132,8 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
       &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
       512, callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false, std::move(fake_track), this);
+      /*allow_audio_writing_on_pause=*/false,
+      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
   int elapsed_ms = 0;
@@ -177,7 +179,8 @@ TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
       &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
       512, callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false, std::move(fake_track), this);
+      /*allow_audio_writing_on_pause=*/false,
+      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
   int elapsed_ms = 0;
@@ -233,7 +236,8 @@ TEST_F(AudioTrackAudioSinkTest,
       &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
       512, callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false, std::move(fake_track), this);
+      /*allow_audio_writing_on_pause=*/false,
+      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
 

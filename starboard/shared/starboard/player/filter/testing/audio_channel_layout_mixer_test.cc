@@ -28,20 +28,14 @@
 namespace starboard {
 namespace {
 
-using ::testing::Combine;
 using ::testing::Values;
 
 class AudioChannelLayoutMixerTest
-    : public ::testing::TestWithParam<
-          std::tuple<SbMediaAudioSampleType, SbMediaAudioFrameStorageType>> {
+    : public ::testing::TestWithParam<SbMediaAudioSampleType> {
  protected:
-  AudioChannelLayoutMixerTest()
-      : sample_type_(std::get<0>(GetParam())),
-        storage_type_(std::get<1>(GetParam())) {
+  AudioChannelLayoutMixerTest() : sample_type_(GetParam()) {
     SB_DCHECK(sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ||
               sample_type_ == kSbMediaAudioSampleTypeFloat32);
-    SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved ||
-              storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
   }
 
   DecodedAudio GetTestDecodedAudio(int num_of_channels) {
@@ -81,28 +75,19 @@ class AudioChannelLayoutMixerTest
     }
 
     DecodedAudio decoded_audio(
-        num_of_channels, sample_type_, storage_type_, 0,
+        num_of_channels, sample_type_, /*timestamp=*/0,
         kInputFrames * num_of_channels *
             (sample_type_ == kSbMediaAudioSampleTypeFloat32 ? 4 : 2));
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
       float* dest_buffer = reinterpret_cast<float*>(decoded_audio.data());
       for (size_t i = 0; i < num_of_channels * kInputFrames; i++) {
-        int src_index = i;
-        if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
-          src_index = i % kInputFrames * num_of_channels + i / kInputFrames;
-        }
-        dest_buffer[i] = data_buffer[src_index];
+        dest_buffer[i] = data_buffer[i];
       }
     } else {
       int16_t* dest_buffer = reinterpret_cast<int16_t*>(decoded_audio.data());
       for (size_t i = 0; i < num_of_channels * kInputFrames; i++) {
-        int src_index = i;
-        if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
-          src_index = i % kInputFrames * num_of_channels + i / kInputFrames;
-        }
-        dest_buffer[i] =
-            data_buffer[src_index] * std::numeric_limits<int16_t>::max();
+        dest_buffer[i] = data_buffer[i] * std::numeric_limits<int16_t>::max();
       }
     }
     return decoded_audio;
@@ -125,18 +110,12 @@ class AudioChannelLayoutMixerTest
       for (size_t i = 0;
            i < static_cast<size_t>(output.frames()) * output_num_of_channels;
            i++) {
-        size_t src_index = i;
-        if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
-          src_index = i % output.frames() * output_num_of_channels +
-                      i / output.frames();
-        }
-        if (expected_output[src_index] >= 1.0f) {
+        if (expected_output[i] >= 1.0f) {
           ASSERT_GE(output_buffer[i], 0.999f);
-        } else if (expected_output[src_index] <= -0.999f) {
+        } else if (expected_output[i] <= -0.999f) {
           ASSERT_LE(output_buffer[i], -1.0f);
         } else {
-          ASSERT_LE(fabs(expected_output[src_index] - output_buffer[i]),
-                    0.001f);
+          ASSERT_LE(fabs(expected_output[i] - output_buffer[i]), 0.001f);
         }
       }
     } else {
@@ -145,13 +124,8 @@ class AudioChannelLayoutMixerTest
       for (size_t i = 0;
            i < static_cast<size_t>(output.frames()) * output_num_of_channels;
            i++) {
-        size_t src_index = i;
-        if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
-          src_index = i % output.frames() * output_num_of_channels +
-                      i / output.frames();
-        }
         ASSERT_LE(
-            fabs(expected_output[src_index] -
+            fabs(expected_output[i] -
                  static_cast<float>(output_buffer[i]) /
                      static_cast<float>(std::numeric_limits<int16_t>::max())),
             0.001f);
@@ -160,23 +134,15 @@ class AudioChannelLayoutMixerTest
   }
 
   SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
+  SbMediaAudioFrameStorageType storage_type_ =
+      kSbMediaAudioFrameStorageTypeInterleaved;
 };
 
 std::string GetAudioChannelLayoutMixerTestConfigName(
-    ::testing::TestParamInfo<std::tuple<SbMediaAudioSampleType,
-                                        SbMediaAudioFrameStorageType>> info) {
-  SbMediaAudioSampleType sample_type = std::get<0>(info.param);
-  SbMediaAudioFrameStorageType frame_storage_type = std::get<1>(info.param);
-
-  return FormatString(
-      "%s_%s",
-      sample_type == kSbMediaAudioSampleTypeInt16Deprecated
-          ? "SampleTypeInt16"
-          : "SampleTypeFloat32",
-      frame_storage_type == kSbMediaAudioFrameStorageTypeInterleaved
-          ? "StorageTypeInterleaved"
-          : "StorageTypePlanar");
+    ::testing::TestParamInfo<SbMediaAudioSampleType> info) {
+  return info.param == kSbMediaAudioSampleTypeInt16Deprecated
+             ? "SampleTypeInt16"
+             : "SampleTypeFloat32";
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToMono) {
@@ -348,14 +314,11 @@ TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
                                kExpectedFivePointOneToFivePointOneOutput);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    AudioChannelLayoutMixerTests,
-    AudioChannelLayoutMixerTest,
-    Combine(Values(kSbMediaAudioSampleTypeInt16Deprecated,
-                   kSbMediaAudioSampleTypeFloat32),
-            Values(kSbMediaAudioFrameStorageTypeInterleaved,
-                   kSbMediaAudioFrameStorageTypePlanar)),
-    GetAudioChannelLayoutMixerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(AudioChannelLayoutMixerTests,
+                         AudioChannelLayoutMixerTest,
+                         Values(kSbMediaAudioSampleTypeInt16Deprecated,
+                                kSbMediaAudioSampleTypeFloat32),
+                         GetAudioChannelLayoutMixerTestConfigName);
 
 }  // namespace
 

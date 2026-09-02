@@ -31,7 +31,7 @@
 #include "starboard/common/thread_platform.h"
 #include "starboard/system.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
 #include "starboard/shared/starboard/features.h"
 #endif
 
@@ -69,7 +69,7 @@ struct Thread::Data {
 };
 
 std::optional<size_t> GetDefaultStackSize() {
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
   if (features::FeatureList::IsEnabled(
           features::kReduceAndroidThreadStackSize)) {
     return 256 * 1024;
