@@ -774,6 +774,38 @@ void GpuChannelManager::OnBackgroundCleanup() {
 
   SkGraphics::PurgeAllCaches();
 }
+#elif BUILDFLAG(IS_COBALT)
+void GpuChannelManager::OnBackgroundCleanup() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // 1. Mark all GPU channel contexts lost and destroy all GPU channels.
+  for (auto& kv : gpu_channels_) {
+    kv.second->MarkAllContextsLost();
+  }
+  DestroyAllChannels();
+
+  // 2. Free unreferenced compiled GL/GLES shader binaries from the GPU cache.
+  if (program_cache_)
+    program_cache_->Trim(0u);
+
+  // 3. Mark SharedContextState context lost (which destroys the shared GL context)
+  // so no active EGLContexts remain before shutting down the EGLDisplay.
+  if (shared_context_state_) {
+    shared_context_state_->ReleaseCurrent(nullptr);
+    shared_context_state_->MarkContextLost();
+    shared_context_state_.reset();
+  }
+
+  // 4. Destroy the default offscreen pbuffer surface so zero EGL surfaces remain
+  // allocated on suspend.
+  if (default_offscreen_surface_) {
+    default_offscreen_surface_->Destroy();
+    default_offscreen_surface_ = nullptr;
+  }
+
+  // 5. Clear CPU-side font and 2D raster caches.
+  SkGraphics::PurgeAllCaches();
+}
 #endif  // BUILDFLAG(IS_ANDROID)
 
 void GpuChannelManager::OnApplicationBackgrounded() {
@@ -871,6 +903,14 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
 
   scoped_refptr<gl::GLSurface> surface = default_offscreen_surface();
+#if BUILDFLAG(IS_COBALT)
+  // When Cobalt is suspended/backgrounded, the offscreen surface is destroyed.
+  // Return transient failure so clients retry once foregrounded.
+  if (!surface) {
+    *result = ContextResult::kTransientFailure;
+    return nullptr;
+  }
+#endif
   bool use_virtualized_gl_contexts = false;
 #if BUILDFLAG(IS_MAC)
   // Virtualize GpuPreference::kLowPower contexts by default on OS X to prevent
