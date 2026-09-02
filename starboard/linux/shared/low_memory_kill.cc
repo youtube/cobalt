@@ -20,6 +20,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/no_destructor.h"
 #include "starboard/extension/low_memory_kill.h"
 #include "starboard/shared/environment.h"
 
@@ -68,8 +69,8 @@ static bool g_evaluated = false;
 static bool g_was_killed = false;
 
 std::mutex& GetMutex() {
-  static auto* const mutex = new std::mutex();
-  return *mutex;
+  static std::mutex mutex;
+  return mutex;
 }
 
 bool WasLowMemoryKilled() {
