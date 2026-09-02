@@ -127,11 +127,7 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
 
     BuiltInNetworkBehaviorConfig networkBehavior;
     networkBehavior.link_capacity = DataRate::KilobitsPerSec(220);
-    // TODO (webrtc:383141571) : Investigate why this testcase fails for
-    // DTLS 1.3 delay if networkBehavior.queue_delay_ms = 100ms.
-    // - unless both peers support dtls in stun, in which case it passes.
-    // - note: only for dtls1.3, it works for dtls1.2!
-    networkBehavior.queue_delay_ms = 50;
+    networkBehavior.queue_delay_ms = 100;
     networkBehavior.queue_length_packets = 30;
     networkBehavior.loss_percent = 50;
 

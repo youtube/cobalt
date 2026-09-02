@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "components/autofill/core/browser/data_model/form_group.h"
@@ -63,7 +64,7 @@ class PhoneNumber : public FormGroup {
                         FieldTypeSet* matching_types) const override;
   using FormGroup::GetInfo;
   std::u16string GetInfo(const AutofillType& type,
-                         const std::string& app_locale) const override;
+                         std::string_view app_locale) const override;
   std::u16string GetRawInfo(FieldType type) const override;
   void SetRawInfoWithVerificationStatus(FieldType type,
                                         const std::u16string& value,
@@ -84,14 +85,14 @@ class PhoneNumber : public FormGroup {
     void SetInfo(FieldType field_type, const std::u16string& value);
 
     // Parses the number built up from pieces stored via SetInfo() according to
-    // the specified |profile|'s country code, falling back to the given
-    // |app_locale| if the |profile| has no associated country code.  Returns
+    // the specified `profile`'s country code, falling back to the given
+    // `app_locale` if the `profile` has no associated country code.  Returns
     // true if parsing was successful, false otherwise.
     bool ParseNumber(const AutofillProfile& profile,
                      const std::string& app_locale,
                      std::u16string* value) const;
 
-    // Returns true if both |phone_| and |whole_number_| are empty.
+    // Returns true if both `phone_` and `whole_number_` are empty.
     bool IsEmpty() const;
 
    private:
@@ -116,7 +117,7 @@ class PhoneNumber : public FormGroup {
 
   // Updates the cached parsed number if the profile's region has changed
   // since the last time the cache was updated.
-  void UpdateCacheIfNeeded(const std::string& app_locale) const;
+  void UpdateCacheIfNeeded(std::string_view app_locale) const;
 
   // The phone number.
   std::u16string number_;

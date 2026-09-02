@@ -24,7 +24,7 @@ import org.chromium.base.AndroidInfo;
 import org.chromium.base.CommandLine;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.policy.CloudManagementSharedPreferences;
@@ -36,6 +36,7 @@ import org.chromium.components.enterprise.connectors.EnterpriseReportingEventTyp
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.DOMUtils;
 import org.chromium.net.test.util.TestWebServer;
+import org.chromium.net.test.util.WebServer;
 
 import java.util.concurrent.TimeoutException;
 
@@ -45,7 +46,8 @@ import java.util.concurrent.TimeoutException;
     ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
     "enable-chrome-browser-cloud-management",
 })
-@EnableFeatures("EnterpriseSecurityEventReportingOnAndroid")
+// TODO(crbug.com/441339044): Re-enable the integration test for proto-based reporting.
+@DisableFeatures("UploadRealtimeReportingEventsUsingProto")
 @Batch(Batch.PER_CLASS)
 public class EnterpriseReportingIntegrationTest {
     @Rule
@@ -120,7 +122,7 @@ public class EnterpriseReportingIntegrationTest {
 
     /** Parse the last security event report received, if any. */
     private JSONObject parseLastReport() throws JSONException {
-        TestWebServer.HTTPRequest request = mReportingServer.getLastRequest(REPORTING_ENDPOINT);
+        WebServer.HTTPRequest request = mReportingServer.getLastRequest(REPORTING_ENDPOINT);
         if (request == null) {
             return null;
         }

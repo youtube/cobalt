@@ -7,12 +7,11 @@
 
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/time/time.h"
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 

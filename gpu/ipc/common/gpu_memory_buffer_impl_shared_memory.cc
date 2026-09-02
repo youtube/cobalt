@@ -28,33 +28,27 @@ GpuMemoryBufferImplSharedMemory::GpuMemoryBufferImplSharedMemory(
     base::WritableSharedMemoryMapping shared_memory_mapping,
     size_t offset,
     uint32_t stride)
-    : GpuMemoryBufferImpl(size, format),
+    : size_(size),
+      format_(format),
       shared_memory_region_(std::move(shared_memory_region)),
       shared_memory_mapping_(std::move(shared_memory_mapping)),
       offset_(offset),
       stride_(stride) {}
 
-GpuMemoryBufferImplSharedMemory::~GpuMemoryBufferImplSharedMemory() = default;
+GpuMemoryBufferImplSharedMemory::~GpuMemoryBufferImplSharedMemory() {
+#if DCHECK_IS_ON()
+  {
+    base::AutoLock auto_lock(map_lock_);
+    DCHECK_EQ(map_count_, 0u);
+  }
+#endif
+}
 
-// static
-std::unique_ptr<GpuMemoryBufferImplSharedMemory>
-GpuMemoryBufferImplSharedMemory::CreateForTesting(const gfx::Size& size,
-                                                  gfx::BufferFormat format,
-                                                  gfx::BufferUsage usage) {
-  size_t buffer_size = 0u;
-  if (!gfx::BufferSizeForBufferFormatChecked(size, format, &buffer_size))
-    return nullptr;
-
-  auto shared_memory_region =
-      base::UnsafeSharedMemoryRegion::Create(buffer_size);
-  auto shared_memory_mapping = shared_memory_region.Map();
-  if (!shared_memory_region.IsValid() || !shared_memory_mapping.IsValid())
-    return nullptr;
-
-  return base::WrapUnique(new GpuMemoryBufferImplSharedMemory(
-      size, format, usage, std::move(shared_memory_region),
-      std::move(shared_memory_mapping), 0,
-      gfx::RowSizeForBufferFormat(size.width(), format, 0)));
+void GpuMemoryBufferImplSharedMemory::AssertMapped() {
+#if DCHECK_IS_ON()
+  base::AutoLock auto_lock(map_lock_);
+  DCHECK_GT(map_count_, 0u);
+#endif
 }
 
 // static
@@ -182,6 +176,15 @@ gfx::GpuMemoryBufferHandle GpuMemoryBufferImplSharedMemory::CloneHandle()
   handle.offset = offset_;
   handle.stride = stride_;
   return handle;
+}
+
+void GpuMemoryBufferImplSharedMemory::MapAsync(
+    base::OnceCallback<void(bool)> callback) {
+  std::move(callback).Run(Map());
+}
+
+bool GpuMemoryBufferImplSharedMemory::AsyncMappingIsNonBlocking() const {
+  return false;
 }
 
 }  // namespace gpu

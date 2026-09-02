@@ -85,7 +85,7 @@ bool Convert(std::string inputfile,
              ParsedRtcEventLog::UnconfiguredHeaderExtensions
                  handle_unconfigured_extensions) {
   ParsedRtcEventLog parsed_log(handle_unconfigured_extensions,
-                               /*allow_incomplete_logs=*/true);
+                               /*allow_incomplete_log=*/true);
 
   auto status = parsed_log.ParseFile(inputfile);
   if (!status.ok()) {

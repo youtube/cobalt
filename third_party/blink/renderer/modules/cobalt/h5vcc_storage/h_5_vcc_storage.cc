@@ -38,7 +38,7 @@ ScriptPromise<IDLUndefined> H5vccStorage::clearCrashpadDatabase(
       script_state, exception_state.GetContext());
 
 #if BUILDFLAG(USE_EVERGREEN)
-  remote_h5vcc_storage_->ClearCrashpadDatabase(WTF::BindOnce(
+  remote_h5vcc_storage_->ClearCrashpadDatabase(BindOnce(
       [](ScriptPromiseResolver<IDLUndefined>* resolver) {
         resolver->Resolve();
       },

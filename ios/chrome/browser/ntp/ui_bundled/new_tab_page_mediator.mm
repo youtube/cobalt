@@ -36,10 +36,12 @@
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service_factory.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
+#import "ios/chrome/browser/home_customization/coordinator/home_customization_data_conversion.h"
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service.h"
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service_observer_bridge.h"
 #import "ios/chrome/browser/home_customization/model/home_background_data.h"
 #import "ios/chrome/browser/home_customization/model/user_uploaded_image_manager.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_framing_coordinates.h"
 #import "ios/chrome/browser/metrics/model/new_tab_page_uma.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_state.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
@@ -414,6 +416,10 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
   [traitAccessor
       setBoolForNewTabPageImageBackgroundTrait:customBackground.has_value()];
   if (customBackground) {
+    // Clear background so old state doesn't show. It will be set to the new
+    // background later.
+    [self.consumer setBackgroundImage:nil framingCoordinates:nil];
+
     if (std::holds_alternative<sync_pb::NtpCustomBackground>(
             customBackground.value())) {
       sync_pb::NtpCustomBackground background =
@@ -439,11 +445,20 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
     } else {
       HomeUserUploadedBackground userBackground =
           std::get<HomeUserUploadedBackground>(customBackground.value());
-      [self handleUserUploadedBackground:userBackground.image_path
-                      framingCoordinates:userBackground.framing_coordinates];
+      HomeCustomizationFramingCoordinates* framingCoordinates =
+          HomeCustomizationFramingCoordinatesFromFramingCoordinates(
+              userBackground.framing_coordinates);
+
+      __weak __typeof(self) weakSelf = self;
+      _userUploadedImageManager->LoadUserUploadedImage(
+          base::FilePath(userBackground.image_path),
+          base::BindOnce(^(UIImage* image) {
+            [weakSelf handleUserUploadedImage:image
+                           framingCoordinates:framingCoordinates];
+          }));
     }
   } else {
-    [self.consumer setBackgroundImage:nil];
+    [self.consumer setBackgroundImage:nil framingCoordinates:nil];
   }
 
   std::optional<sync_pb::UserColorTheme> colorTheme =
@@ -642,65 +657,24 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
 // Helper method to handle the image response after fetching the background
 // image for the new tab page.
 - (void)handleBackgroundImageFetch:(const gfx::Image&)image {
-  [self.consumer setBackgroundImage:image.ToUIImage()];
+  [self.consumer setBackgroundImage:image.ToUIImage() framingCoordinates:nil];
 }
 
 // Helper method to handle displaying a user-uploaded background image
 // with the specified framing coordinates.
-- (void)handleUserUploadedBackground:(const std::string&)imagePath
-                  framingCoordinates:(const FramingCoordinates&)coordinates {
-  UIImage* image = _userUploadedImageManager->LoadUserUploadedImage(
-      base::FilePath(imagePath));
+- (void)handleUserUploadedImage:(UIImage*)image
+             framingCoordinates:
+                 (HomeCustomizationFramingCoordinates*)framingCoordinates {
   if (!image) {
     // Clear the corrupted data.
     _backgroundCustomizationService->ClearCurrentUserUploadedBackground();
     _backgroundCustomizationService->StoreCurrentTheme();
-    [self.consumer setBackgroundImage:nil];
+    [self.consumer setBackgroundImage:nil framingCoordinates:nil];
     return;
   }
 
-  // Apply framing coordinates to frame the image.
-  UIImage* framedImage = [self applyFramingCoordinates:coordinates
-                                               toImage:image];
-
-  [self.consumer setBackgroundImage:framedImage];
-}
-
-// Helper method to apply framing coordinates to position
-// the user-uploaded background image.
-- (UIImage*)applyFramingCoordinates:(const FramingCoordinates&)coordinates
-                            toImage:(UIImage*)originalImage {
-  // Create a canvas the size of the view.
-  CGSize canvasSize = [UIScreen mainScreen].bounds.size;
-
-  // Calculate scale to fill the view.
-  CGFloat widthScale = canvasSize.width / originalImage.size.width;
-  CGFloat heightScale = canvasSize.height / originalImage.size.height;
-  CGFloat scale = MAX(widthScale, heightScale);
-
-  CGFloat scaledWidth = originalImage.size.width * scale;
-  CGFloat scaledHeight = originalImage.size.height * scale;
-
-  // Use negative offset to position the image so the framed area is visible.
-  CGFloat offsetX = -(coordinates.x * scale);
-  CGFloat offsetY = -(coordinates.y * scale);
-
-  UIGraphicsImageRendererFormat* format =
-      [[UIGraphicsImageRendererFormat alloc] init];
-  format.opaque = NO;
-  format.scale = 0.0;
-
-  UIGraphicsImageRenderer* renderer =
-      [[UIGraphicsImageRenderer alloc] initWithSize:canvasSize format:format];
-
-  UIImage* framedImage =
-      [renderer imageWithActions:^(UIGraphicsImageRendererContext* context) {
-        // Draw the positioned image.
-        [originalImage
-            drawInRect:CGRectMake(offsetX, offsetY, scaledWidth, scaledHeight)];
-      }];
-
-  return framedImage;
+  [self.consumer setBackgroundImage:image
+                 framingCoordinates:framingCoordinates];
 }
 
 @end

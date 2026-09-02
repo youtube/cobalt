@@ -904,8 +904,8 @@ PaymentRequest::securePaymentConfirmationAvailability(
   CredentialManagerProxy::From(script_state)
       ->SecurePaymentConfirmationService()
       ->SecurePaymentConfirmationAvailability(
-          WTF::BindOnce(&OnSecurePaymentConfirmationAvailabilityResponse,
-                        std::make_unique<ScopedPromiseResolver>(resolver)));
+          BindOnce(&OnSecurePaymentConfirmationAvailabilityResponse,
+                   std::make_unique<ScopedPromiseResolver>(resolver)));
 #else
   resolver->Resolve(V8SecurePaymentConfirmationAvailability(
       V8SecurePaymentConfirmationAvailability::Enum::
@@ -1454,8 +1454,8 @@ PaymentRequest::PaymentRequest(
     DomWindow()->GetBrowserInterfaceBroker().GetInterface(
         payment_provider_.BindNewPipeAndPassReceiver(task_runner));
   }
-  payment_provider_.set_disconnect_handler(WTF::BindOnce(
-      &PaymentRequest::OnConnectionError, WrapWeakPersistent(this)));
+  payment_provider_.set_disconnect_handler(
+      BindOnce(&PaymentRequest::OnConnectionError, WrapWeakPersistent(this)));
 
   UseCounter::Count(execution_context, WebFeature::kPaymentRequestInitialized);
   mojo::PendingRemote<payments::mojom::blink::PaymentRequestClient> client;

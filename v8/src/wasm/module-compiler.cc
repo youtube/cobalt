@@ -210,7 +210,17 @@ class CompilationUnitQueues {
       if (units.empty()) continue;
       num_units_[tier].fetch_add(units.size(), std::memory_order_relaxed);
       for (WasmCompilationUnit unit : units) {
-        queue->units[tier].push_back(unit);
+        size_t func_size = module->functions[unit.func_index()].code.length();
+        if (func_size <= kBigUnitsLimit) {
+          queue->units[tier].push_back(unit);
+        } else {
+          if (!big_units_guard) {
+            big_units_guard.emplace(&big_units_queue_.mutex);
+          }
+          big_units_queue_.has_units[tier].store(true,
+                                                 std::memory_order_relaxed);
+          big_units_queue_.units[tier].emplace(func_size, unit);
+        }
       }
     }
   }
@@ -259,6 +269,22 @@ class CompilationUnitQueues {
   size_t EstimateCurrentMemoryConsumption() const;
 
  private:
+  // Functions bigger than {kBigUnitsLimit} will be compiled first, in ascending
+  // order of their function body size.
+  static constexpr size_t kBigUnitsLimit = 4096;
+
+  struct BigUnit {
+    BigUnit(size_t func_size, WasmCompilationUnit unit)
+        : func_size{func_size}, unit(unit) {}
+
+    size_t func_size;
+    WasmCompilationUnit unit;
+
+    bool operator<(const BigUnit& other) const {
+      return func_size < other.func_size;
+    }
+  };
+
   struct TopTierPriorityUnit {
     TopTierPriorityUnit(int priority, WasmCompilationUnit unit)
         : priority(priority), unit(unit) {}
@@ -269,6 +295,23 @@ class CompilationUnitQueues {
     bool operator<(const TopTierPriorityUnit& other) const {
       return priority < other.priority;
     }
+  };
+
+  struct BigUnitsQueue {
+    BigUnitsQueue() {
+#if !defined(__cpp_lib_atomic_value_initialization) || \
+    __cpp_lib_atomic_value_initialization < 201911L
+      for (auto& atomic : has_units) std::atomic_init(&atomic, false);
+#endif
+    }
+
+    mutable base::Mutex mutex;
+
+    // Can be read concurrently to check whether any elements are in the queue.
+    std::atomic<bool> has_units[CompilationTier::kNumTiers];
+
+    // Protected by {mutex}:
+    std::priority_queue<BigUnit> units[CompilationTier::kNumTiers];
   };
 
   struct QueueImpl : public Queue {
@@ -305,6 +348,9 @@ class CompilationUnitQueues {
       }
     }
 
+    // Then check whether there is a big unit of that tier.
+    if (auto unit = GetBigUnitOfTier(tier)) return unit;
+
     // Finally check whether our own queue has a unit of the wanted tier. If
     // so, return it, otherwise get the task id to steal from.
     int steal_task_id;
@@ -335,6 +381,21 @@ class CompilationUnitQueues {
 
     // If we reach here, we didn't find any unit of the requested tier.
     return {};
+  }
+
+  std::optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
+    // Fast path without locking.
+    if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
+      return {};
+    }
+    base::MutexGuard guard(&big_units_queue_.mutex);
+    if (big_units_queue_.units[tier].empty()) return {};
+    WasmCompilationUnit unit = big_units_queue_.units[tier].top().unit;
+    big_units_queue_.units[tier].pop();
+    if (big_units_queue_.units[tier].empty()) {
+      big_units_queue_.has_units[tier].store(false, std::memory_order_relaxed);
+    }
+    return unit;
   }
 
   std::optional<WasmCompilationUnit> GetTopTierPriorityUnit(QueueImpl* queue) {
@@ -452,6 +513,8 @@ class CompilationUnitQueues {
   const int num_imported_functions_;
   const int num_declared_functions_;
 
+  BigUnitsQueue big_units_queue_;
+
   std::atomic<size_t> num_units_[CompilationTier::kNumTiers];
   std::atomic<size_t> num_priority_units_{0};
   std::unique_ptr<std::atomic<bool>[]> top_tier_compiled_;
@@ -459,8 +522,9 @@ class CompilationUnitQueues {
 };
 
 size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 88);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 176);
   UPDATE_WHEN_CLASS_CHANGES(QueueImpl, 112);
+  UPDATE_WHEN_CLASS_CHANGES(BigUnitsQueue, 88);
   // Not including sizeof(CompilationUnitQueues) because that's included in
   // sizeof(CompilationStateImpl).
   size_t result = 0;
@@ -469,11 +533,14 @@ size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
     result += ContentSize(queues_) + queues_.size() * sizeof(QueueImpl);
     for (const auto& q : queues_) {
       base::MutexGuard guard(&q->mutex);
-      for (std::vector<WasmCompilationUnit>& units : q->units) {
-        result += ContentSize(units);
-      }
+      result += ContentSize(*q->units);
       result += q->top_tier_priority_units.size() * sizeof(TopTierPriorityUnit);
     }
+  }
+  {
+    base::MutexGuard lock(&big_units_queue_.mutex);
+    result += big_units_queue_.units[0].size() * sizeof(BigUnit);
+    result += big_units_queue_.units[1].size() * sizeof(BigUnit);
   }
   // For {top_tier_compiled_}.
   result += sizeof(std::atomic<bool>) * num_declared_functions_;
@@ -775,7 +842,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 376);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 464);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -2305,6 +2372,19 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
       module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes));
   native_module->compilation_state()->set_compilation_id(compilation_id);
+#if V8_ENABLE_TURBOFAN
+  if (v8_flags.experimental_wasm_wasmfx) {
+    // TODO(thibaudm): 1) Cache the wrappers per signature, 2) share them across
+    // modules, 3) compile them lazily.
+    auto wrapper_result = compiler::CompileWasmStackEntryWrapper();
+    UnpublishedWasmCode unpublished_wrapper =
+        native_module->AddCompiledCode(wrapper_result);
+    WasmCodeRefScope code_ref_scope;
+    WasmCode* continuation_wrapper =
+        native_module->PublishCode(std::move(unpublished_wrapper));
+    native_module->set_continuation_wrapper(continuation_wrapper);
+  }
+#endif
 
   if (!v8_flags.wasm_jitless) {
     // Compile / validate the new module.
@@ -2611,6 +2691,19 @@ void AsyncCompileJob::CreateNativeModule(
       std::move(compile_imports_), std::move(module), code_size_estimate);
   native_module_->SetWireBytes(std::move(bytes_copy_));
   native_module_->compilation_state()->set_compilation_id(compilation_id_);
+#if V8_ENABLE_TURBOFAN
+  if (v8_flags.experimental_wasm_wasmfx) {
+    // TODO(thibaudm): 1) Cache the wrappers per signature, 2) share them across
+    // modules, 3) compile them lazily.
+    auto wrapper_result = compiler::CompileWasmStackEntryWrapper();
+    UnpublishedWasmCode unpublished_wrapper =
+        native_module_->AddCompiledCode(wrapper_result);
+    WasmCodeRefScope code_ref_scope;
+    WasmCode* continuation_wrapper =
+        native_module_->PublishCode(std::move(unpublished_wrapper));
+    native_module_->set_continuation_wrapper(continuation_wrapper);
+  }
+#endif
 }
 
 bool AsyncCompileJob::GetOrCreateNativeModule(
@@ -4283,13 +4376,13 @@ void CompilationStateImpl::TierUpAllFunctions() {
 
 std::shared_ptr<wasm::WasmImportWrapperHandle> CompileImportWrapperForTest(
     Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
-    CanonicalTypeIndex type_index, int expected_arity, Suspend suspend) {
+    int expected_arity, Suspend suspend) {
   if (v8_flags.wasm_jitless) {
     return nullptr;
   }
 
-  return GetWasmImportWrapperCache()->GetCompiled(isolate, kind, type_index,
-                                                  expected_arity, suspend, sig);
+  return GetWasmImportWrapperCache()->GetCompiled(isolate, kind, expected_arity,
+                                                  suspend, sig);
 }
 
 }  // namespace v8::internal::wasm

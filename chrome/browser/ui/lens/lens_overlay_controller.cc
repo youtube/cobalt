@@ -2658,8 +2658,10 @@ void LensOverlayController::HideOverlay() {
 
   // Save the current value of whether live blur is enabled so that it can be
   // restored when the overlay is shown again.
-  should_enable_live_blur_on_show_ =
-      lens_overlay_blur_layer_delegate_->IsLiveBlurActive();
+  if (lens_overlay_blur_layer_delegate_) {
+    should_enable_live_blur_on_show_ =
+        lens_overlay_blur_layer_delegate_->IsLiveBlurActive();
+  }
   SetLiveBlur(false);
   HidePreselectionBubble();
 }

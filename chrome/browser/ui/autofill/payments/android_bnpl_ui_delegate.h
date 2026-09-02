@@ -5,11 +5,24 @@
 #ifndef CHROME_BROWSER_UI_AUTOFILL_PAYMENTS_ANDROID_BNPL_UI_DELEGATE_H_
 #define CHROME_BROWSER_UI_AUTOFILL_PAYMENTS_ANDROID_BNPL_UI_DELEGATE_H_
 
+#include <string>
+#include <vector>
+
+#include "base/functional/callback_forward.h"
 #include "components/autofill/core/browser/ui/payments/bnpl_ui_delegate.h"
 
-namespace autofill::payments {
+namespace autofill {
 
-// Android implementation of the `BnplUiDelegate` interface. This class handles
+struct AutofillErrorDialogContext;
+enum class AutofillProgressDialogType;
+class BnplIssuer;
+struct BnplTosModel;
+
+namespace payments {
+
+struct BnplIssuerContext;
+
+// Android implementation of the BnplUiDelegate interface. This class handles
 // the UI for the BNPL autofill flow on the Android platform.
 class AndroidBnplUiDelegate : public BnplUiDelegate {
  public:
@@ -17,8 +30,26 @@ class AndroidBnplUiDelegate : public BnplUiDelegate {
   AndroidBnplUiDelegate(const AndroidBnplUiDelegate& other) = delete;
   AndroidBnplUiDelegate& operator=(const AndroidBnplUiDelegate& other) = delete;
   ~AndroidBnplUiDelegate() override;
+
+  // BnplUiDelegate:
+  void ShowSelectBnplIssuerUi(
+      std::vector<BnplIssuerContext> bnpl_issuer_context,
+      std::string app_locale,
+      base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+      base::OnceClosure cancel_callback) override;
+  void DismissSelectBnplIssuerUi() override;
+  void ShowBnplTosUi(BnplTosModel bnpl_tos_model,
+                     base::OnceClosure accept_callback,
+                     base::OnceClosure cancel_callback) override;
+  void CloseBnplTosUi() override;
+  void ShowProgressUi(AutofillProgressDialogType autofill_progress_dialog_type,
+                      base::OnceClosure cancel_callback) override;
+  void CloseProgressUi(bool show_confirmation_before_closing) override;
+  void ShowAutofillErrorUi(AutofillErrorDialogContext context) override;
 };
 
-}  // namespace autofill::payments
+}  // namespace payments
+
+}  // namespace autofill
 
 #endif  // CHROME_BROWSER_UI_AUTOFILL_PAYMENTS_ANDROID_BNPL_UI_DELEGATE_H_

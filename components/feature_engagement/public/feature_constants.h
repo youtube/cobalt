@@ -274,6 +274,7 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHBottomToolbarTipFeature);
 
 #if BUILDFLAG(IS_IOS)
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHLongPressToolbarTipFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHBadgedReaderModeFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHBadgedReadingListFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHWhatsNewFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHWhatsNewUpdatedFeature);
@@ -369,6 +370,9 @@ extern const base::FeatureParam<int>
 // for the displayed promo.
 FEATURE_CONSTANTS_DECLARE_FEATURE(kDefaultBrowserTriggerCriteriaExperiment);
 
+// FET feature flag that enables AI Hub "New" badge.
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSAIHubNewBadge);
+
 #endif  // BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
@@ -384,6 +388,8 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(
 FEATURE_CONSTANTS_DECLARE_FEATURE(
     kIPHAutofillExternalAccountProfileSuggestionFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHAutofillHomeWorkProfileSuggestionFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(
+    kIPHAutofillAccountNameEmailSuggestionFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHAutofillAiOptInFeature);
 COMPONENT_EXPORT(FEATURE_ENGAGEMENT_FEATURE_CONSTANTS)
 extern const base::FeatureParam<int> kAutofillIphCTAVariationsStringValue;

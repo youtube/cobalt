@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.password_manager;
 
-import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
@@ -12,8 +11,8 @@ import android.content.Context;
 
 import org.jni_zero.CalledByNative;
 
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.SettingsCustomTabLauncherImpl;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
@@ -22,6 +21,8 @@ import org.chromium.components.sync.SyncService;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+
+import java.util.function.Supplier;
 
 /** Bridge between Java and native PasswordManager code. */
 @NullMarked
@@ -41,7 +42,7 @@ public class PasswordManagerLauncher {
             Context context,
             Profile profile,
             @ManagePasswordsReferrer int referrer,
-            Supplier<ModalDialogManager> modalDialogManagerSupplier,
+            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             boolean managePasskeys) {
         assert profile != null;
         Profile originalProfile = profile.getOriginalProfile();
@@ -73,7 +74,7 @@ public class PasswordManagerLauncher {
                 context,
                 Profile.fromWebContents(webContents),
                 referrer,
-                () -> assertNonNull(window.getModalDialogManager()),
+                () -> window.getModalDialogManager(),
                 managePasskeys);
     }
 }

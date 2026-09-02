@@ -10,18 +10,35 @@
 
 #include "modules/video_coding/utility/frame_sampler.h"
 
+#include <cstdint>
+
 #include "api/video/video_frame.h"
 #include "modules/include/module_common_types_public.h"
 
 namespace webrtc {
 
 constexpr int kTimestampDifference =
-    90'000 - 1;  // Sample every 90khz or once per second.
+    90'000;  // Sample every 90khz or once per second.
 
 bool FrameSampler::ShouldBeSampled(const VideoFrame& frame) {
-  if (!last_rtp_timestamp_sampled_.has_value() ||
-      (IsNewerTimestamp(frame.rtp_timestamp(),
-                        *last_rtp_timestamp_sampled_ + kTimestampDifference))) {
+  if (!last_rtp_timestamp_sampled_) {
+    // Since we can not know the frame rate from the first frame,
+    // assume 30fps for the extrapolation.
+    last_rtp_timestamp_ =
+        frame.rtp_timestamp() + kTimestampDifference / /*fps=*/30;
+    last_rtp_timestamp_sampled_ = frame.rtp_timestamp();
+    return true;
+  }
+  // Since getStats is commonly called once per second, sample if the
+  // extrapolated RTP timestamp of the next frame would be be too late for this.
+  // This is not strictly necessary but makes plotting the values once per
+  // second much easier.
+  uint32_t extrapolated_rtp_timestamp =
+      frame.rtp_timestamp() + (frame.rtp_timestamp() - *last_rtp_timestamp_);
+  last_rtp_timestamp_ = frame.rtp_timestamp();
+
+  if (IsNewerTimestamp(extrapolated_rtp_timestamp,
+                       *last_rtp_timestamp_sampled_ + kTimestampDifference)) {
     last_rtp_timestamp_sampled_ = frame.rtp_timestamp();
     return true;
   }

@@ -77,13 +77,10 @@ webrtc::RtpHeaderExtensions RtpHeaderExtensionsFromCapabilities(
 std::vector<webrtc::RtpHeaderExtensionCapability>
 UnstoppedRtpHeaderExtensionCapabilities(
     std::vector<webrtc::RtpHeaderExtensionCapability> capabilities) {
-  capabilities.erase(
-      std::remove_if(
-          capabilities.begin(), capabilities.end(),
-          [](const webrtc::RtpHeaderExtensionCapability& capability) {
-            return capability.direction == RtpTransceiverDirection::kStopped;
-          }),
-      capabilities.end());
+  std::erase_if(
+      capabilities, [](const webrtc::RtpHeaderExtensionCapability& capability) {
+        return capability.direction == RtpTransceiverDirection::kStopped;
+      });
   return capabilities;
 }
 
@@ -688,14 +685,11 @@ MediaSessionDescriptionFactory::filtered_rtp_header_extensions(
     RtpHeaderExtensions extensions) const {
   if (!is_unified_plan_) {
     // Remove extensions only supported with unified-plan.
-    extensions.erase(
-        std::remove_if(extensions.begin(), extensions.end(),
-                       [](const webrtc::RtpExtension& extension) {
-                         return extension.uri == RtpExtension::kMidUri ||
-                                extension.uri == RtpExtension::kRidUri ||
-                                extension.uri == RtpExtension::kRepairedRidUri;
-                       }),
-        extensions.end());
+    std::erase_if(extensions, [](const webrtc::RtpExtension& extension) {
+      return extension.uri == RtpExtension::kMidUri ||
+             extension.uri == RtpExtension::kRidUri ||
+             extension.uri == RtpExtension::kRepairedRidUri;
+    });
   }
   return extensions;
 }

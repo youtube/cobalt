@@ -28,6 +28,7 @@
 #include "api/crypto/crypto_options.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/crypto/frame_encryptor_interface.h"
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/media_types.h"
@@ -68,7 +69,6 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
-#include "system_wrappers/include/clock.h"
 #include "video/config/video_encoder_config.h"
 
 namespace webrtc {
@@ -103,12 +103,14 @@ class WebRtcVideoEngine : public VideoEngineInterface {
   ~WebRtcVideoEngine() override;
 
   std::unique_ptr<VideoMediaSendChannelInterface> CreateSendChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const VideoOptions& options,
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) override;
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const VideoOptions& options,
@@ -159,6 +161,7 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
                                public EncoderSwitchRequestCallback {
  public:
   WebRtcVideoSendChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const VideoOptions& options,
@@ -311,6 +314,7 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   class WebRtcVideoSendStream {
    public:
     WebRtcVideoSendStream(
+        const Environment& env,
         Call* call,
         const StreamParams& sp,
         VideoSendStream::Config config,
@@ -392,12 +396,12 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
     DegradationPreference GetDegradationPreference() const
         RTC_EXCLUSIVE_LOCKS_REQUIRED(&thread_checker_);
 
+    const Environment env_;
     RTC_NO_UNIQUE_ADDRESS SequenceChecker thread_checker_;
     TaskQueueBase* const worker_thread_;
     const std::vector<uint32_t> ssrcs_ RTC_GUARDED_BY(&thread_checker_);
     const std::vector<SsrcGroup> ssrc_groups_ RTC_GUARDED_BY(&thread_checker_);
     Call* const call_;
-    Clock* const clock_;
     const bool enable_cpu_overuse_detection_;
     VideoSourceInterface<VideoFrame>* source_ RTC_GUARDED_BY(&thread_checker_);
 
@@ -445,6 +449,8 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   const std::optional<VideoCodecSettings>& send_codec() const {
     return send_codec_;
   }
+
+  const Environment env_;
   TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker network_thread_checker_{
@@ -539,7 +545,8 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
 class WebRtcVideoReceiveChannel : public MediaChannelUtil,
                                   public VideoMediaReceiveChannelInterface {
  public:
-  WebRtcVideoReceiveChannel(Call* call,
+  WebRtcVideoReceiveChannel(const Environment& env,
+                            Call* call,
                             const MediaConfig& config,
                             const VideoOptions& options,
                             const CryptoOptions& crypto_options,
@@ -655,6 +662,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   class WebRtcVideoReceiveStream : public VideoSinkInterface<VideoFrame> {
    public:
     WebRtcVideoReceiveStream(
+        const Environment& env,
         Call* call,
         const StreamParams& sp,
         VideoReceiveStreamInterface::Config config,
@@ -723,6 +731,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
     // were applied.
     bool ReconfigureCodecs(const std::vector<VideoCodecSettings>& recv_codecs);
 
+    const Environment env_;
     Call* const call_;
     const StreamParams stream_params_;
 
@@ -761,6 +770,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
     return unsignaled_stream_params_;
   }
   // Variables.
+  const Environment env_;
   TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker network_thread_checker_{

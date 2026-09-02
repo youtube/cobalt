@@ -26,6 +26,8 @@
 #include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/transport/stun.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/port.h"
@@ -43,25 +45,27 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/time_utils.h"
 #include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
-
+namespace {
 // TODO(?): Move these to a common place (used in relayport too)
-const int RETRY_TIMEOUT = 50 * 1000;  // 50 seconds
+constexpr TimeDelta kRetryTimeout = TimeDelta::Seconds(50);
 
 // Stop logging errors in UDPPort::SendTo after we have logged
 // `kSendErrorLogLimit` messages. Start again after a successful send.
-const int kSendErrorLogLimit = 5;
+constexpr int kSendErrorLogLimit = 5;
+
+}  // namespace
 
 // Handles a binding request sent to the STUN server.
 class StunBindingRequest : public StunRequest {
  public:
   StunBindingRequest(UDPPort* port,
                      const SocketAddress& addr,
-                     int64_t start_time)
-      : StunRequest(port->request_manager(),
+                     Timestamp start_time)
+      : StunRequest(port->env(),
+                    port->request_manager(),
                     std::make_unique<StunMessage>(STUN_BINDING_REQUEST)),
         port_(port),
         server_addr_(addr),
@@ -85,10 +89,10 @@ class StunBindingRequest : public StunRequest {
     }
 
     // The keep-alive requests will be stopped after its lifetime has passed.
-    if (WithinLifetime(TimeMillis())) {
-      port_->request_manager_.SendDelayed(
-          new StunBindingRequest(port_, server_addr_, start_time_),
-          port_->stun_keepalive_delay());
+    if (WithinLifetime(Connection::AlignTime(env().clock().CurrentTime()))) {
+      port_->request_manager_.Send(std::make_unique<StunBindingRequest>(
+                                       port_, server_addr_, start_time_),
+                                   /*delay=*/port_->stun_keepalive_delay());
     }
   }
 
@@ -108,11 +112,11 @@ class StunBindingRequest : public StunRequest {
         attr ? attr->reason()
              : "STUN binding response with no error code attribute.");
 
-    int64_t now = TimeMillis();
-    if (WithinLifetime(now) && TimeDiff(now, start_time_) < RETRY_TIMEOUT) {
-      port_->request_manager_.SendDelayed(
-          new StunBindingRequest(port_, server_addr_, start_time_),
-          port_->stun_keepalive_delay());
+    Timestamp now = Connection::AlignTime(env().clock().CurrentTime());
+    if (WithinLifetime(now) && now - start_time_ < kRetryTimeout) {
+      port_->request_manager_.Send(std::make_unique<StunBindingRequest>(
+                                       port_, server_addr_, start_time_),
+                                   /*delay=*/port_->stun_keepalive_delay());
     }
   }
   void OnTimeout() override {
@@ -125,17 +129,15 @@ class StunBindingRequest : public StunRequest {
   }
 
  private:
-  // Returns true if `now` is within the lifetime of the request (a negative
-  // lifetime means infinite).
-  bool WithinLifetime(int64_t now) const {
-    int lifetime = port_->stun_keepalive_lifetime();
-    return lifetime < 0 || TimeDiff(now, start_time_) <= lifetime;
+  // Returns true if `now` is within the lifetime of the request.
+  bool WithinLifetime(Timestamp now) const {
+    return now - start_time_ <= port_->stun_keepalive_lifetime();
   }
 
   UDPPort* port_;
   const SocketAddress server_addr_;
 
-  int64_t start_time_;
+  Timestamp start_time_;
 };
 
 UDPPort::AddressResolver::AddressResolver(
@@ -508,8 +510,9 @@ void UDPPort::SendStunBindingRequest(const SocketAddress& stun_addr) {
           return;
         }
 
-        request_manager_.Send(
-            new StunBindingRequest(this, stun_addr, TimeMillis()));
+        request_manager_.Send(std::make_unique<StunBindingRequest>(
+            this, stun_addr,
+            Connection::AlignTime(env().clock().CurrentTime())));
       });
 }
 
@@ -531,9 +534,10 @@ bool UDPPort::MaybeSetDefaultLocalAddress(SocketAddress* addr) const {
 }
 
 void UDPPort::OnStunBindingRequestSucceeded(
-    int rtt_ms,
+    TimeDelta rtt,
     const SocketAddress& stun_server_addr,
     const SocketAddress& stun_reflected_addr) {
+  int rtt_ms = rtt.ms();
   RTC_DCHECK(stats_.stun_binding_responses_received <
              stats_.stun_binding_requests_sent);
   stats_.stun_binding_responses_received++;

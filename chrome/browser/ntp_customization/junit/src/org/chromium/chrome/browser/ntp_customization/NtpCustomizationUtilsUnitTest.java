@@ -128,6 +128,7 @@ public class NtpCustomizationUtilsUnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testSupportsEnableEdgeToEdgeOnTop() {
         assertFalse(NtpCustomizationUtils.supportsEnableEdgeToEdgeOnTop(null));
 
@@ -179,10 +180,13 @@ public class NtpCustomizationUtilsUnitTest {
 
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR);
-        assertEquals(defaultColor, NtpCustomizationUtils.getBackgroundColor(defaultColor));
+        assertEquals(
+                defaultColor,
+                NtpCustomizationUtils.getBackgroundColorFromSharedPreference(defaultColor));
 
         NtpCustomizationUtils.setBackgroundColor(color);
-        assertEquals(color, NtpCustomizationUtils.getBackgroundColor(defaultColor));
+        assertEquals(
+                color, NtpCustomizationUtils.getBackgroundColorFromSharedPreference(defaultColor));
 
         NtpCustomizationUtils.resetBackgroundColor();
         assertFalse(prefsManager.contains(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR));

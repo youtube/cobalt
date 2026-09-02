@@ -41,6 +41,8 @@ void compile(const RendererProvider* rendererProvider,
              const RenderPassDesc& renderPassDesc,
              bool withPrimitiveBlender,
              Coverage coverage) {
+    const skgpu::graphite::Caps* caps = resourceProvider->caps();
+
     for (const Renderer* r : rendererProvider->renderers()) {
         if (!(r->drawTypes() & drawTypes)) {
             continue;
@@ -64,9 +66,14 @@ void compile(const RendererProvider* rendererProvider,
             UniquePaintParamsID paintID = s->performsShading() ? uniqueID
                                                                : UniquePaintParamsID::Invalid();
 
+            GraphicsPipelineDesc pipelineDesc { s->renderStepID(), paintID };
+            skgpu::UniqueKey pipelineKey = caps->makeGraphicsPipelineKey(pipelineDesc,
+                                                                         renderPassDesc);
+
             sk_sp<GraphicsPipeline> pipeline = resourceProvider->findOrCreateGraphicsPipeline(
-                    keyContext.rtEffectDict(),
-                    { s->renderStepID(), paintID },
+                    keyContext.rtEffectDict().get(),
+                    pipelineKey,
+                    pipelineDesc,
                     renderPassDesc,
                     PipelineCreationFlags::kForPrecompilation);
             if (!pipeline) {
@@ -91,7 +98,7 @@ void Precompile(PrecompileContext* precompileContext,
     ResourceProvider* resourceProvider = precompileContext->priv().resourceProvider();
     const Caps* caps = precompileContext->priv().caps();
 
-    auto rtEffectDict = std::make_unique<RuntimeEffectDictionary>();
+    sk_sp<RuntimeEffectDictionary> rtEffectDict = sk_make_sp<RuntimeEffectDictionary>();
 
     for (const RenderPassProperties& rpp : renderPassProperties) {
         // TODO: Allow the client to pass in mipmapping and protection too?
@@ -139,7 +146,7 @@ void Precompile(PrecompileContext* precompileContext,
             PipelineDataGatherer gatherer(Layout::kMetal);
             PaintParamsKeyBuilder builder(dict);
             KeyContext keyContext(caps, &floatStorageManager, &builder, &gatherer, dict,
-                                  rtEffectDict.get(), ci);
+                                  rtEffectDict, ci);
 
             for (Coverage coverage : { Coverage::kNone, Coverage::kSingleChannel }) {
                 PrecompileCombinations(
@@ -162,9 +169,16 @@ void Precompile(PrecompileContext* precompileContext,
                 // pipelines.
                 const RenderStep* renderStep =
                     rendererProvider->lookup(RenderStep::RenderStepID::kCoverBounds_InverseCover);
+
+                GraphicsPipelineDesc pipelineDesc { renderStep->renderStepID(),
+                                                    UniquePaintParamsID::Invalid() };
+                skgpu::UniqueKey pipelineKey = caps->makeGraphicsPipelineKey(pipelineDesc,
+                                                                             renderPassDesc);
+
                 sk_sp<GraphicsPipeline> pipeline = resourceProvider->findOrCreateGraphicsPipeline(
-                        keyContext.rtEffectDict(),
-                        { renderStep->renderStepID(), UniquePaintParamsID::Invalid() },
+                        keyContext.rtEffectDict().get(),
+                        pipelineKey,
+                        pipelineDesc,
                         renderPassDesc,
                         PipelineCreationFlags::kForPrecompilation);
                 if (!pipeline) {

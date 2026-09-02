@@ -38,11 +38,6 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplSharedMemory
     return CreateFromHandle(std::move(handle), size, format, usage);
   }
 
-  static std::unique_ptr<GpuMemoryBufferImplSharedMemory> CreateForTesting(
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage);
-
   static base::OnceClosure AllocateForTesting(
       const gfx::Size& size,
       gfx::BufferFormat format,
@@ -51,11 +46,16 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplSharedMemory
 
   // Overridden from GpuMemoryBufferImpl:
   bool Map() override;
+  void MapAsync(base::OnceCallback<void(bool)> callback) override;
+  bool AsyncMappingIsNonBlocking() const override;
   void* memory(size_t plane) override;
   void Unmap() override;
   int stride(size_t plane) const override;
   gfx::GpuMemoryBufferType GetType() const override;
   gfx::GpuMemoryBufferHandle CloneHandle() const override;
+#if BUILDFLAG(IS_WIN)
+  void SetUsePreMappedMemory(bool use_premapped_memory) override {}
+#endif
 
  private:
   friend class ClientSharedImage;
@@ -75,10 +75,19 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplSharedMemory
       size_t offset,
       uint32_t stride);
 
+  void AssertMapped();
+
+  const gfx::Size size_;
+  const gfx::BufferFormat format_;
   base::UnsafeSharedMemoryRegion shared_memory_region_;
   base::WritableSharedMemoryMapping shared_memory_mapping_;
   size_t offset_;
   uint32_t stride_;
+
+  // Note: This lock must be held throughout the entirety of the Map() and
+  // Unmap() operations to avoid corrupt mutation across multiple threads.
+  base::Lock map_lock_;
+  uint32_t map_count_ GUARDED_BY(map_lock_) = 0u;
 };
 
 }  // namespace gpu

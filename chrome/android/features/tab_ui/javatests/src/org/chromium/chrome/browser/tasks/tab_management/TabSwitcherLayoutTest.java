@@ -69,6 +69,7 @@ import org.junit.runner.RunWith;
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.Token;
+import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
@@ -140,7 +141,7 @@ public class TabSwitcherLayoutTest {
     private final List<WeakReference<Bitmap>> mAllBitmaps = new LinkedList<>();
     private final Callback<Bitmap> mBitmapListener =
             (bitmap) -> mAllBitmaps.add(new WeakReference<>(bitmap));
-    private ModalDialogManager mModalDialogManager;
+    private ObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     private RegularNewTabPageStation mNtp;
 
     @Before
@@ -157,7 +158,8 @@ public class TabSwitcherLayoutTest {
         cta.getTabContentManager().setCaptureMinRequestTimeForTesting(0);
 
         CriteriaHelper.pollUiThread(cta.getTabModelSelector()::isTabStateInitialized);
-        mModalDialogManager = ThreadUtils.runOnUiThreadBlocking(cta::getModalDialogManager);
+        mModalDialogManagerSupplier =
+                ThreadUtils.runOnUiThreadBlocking(cta::getModalDialogManagerSupplier);
     }
 
     @After
@@ -491,7 +493,7 @@ public class TabSwitcherLayoutTest {
         // Wait until the keyboard is showing.
         KeyboardVisibilityDelegate delegate = cta.getWindowAndroid().getKeyboardDelegate();
         CriteriaHelper.pollUiThread(
-                () -> delegate.isKeyboardShowing(cta, cta.getCompositorViewHolderForTesting()));
+                () -> delegate.isKeyboardShowing(cta.getCompositorViewHolderForTesting()));
 
         // Change the title.
         editGroupVisualDataDialogTitle(cta, "Test");
@@ -543,7 +545,7 @@ public class TabSwitcherLayoutTest {
         // Wait until the keyboard is showing.
         KeyboardVisibilityDelegate delegate = cta.getWindowAndroid().getKeyboardDelegate();
         CriteriaHelper.pollUiThread(
-                () -> delegate.isKeyboardShowing(cta, cta.getCompositorViewHolderForTesting()));
+                () -> delegate.isKeyboardShowing(cta.getCompositorViewHolderForTesting()));
 
         // Change the title.
         editGroupVisualDataDialogTitle(cta, "Test");
@@ -1296,7 +1298,7 @@ public class TabSwitcherLayoutTest {
         // Wait until the keyboard is showing.
         KeyboardVisibilityDelegate delegate = cta.getWindowAndroid().getKeyboardDelegate();
         CriteriaHelper.pollUiThread(
-                () -> delegate.isKeyboardShowing(cta, cta.getCompositorViewHolderForTesting()));
+                () -> delegate.isKeyboardShowing(cta.getCompositorViewHolderForTesting()));
         // Dismiss the tab group visual data dialog.
         dismissAllModalDialogs();
         // Verify that the modal dialog is now hidden.
@@ -1311,7 +1313,7 @@ public class TabSwitcherLayoutTest {
         // Wait until the keyboard is hidden to make sure the edit has taken effect.
         KeyboardVisibilityDelegate delegate = cta.getWindowAndroid().getKeyboardDelegate();
         CriteriaHelper.pollUiThread(
-                () -> !delegate.isKeyboardShowing(cta, cta.getCompositorViewHolderForTesting()));
+                () -> !delegate.isKeyboardShowing(cta.getCompositorViewHolderForTesting()));
     }
 
     private void verifyFirstCardTitle(String title) {
@@ -1361,21 +1363,28 @@ public class TabSwitcherLayoutTest {
     private void verifyModalDialogShowingAnimationCompleteInTabSwitcher() {
         CriteriaHelper.pollUiThread(
                 () -> {
-                    Criteria.checkThat(mModalDialogManager.isShowing(), Matchers.is(true));
+                    ModalDialogManager modalDialogManager = mModalDialogManagerSupplier.get();
+                    Criteria.checkThat(modalDialogManager, Matchers.notNullValue());
+                    Criteria.checkThat(modalDialogManager.isShowing(), Matchers.is(true));
                 });
     }
 
     private void verifyModalDialogHidingAnimationCompleteInTabSwitcher() {
         CriteriaHelper.pollUiThread(
                 () -> {
-                    Criteria.checkThat(mModalDialogManager.isShowing(), Matchers.is(false));
+                    ModalDialogManager modalDialogManager = mModalDialogManagerSupplier.get();
+                    Criteria.checkThat(modalDialogManager, Matchers.notNullValue());
+                    Criteria.checkThat(modalDialogManager.isShowing(), Matchers.is(false));
                 });
     }
 
     private void dismissAllModalDialogs() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mModalDialogManager.dismissAllDialogs(DialogDismissalCause.UNKNOWN);
+                    ModalDialogManager modalDialogManager = mModalDialogManagerSupplier.get();
+                    if (modalDialogManager == null) return;
+
+                    modalDialogManager.dismissAllDialogs(DialogDismissalCause.UNKNOWN);
                 });
     }
 

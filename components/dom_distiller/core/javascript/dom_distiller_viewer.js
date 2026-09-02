@@ -296,10 +296,10 @@ class Pincher {
   // TODO(wychen): Improve scroll position when elementFromPoint is body.
 
   constructor() {
-    // This has to be in sync with 'font-size' in distilledpage.css.
+    // This has to be in sync with largest 'font-size' in distilledpage_{}.css.
     // This value is hard-coded because JS might be injected before CSS is
     // ready. See crbug.com/1004663.
-    this.baseSize = 14;
+    this.baseSize = 16;
     this.pinching = false;
     this.fontSizeAnchor = 1.0;
 
@@ -334,7 +334,7 @@ class Pincher {
   refreshTransform_() {
     const slowedScale = Math.exp(Math.log(this.scale) * FONT_SCALE_MULTIPLIER);
     this.clampedScale =
-        Math.max(0.5, Math.min(2.0, this.fontSizeAnchor * slowedScale));
+        Math.max($MIN_SCALE, Math.min(2.0, this.fontSizeAnchor * slowedScale));
 
     // Use "fake" 3D transform so that the layer is not repainted.
     // With 2D transform, the frame rate would be much lower.
@@ -570,8 +570,10 @@ function useFontScaling(scale) {
 }
 
 // Finds a paragraph with `innerText` matching `hash` and `charCount`, then
-// scrolls to that paragraph with the provided `offset`.
-function scrollToParagraphByHash(hash, charCount, offset) {
+// scrolls to that paragraph with the provided `progress` corresponding to the
+// location to scroll to wrt. that paragraph, 0 being the top of that paragraph,
+// 1 being the bottom.
+function scrollToParagraphByHash(hash, charCount, progress) {
   const targetHash = hash;
   const targetCharCount = charCount;
   const paragraphs = document.querySelectorAll('p');
@@ -585,9 +587,8 @@ function scrollToParagraphByHash(hash, charCount, offset) {
       const pHash = hashCode(pText);
       if (pHash === targetHash) {
         const rect = p.getBoundingClientRect();
-        const pMiddle = rect.top + rect.height / 2;
-        const viewportMiddle = window.innerHeight / 2;
-        const scrollOffset = window.scrollY + pMiddle - viewportMiddle + offset;
+        const scrollOffset = (window.scrollY + rect.top) +
+            (rect.height * progress) - (window.innerHeight / 2);
         window.scrollTo(0, scrollOffset);
         break;
       }

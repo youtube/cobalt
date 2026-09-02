@@ -105,6 +105,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -2080,6 +2081,18 @@ void CloseTabSearch(Browser* browser) {
   browser->window()->CloseTabSearchBubble();
 }
 
+void ToggleVerticalTabs(Browser* browser) {
+  tabs::VerticalTabStripStateController* controller =
+      browser->GetFeatures().vertical_tab_strip_state_controller();
+  if (!controller) {
+    return;
+  }
+
+  bool initial_tab_orientation = controller->IsVerticalTabsEnabled();
+
+  controller->SetVerticalTabsEnabled(!initial_tab_orientation);
+}
+
 void ShowTabDeclutter(Browser* browser) {
   browser->window()->CreateTabSearchBubble(
       tab_search::mojom::TabSearchSection::kOrganize,
@@ -2518,14 +2531,9 @@ void ExecLensRegionSearch(Browser* browser) {
                             CONTEXT_MENU_SEARCH_REGION_WITH_GOOGLE_LENS
                       : lens::AmbientSearchEntryPoint::
                             CONTEXT_MENU_SEARCH_REGION_WITH_WEB;
-    auto lens_region_search_controller_data =
-        std::make_unique<lens::LensRegionSearchControllerData>();
-    lens_region_search_controller_data->lens_region_search_controller =
-        std::make_unique<lens::LensRegionSearchController>();
-    lens_region_search_controller_data->lens_region_search_controller->Start(
-        contents, /*use_fullscreen_capture=*/false, is_google_dsp, entry_point);
-    browser->SetUserData(lens::LensRegionSearchControllerData::kDataKey,
-                         std::move(lens_region_search_controller_data));
+    browser->GetFeatures().lens_region_search_controller()->Start(
+        contents,
+        /*use_fullscreen_capture=*/false, is_google_dsp, entry_point);
   }
 #endif  // BUILDFLAG(ENABLE_LENS_DESKTOP_GOOGLE_BRANDED_FEATURES)
 }

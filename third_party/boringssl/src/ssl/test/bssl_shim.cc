@@ -1141,8 +1141,7 @@ static bool DoExchange(bssl::UniquePtr<SSL_SESSION> *out_session,
     OPENSSL_memset(buf.get(), 0x42, kBufLen);
     static const size_t kRecordSizes[] = {
         0, 1, 255, 256, 257, 16383, 16384, 16385, 32767, 32768, 32769};
-    for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kRecordSizes); i++) {
-      const size_t len = kRecordSizes[i];
+    for (size_t len : kRecordSizes) {
       if (len > kBufLen) {
         fprintf(stderr, "Bad kRecordSizes value.\n");
         return false;

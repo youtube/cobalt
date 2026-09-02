@@ -280,7 +280,7 @@ TEST(RtcpPacketTest, TransportFeedbackWithLargeBaseTimeIsConsistent) {
   constexpr Timestamp kTimestamp =
       Timestamp::Zero() + int64_t{0x7fff'ffff} * TransportFeedback::kDeltaTick;
   tb.SetBase(/*base_sequence=*/0, /*ref_timestamp=*/kTimestamp);
-  tb.AddReceivedPacket(/*base_sequence=*/0, /*ref_timestamp=*/kTimestamp);
+  tb.AddReceivedPacket(/*base_sequence=*/0, /*timestamp=*/kTimestamp);
   EXPECT_TRUE(tb.IsConsistent());
 }
 

@@ -89,8 +89,9 @@ std::vector<std::vector<FrameType>> GetTimingFrames(
   FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   VideoCodec codec_settings;
   codec_settings.numberOfSimulcastStreams = num_streams;
-  codec_settings.timing_frame_thresholds = {delay_ms,
-                                            kDefaultOutlierFrameSizePercent};
+  codec_settings.timing_frame_thresholds = {
+      .delay_ms = delay_ms,
+      .outlier_ratio_percent = kDefaultOutlierFrameSizePercent};
   encode_timer.OnEncoderInit(codec_settings);
   const size_t kFramerate = 30;
   VideoBitrateAllocation bitrate_allocation;

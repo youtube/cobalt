@@ -64,6 +64,9 @@ class MultiCaptureDataService : public KeyedService,
   GetCaptureAppsWithoutNotification() const;
   gfx::ImageSkia GetAppIcon(const webapps::AppId& app_id) const;
 
+  bool IsMultiCaptureAllowed(const GURL& url) const;
+  bool IsMultiCaptureAllowedForAnyApp() const;
+
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 

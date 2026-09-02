@@ -250,8 +250,9 @@ void SimulcastTestFixtureImpl::DefaultSettings(
     layer_order[0] = 2;
     layer_order[2] = 0;
   }
-  settings->timing_frame_thresholds = {kDefaultTimingFramesDelayMs,
-                                       kDefaultOutlierFrameSizePercent};
+  settings->timing_frame_thresholds = {
+      .delay_ms = kDefaultTimingFramesDelayMs,
+      .outlier_ratio_percent = kDefaultOutlierFrameSizePercent};
   ConfigureStream(kDefaultWidth / 4, kDefaultHeight / 4, kMaxBitrates[0],
                   kMinBitrates[0], kTargetBitrates[0], kMaxFramerates[0],
                   &settings->simulcastStream[layer_order[0]],

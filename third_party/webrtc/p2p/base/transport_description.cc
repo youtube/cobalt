@@ -87,7 +87,7 @@ RTCError ValidateIcePwd(absl::string_view raw_pwd) {
 RTCErrorOr<IceParameters> IceParameters::Parse(absl::string_view raw_ufrag,
                                                absl::string_view raw_pwd) {
   IceParameters parameters(std::string(raw_ufrag), std::string(raw_pwd),
-                           /* renomination= */ false);
+                           /* ice_renomination= */ false);
   auto result = parameters.Validate();
   if (!result.ok()) {
     return result;

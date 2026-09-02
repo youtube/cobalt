@@ -2077,8 +2077,30 @@ TEST_P(AudioProcessingTest, Formats) {
     int num_reverse_output;
   };
   ChannelFormat cf[] = {
-      {1, 1, 1, 1}, {1, 1, 2, 1}, {2, 1, 1, 1},
-      {2, 1, 2, 1}, {2, 2, 1, 1}, {2, 2, 2, 2},
+      {.num_input = 1,
+       .num_output = 1,
+       .num_reverse_input = 1,
+       .num_reverse_output = 1},
+      {.num_input = 1,
+       .num_output = 1,
+       .num_reverse_input = 2,
+       .num_reverse_output = 1},
+      {.num_input = 2,
+       .num_output = 1,
+       .num_reverse_input = 1,
+       .num_reverse_output = 1},
+      {.num_input = 2,
+       .num_output = 1,
+       .num_reverse_input = 2,
+       .num_reverse_output = 1},
+      {.num_input = 2,
+       .num_output = 2,
+       .num_reverse_input = 1,
+       .num_reverse_output = 1},
+      {.num_input = 2,
+       .num_output = 2,
+       .num_reverse_input = 2,
+       .num_reverse_output = 2},
   };
 
   for (auto [num_input, num_output, num_reverse_input, num_reverse_output] :

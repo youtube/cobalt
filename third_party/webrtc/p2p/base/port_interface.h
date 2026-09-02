@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/packet_socket_factory.h"
@@ -55,7 +56,7 @@ class PortInterface {
   virtual ~PortInterface();
 
   virtual IceCandidateType Type() const = 0;
-  virtual const Network* Network() const = 0;
+  virtual const ::webrtc::Network* Network() const = 0;
 
   // Methods to set/get ICE role and tiebreaker values.
   virtual void SetIceRole(IceRole role) = 0;
@@ -124,7 +125,10 @@ class PortInterface {
       std::function<void(PortInterface*)> callback) = 0;
 
   // Signaled when Port discovers ice role conflict with the peer.
+  // TODO: bugs.webrtc.org/42222066 - remove slot.
   sigslot::signal1<PortInterface*> SignalRoleConflict;
+  virtual void SubscribeRoleConflict(absl::AnyInvocable<void()> callback) = 0;
+  virtual void NotifyRoleConflict() = 0;
 
   // Normally, packets arrive through a connection (or they result signaling of
   // unknown address).  Calling this method turns off delivery of packets
@@ -204,6 +208,5 @@ class PortInterface {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // P2P_BASE_PORT_INTERFACE_H_

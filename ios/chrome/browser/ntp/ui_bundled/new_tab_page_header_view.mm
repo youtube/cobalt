@@ -984,11 +984,15 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 // Sets the background based on the current NTP background, current color
 // palette, or defaults if neither are set.
 - (void)applyBackgroundTheme {
+  // Fakebox coloring looks at image/color/default to determine correct colors.
+  [self setFakeboxColorsWithProgress:_lastAnimationPercent];
+
   BOOL hasBlurredBackground =
       [self.traitCollection boolForNewTabPageImageBackgroundTrait];
   if (hasBlurredBackground) {
     _fakeLocationBarGradientView.hidden = YES;
     _fakeLocationBarBlurEffectView.hidden = NO;
+    _miaAnimationView.hidden = YES;
     return;
   }
 
@@ -997,8 +1001,6 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 
   NewTabPageColorPalette* colorPalette =
       [self.traitCollection objectForNewTabPageTrait];
-
-  [self setFakeboxColorsWithProgress:_lastAnimationPercent];
 
   if (colorPalette) {
     _miaAnimationView.hidden = YES;
@@ -1355,9 +1357,10 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 
   _miaAnimationView = [self createMIAAnimationView];
   _miaAnimationView.userInteractionEnabled = NO;
-  // Hide the view when there is a color palette.
+  // Hide the view when there is a color palette or image background.
   _miaAnimationView.hidden =
-      [self.traitCollection objectForNewTabPageTrait] != nil;
+      [self.traitCollection objectForNewTabPageTrait] != nil ||
+      [self.traitCollection boolForNewTabPageImageBackgroundTrait];
   _miaAnimationView.alpha =
       MIAAnimationOpacityForScrollProgress(_lastAnimationPercent);
   [_miaAnimation play];

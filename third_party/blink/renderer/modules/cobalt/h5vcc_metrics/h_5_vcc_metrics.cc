@@ -49,9 +49,8 @@ ScriptPromise<IDLUndefined> H5vccMetrics::enable(
   EnsureRemoteIsBound();
 
   remote_h5vcc_metrics_->Enable(
-      /*enable=*/true,
-      WTF::BindOnce(&H5vccMetrics::OnEnable, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      /*enable=*/true, BindOnce(&H5vccMetrics::OnEnable, WrapPersistent(this),
+                                WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -66,9 +65,8 @@ ScriptPromise<IDLUndefined> H5vccMetrics::disable(
   EnsureRemoteIsBound();
 
   remote_h5vcc_metrics_->Enable(
-      /*enable=*/false,
-      WTF::BindOnce(&H5vccMetrics::OnDisable, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      /*enable=*/false, BindOnce(&H5vccMetrics::OnDisable, WrapPersistent(this),
+                                 WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -89,8 +87,8 @@ ScriptPromise<IDLUndefined> H5vccMetrics::setMetricEventInterval(
 
   remote_h5vcc_metrics_->SetMetricEventInterval(
       interval_seconds,
-      WTF::BindOnce(&H5vccMetrics::OnSetMetricEventInterval,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccMetrics::OnSetMetricEventInterval, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -105,8 +103,8 @@ ScriptPromise<IDLString> H5vccMetrics::requestHistograms(
   EnsureRemoteIsBound();
 
   remote_h5vcc_metrics_->RequestHistograms(
-      WTF::BindOnce(&H5vccMetrics::OnRequestHistograms, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccMetrics::OnRequestHistograms, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -202,8 +200,8 @@ void H5vccMetrics::EnsureRemoteIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_metrics_.BindNewPipeAndPassReceiver(task_runner));
-  remote_h5vcc_metrics_.set_disconnect_handler(WTF::BindOnce(
-      &H5vccMetrics::OnCloseConnection, WrapWeakPersistent(this)));
+  remote_h5vcc_metrics_.set_disconnect_handler(
+      BindOnce(&H5vccMetrics::OnCloseConnection, WrapWeakPersistent(this)));
 }
 
 void H5vccMetrics::OnCloseConnection() {

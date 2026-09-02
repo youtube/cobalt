@@ -62,7 +62,7 @@
 #include "ui/gfx/geometry/size_conversions.h"
 #import "ui/gfx/mac/coordinate_conversion.h"
 #import "ui/gfx/mac/nswindow_frame_controls.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 
 using remote_cocoa::mojom::VisibilityTransition;
 using remote_cocoa::mojom::WindowVisibilityState;
@@ -748,10 +748,6 @@ void NativeWidgetNSWindowBridge::CloseWindow() {
     [ViewsNSWindowCloseAnimator closeWindowWithAnimation:window];
     return;
   }
-
-  // Destroy the content view so that it won't call back into |host_| while
-  // being torn down.
-  DestroyContentView();
 
   // If the window wants to be visible and has a parent, then the parent may
   // order it back in (in the period between orderOut: and close).

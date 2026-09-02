@@ -7,6 +7,10 @@
 #ifndef LIBANGLE_RENDERER_WGPU_WGPU_COMMAND_BUFFER_H_
 #define LIBANGLE_RENDERER_WGPU_WGPU_COMMAND_BUFFER_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "common/debug.h"
 #include "libANGLE/renderer/wgpu/wgpu_utils.h"
 

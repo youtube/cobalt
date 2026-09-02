@@ -539,7 +539,7 @@ PeerConnection::PeerConnection(
           /*alive=*/call_ != nullptr,
           worker_thread())),
       call_ptr_(call_.get()),
-      legacy_stats_(std::make_unique<LegacyStatsCollector>(this)),
+      legacy_stats_(std::make_unique<LegacyStatsCollector>(this, env_.clock())),
       stats_collector_(RTCStatsCollector::Create(this, env_)),
       // RFC 3264: The numeric value of the session id and version in the
       // o line MUST be representable with a "64 bit signed integer".
@@ -579,12 +579,12 @@ PeerConnection::PeerConnection(
     rtp_manager_->transceivers()->Add(
         RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
             signaling_thread(), make_ref_counted<RtpTransceiver>(
-                                    webrtc::MediaType::AUDIO, context_.get(),
+                                    env_, MediaType::AUDIO, context_.get(),
                                     codec_lookup_helper_.get())));
     rtp_manager_->transceivers()->Add(
         RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
             signaling_thread(), make_ref_counted<RtpTransceiver>(
-                                    webrtc::MediaType::VIDEO, context_.get(),
+                                    env_, MediaType::VIDEO, context_.get(),
                                     codec_lookup_helper_.get())));
   }
 
@@ -3003,14 +3003,14 @@ void PeerConnection::RequestUsagePatternReportForTesting() {
 int PeerConnection::FeedbackAccordingToRfc8888CountForTesting() const {
   return worker_thread()->BlockingCall([this]() {
     RTC_DCHECK_RUN_ON(worker_thread());
-    return call_->FeedbackAccordingToRfc8888Count();
+    return call_->FeedbackAccordingToRfc8888Count().value_or(0);
   });
 }
 
 int PeerConnection::FeedbackAccordingToTransportCcCountForTesting() const {
   return worker_thread()->BlockingCall([this]() {
     RTC_DCHECK_RUN_ON(worker_thread());
-    return call_->FeedbackAccordingToTransportCcCount();
+    return call_->FeedbackAccordingToTransportCcCount().value_or(0);
   });
 }
 

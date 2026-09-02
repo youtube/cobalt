@@ -40,6 +40,7 @@ if (is_android) {
       ":builtin_audio_codecs_java",
       ":camera_java",
       ":default_video_codec_factory_java",
+      ":environment_java",
       ":filevideo_java",
       ":hwcodecs_java",
       ":java_audio_device_module_java",

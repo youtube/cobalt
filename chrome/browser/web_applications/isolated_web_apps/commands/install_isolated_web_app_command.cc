@@ -54,7 +54,7 @@ namespace web_app {
 
 InstallIsolatedWebAppCommandSuccess::InstallIsolatedWebAppCommandSuccess(
     IsolatedWebAppUrlInfo url_info,
-    base::Version installed_version,
+    IwaVersion installed_version,
     IsolatedWebAppStorageLocation location)
     : url_info(std::move(url_info)),
       installed_version(std::move(installed_version)),
@@ -84,7 +84,7 @@ std::ostream& operator<<(std::ostream& os,
 InstallIsolatedWebAppCommand::InstallIsolatedWebAppCommand(
     const IsolatedWebAppUrlInfo& url_info,
     const IsolatedWebAppInstallSource& install_source,
-    const std::optional<base::Version>& expected_version,
+    const std::optional<IwaVersion>& expected_version,
     std::unique_ptr<content::WebContents> web_contents,
     std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
     std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive,
@@ -289,11 +289,11 @@ void InstallIsolatedWebAppCommand::FinalizeInstall(
       install_info, options,
       base::BindOnce(&InstallIsolatedWebAppCommand::OnFinalizeInstall,
                      weak_factory_.GetWeakPtr(),
-                     install_info.isolated_web_app_version().version()));
+                     install_info.isolated_web_app_version()));
 }
 
 void InstallIsolatedWebAppCommand::OnFinalizeInstall(
-    const base::Version& attempted_version,
+    const IwaVersion& attempted_version,
     const webapps::AppId& unused_app_id,
     webapps::InstallResultCode install_result_code) {
   if (install_result_code == webapps::InstallResultCode::kSuccessNewInstall) {
@@ -322,7 +322,7 @@ void InstallIsolatedWebAppCommand::ReportFailure(
 }
 
 void InstallIsolatedWebAppCommand::ReportSuccess(
-    const base::Version& installed_version) {
+    const IwaVersion& installed_version) {
   GetMutableDebugValue().Set("result", "success");
   RecordInstallMetrics(
       InstallCommand::kInstallIsolatedWebApp, WebAppType::kIsolatedWebApp,

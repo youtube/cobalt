@@ -136,8 +136,10 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
 
  private:
   // Call in response to state updates that could warrant sending out packets.
-  // Protected against re-entry from packet sent receipts.
-  void MaybeScheduleProcessPackets() RTC_RUN_ON(task_queue_);
+  // API methods should use this method if the method can be executed as a
+  // consequence of sending a packet to avoid sending another packet in the same
+  // call stack.
+  void PostMaybeProcessPackets() RTC_RUN_ON(task_queue_);
   // Check if it is time to send packets, or schedule a delayed task if not.
   // Use Timestamp::MinusInfinity() to indicate that this call has _not_
   // been scheduled by the pacing controller. If this is the case, check if we

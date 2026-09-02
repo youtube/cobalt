@@ -39,6 +39,7 @@ import android.util.Pair;
 import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 
+import org.chromium.base.FeatureOverrides;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -56,6 +57,7 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.FakeTimeTestRule;
 import org.chromium.base.Token;
@@ -63,7 +65,6 @@ import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -115,6 +116,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** Unit tests for {@link MultiInstanceManagerApi31}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -372,7 +374,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         mTabGroupModelFilter,
                         mGroupedTabs,
                         INSTANCE_ID_1,
-                        mTab1.getId(),
+                        TAB_ID_1,
                         /* isGroupShared= */ false);
 
         when(mActivityTask56.getTaskId()).thenReturn(TASK_ID_56);
@@ -497,6 +499,7 @@ public class MultiInstanceManagerApi31UnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testAllocInstanceId_reachesMaximum() {
         assertTrue(mMultiInstanceManager.mMaxInstances < mActivityPool.length);
         int index = 0;
@@ -511,12 +514,12 @@ public class MultiInstanceManagerApi31UnitTest {
 
         // We allocated max number of instances already. Activity Id 1 is was removed but
         // remains mapped to a task still alive. No more new allocation is possible.
-        assertIsNewTask(mActivityTask60.getTaskId());
+        assertIsNewTask(TASK_ID_60);
         assertEquals(-1, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask60));
 
         // New allocation becomes possible only after a task is gone.
         removeTaskOnRecentsScreen(mActivityPool[2]);
-        assertIsNewTask(mActivityTask61.getTaskId());
+        assertIsNewTask(TASK_ID_61);
         assertEquals(2, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask61));
     }
 
@@ -535,6 +538,7 @@ public class MultiInstanceManagerApi31UnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testAllocInstanceId_removeTaskOnRecentScreen() {
         assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask56));
         assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
@@ -557,8 +561,7 @@ public class MultiInstanceManagerApi31UnitTest {
         // New instantiation picks up the smallest available ID.
         // assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
         Pair<Integer, Integer> instanceIdInfo =
-                mMultiInstanceManager.allocInstanceId(
-                        PASSED_ID_INVALID, mActivityTask57.getTaskId(), false);
+                mMultiInstanceManager.allocInstanceId(PASSED_ID_INVALID, TASK_ID_57, false);
         int index = instanceIdInfo.first;
 
         // Does what TabModelOrchestrator.createTabModels() would do to simulate production code.
@@ -588,8 +591,7 @@ public class MultiInstanceManagerApi31UnitTest {
         // New instantiation picks up the smallest available ID.
         // assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
         Pair<Integer, Integer> instanceIdInfo =
-                mMultiInstanceManager.allocInstanceId(
-                        PASSED_ID_INVALID, mActivityTask57.getTaskId(), false);
+                mMultiInstanceManager.allocInstanceId(PASSED_ID_INVALID, TASK_ID_57, false);
         int index = instanceIdInfo.first;
 
         // Does what TabModelOrchestrator.createTabModels() would do to simulate production code.
@@ -663,10 +665,7 @@ public class MultiInstanceManagerApi31UnitTest {
         // Trying to allocate a new instance with preferNew should fail.
         Pair<Integer, Integer> instanceIdInfo =
                 createMultiInstanceManager(mActivityTask59)
-                        .allocInstanceId(
-                                PASSED_ID_INVALID,
-                                mActivityTask59.getTaskId(),
-                                /* preferNew= */ true);
+                        .allocInstanceId(PASSED_ID_INVALID, TASK_ID_59, /* preferNew= */ true);
         assertEquals(
                 "Should not allocate valid instance id when at limit.",
                 INVALID_WINDOW_ID,
@@ -735,11 +734,11 @@ public class MultiInstanceManagerApi31UnitTest {
         assertEquals(3, mMultiInstanceManager.getInstanceInfo().size());
 
         // Activity destroyed in the background due to memory constraint has no impact either.
-        closeInstanceOnly(mActivityTask57, mActivityTask57.getTaskId());
+        closeInstanceOnly(mActivityTask57, TASK_ID_57);
         assertEquals(3, mMultiInstanceManager.getInstanceInfo().size());
 
         // Closing an instance removes the entry.
-        mMultiInstanceManager.closeInstance(1, mActivityTask57.getTaskId());
+        mMultiInstanceManager.closeInstance(1, TASK_ID_57);
         assertEquals(2, mMultiInstanceManager.getInstanceInfo().size());
     }
 
@@ -806,6 +805,10 @@ public class MultiInstanceManagerApi31UnitTest {
 
         when(mTabModelSelector.isTabStateInitialized()).thenReturn(true);
 
+        final String customTitle = "My Custom Title";
+        ChromeSharedPreferences.getInstance()
+                .writeString(MultiInstanceManagerApi31.customTitleKey(INSTANCE_ID_1), customTitle);
+
         triggerSelectTab(tabModelObserver, mTab1);
         assertFalse(
                 "Normal tab should be selected",
@@ -860,6 +863,25 @@ public class MultiInstanceManagerApi31UnitTest {
                 "Null tab should not affect the URL",
                 URL2.getSpec(),
                 MultiInstanceManagerApi31.readUrl(INSTANCE_ID_1));
+        assertEquals(
+                "Custom title should not change when tab changes.",
+                customTitle,
+                MultiInstanceManagerApi31.readCustomTitle(INSTANCE_ID_1));
+    }
+
+    @Test
+    public void testRenameCallbackUpdatesCustomTitle() {
+        Callback<Pair<Integer, String>> renameCallback =
+                mMultiInstanceManager.getRenameCallbackForTesting();
+
+        final String newTitle = "My Renamed Window";
+        final int instanceId = 2;
+        renameCallback.onResult(new Pair<>(instanceId, newTitle));
+
+        assertEquals(
+                "Custom title should be updated in SharedPreferences.",
+                newTitle,
+                MultiInstanceManagerApi31.readCustomTitle(instanceId));
     }
 
     @Test
@@ -1060,6 +1082,8 @@ public class MultiInstanceManagerApi31UnitTest {
         ChromeSharedPreferences.getInstance().writeString(urlKey, "");
         String titleKey = MultiInstanceManagerApi31.titleKey(index);
         ChromeSharedPreferences.getInstance().writeString(titleKey, "");
+        String customTitleKey = MultiInstanceManagerApi31.customTitleKey(index);
+        ChromeSharedPreferences.getInstance().writeString(customTitleKey, "");
         String tabCountKey = MultiInstanceManagerApi31.tabCountKey(index);
         ChromeSharedPreferences.getInstance().writeInt(tabCountKey, 1);
         String tabCountForRelaunch = MultiInstanceManagerApi31.tabCountForRelaunchKey(index);
@@ -1080,6 +1104,9 @@ public class MultiInstanceManagerApi31UnitTest {
         assertFalse(
                 "Shared preference key should be removed.",
                 ChromeSharedPreferences.getInstance().contains(titleKey));
+        assertFalse(
+                "Shared preference key should be removed.",
+                ChromeSharedPreferences.getInstance().contains(customTitleKey));
         assertFalse(
                 "Shared preference key should be removed.",
                 ChromeSharedPreferences.getInstance().contains(tabCountKey));
@@ -1710,7 +1737,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         mMenuOrKeyboardActionController,
                         mDesktopWindowStateManagerSupplier);
         assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mTabbedActivityTask62));
-        multiInstanceManager0.initialize(0, mTabbedActivityTask62.getTaskId());
+        multiInstanceManager0.initialize(0, TASK_ID_62);
         multiInstanceManager0.onTopResumedActivityChanged(true);
         long instance0CreationTime = MultiInstanceManagerApi31.readLastAccessedTime(0);
 
@@ -1726,7 +1753,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         mMenuOrKeyboardActionController,
                         mDesktopWindowStateManagerSupplier);
         assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mTabbedActivityTask63));
-        multiInstanceManager1.initialize(1, mTabbedActivityTask63.getTaskId());
+        multiInstanceManager1.initialize(1, TASK_ID_63);
         multiInstanceManager0.onTopResumedActivityChanged(false);
         multiInstanceManager1.onTopResumedActivityChanged(true);
         long instance1CreationTime = MultiInstanceManagerApi31.readLastAccessedTime(1);
@@ -1966,5 +1993,71 @@ public class MultiInstanceManagerApi31UnitTest {
 
         // Verify we resume the TabGroupSyncService to begin observing local changes.
         verify(mTabGroupSyncService).setLocalObservationMode(/* observeLocalChanges */ true);
+    }
+
+    @Test
+    public void testOpenNewWindow_RemovesAdjacentFlag_NonMultiWindowMode() {
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                false);
+
+        when(mCurrentActivity.isInMultiWindowMode()).thenReturn(false);
+        when(mCurrentActivity.getPackageName())
+                .thenReturn(ContextUtils.getApplicationContext().getPackageName());
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+
+        mMultiInstanceManager.openNewWindow("", false);
+
+        verify(mCurrentActivity).startActivity(intentCaptor.capture());
+        Intent intent = intentCaptor.getValue();
+        int flags = intent.getFlags();
+        assertFalse(
+                "FLAG_ACTIVITY_LAUNCH_ADJACENT should be removed.",
+                (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
+    }
+
+    @Test
+    public void testOpenNewWindow_KeepsAdjacentFlag_NonMultiWindowMode() {
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                true);
+
+        when(mCurrentActivity.isInMultiWindowMode()).thenReturn(false);
+        when(mCurrentActivity.getPackageName())
+                .thenReturn(ContextUtils.getApplicationContext().getPackageName());
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+
+        mMultiInstanceManager.openNewWindow("", false);
+
+        verify(mCurrentActivity).startActivity(intentCaptor.capture());
+        Intent intent = intentCaptor.getValue();
+        int flags = intent.getFlags();
+        assertTrue(
+                "FLAG_ACTIVITY_LAUNCH_ADJACENT should not be removed.",
+                (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
+    }
+
+    @Test
+    public void testOpenNewWindow_KeepsAdjacentFlag_MultiWindowMode() {
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                true);
+
+        when(mCurrentActivity.isInMultiWindowMode()).thenReturn(true);
+        when(mCurrentActivity.getPackageName())
+                .thenReturn(ContextUtils.getApplicationContext().getPackageName());
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+
+        mMultiInstanceManager.openNewWindow("", false);
+
+        verify(mCurrentActivity).startActivity(intentCaptor.capture());
+        Intent intent = intentCaptor.getValue();
+        int flags = intent.getFlags();
+        assertTrue(
+                "FLAG_ACTIVITY_LAUNCH_ADJACENT should not be removed.",
+                (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
     }
 }

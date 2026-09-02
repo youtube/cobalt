@@ -96,7 +96,8 @@ TestScreenCastStreamProvider::TestScreenCastStreamProvider(Observer* observer,
                            &pw_stream_events_, this);
     uint8_t buffer[2048] = {};
 
-    spa_pod_builder builder = spa_pod_builder{buffer, sizeof(buffer)};
+    spa_pod_builder builder =
+        spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
 
     std::vector<const spa_pod*> params;
 
@@ -291,7 +292,7 @@ void TestScreenCastStreamProvider::OnStreamParamChanged(
   auto stride = SPA_ROUND_UP_N(that->width_ * kBytesPerPixel, 4);
 
   uint8_t buffer[1024] = {};
-  auto builder = spa_pod_builder{buffer, sizeof(buffer)};
+  auto builder = spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
 
   // Setup buffers and meta header for new format.
 

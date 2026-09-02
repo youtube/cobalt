@@ -18,6 +18,9 @@ class MockGlicWindowController
   MockGlicWindowController();
   ~MockGlicWindowController();
 
+  MOCK_METHOD(Host&, host, (), (const, override));
+  MOCK_METHOD(HostManager&, host_manager, (), (override));
+
   MOCK_METHOD(void,
               Toggle,
               (BrowserWindowInterface*, bool, mojom::InvocationSource),
@@ -73,7 +76,6 @@ class MockGlicWindowController
   MOCK_METHOD(State, state, (), (const, override));
   MOCK_METHOD(GlicWindowAnimator*, window_animator, (), (override));
   MOCK_METHOD(Profile*, profile, (), (override));
-  MOCK_METHOD(bool, IsDragging, (), (override));
   MOCK_METHOD(gfx::Rect, GetInitialBounds, (Browser*), (override));
   MOCK_METHOD(void, ShowDetachedForTesting, (), (override));
   MOCK_METHOD(void, SetPreviousPositionForTesting, (gfx::Point), (override));

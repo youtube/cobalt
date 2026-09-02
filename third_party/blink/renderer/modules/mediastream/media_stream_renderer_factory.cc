@@ -54,7 +54,7 @@ base::UnguessableToken GetSessionIdForWebRtcAudioRenderer(
 }
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
-void SendLogMessage(const WTF::String& message) {
+void SendLogMessage(const String& message) {
   WebRtcLogMessage("MSRF::" + message.Utf8());
 }
 

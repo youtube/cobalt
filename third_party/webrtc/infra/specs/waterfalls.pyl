@@ -161,7 +161,7 @@
       'Linux64 Release (Libfuzzer)': {},
       'Mac Asan': {
         'os_type': 'mac',
-        'mixins': ['mac_14_x64', 'cores-12', 'resultdb-json-format'],
+        'mixins': ['mac_15_x64', 'cores-12', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests',
         },
@@ -169,14 +169,14 @@
       'Mac64 Builder': {},
       'Mac64 Debug': {
         'os_type': 'mac',
-        'mixins': ['mac_14_x64', 'cores-12', 'resultdb-json-format'],
+        'mixins': ['mac_15_x64', 'cores-12', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests',
         },
       },
       'Mac64 Release': {
         'os_type': 'mac',
-        'mixins': ['mac_14_x64', 'resultdb-json-format'],
+        'mixins': ['mac_15_x64', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests',
         },
@@ -228,7 +228,7 @@
       },
       'iOS Debug (simulator)': {
         'mixins': [
-          'mac_14_x64', 'chromium-tester-service-account', 'mac_toolchain',
+          'mac_15_x64', 'chromium-tester-service-account', 'mac_toolchain',
           'has_native_resultdb_integration', 'out_dir_arg', 'webrtc-xctest'
         ],
         'test_suites': {
@@ -322,7 +322,7 @@
       'iOS64 Debug': {
         'mixins': [
           'ios-device-18', 'webrtc-xctest', 'chrome-tester-service-account',
-          'xcode_15_main', 'mac_toolchain', 'has_native_resultdb_integration',
+          'xcode_17_main', 'mac_toolchain', 'has_native_resultdb_integration',
           'out_dir_arg'
         ],
         'test_suites': {
@@ -332,7 +332,7 @@
       'iOS64 Perf': {
         'mixins': [
           'arm64', 'ios-device-perf', 'webrtc-xctest', 'timeout-3h',
-          'chrome-tester-service-account', 'xcode_15_main', 'mac_toolchain',
+          'chrome-tester-service-account', 'xcode_17_main', 'mac_toolchain',
           'has_native_resultdb_integration', 'out_dir_arg'
         ],
         'test_suites': {
@@ -345,7 +345,7 @@
       'iOS64 Release': {
         'mixins': [
           'ios-device-18', 'webrtc-xctest', 'chrome-tester-service-account',
-          'xcode_15_main', 'mac_toolchain', 'has_native_resultdb_integration',
+          'xcode_17_main', 'mac_toolchain', 'has_native_resultdb_integration',
           'out_dir_arg'
         ],
         'test_suites': {
@@ -430,7 +430,7 @@
       'ios_compile_arm64_rel': {},
       'ios_dbg_simulator': {
         'mixins': [
-          'mac_14_x64', 'chromium-tester-service-account', 'mac_toolchain',
+          'mac_15_x64', 'chromium-tester-service-account', 'mac_toolchain',
           'has_native_resultdb_integration', 'out_dir_arg', 'webrtc-xctest'
         ],
         'test_suites': {
@@ -534,7 +534,7 @@
       },
       'mac_asan': {
         'os_type': 'mac',
-        'mixins': ['mac_14_x64', 'resultdb-json-format', 'cores-12'],
+        'mixins': ['mac_15_x64', 'resultdb-json-format', 'cores-12'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests',
         },
@@ -543,7 +543,7 @@
       'mac_compile_rel': {},
       'mac_dbg': {
         'os_type': 'mac',
-        'mixins': ['mac_14_x64', 'resultdb-json-format', 'cores-12'],
+        'mixins': ['mac_15_x64', 'resultdb-json-format', 'cores-12'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests',
         },
@@ -557,7 +557,7 @@
       },
       'mac_rel': {
         'os_type': 'mac',
-        'mixins': ['mac_14_x64', 'resultdb-json-format'],
+        'mixins': ['mac_15_x64', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests_tryserver',
         },

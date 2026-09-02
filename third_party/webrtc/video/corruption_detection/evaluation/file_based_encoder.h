@@ -29,25 +29,21 @@ class FileBasedEncoder {
   FileBasedEncoder() = default;
   virtual ~FileBasedEncoder() = default;
 
-  // TODO: bugs.webrtc.org/358039777 - Remove.
-  // [[deprecated("Use following Encode2 instead")]]
-  virtual std::string Encode(const TestClip& clip, DataRate bitrate) {
-    RTCErrorOr<std::string> r = Encode2(clip, bitrate);
-    if (r.ok()) {
-      return r.value();
-    } else {
-      return "";
-    }
-  }
-
   // Encodes the raw video clip specified by `clip` given in a Y4M or YUV file.
   // Creates an encoded file where the encoded frames are stored. The encoded
   // path is returned if successful.
   // TODO: bugs.webrtc.org/358039777 - Make pure virtual when all subclasses
   // has implemented this method.
+  virtual RTCErrorOr<std::string> Encode(const TestClip& clip,
+                                         DataRate bitrate) {
+    return Encode2(clip, bitrate);
+  }
+
+  // TODO: bugs.webrtc.org/358039777 - Remove.
+  [[deprecated("Use above Encode instead")]]
   virtual RTCErrorOr<std::string> Encode2(const TestClip& clip,
                                           DataRate bitrate) {
-    return RTCError(RTCErrorType::UNSUPPORTED_OPERATION);
+    return Encode(clip, bitrate);
   }
 
   // Returns the used codec for encoding.

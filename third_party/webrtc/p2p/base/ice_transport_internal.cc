@@ -226,7 +226,11 @@ RTCError IceConfig::IsValid() const {
   return RTCError::OK();
 }
 
-IceTransportInternal::IceTransportInternal() {}
+IceTransportInternal::IceTransportInternal()
+    : candidate_gathered_trampoline_(this),
+      role_conflict_trampoline_(this),
+      ice_transport_state_changed_trampoline_(this),
+      destroyed_trampoline_(this) {}
 
 IceTransportInternal::~IceTransportInternal() = default;
 

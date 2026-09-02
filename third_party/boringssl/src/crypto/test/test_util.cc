@@ -42,7 +42,7 @@ std::ostream &operator<<(std::ostream &os, const Bytes &in) {
   return os;
 }
 
-bool DecodeHex(std::vector<uint8_t> *out, const std::string &in) {
+bool DecodeHex(std::vector<uint8_t> *out, std::string_view in) {
   out->clear();
   if (in.size() % 2 != 0) {
     return false;
@@ -88,4 +88,12 @@ bssl::UniquePtr<BIGNUM> HexToBIGNUM(const char *hex) {
   BIGNUM *bn = nullptr;
   BN_hex2bn(&bn, hex);
   return bssl::UniquePtr<BIGNUM>(bn);
+}
+
+std::string BIGNUMToHex(const BIGNUM *bn) {
+  bssl::UniquePtr<char> hex(BN_bn2hex(bn));
+  if (hex == nullptr) {
+    return "error";
+  }
+  return hex.get();
 }

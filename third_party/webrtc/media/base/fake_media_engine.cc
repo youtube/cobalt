@@ -26,6 +26,7 @@
 #include "api/audio_options.h"
 #include "api/call/audio_sink.h"
 #include "api/crypto/crypto_options.h"
+#include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -571,7 +572,8 @@ scoped_refptr<AudioState> FakeVoiceEngine::GetAudioState() const {
   return scoped_refptr<AudioState>();
 }
 std::unique_ptr<VoiceMediaSendChannelInterface>
-FakeVoiceEngine::CreateSendChannel(Call* call,
+FakeVoiceEngine::CreateSendChannel(const Environment& /*env*/,
+                                   Call* call,
                                    const MediaConfig& /* config */,
                                    const AudioOptions& options,
                                    const CryptoOptions& /* crypto_options */,
@@ -582,7 +584,8 @@ FakeVoiceEngine::CreateSendChannel(Call* call,
   return ch;
 }
 std::unique_ptr<VoiceMediaReceiveChannelInterface>
-FakeVoiceEngine::CreateReceiveChannel(Call* call,
+FakeVoiceEngine::CreateReceiveChannel(const Environment& /*env*/,
+                                      Call* call,
                                       const MediaConfig& /* config */,
                                       const AudioOptions& options,
                                       const CryptoOptions& /* crypto_options */,
@@ -642,6 +645,7 @@ bool FakeVideoEngine::SetOptions(const VideoOptions& options) {
 }
 std::unique_ptr<VideoMediaSendChannelInterface>
 FakeVideoEngine::CreateSendChannel(
+    const Environment& /* env */,
     Call* call,
     const MediaConfig& /* config */,
     const VideoOptions& options,
@@ -654,6 +658,7 @@ FakeVideoEngine::CreateSendChannel(
 }
 std::unique_ptr<VideoMediaReceiveChannelInterface>
 FakeVideoEngine::CreateReceiveChannel(
+    const Environment& /* env */,
     Call* call,
     const MediaConfig& /* config */,
     const VideoOptions& options,

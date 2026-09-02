@@ -6,9 +6,29 @@
 
 #include <vector>
 
+#include "src/compiler/js-heap-broker-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8::internal::maglev {
+
+Constant* Graph::GetHeapNumberConstant(double constant) {
+  uint64_t bits = Float64(constant).get_bits();
+  auto it = heap_number_constants_.find(bits);
+  if (it == heap_number_constants_.end()) {
+    Handle<HeapNumber> number =
+        broker()
+            ->local_isolate()
+            ->factory()
+            ->NewHeapNumberFromBits<AllocationType::kOld>(bits);
+    compiler::HeapNumberRef number_ref =
+        MakeRef(broker(), broker()->CanonicalPersistentHandle(number));
+    Constant* node = CreateNewConstantNode<Constant>(0, number_ref);
+    heap_number_constants_.emplace(bits, node);
+    return node;
+  }
+  return it->second;
+}
 
 compiler::OptionalScopeInfoRef Graph::TryGetScopeInfoForContextLoad(
     ValueNode* context, int offset) {
@@ -147,13 +167,17 @@ ValueNode* Graph::GetConstant(compiler::ObjectRef ref) {
   }
   compiler::HeapObjectRef constant = ref.AsHeapObject();
 
-  if (constant.IsString()) {
-    constant = constant.AsString().UnpackIfThin(broker());
-  }
-
   auto root_index = broker()->FindRootIndex(constant);
   if (root_index.has_value()) {
     return GetRootConstant(*root_index);
+  }
+
+  if (constant.IsString()) {
+    constant = constant.AsString().UnpackIfThin(broker());
+    root_index = broker()->FindRootIndex(constant);
+    if (root_index.has_value()) {
+      return GetRootConstant(*root_index);
+    }
   }
 
   return GetOrAddNewConstantNode(constants_, ref.AsHeapObject());

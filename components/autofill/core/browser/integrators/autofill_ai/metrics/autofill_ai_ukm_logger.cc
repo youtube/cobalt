@@ -12,6 +12,7 @@
 #include "base/notreached.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/form_structure.h"
@@ -151,6 +152,7 @@ void AutofillAiUkmLogger::LogKeyMetrics(ukm::SourceId ukm_source_id,
           case FillingProduct::kAutocomplete:
           case FillingProduct::kCompose:
           case FillingProduct::kDataList:
+          case FillingProduct::kPasskey:
           case FillingProduct::kNone:
             return false;
         }
@@ -215,6 +217,16 @@ void AutofillAiUkmLogger::LogKeyMetrics(ukm::SourceId ukm_source_id,
     builder.SetFillingCorrectness(!edited_autofilled_field);
   }
   builder.Record(client_->GetUkmRecorder());
+}
+
+void AutofillAiUkmLogger::LogSaveOrUpdatePromptResult(
+    AutofillClient::AutofillAiPromptTypes prompt_type,
+    EntityType entity_type,
+    EntityInstance::RecordType record_type,
+    uint64_t form_session_id,
+    const std::string& domain,
+    AutofillClient::EntitySaveOrUpdatePromptResult result) {
+  // TODO(crbug.com/439779727): Log to MQLS and UKM.
 }
 
 void AutofillAiUkmLogger::LogFieldEvent(ukm::SourceId ukm_source_id,

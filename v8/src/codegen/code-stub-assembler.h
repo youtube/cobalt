@@ -8,6 +8,7 @@
 #include <functional>
 #include <optional>
 
+#include "src/base/functional/function-ref.h"
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/heap-object-list.h"
@@ -636,6 +637,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> BitwiseSmiOp(TNode<Smi> left32, TNode<Smi> right32,
                              Operation bitwise_op);
 
+  TNode<BoolT> LogicalOr(TNode<BoolT> lhs,
+                         base::FunctionRef<TNode<BoolT>()> rhs);
+
   // Align the value to kObjectAlignment8GbHeap if V8_COMPRESS_POINTERS_8GB is
   // defined.
   TNode<IntPtrT> AlignToAllocationAlignment(TNode<IntPtrT> value);
@@ -660,22 +664,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void Dcheck(const BranchGenerator& branch, const char* message,
               std::initializer_list<ExtraNode> extra_nodes = {},
-              const SourceLocation& loc = SourceLocation::Current());
+              SourceLocation loc = SourceLocation::Current());
   void Dcheck(const NodeGenerator<BoolT>& condition_body, const char* message,
               std::initializer_list<ExtraNode> extra_nodes = {},
-              const SourceLocation& loc = SourceLocation::Current());
+              SourceLocation loc = SourceLocation::Current());
   void Dcheck(TNode<Word32T> condition_node, const char* message,
               std::initializer_list<ExtraNode> extra_nodes = {},
-              const SourceLocation& loc = SourceLocation::Current());
+              SourceLocation loc = SourceLocation::Current());
   void Check(const BranchGenerator& branch, const char* message,
              std::initializer_list<ExtraNode> extra_nodes = {},
-             const SourceLocation& loc = SourceLocation::Current());
+             SourceLocation loc = SourceLocation::Current());
   void Check(const NodeGenerator<BoolT>& condition_body, const char* message,
              std::initializer_list<ExtraNode> extra_nodes = {},
-             const SourceLocation& loc = SourceLocation::Current());
+             SourceLocation loc = SourceLocation::Current());
   void Check(TNode<Word32T> condition_node, const char* message,
              std::initializer_list<ExtraNode> extra_nodes = {},
-             const SourceLocation& loc = SourceLocation::Current());
+             SourceLocation loc = SourceLocation::Current());
   void FailAssert(const char* message,
                   const std::vector<FileAndLine>& files_and_lines,
                   std::initializer_list<ExtraNode> extra_nodes = {});

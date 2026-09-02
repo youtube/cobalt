@@ -7,6 +7,10 @@
 // Program.cpp: Implements the gl::Program class. Implements GL program objects
 // and related functionality. [OpenGL ES 2.0.24] section 2.10.3 page 28.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "libANGLE/Program.h"
 
 #include <algorithm>
@@ -257,23 +261,21 @@ void InfoLog::getLog(GLsizei bufSize, GLsizei *length, char *infoLog) const
 // append a sanitized message to the program info log.
 // The D3D compiler includes a fake file path in some of the warning or error
 // messages, so lets remove all occurrences of this fake file path from the log.
-void InfoLog::appendSanitized(const char *message)
+void InfoLog::appendSanitized(std::string message)
 {
     ensureInitialized();
 
-    std::string msg(message);
-
-    size_t found;
-    do
+    while (1)
     {
-        found = msg.find(g_fakepath);
-        if (found != std::string::npos)
+        size_t found = message.find(g_fakepath);
+        if (found == std::string::npos)
         {
-            msg.erase(found, strlen(g_fakepath));
+            break;
         }
-    } while (found != std::string::npos);
+        message.erase(found, strlen(g_fakepath));
+    }
 
-    if (!msg.empty())
+    if (!message.empty())
     {
         *mLazyStream << message << std::endl;
     }
@@ -2439,7 +2441,7 @@ void Program::dumpProgramInfo(const Context *context) const
     pathStream << dumpHash << ".program";
     std::string path = pathStream.str();
 
-    writeFile(path.c_str(), dump.c_str(), dump.length());
+    writeFile(path.c_str(), dump);
     INFO() << "Dumped program: " << path;
 }
 }  // namespace gl

@@ -13,6 +13,9 @@
 #include "content/browser/preloading/prefetch/prefetch_params.h"
 #include "content/browser/preloading/prefetch/prefetch_servable_state.h"
 #include "content/browser/preloading/prefetch/prefetch_serving_handle.h"
+#include "content/browser/preloading/preload_serving_metrics.h"
+#include "content/browser/preloading/prerender/prerender_host.h"
+#include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/global_routing_id.h"
 
@@ -123,13 +126,21 @@ class CONTENT_EXPORT PrefetchMatchResolver final
   // Matches prefetches only if its final PrefetchServiceWorkerState is
   // `expected_service_worker_state` (either `kControlled` or `kDisallowed`).
   static void FindPrefetch(
+      FrameTreeNodeId frame_tree_node_id,
+      PrefetchService& prefetch_service,
       PrefetchKey navigated_key,
       PrefetchServiceWorkerState expected_service_worker_state,
-      bool is_nav_prerender,
-      PrefetchService& prefetch_service,
       base::WeakPtr<PrefetchServingPageMetricsContainer>
           serving_page_metrics_container,
       Callback callback);
+  static void FindPrefetchForTesting(
+      PrefetchService& prefetch_service,
+      PrefetchKey navigated_key,
+      PrefetchServiceWorkerState expected_service_worker_state,
+      base::WeakPtr<PrefetchServingPageMetricsContainer>
+          serving_page_metrics_container,
+      Callback callback,
+      bool is_nav_prerender);
 
  private:
   struct CandidateData final {
@@ -141,10 +152,12 @@ class CONTENT_EXPORT PrefetchMatchResolver final
   };
 
   explicit PrefetchMatchResolver(
+      base::WeakPtr<NavigationRequest> navigation_request,
+      base::WeakPtr<PrefetchService> prefetch_service,
       PrefetchKey navigated_key,
       PrefetchServiceWorkerState expected_service_worker_state,
       bool is_nav_prerender,
-      base::WeakPtr<PrefetchService> prefetch_service,
+      base::WeakPtr<PrerenderHost> prerender_host,
       Callback callback);
 
   // Returns blocked duration. Returns null iff it's not blocked yet.
@@ -184,7 +197,7 @@ class CONTENT_EXPORT PrefetchMatchResolver final
   // Unregisters unmatched prefetch and unblocks if there are no other waiting
   // prefetches.
   void MaybeUnblockForUnmatch(
-      const PrefetchKey& prefetch_key,
+      const PrefetchContainer& prefetch_container,
       PrefetchPotentialCandidateServingResult serving_result);
   void UnblockForCookiesChanged(const PrefetchKey& key);
   void UnblockInternal(PrefetchServingHandle serving_handle);
@@ -212,13 +225,42 @@ class CONTENT_EXPORT PrefetchMatchResolver final
   // A would be enough.
   std::unique_ptr<PrefetchMatchResolver> self_;
 
+  // `NavigationRequest` associated to `this`.
+  //
+  // It is used only for metrics purpose.
+  base::WeakPtr<NavigationRequest> navigation_request_for_metrics_;
+  base::WeakPtr<PrefetchService> prefetch_service_;
+
+  // The key representing a navigation to try match.
   const PrefetchKey navigated_key_;
   const PrefetchServiceWorkerState expected_service_worker_state_;
-  base::WeakPtr<PrefetchService> prefetch_service_;
+  // Callback that is called at the match end.
   Callback callback_;
+  // Is the `NavigationHandle` for initial navigation of prerender or not.
   const bool is_nav_prerender_;
+  // And its `PrerenderHost`.
+  //
+  // When `this` is for a prerender initial navigation, then
+  // `prerender_host_for_metrics_` is the `PrerenderHost` of the prerender
+  // initial navigation. Otherwise, `nullptr`. Also this is nullptr if
+  // `PreloadServingMetrics::IsEnabled()` is false.
+  base::WeakPtr<PrerenderHost> prerender_host_for_metrics_;
+  std::unique_ptr<PrefetchMatchMetrics> prefetch_match_metrics_;
+
+  // Potentially matching candidates.
+  //
+  // Removed if it is determined actually matching or not.
+  //
+  // The count is non-increasing, greater than or equal to zero.
   std::map<PrefetchKey, std::unique_ptr<CandidateData>> candidates_;
+
   std::optional<base::TimeTicks> wait_started_at_ = std::nullopt;
+
+  // Optional. It is set if the navigation is prerender initial navigation and
+  // the initial candidates contain a prefetch ahead of prerender that shares
+  // `PreloadPipelineInfo`.
+  base::WeakPtr<PrefetchContainer> prefetch_ahead_of_prerender_for_metrics_ =
+      nullptr;
 };
 
 // Abstracts required operations for `PrefetchContainer` that is used to collect

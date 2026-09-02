@@ -59,8 +59,8 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setExperimentState(
   ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->SetExperimentState(
       std::move(experiment_config_dict.value()),
-      WTF::BindOnce(&H5vccExperiments::OnSetExperimentState,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccExperiments::OnSetExperimentState, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return promise;
 }
@@ -75,8 +75,8 @@ ScriptPromise<IDLUndefined> H5vccExperiments::resetExperimentState(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->ResetExperimentState(
-      WTF::BindOnce(&H5vccExperiments::OnResetExperimentState,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccExperiments::OnResetExperimentState, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -92,9 +92,8 @@ ScriptPromise<V8OverrideState> H5vccExperiments::getFeature(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->GetFeature(
-      feature_name,
-      WTF::BindOnce(&H5vccExperiments::OnGetFeature, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      feature_name, BindOnce(&H5vccExperiments::OnGetFeature,
+                             WrapPersistent(this), WrapPersistent(resolver)));
   return promise;
 }
 
@@ -115,8 +114,8 @@ ScriptPromise<IDLString> H5vccExperiments::getActiveExperimentConfigData(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->GetActiveExperimentConfigData(
-      WTF::BindOnce(&H5vccExperiments::OnGetActiveExperimentConfigData,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccExperiments::OnGetActiveExperimentConfigData,
+               WrapPersistent(this), WrapPersistent(resolver)));
   return resolver->Promise();
 }
 
@@ -130,8 +129,8 @@ ScriptPromise<IDLString> H5vccExperiments::getLatestExperimentConfigHashData(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->GetLatestExperimentConfigHashData(
-      WTF::BindOnce(&H5vccExperiments::OnGetLatestExperimentConfigHashData,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccExperiments::OnGetLatestExperimentConfigHashData,
+               WrapPersistent(this), WrapPersistent(resolver)));
   return resolver->Promise();
 }
 
@@ -147,8 +146,8 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setLatestExperimentConfigHashData(
   ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->SetLatestExperimentConfigHashData(
       hash_data,
-      WTF::BindOnce(&H5vccExperiments::OnSetLatestExperimentConfigHashData,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccExperiments::OnSetLatestExperimentConfigHashData,
+               WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -177,8 +176,8 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setFinchParameters(
   ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->SetFinchParameters(
       std::move(settings_dict.value()),
-      WTF::BindOnce(&H5vccExperiments::OnSetFinchParameters,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccExperiments::OnSetFinchParameters, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return promise;
 }
@@ -264,8 +263,8 @@ void H5vccExperiments::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_experiments_.BindNewPipeAndPassReceiver(task_runner));
-  remote_h5vcc_experiments_.set_disconnect_handler(WTF::BindOnce(
-      &H5vccExperiments::OnConnectionError, WrapWeakPersistent(this)));
+  remote_h5vcc_experiments_.set_disconnect_handler(
+      BindOnce(&H5vccExperiments::OnConnectionError, WrapWeakPersistent(this)));
 }
 
 void H5vccExperiments::Trace(Visitor* visitor) const {

@@ -43,8 +43,8 @@ H5vccNativeStability::getPendingReports(ScriptState* script_state,
 
   ongoing_requests_.insert(resolver);
   remote_native_stability_->GetPendingReports(
-      WTF::BindOnce(&H5vccNativeStability::OnGetPendingReports,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccNativeStability::OnGetPendingReports, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -60,8 +60,8 @@ ScriptPromise<IDLUndefined> H5vccNativeStability::acknowledgeReports(
   ongoing_requests_.insert(resolver);
   remote_native_stability_->AcknowledgeReports(
       native_stability_event_uuids,
-      WTF::BindOnce(&H5vccNativeStability::OnAcknowledgeReports,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccNativeStability::OnAcknowledgeReports,
+               WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -123,7 +123,7 @@ void H5vccNativeStability::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_native_stability_.BindNewPipeAndPassReceiver(task_runner));
-  remote_native_stability_.set_disconnect_handler(WTF::BindOnce(
+  remote_native_stability_.set_disconnect_handler(BindOnce(
       &H5vccNativeStability::OnConnectionError, WrapWeakPersistent(this)));
 }
 

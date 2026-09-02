@@ -25,6 +25,9 @@
 #include "internal.h"
 
 
+// |EVP_PKEY_RSA_PSS| is intentionally omitted from this list. These are types
+// that can be created without an |EVP_PKEY|, and we do not support
+// |EVP_PKEY_RSA_PSS| keygen.
 static const EVP_PKEY_CTX_METHOD *const evp_methods[] = {
     &rsa_pkey_meth,    &ec_pkey_meth,   &ed25519_pkey_meth,
     &x25519_pkey_meth, &hkdf_pkey_meth,

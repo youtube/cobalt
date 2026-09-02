@@ -101,7 +101,6 @@
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
-#include "ui/gfx/native_window_types.h"
 #include "ui/gfx/range/range.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/cascading_property.h"
@@ -1386,6 +1385,10 @@ void TabStrip::OnSplitRemoved(const std::vector<int>& split_indices) {
 }
 
 void TabStrip::OnSplitContentsChanged(const std::vector<int>& split_indices) {
+  for (const int split_index : split_indices) {
+    tab_at(split_index)->UpdateAccessibleName();
+  }
+
   tab_container_->OnSplitContentsChanged(split_indices);
 }
 
@@ -1884,6 +1887,15 @@ void TabStrip::MaybeStartDrag(
   if (IsAnimatingInTabStrip() || controller_->HasAvailableDragActions() == 0) {
     return;
   }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Block drag operation if the web app is locked for OnTask. This prevents the
+  // window from moving along with the tab when in locked fullsceeen mode. Only
+  // relevant for non-web browser scenarios.
+  if (IsLockedForOnTask()) {
+    return;
+  }
+#endif
 
   // Check that the source is either a valid tab or a tab group header, which
   // are the only valid drag targets.

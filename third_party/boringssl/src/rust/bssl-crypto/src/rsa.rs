@@ -88,13 +88,10 @@ impl PublicKey {
     /// Parse a DER-encoded SubjectPublicKeyInfo. This format is found in,
     /// for example, X.509 certificates.
     pub fn from_der_subject_public_key_info(spki: &[u8]) -> Option<Self> {
-        let mut pkey = scoped::EvpPkey::from_ptr(parse_with_cbs(
-            spki,
-            // Safety: `pkey` is a non-null result from `EVP_parse_public_key` here.
-            |pkey| unsafe { bssl_sys::EVP_PKEY_free(pkey) },
-            // Safety: cbs is valid per `parse_with_cbs`.
-            |cbs| unsafe { bssl_sys::EVP_parse_public_key(cbs) },
-        )?);
+        // Safety: `EVP_pkey_rsa` is always safe to call.
+        let alg = unsafe { bssl_sys::EVP_pkey_rsa() };
+        let mut pkey =
+            scoped::EvpPkey::from_der_subject_public_key_info(spki, core::slice::from_ref(&alg))?;
         let rsa = unsafe { bssl_sys::EVP_PKEY_get1_RSA(pkey.as_ffi_ptr()) };
         if !rsa.is_null() {
             // Safety: `EVP_PKEY_get1_RSA` adds a reference so we are not
@@ -222,18 +219,14 @@ impl PrivateKey {
 
     /// Parse a DER-encrypted PrivateKeyInfo struct (from RFC 5208). This is often called "PKCS#8 format".
     pub fn from_der_private_key_info(der: &[u8]) -> Option<Self> {
-        let mut pkey = scoped::EvpPkey::from_ptr(parse_with_cbs(
-            der,
-            // Safety: `ptr` is a non-null result from `EVP_parse_private_key` here.
-            |pkey| unsafe { bssl_sys::EVP_PKEY_free(pkey) },
-            // Safety: `cbs` is valid per `parse_with_cbs`.
-            |cbs| unsafe { bssl_sys::EVP_parse_private_key(cbs) },
-        )?);
+        // Safety: `EVP_pkey_rsa` is always safe to call.
+        let alg = unsafe { bssl_sys::EVP_pkey_rsa() };
+        let mut pkey =
+            scoped::EvpPkey::from_der_private_key_info(der, core::slice::from_ref(&alg))?;
         // Safety: `pkey` is valid and was created just above.
         let rsa = unsafe { bssl_sys::EVP_PKEY_get1_RSA(pkey.as_ffi_ptr()) };
-        if rsa.is_null() {
-            return None;
-        }
+        // We only passed one allowed algorithm, an RSA algorithm.
+        assert!(!rsa.is_null());
         Some(Self(rsa))
     }
 

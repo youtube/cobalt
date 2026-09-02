@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/containers/contains.h"
+#include "base/containers/to_vector.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -27,11 +28,16 @@ using base::ASCIIToUTF16;
 namespace autofill {
 namespace {
 
-const FormControlType kFieldTypes[] = {
+constexpr FormControlType kFieldTypes[] = {
     FormControlType::kInputText,
     FormControlType::kInputTelephone,
     FormControlType::kInputNumber,
 };
+
+raw_ptr<const FormFieldData> to_form_field_data(
+    const std::unique_ptr<AutofillField>& field) {
+  return field.get();
+}
 
 class PhoneFieldParserTest : public testing::Test {
  public:
@@ -126,9 +132,16 @@ void PhoneFieldParserTest::RunParsingTest(
     global_ids.push_back(AppendField(field));
   }
 
+  // Must outlive `scanner`.
+  auto unowned_fields =
+      base::ToVector(list_, [](const std::unique_ptr<AutofillField>& field) {
+        return raw_ptr<const FormFieldData>(field.get());
+      });
+
   // Parse.
-  AutofillScanner scanner(list_);
-  ParsingContext context(GeoIpCountryCode(""), LanguageCode(""),
+  AutofillScanner scanner(unowned_fields);
+  ParsingContext context(base::ToVector(list_, &to_form_field_data),
+                         GeoIpCountryCode(""), LanguageCode(""),
                          *GetActivePatternFile());
   field_ = Parse(context, &scanner);
   ASSERT_EQ(expect_success, field_.get() != nullptr);

@@ -5106,5 +5106,20 @@ TEST_F(WebRtcSdpTest, RejectsInvalidCharactersInBundleGroup) {
   EXPECT_FALSE(SdpDeserialize(sdp_with_bad_bundle_tag, &desc, &error));
 }
 
+// Regression test for https://issues.chromium.org/441816631
+TEST_F(WebRtcSdpTest, ShrugsOnUnknownStaticAudioCodecs) {
+  // Note: this SDP is illegal, and needs improving.
+  // See https://issues.webrtc.org/441854062 for details.
+  std::string sdp_with_audio_codec_1 =
+      "v=2\r\n"
+      "o=- 1 2 3 4 5\r\n"
+      "s=x\r\n"
+      "t=0\r\n"
+      "m=audio 0  1\r\n";
+  JsepSessionDescription desc(kDummyType);
+  SdpParseError error;
+  EXPECT_TRUE(SdpDeserialize(sdp_with_audio_codec_1, &desc, &error));
+}
+
 }  // namespace
 }  // namespace webrtc

@@ -181,13 +181,16 @@ bool IsAnyHole(Tagged<HeapObject> obj) {
   constexpr Tagged_t kMinHole = std::min({HOLE_LIST(GET_HOLE_ROOT)});
   constexpr Tagged_t kMaxHole = std::max({HOLE_LIST(GET_HOLE_ROOT)});
 #undef GET_HOLE_ROOT
+#ifdef DEBUG
   // Compressed object tests need to be done on a matching compression scheme.
-  DCHECK(!HeapLayout::SafeInCodeSpace(obj));
   // We allow trusted space comparisons, because the first 1MB is unmapped there
   // anyway, so no trusted object can alias a hole.
-  DCHECK_IMPLIES(
-      HeapLayout::SafeInTrustedSpace(obj),
-      TrustedSpaceCompressionScheme::CompressObject(obj.ptr()) >= kMaxHole);
+  if (!obj.IsInMainCageBase()) {
+    DCHECK(obj.IsInTrustedCageBase());
+    DCHECK_GT(TrustedSpaceCompressionScheme::CompressObject(obj.ptr()),
+              kMaxHole);
+  }
+#endif
   // Use a direct cast to Tagged_t rather than CompressObject to allow
   // TrustedSpace comparisons in here.
   return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinHole, kMaxHole);
@@ -198,6 +201,18 @@ bool IsAnyHole(Tagged<HeapObject> obj) {
 
 bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
   return IsAnyHole(obj);
+}
+
+bool SafeIsAnyHole(Tagged<HeapObject> obj) {
+#if V8_STATIC_ROOTS_BOOL
+  if (!obj.IsInMainCageBase()) return false;
+#endif
+  return IsAnyHole(obj);
+}
+
+bool SafeIsAnyHole(Tagged<Object> obj) {
+  Tagged<HeapObject> ho;
+  return TryCast<HeapObject>(obj, &ho) && SafeIsAnyHole(ho);
 }
 
 bool IsHole(Tagged<HeapObject> obj) { return IsAnyHole(obj); }
@@ -266,9 +281,40 @@ IS_HELPER_DEF(Number)
 template <typename... T>
 struct CastTraits<Union<T...>> {
   static inline bool AllowFrom(Tagged<Object> value) {
+    // Make sure to test for holes first, recursing into a check of the Union
+    // without a Hole.
+    if constexpr (base::has_type_v<Hole, T...>) {
+      return IsAnyHole(value) ||
+             CastTraits<typename Union<T...>::template Without<Hole>>::
+                 AllowFrom(value);
+    }
+#define CHECK_HOLE_IF_HAS_HOLE(Type, ...)                             \
+  if constexpr (base::has_type_v<Type, T...>) {                       \
+    return Is##Type(value) ||                                         \
+           CastTraits<typename Union<T...>::template Without<Type>>:: \
+               AllowFrom(value);                                      \
+  }
+    HOLE_LIST(CHECK_HOLE_IF_HAS_HOLE)
+#undef CHECK_HOLE_IF_HAS_HOLE
+
     return (Is<T>(value) || ...);
   }
   static inline bool AllowFrom(Tagged<HeapObject> value) {
+    // Make sure to test for holes first.
+    if constexpr (base::has_type_v<Hole, T...>) {
+      return IsAnyHole(value) ||
+             CastTraits<typename Union<T...>::template Without<Hole>>::
+                 AllowFrom(value);
+    }
+#define CHECK_HOLE_IF_HAS_HOLE(Type, ...)                             \
+  if constexpr (base::has_type_v<Type, T...>) {                       \
+    return Is##Type(value) ||                                         \
+           CastTraits<typename Union<T...>::template Without<Type>>:: \
+               AllowFrom(value);                                      \
+  }
+    HOLE_LIST(CHECK_HOLE_IF_HAS_HOLE)
+#undef CHECK_HOLE_IF_HAS_HOLE
+
     return (Is<T>(value) || ...);
   }
 };
@@ -786,10 +832,11 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
     return Representation::Smi();
   }
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
+  if (IsUninitializedHole(heap_object)) {
+    return Representation::None();
+  }
   if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
-  } else if (IsUninitializedHole(heap_object)) {
-    return Representation::None();
   }
   return Representation::HeapObject();
 }
@@ -798,9 +845,13 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
 ElementsKind Object::OptimalElementsKind(Tagged<Object> obj,
                                          PtrComprCageBase cage_base) {
   if (IsSmi(obj)) return PACKED_SMI_ELEMENTS;
-  if (IsHeapNumber(obj, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
+  if (IsHeapNumber(heap_object, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  // if (IsUninitializedHole(heap_object)) {
+  //   return PACKED_SMI_ELEMENTS;
+  // }
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-  if (IsUndefined(obj, GetReadOnlyRoots())) {
+  if (IsUndefined(heap_object, GetReadOnlyRoots())) {
     return HOLEY_DOUBLE_ELEMENTS;
   }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -1402,7 +1453,7 @@ Tagged<Map> HeapObject::map() const {
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map(cage_base);
 }
@@ -1600,7 +1651,7 @@ MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -1624,7 +1675,7 @@ MapWord HeapObject::map_word(AcquireLoadTag tag) const {
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -1676,7 +1727,7 @@ int HeapObjectLayout::Size() const { return Tagged<HeapObject>(this)->Size(); }
 // TODO(v8:11880): consider dropping parameterless version.
 int HeapObject::Size() const {
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::Size(cage_base);
 }
@@ -1686,7 +1737,7 @@ int HeapObject::Size(PtrComprCageBase cage_base) const {
 
 SafeHeapObjectSize HeapObject::SafeSize() const {
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !HeapLayout::SafeInCodeSpace(*this));
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::SafeSize(cage_base);
 }

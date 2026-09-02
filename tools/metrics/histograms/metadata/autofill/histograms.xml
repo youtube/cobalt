@@ -45,14 +45,18 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(Autofill.Ai.EntityType) -->
 
 <variants name="Autofill.Ai.EntityType">
-  <variant name="DriversLicense"
+  <variant name=""
+      summary="Emitted for any kind of entities. Note that for a given
+               histogram, this variant will just be the accumulation of all
+               histogram records of the other variants."/>
+  <variant name=".DriversLicense"
       summary="Emitted for driver's license forms only."/>
-  <variant name="KnownTravelerNumber"
+  <variant name=".KnownTravelerNumber"
       summary="Emitted for Known Traveler Number forms only."/>
-  <variant name="NationalIdCard"
+  <variant name=".NationalIdCard"
       summary="Emitted for national id card forms only."/>
-  <variant name="Passport" summary="Emitted for passport forms only."/>
-  <variant name="Vehicle"
+  <variant name=".Passport" summary="Emitted for passport forms only."/>
+  <variant name=".Vehicle"
       summary="Emitted for vehicle information forms only."/>
 </variants>
 
@@ -161,6 +165,8 @@ chromium-metrics-reviews@google.com.
   <variant name="OneTimePassword"
       summary="User chose to fill a field with a one time password
                suggestion."/>
+  <variant name="Passkey"
+      summary="User chose to not fill a form but continue with a passkey."/>
   <variant name="Password"
       summary="User chose to fill a form or field with password credentials."/>
   <variant name="PlusAddresses"
@@ -665,16 +671,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="PHONE_HOME_WHOLE_NUMBER"/>
 </variants>
 
-<variants name="AutofillProfileCategory">
-  <variant name="AccountChrome"
-      summary="kAccount profiles originating from Chrome"/>
-  <variant name="AccountHome" summary="kAccountHome profile"/>
-  <variant name="AccountNonChrome"
-      summary="kAccount profiles originating from outside Chrome"/>
-  <variant name="AccountWork" summary="kAccountWork profile"/>
-  <variant name="Legacy" summary="kLegacyOrSyncable profiles"/>
-</variants>
-
 <variants name="AutofillSaveCardDestination">
   <variant name="Local" summary="local"/>
   <variant name="Server" summary="server"/>
@@ -1176,49 +1172,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </token>
 </histogram>
 
-<histogram name="Autofill.Ai.Funnel.{SubmissionState}.{FunnelStage}"
-    enum="Boolean" expires_after="2025-12-12">
-  <owner>jihadghanna@google.com</owner>
-  <owner>chrome-autofill-alerts@google.com</owner>
-  <summary>
-    (DEPRECATED) Records various stages of the Autofill AI funnel. The same
-    metric is logged for submitted and for abandoned forms, with an additional
-    metric aggregating both. The metric is recorded once per form per
-    submission/abandonment.
-
-    {FunnelStage}
-
-    Deprecated in favor of the Funnel metric split by `EntityType`.
-  </summary>
-  <token key="SubmissionState">
-    <variant name="Abandoned"/>
-    <variant name="Aggregate"/>
-    <variant name="Submitted"/>
-  </token>
-  <token key="FunnelStage">
-    <variant name="CorrectionAfterFill"
-        summary="Given a form where the user filled an Autofill AI
-                 suggestion, records whether the filling was corrected or
-                 not."/>
-    <variant name="Eligibility"
-        summary="This metric records whether a parsed form is eligible for
-                 Autofill AI filling or not."/>
-    <variant name="FillAfterSuggestion"
-        summary="Given a form where the user saw Autofill AI filling
-                 suggestions, records whether the suggestion was filled or
-                 not."/>
-    <variant name="ReadinessAfterEligibility"
-        summary="Given an Autofill-AI-eligible form, this metric records
-                 whether the user has stored data to fill the form."/>
-    <variant name="SuggestionAfterReadiness"
-        summary="Given an Autofill-AI-eligible form where the user has data
-                 stored to fill it, this metric records whether the user saw
-                 an Autofill AI suggestion or not."/>
-  </token>
-</histogram>
-
 <histogram
-    name="Autofill.Ai.Funnel.{SubmissionState}.{FunnelStage}.{EntityGranularity}"
+    name="Autofill.Ai.Funnel.{SubmissionState}.{FunnelStage}{EntityGranularity}"
     enum="Boolean" expires_after="2026-02-22">
   <owner>jihadghanna@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -1226,6 +1181,10 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     Records various stages of the Autofill AI funnel. The same metric is logged
     for submitted and for abandoned forms, with an additional metric aggregating
     both. The metric is recorded once per form per submission/abandonment.
+
+    Note that the variant aggregated over all EntityTypes was emitted
+    differently before M140 and then not emitted at all in M141, so data is most
+    accurate starting from M142.
 
     {FunnelStage}
 
@@ -1256,7 +1215,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="EntityGranularity" variants="Autofill.Ai.EntityType"/>
 </histogram>
 
-<histogram name="Autofill.Ai.KeyMetrics{KeyMetric}.{EntityGranularity}"
+<histogram name="Autofill.Ai.KeyMetrics{KeyMetric}{EntityGranularity}"
     enum="Boolean" expires_after="2025-12-12">
   <owner>jihadghanna@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -1365,7 +1324,27 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     Records whether the user is opted into the Autofill AI feature or not. This
     metric is emitted each time a form that contains information fillable by
     Autofill AI is submitted.
+
+    Deprecated in favor of Autofill.Ai.OptIn.Status.Submission - will be removed
+    after M142.
   </summary>
+</histogram>
+
+<histogram name="Autofill.Ai.OptIn.Status.{EmissionStrategy}"
+    enum="AutofillAiOptInStatus" expires_after="2026-06-30">
+  <owner>jihadghanna@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records whether the user is opted into the Autofill AI feature or not.
+
+    {EmissionStrategy}.
+  </summary>
+  <token key="EmissionStrategy">
+    <variant name="Startup" summary="Emitted on startup of the profile."/>
+    <variant name="Submission"
+        summary="Emitted each time a form fillable by Autofill AI is
+                 submitted."/>
+  </token>
 </histogram>
 
 <histogram name="Autofill.Ai.OptInFunnel" enum="AutofillAiOptInFunnelEvents"
@@ -1395,6 +1374,22 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     Deprecated in favor of Autofill.Ai.OptIn.Funnel - will be removed after
     M141.
   </summary>
+</histogram>
+
+<histogram name="Autofill.Ai.PromptSuppression.{PromptType}{EntityType}"
+    enum="Boolean" expires_after="2025-12-12">
+  <owner>jihadghanna@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records for each entity observed at form submission that qualified for a
+    prompt whether it was suppressed or not.
+
+    {EntityType}
+
+    {PromptType}
+  </summary>
+  <token key="PromptType" variants="Autofill.Ai.PromptTypes"/>
+  <token key="EntityType" variants="Autofill.Ai.EntityType"/>
 </histogram>
 
 <histogram name="Autofill.Ai.{PromptType}.AllEntities"
@@ -4998,7 +4993,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.PaymentMethods.SettingsPage.StoredCreditCardCountBeforeCardAdded"
-    units="cards" expires_after="2026-02-22">
+    units="cards" expires_after="2026-10-01">
   <owner>darwinyang@google.com</owner>
   <owner>chrome-payments-team@google.com</owner>
   <summary>
@@ -5013,7 +5008,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.PaymentMethodsSettingsPage.AddCardClicked2"
-    enum="Boolean" expires_after="2026-02-22">
+    enum="Boolean" expires_after="2026-10-01">
   <owner>darwinyang@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
@@ -5027,7 +5022,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.PaymentMethodsSettingsPage.AddCardClickedWithoutExistingCards2"
-    enum="Boolean" expires_after="2026-02-22">
+    enum="Boolean" expires_after="2026-10-01">
   <owner>darwinyang@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
@@ -5044,9 +5039,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.PaymentMethodsSettingsPage.CardAddedWithoutExistingCards"
-    enum="Boolean" expires_after="2025-12-28">
+    enum="Boolean" expires_after="2026-10-01">
   <owner>darwinyang@google.com</owner>
-  <owner>npnavarro@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
     Logs true when a card is saved when the user does not have any existing
@@ -5058,7 +5052,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.PaymentMethodsSettingsPage.CardsViewedWithoutExistingCards"
-    enum="Boolean" expires_after="2025-12-28">
+    enum="Boolean" expires_after="2026-10-01">
   <owner>darwinyang@google.com</owner>
   <owner>smcgruer@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
@@ -5077,9 +5071,9 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.PaymentMethodsSettingsPage.ScanCardResult"
-    enum="AutofillScanCreditCardResult" expires_after="2026-02-09">
+    enum="AutofillScanCreditCardResult" expires_after="2026-10-01">
   <owner>darwinyang@google.com</owner>
-  <owner>chrome-payments-team@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
   <summary>
     Logs how (or if) the credit card scanner is used by the user in the payment
     methods settings page. Recorded when a user hits the save button to save a
@@ -5935,6 +5929,32 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="RequestResult" variants="Autofill.RequestResult"/>
 </histogram>
 
+<histogram name="Autofill.SaveAndFill.DialogResult"
+    enum="SaveAndFillDialogResult" expires_after="2026-06-01">
+  <owner>averina@google.com</owner>
+  <owner>siyua@chromium.org</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the user's action in the Save and Fill dialog. Logged when the user
+    accepts (with or without providing a CVC) or cancels the dialog.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.SaveAndFill.DialogShown.{SaveType}"
+    enum="SaveAndFillDialogResult" expires_after="2026-06-01">
+  <owner>averina@google.com</owner>
+  <owner>siyua@chromium.org</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records when the Save and Fill dialog is shown, broken down by whether it is
+    a local or upload save.
+  </summary>
+  <token key="SaveType">
+    <variant name="Local" summary="Local save"/>
+    <variant name="Upload" summary="Server save"/>
+  </token>
+</histogram>
+
 <histogram
     name="Autofill.SaveAndFill.GetDetailsForCreateCard.Latency{RequestResult}"
     units="ms" expires_after="2026-06-01">
@@ -6117,6 +6137,74 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram
+    name="Autofill.SaveCreditCardPromptResult.Desktop.Server.{ServerSaveSituation}"
+    enum="AutofillSaveCardPromptResultDesktopEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs how the user interacts with the save credit card prompt for a card to
+    be saved as a server card, which {ServerSaveSituation}. Is emitted as soon
+    as user accepts or when the prompt closes. Not logged for prompt re-shows
+    (e.g., prompt reshown from the omnibox icon).
+  </summary>
+  <token key="ServerSaveSituation" variants="AutofillServerSaveCardSituation"/>
+</histogram>
+
+<histogram name="Autofill.SaveCreditCardPromptResult.Desktop.{SaveDestination}"
+    enum="AutofillSaveCardPromptResultDesktopEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs how the user interacts with the save credit card prompt for a card to
+    be saved as a {SaveDestination} card. Is emitted as soon as user accepts or
+    when the prompt closes. Not logged for prompt re-shows (e.g., prompt reshown
+    from the omnibox icon on desktop).
+  </summary>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
+</histogram>
+
+<histogram
+    name="Autofill.SaveCreditCardPromptResult.Desktop.{SaveDestination}.{SaveSituation}"
+    enum="AutofillSaveCardPromptResultDesktopEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs how the user interacts with the save credit card prompt for a card to
+    be saved as a {SaveDestination} card, when {SaveSituation}. Is emitted as
+    soon as user accepts or when the prompt closes. Not logged for prompt
+    re-shows (e.g., prompt reshown from the omnibox icon on desktop).
+  </summary>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
+  <token key="SaveSituation" variants="AutofillSaveCardSituation"/>
+</histogram>
+
+<histogram
+    name="Autofill.SaveCreditCardPromptResult.Desktop.{SaveDestination}.{UserGroup}"
+    enum="AutofillSaveCardPromptResultDesktopEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs how the user interacts with the save credit card prompt for a card to
+    be saved as a {SaveDestination} card, with {UserGroup}. Is emitted as soon
+    as user accepts or when the prompt closes. Not logged for prompt re-shows
+    (e.g., prompt reshown from the omnibox icon on desktop).
+  </summary>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
+  <token key="UserGroup">
+    <variant name="UserHasNoCards"
+        summary="data aggregated across users who don't have credit cards
+                 saved"/>
+    <variant name="UserHasSavedCards"
+        summary="data aggregated across users who have credit cards saved
+                 already."/>
+  </token>
+</histogram>
+
+<histogram
     name="Autofill.SaveCreditCardPromptResult.IOS.{SaveDestination}.{OverlayType}.NumStrikes.{Strikes}.{FixFlow}"
     enum="SaveCreditCardPromptResultIOS" expires_after="2026-02-22">
   <owner>kavitasoni@google.com</owner>
@@ -6150,6 +6238,19 @@ Called by update_autofill_enums.py. This is a manual comment.-->
         summary="card holder name and expiry date"/>
     <variant name="RequestingExpiryDate" summary="only expiry date"/>
   </token>
+</histogram>
+
+<histogram name="Autofill.SaveCreditCardPromptResult.{SaveDestination}"
+    enum="AutofillSaveCardPromptResultEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs whether the user accepts or closes/denies the save credit card prompt
+    for a card to be saved as a {SaveDestination} card. Not logged for prompt
+    re-shows (e.g., prompt reshown from the omnibox icon on desktop).
+  </summary>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
 </histogram>
 
 <histogram
@@ -6275,9 +6376,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.ScanCreditCard.Duration{CreditCardScanSuccess}"
-    units="ms" expires_after="2025-10-05">
+    units="ms" expires_after="2026-10-01">
   <owner>darwinyang@google.com</owner>
-  <owner>npnavarro@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
     How long a credit card took to scan. {CreditCardScanSuccess}
@@ -7980,10 +8080,9 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.VirtualCardEnrollBubble.LoadingResult"
-    enum="AutofillVirtualCardEnrollBubbleResult" expires_after="2025-08-31">
+    enum="AutofillVirtualCardEnrollBubbleResult" expires_after="2025-11-02">
   <owner>darwinyang@google.com</owner>
-  <owner>kavitasoni@google.com</owner>
-  <owner>chrome-payments-team@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     Records the reason for closing the virtual card loading bubble. Recorded
@@ -7994,8 +8093,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.VirtualCardEnrollBubble.LoadingShown"
     enum="AutofillVirtualCardEnrollBubbleResult" expires_after="2025-11-02">
   <owner>darwinyang@google.com</owner>
-  <owner>kavitasoni@google.com</owner>
-  <owner>chrome-payments-team@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     Records if the virtual card loading bubble is shown during credit card

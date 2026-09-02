@@ -148,10 +148,6 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread.h"
 
-// TODO: bugs.webrtc.org/42220069 - Remove this include when users of this
-// function include "create_modular_peer_connection_factory.h" instead.
-#include "api/create_modular_peer_connection_factory_internal.h"  // IWYU pragma: keep
-
 namespace webrtc {
 // IWYU pragma: begin_keep
 // MediaFactory class definition is not part of the api.

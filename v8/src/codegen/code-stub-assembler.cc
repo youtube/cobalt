@@ -107,7 +107,7 @@ void CodeStubAssembler::HandleBreakOnNode() {
 void CodeStubAssembler::Dcheck(const BranchGenerator& branch,
                                const char* message,
                                std::initializer_list<ExtraNode> extra_nodes,
-                               const SourceLocation& loc) {
+                               SourceLocation loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
     Check(branch, message, extra_nodes, loc);
@@ -118,7 +118,7 @@ void CodeStubAssembler::Dcheck(const BranchGenerator& branch,
 void CodeStubAssembler::Dcheck(const NodeGenerator<BoolT>& condition_body,
                                const char* message,
                                std::initializer_list<ExtraNode> extra_nodes,
-                               const SourceLocation& loc) {
+                               SourceLocation loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
     Check(condition_body, message, extra_nodes, loc);
@@ -129,7 +129,7 @@ void CodeStubAssembler::Dcheck(const NodeGenerator<BoolT>& condition_body,
 void CodeStubAssembler::Dcheck(TNode<Word32T> condition_node,
                                const char* message,
                                std::initializer_list<ExtraNode> extra_nodes,
-                               const SourceLocation& loc) {
+                               SourceLocation loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
     Check(condition_node, message, extra_nodes, loc);
@@ -140,7 +140,7 @@ void CodeStubAssembler::Dcheck(TNode<Word32T> condition_node,
 void CodeStubAssembler::Check(const BranchGenerator& branch,
                               const char* message,
                               std::initializer_list<ExtraNode> extra_nodes,
-                              const SourceLocation& loc) {
+                              SourceLocation loc) {
   Label ok(this);
   Label not_ok(this, Label::kDeferred);
   if (message != nullptr) {
@@ -151,7 +151,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
   branch(&ok, &not_ok);
 
   BIND(&not_ok);
-  std::vector<FileAndLine> file_and_line;
+  std::vector<FileAndLine> file_and_line = GetMacroSourcePositionStack();
   if (loc.FileName()) {
     file_and_line.push_back({loc.FileName(), static_cast<size_t>(loc.Line())});
   }
@@ -164,7 +164,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
 void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
                               const char* message,
                               std::initializer_list<ExtraNode> extra_nodes,
-                              const SourceLocation& loc) {
+                              SourceLocation loc) {
   BranchGenerator branch = [=, this](Label* ok, Label* not_ok) {
     TNode<BoolT> condition = condition_body();
     Branch(condition, ok, not_ok);
@@ -176,7 +176,7 @@ void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
 void CodeStubAssembler::Check(TNode<Word32T> condition_node,
                               const char* message,
                               std::initializer_list<ExtraNode> extra_nodes,
-                              const SourceLocation& loc) {
+                              SourceLocation loc) {
   BranchGenerator branch = [=, this](Label* ok, Label* not_ok) {
     Branch(condition_node, ok, not_ok);
   };
@@ -2294,6 +2294,8 @@ TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(TNode<HeapObject> object) {
+  // TODO(leszeks): Enable
+  // CSA_DCHECK(this, IsNotAnyHole(object), object);
   TNode<Map> map = LoadObjectField<Map>(object, HeapObject::kMapOffset);
 #ifdef V8_MAP_PACKING
   // Check the loaded map is unpacked. i.e. the lowest two bits != 0b10
@@ -7817,9 +7819,10 @@ TNode<Union<TheHole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
 }
 void CodeStubAssembler::SetPendingMessage(
     TNode<Union<TheHole, JSMessageObject>> message) {
-  CSA_DCHECK(this, Word32Or(IsTheHole(message),
-                            InstanceTypeEqual(LoadInstanceType(message),
-                                              JS_MESSAGE_OBJECT_TYPE)));
+  CSA_DCHECK(this, LogicalOr(IsTheHole(message), [&] {
+               return InstanceTypeEqual(LoadInstanceType(message),
+                                        JS_MESSAGE_OBJECT_TYPE);
+             }));
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message(isolate()));
   StoreFullTaggedNoWriteBarrier(pending_message, message);
@@ -8548,8 +8551,18 @@ TNode<BoolT> CodeStubAssembler::IsNotAnyHole(TNode<Object> object) {
   return Select<BoolT>(
       TaggedIsSmi(object), [=, this] { return Int32TrueConstant(); },
       [=, this] {
+#if V8_STATIC_ROOTS_BOOL
+        TNode<Word32T> object_as_word32 =
+            TruncateIntPtrToInt32(BitcastTaggedToWord(object));
+#define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
+        constexpr Tagged_t kMinHole = std::min({HOLE_LIST(GET_HOLE_ROOT)});
+        constexpr Tagged_t kMaxHole = std::max({HOLE_LIST(GET_HOLE_ROOT)});
+#undef GET_HOLE_ROOT
+        return Word32BinaryNot(IsInRange(object_as_word32, kMinHole, kMaxHole));
+#else
         return Word32BinaryNot(IsHoleInstanceType(
             LoadInstanceType(UncheckedCast<HeapObject>(object))));
+#endif
       });
 }
 
@@ -10782,10 +10795,15 @@ TNode<UintPtrT> CodeStubAssembler::UintPtrMin(TNode<UintPtrT> left,
                                   right);
 }
 
+TNode<BoolT> CodeStubAssembler::LogicalOr(
+    TNode<BoolT> lhs, base::FunctionRef<TNode<BoolT>()> rhs) {
+  return Select<BoolT>(lhs, [&] { return Int32TrueConstant(); }, rhs);
+}
+
 template <>
 TNode<HeapObject> CodeStubAssembler::LoadName<NameDictionary>(
     TNode<HeapObject> key) {
-  CSA_DCHECK(this, Word32Or(IsTheHole(key), IsName(key)));
+  CSA_DCHECK(this, LogicalOr(IsTheHole(key), [&] { return IsName(key); }));
   return key;
 }
 
@@ -14407,13 +14425,17 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   {
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
         object_page_header, IntPtrConstant(MemoryChunk::FlagsOffset()));
-    if (v8_flags.sticky_mark_bits) {
+    if constexpr (v8_flags.sticky_mark_bits.value()) {
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
       // Pages with only old objects contain no mementos.
       GotoIfNot(
-          WordEqual(WordAnd(page_flags,
-                            IntPtrConstant(MemoryChunk::CONTAINS_ONLY_OLD)),
-                    IntPtrConstant(0)),
+          WordEqual(
+              WordAnd(page_flags,
+                      IntPtrConstant(
+                          MemoryChunk::STICKY_MARK_BIT_CONTAINS_ONLY_OLD)),
+              IntPtrConstant(0)),
           &no_memento_found);
+#endif
     } else {
       GotoIf(WordEqual(
                  WordAnd(page_flags,

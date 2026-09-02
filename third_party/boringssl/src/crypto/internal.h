@@ -107,8 +107,6 @@ typedef __uint128_t uint128_t;
 #endif
 #endif
 
-#define OPENSSL_ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
-
 // GCC-like compilers indicate SSE2 with |__SSE2__|. MSVC leaves the caller to
 // know that x86_64 has SSE2, and uses _M_IX86_FP to indicate SSE2 on x86.
 // https://learn.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=msvc-170

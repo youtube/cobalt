@@ -267,7 +267,8 @@ class ExceptionHandlerInfo;
   V(UnsafeSmiUntag)                                                   \
   V(CheckedInternalizedString)                                        \
   V(CheckedObjectToIndex)                                             \
-  V(CheckedTruncateNumberOrOddballToInt32)                            \
+  V(TruncateCheckedNumberOrOddballToInt32)                            \
+  V(TruncateUnsafeNumberOrOddballToInt32)                             \
   V(CheckedInt32ToUint32)                                             \
   V(CheckedIntPtrToUint32)                                            \
   V(UnsafeInt32ToUint32)                                              \
@@ -276,13 +277,12 @@ class ExceptionHandlerInfo;
   V(ChangeInt32ToFloat64)                                             \
   V(ChangeUint32ToFloat64)                                            \
   V(ChangeIntPtrToFloat64)                                            \
-  V(CheckedTruncateFloat64ToInt32)                                    \
-  V(CheckedTruncateFloat64ToUint32)                                   \
-  V(TruncateNumberOrOddballToInt32)                                   \
+  V(CheckedHoleyFloat64ToInt32)                                       \
+  V(UnsafeHoleyFloat64ToInt32)                                        \
+  V(CheckedHoleyFloat64ToUint32)                                      \
+  V(TruncateHoleyFloat64ToInt32)                                      \
   V(TruncateUint32ToInt32)                                            \
-  V(TruncateFloat64ToInt32)                                           \
-  V(UnsafeTruncateUint32ToInt32)                                      \
-  V(UnsafeTruncateFloat64ToInt32)                                     \
+  V(UnsafeUint32ToInt32)                                              \
   V(Int32ToUint8Clamped)                                              \
   V(Uint32ToUint8Clamped)                                             \
   V(Float64ToUint8Clamped)                                            \
@@ -549,7 +549,7 @@ constexpr bool IsCommutativeNode(Opcode opcode) {
 constexpr bool IsZeroCostNode(Opcode opcode) {
   switch (opcode) {
     case Opcode::kTruncateUint32ToInt32:
-    case Opcode::kUnsafeTruncateUint32ToInt32:
+    case Opcode::kUnsafeUint32ToInt32:
     case Opcode::kIdentity:
       return true;
     default:
@@ -602,9 +602,9 @@ constexpr bool IsTypedArrayStore(Opcode opcode) {
 
 constexpr bool CanTriggerTruncationPass(Opcode opcode) {
   switch (opcode) {
-    case Opcode::kTruncateFloat64ToInt32:
-    case Opcode::kCheckedTruncateFloat64ToInt32:
-    case Opcode::kUnsafeTruncateFloat64ToInt32:
+    case Opcode::kTruncateHoleyFloat64ToInt32:
+    case Opcode::kCheckedHoleyFloat64ToInt32:
+    case Opcode::kUnsafeHoleyFloat64ToInt32:
       return true;
     default:
       return false;
@@ -1019,6 +1019,8 @@ inline constexpr bool IsEmptyNodeType(NodeType type) {
 inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
                                       compiler::ObjectRef ref) {
   if (ref.IsSmi()) return NodeType::kSmi;
+  if (ref.HoleType() != compiler::HoleType::kNone)
+    return NodeType::kOtherHeapObject;
   NodeType type = StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
   DCHECK(!IsEmptyNodeType(type));
   if (type == NodeType::kInternalizedString && ref.is_read_only()) {
@@ -2061,6 +2063,8 @@ class EagerDeoptInfo : public DeoptInfo {
   template <typename Function>
   void ForEachInput(Function&& f) const;
 
+  inline void UnwrapIdentities();
+
  private:
   DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
 };
@@ -2113,6 +2117,8 @@ class LazyDeoptInfo : public DeoptInfo {
   void ForEachInput(Function&& f);
   template <typename Function>
   void ForEachInput(Function&& f) const;
+
+  inline void UnwrapIdentities();
 
  private:
 #ifdef DEBUG
@@ -2504,6 +2510,7 @@ class NodeBase : public ZoneObject {
     set_properties(new_properties);
   }
 
+  inline void UnwrapDeoptFrames();
   inline void OverwriteWithIdentityTo(ValueNode* node);
   inline void OverwriteWithReturnValue(ValueNode* node);
 
@@ -4483,6 +4490,25 @@ class CheckedUint32ToInt32
   void PrintParams(std::ostream&) const {}
 };
 
+class UnsafeUint32ToInt32
+    : public FixedInputValueNodeT<1, UnsafeUint32ToInt32> {
+  using Base = FixedInputValueNodeT<1, UnsafeUint32ToInt32>;
+
+ public:
+  explicit UnsafeUint32ToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Int32() | OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
+
+  Input input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+
 class CheckedIntPtrToInt32
     : public FixedInputValueNodeT<1, CheckedIntPtrToInt32> {
   using Base = FixedInputValueNodeT<1, CheckedIntPtrToInt32>;
@@ -4560,16 +4586,35 @@ class ChangeIntPtrToFloat64
   void PrintParams(std::ostream&) const {}
 };
 
-class CheckedTruncateFloat64ToInt32
-    : public FixedInputValueNodeT<1, CheckedTruncateFloat64ToInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedTruncateFloat64ToInt32>;
+class CheckedHoleyFloat64ToInt32
+    : public FixedInputValueNodeT<1, CheckedHoleyFloat64ToInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedHoleyFloat64ToInt32>;
 
  public:
-  explicit CheckedTruncateFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckedHoleyFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Int32() |
                                               OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+
+class UnsafeHoleyFloat64ToInt32
+    : public FixedInputValueNodeT<1, UnsafeHoleyFloat64ToInt32> {
+  using Base = FixedInputValueNodeT<1, UnsafeHoleyFloat64ToInt32>;
+
+ public:
+  explicit UnsafeHoleyFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Int32() | OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
@@ -4710,12 +4755,12 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
   Kind kind_;
 };
 
-class CheckedTruncateFloat64ToUint32
-    : public FixedInputValueNodeT<1, CheckedTruncateFloat64ToUint32> {
-  using Base = FixedInputValueNodeT<1, CheckedTruncateFloat64ToUint32>;
+class CheckedHoleyFloat64ToUint32
+    : public FixedInputValueNodeT<1, CheckedHoleyFloat64ToUint32> {
+  using Base = FixedInputValueNodeT<1, CheckedHoleyFloat64ToUint32>;
 
  public:
-  explicit CheckedTruncateFloat64ToUint32(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckedHoleyFloat64ToUint32(uint64_t bitfield) : Base(bitfield) {}
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
@@ -4749,12 +4794,8 @@ class CheckedTruncateFloat64ToUint32
   };
 
 DEFINE_TRUNCATE_NODE(TruncateUint32ToInt32, Uint32, OpProperties::Int32())
-DEFINE_TRUNCATE_NODE(TruncateFloat64ToInt32, HoleyFloat64,
+DEFINE_TRUNCATE_NODE(TruncateHoleyFloat64ToInt32, HoleyFloat64,
                      OpProperties::Int32())
-DEFINE_TRUNCATE_NODE(UnsafeTruncateUint32ToInt32, Uint32, OpProperties::Int32())
-DEFINE_TRUNCATE_NODE(UnsafeTruncateFloat64ToInt32, HoleyFloat64,
-                     OpProperties::Int32())
-
 #undef DEFINE_TRUNCATE_NODE
 
 template <typename Derived, ValueRepresentation FloatType>
@@ -5027,12 +5068,12 @@ class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
 
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
-class TruncateNumberOrOddballToInt32
-    : public FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32> {
-  using Base = FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32>;
+class TruncateUnsafeNumberOrOddballToInt32
+    : public FixedInputValueNodeT<1, TruncateUnsafeNumberOrOddballToInt32> {
+  using Base = FixedInputValueNodeT<1, TruncateUnsafeNumberOrOddballToInt32>;
 
  public:
-  explicit TruncateNumberOrOddballToInt32(
+  explicit TruncateUnsafeNumberOrOddballToInt32(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
                                                          conversion_type)) {}
@@ -5058,12 +5099,12 @@ class TruncateNumberOrOddballToInt32
       NextBitField<TaggedToFloat64ConversionType, 2>;
 };
 
-class CheckedTruncateNumberOrOddballToInt32
-    : public FixedInputValueNodeT<1, CheckedTruncateNumberOrOddballToInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedTruncateNumberOrOddballToInt32>;
+class TruncateCheckedNumberOrOddballToInt32
+    : public FixedInputValueNodeT<1, TruncateCheckedNumberOrOddballToInt32> {
+  using Base = FixedInputValueNodeT<1, TruncateCheckedNumberOrOddballToInt32>;
 
  public:
-  explicit CheckedTruncateNumberOrOddballToInt32(
+  explicit TruncateCheckedNumberOrOddballToInt32(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
                                                          conversion_type)) {}
@@ -10884,9 +10925,8 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
     kGeneric,
   };
 
-  static constexpr int kContextIndex = 0;
-  static constexpr int kReceiverIndex = 1;
-  static constexpr int kFixedInputCount = 2;
+  static constexpr int kReceiverIndex = 0;
+  static constexpr int kFixedInputCount = 1;
 
   // We need enough inputs to have these fixed inputs plus the maximum arguments
   // to a function call.
@@ -10896,10 +10936,9 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   // Inputs must be initialized manually.
   CallKnownApiFunction(uint64_t bitfield, Mode mode,
                        compiler::FunctionTemplateInfoRef function_template_info,
-                       ValueNode* context, ValueNode* receiver)
+                       ValueNode* receiver)
       : Base(bitfield | ModeField::encode(mode)),
         function_template_info_(function_template_info) {
-    set_input(kContextIndex, context);
     set_input(kReceiverIndex, receiver);
   }
 
@@ -10907,10 +10946,6 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   // when deciding which registers to splill.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
-  // Input closure() { return input(kClosureIndex); }
-  // ConstInput closure() const { return input(kClosureIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
   Input receiver() { return input(kReceiverIndex); }
   ConstInput receiver() const { return input(kReceiverIndex); }
   int num_args() const { return input_count() - kFixedInputCount; }

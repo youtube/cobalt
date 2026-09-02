@@ -38,8 +38,8 @@ ScriptPromise<IDLString> H5vccUpdater::getUpdaterChannel(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_updater_->GetUpdaterChannel(
-      WTF::BindOnce(&H5vccUpdater::OnGetUpdaterChannel, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnGetUpdaterChannel, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -55,8 +55,8 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setUpdaterChannel(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_updater_->SetUpdaterChannel(
-      channel, WTF::BindOnce(&H5vccUpdater::OnSetUpdaterChannel,
-                             WrapPersistent(this), WrapPersistent(resolver)));
+      channel, BindOnce(&H5vccUpdater::OnSetUpdaterChannel,
+                        WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -71,8 +71,8 @@ ScriptPromise<IDLString> H5vccUpdater::getUpdateStatus(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_updater_->GetUpdateStatus(
-      WTF::BindOnce(&H5vccUpdater::OnGetUpdateStatus, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnGetUpdateStatus, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -87,8 +87,8 @@ ScriptPromise<IDLUndefined> H5vccUpdater::resetInstallations(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_updater_->ResetInstallations(
-      WTF::BindOnce(&H5vccUpdater::OnResetInstallations, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnResetInstallations, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -104,8 +104,8 @@ ScriptPromise<IDLUnsignedShort> H5vccUpdater::getInstallationIndex(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_updater_->GetInstallationIndex(
-      WTF::BindOnce(&H5vccUpdater::OnGetInstallationIndex, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnGetInstallationIndex, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -120,8 +120,8 @@ ScriptPromise<IDLBoolean> H5vccUpdater::getAllowSelfSignedPackages(
 
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->GetAllowSelfSignedPackages(
-      WTF::BindOnce(&H5vccUpdater::OnGetAllowSelfSignedPackages,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnGetAllowSelfSignedPackages,
+               WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -138,8 +138,8 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setAllowSelfSignedPackages(
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->SetAllowSelfSignedPackages(
       allow_self_signed_packages,
-      WTF::BindOnce(&H5vccUpdater::OnSetAllowSelfSignedPackages,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnSetAllowSelfSignedPackages,
+               WrapPersistent(this), WrapPersistent(resolver)));
   return resolver->Promise();
 }
 
@@ -153,8 +153,8 @@ ScriptPromise<IDLString> H5vccUpdater::getUpdateServerUrl(
 
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->GetUpdateServerUrl(
-      WTF::BindOnce(&H5vccUpdater::OnGetUpdateServerUrl, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnGetUpdateServerUrl, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -171,8 +171,8 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setUpdateServerUrl(
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->SetUpdateServerUrl(
       update_server_url,
-      WTF::BindOnce(&H5vccUpdater::OnSetUpdateServerUrl, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnSetUpdateServerUrl, WrapPersistent(this),
+               WrapPersistent(resolver)));
   return resolver->Promise();
 }
 
@@ -186,8 +186,8 @@ ScriptPromise<IDLBoolean> H5vccUpdater::getRequireNetworkEncryption(
 
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->GetRequireNetworkEncryption(
-      WTF::BindOnce(&H5vccUpdater::OnGetRequireNetworkEncryption,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnGetRequireNetworkEncryption,
+               WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -204,8 +204,8 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setRequireNetworkEncryption(
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->SetRequireNetworkEncryption(
       require_network_encryption,
-      WTF::BindOnce(&H5vccUpdater::OnSetRequireNetworkEncryption,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccUpdater::OnSetRequireNetworkEncryption,
+               WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -221,8 +221,8 @@ ScriptPromise<IDLString> H5vccUpdater::getLibrarySha256(
 
   ongoing_requests_.insert(resolver);
   remote_h5vcc_updater_->GetLibrarySha256(
-      index, WTF::BindOnce(&H5vccUpdater::OnGetLibrarySha256,
-                           WrapPersistent(this), WrapPersistent(resolver)));
+      index, BindOnce(&H5vccUpdater::OnGetLibrarySha256, WrapPersistent(this),
+                      WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -316,8 +316,8 @@ void H5vccUpdater::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_updater_.BindNewPipeAndPassReceiver(task_runner));
-  remote_h5vcc_updater_.set_disconnect_handler(WTF::BindOnce(
-      &H5vccUpdater::OnConnectionError, WrapWeakPersistent(this)));
+  remote_h5vcc_updater_.set_disconnect_handler(
+      BindOnce(&H5vccUpdater::OnConnectionError, WrapWeakPersistent(this)));
 }
 
 void H5vccUpdater::OnConnectionError() {
@@ -348,7 +348,7 @@ void H5vccUpdater::EnsureSideloadingReceiverIsBound() {
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_updater_sideloading_.BindNewPipeAndPassReceiver(
           task_runner));
-  remote_h5vcc_updater_sideloading_.set_disconnect_handler(WTF::BindOnce(
+  remote_h5vcc_updater_sideloading_.set_disconnect_handler(BindOnce(
       &H5vccUpdater::OnSideloadingConnectionError, WrapWeakPersistent(this)));
 }
 

@@ -790,12 +790,14 @@ class FakeVoiceEngine : public VoiceEngineInterface {
   scoped_refptr<AudioState> GetAudioState() const override;
 
   std::unique_ptr<VoiceMediaSendChannelInterface> CreateSendChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
       const CryptoOptions& crypto_options,
       AudioCodecPairId codec_pair_id) override;
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
@@ -896,12 +898,14 @@ class FakeVideoEngine : public VideoEngineInterface {
   FakeVideoEngine();
   bool SetOptions(const VideoOptions& options);
   std::unique_ptr<VideoMediaSendChannelInterface> CreateSendChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const VideoOptions& options,
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) override;
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const VideoOptions& options,

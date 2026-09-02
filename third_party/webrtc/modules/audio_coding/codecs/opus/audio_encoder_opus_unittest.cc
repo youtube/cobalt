@@ -47,6 +47,7 @@
 
 namespace webrtc {
 namespace {
+using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
 
@@ -296,7 +297,8 @@ TEST_P(AudioEncoderOpusTest,
               SetTargetAudioBitrate(kTargetAudioBitrate));
   EXPECT_CALL(*states->mock_bitrate_smoother,
               SetTimeConstantMs(kProbingIntervalMs * 4));
-  EXPECT_CALL(*states->mock_bitrate_smoother, AddSample(kTargetAudioBitrate));
+  EXPECT_CALL(*states->mock_bitrate_smoother,
+              AddSample(kTargetAudioBitrate, _));
   states->encoder->OnReceivedUplinkBandwidth(kTargetAudioBitrate,
                                              kProbingIntervalMs);
 
@@ -505,7 +507,7 @@ TEST_P(AudioEncoderOpusTest, UpdateUplinkBandwidthInAudioNetworkAdaptor) {
   const size_t opus_rate_khz = CheckedDivExact(sample_rate_hz_, 1000);
   const std::vector<int16_t> audio(opus_rate_khz * 10 * 2, 0);
   Buffer encoded;
-  EXPECT_CALL(*states->mock_bitrate_smoother, GetAverage())
+  EXPECT_CALL(*states->mock_bitrate_smoother, GetAverage)
       .WillOnce(Return(50000));
   EXPECT_CALL(*states->mock_audio_network_adaptor, SetUplinkBandwidth(50000));
   states->encoder->Encode(
@@ -520,7 +522,7 @@ TEST_P(AudioEncoderOpusTest, UpdateUplinkBandwidthInAudioNetworkAdaptor) {
         0, ArrayView<const int16_t>(audio.data(), audio.size()), &encoded);
 
     // Update when it is time to update.
-    EXPECT_CALL(*states->mock_bitrate_smoother, GetAverage())
+    EXPECT_CALL(*states->mock_bitrate_smoother, GetAverage)
         .WillOnce(Return(40000));
     EXPECT_CALL(*states->mock_audio_network_adaptor, SetUplinkBandwidth(40000));
     states->fake_clock->AdvanceTime(TimeDelta::Millis(1));

@@ -16,7 +16,7 @@
 
 #include <assert.h>
 
-#include <algorithm>
+#include <iterator>
 
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
@@ -213,7 +213,7 @@ bool ssl_get_version_range(const SSL_HANDSHAKE *hs, uint16_t *out_min_version,
   // enabled protocols. Note that this means it is impossible to set a maximum
   // version of the higest supported TLS version in a future-proof way.
   bool any_enabled = false;
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kProtocolVersions); i++) {
+  for (size_t i = 0; i < std::size(kProtocolVersions); i++) {
     // Only look at the versions already enabled.
     if (min_version > kProtocolVersions[i].version) {
       continue;

@@ -831,6 +831,10 @@ struct MediaChannelParameters {
 
   std::vector<Codec> codecs;
   std::vector<RtpExtension> extensions;
+  // RTCP feedback type used for congestion control for this media channel.
+  // If transport sequence numbers are used, 'extensions' will include
+  // kTransportSequenceNumberUri.
+  std::optional<RtcpFeedbackType> rtcp_cc_ack_type;
   // For a send stream this is true if we've negotiated a send direction,
   // for a receive stream this is true if we've negotiated a receive direction.
   bool is_stream_active = true;

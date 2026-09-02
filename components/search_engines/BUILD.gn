@@ -80,7 +80,8 @@ static_library("search_engines") {
     "//components/crash/core/common:crash_key",
     "//components/database_utils",
     "//components/infobars/core",
-    "//components/lens",
+    "//components/lens:features",
+    "//components/lens:mime_type",
     "//components/lens/proto/server:proto",
     "//components/metrics",
     "//components/omnibox/common",
@@ -100,6 +101,7 @@ static_library("search_engines") {
     "//services/data_decoder/public/cpp",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
+    "//services/preferences/tracked",
     "//sql",
     "//third_party/lens_server_proto:lens_overlay_proto",
     "//third_party/metrics_proto",
@@ -135,9 +137,7 @@ static_library("search_engines") {
   ]
 
   if (enable_builtin_search_provider_assets) {
-    sources += [ "search_engine_choice/generated_marketing_snippets.cc" ]
-    deps +=
-        [ "//third_party/search_engines_data:search_engines_scaled_resources" ]
+    deps += [ "//third_party/search_engines_data:resources" ]
   }
 
   if (is_linux || is_win || is_mac || is_chromeos) {

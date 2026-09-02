@@ -204,17 +204,13 @@ class FieldTrials : public FieldTrialsView {
     if (key == "WebRTC-CongestionWindow" ||
         key == "WebRTC-UseBaseHeavyVP8TL3RateAllocation" ||
         key == "WebRTC-VideoRateControl" ||
+        key == "WebRTC-Video-CalculatePsnr" ||
         key == "WebRTC-GetEncoderInfoOverride" ||
         key == "WebRTC-VP9-GetEncoderInfoOverride" ||
         key == "WebRTC-VP9-PerformanceFlags" ||
         key == "WebRTC-VP9QualityScaler" ||
         key == "WebRTC-VP9-SvcForSimulcast" ||
         key == "WebRTC-StableTargetRate") {
-      return "";
-    }
-
-    // TODO: bugs.webrtc.org/15827 - Fuzz frame drop config.
-    if (key == "WebRTC-LibvpxVp9Encoder-SvcFrameDropConfig") {
       return "";
     }
 

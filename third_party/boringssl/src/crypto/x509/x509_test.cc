@@ -15,6 +15,7 @@
 #include <limits.h>
 
 #include <algorithm>
+#include <iterator>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -2551,10 +2552,10 @@ TEST(X509Test, Ed25519Sign) {
   ED25519_keypair(pub_bytes, priv_bytes);
 
   bssl::UniquePtr<EVP_PKEY> pub(
-      EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, pub_bytes, 32));
+      EVP_PKEY_from_raw_public_key(EVP_pkey_ed25519(), pub_bytes, 32));
   ASSERT_TRUE(pub);
   bssl::UniquePtr<EVP_PKEY> priv(
-      EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr, priv_bytes, 32));
+      EVP_PKEY_from_raw_private_key(EVP_pkey_ed25519(), priv_bytes, 32));
   ASSERT_TRUE(priv);
 
   bssl::ScopedEVP_MD_CTX md_ctx;
@@ -3092,8 +3093,8 @@ wr6JtaX2G+pOmwcSPymZC4u2TncAP7KHgS8UGcMw8CE=
   bssl::UniquePtr<STACK_OF(X509_INFO)> infos(
       PEM_X509_INFO_read_bio(bio.get(), nullptr, nullptr, nullptr));
   ASSERT_TRUE(infos);
-  ASSERT_EQ(OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kExpected); i++) {
+  ASSERT_EQ(std::size(kExpected), sk_X509_INFO_num(infos.get()));
+  for (size_t i = 0; i < std::size(kExpected); i++) {
     SCOPED_TRACE(i);
     check_info(&kExpected[i], sk_X509_INFO_value(infos.get(), i));
   }
@@ -3103,13 +3104,12 @@ wr6JtaX2G+pOmwcSPymZC4u2TncAP7KHgS8UGcMw8CE=
   ASSERT_TRUE(bio);
   ASSERT_EQ(infos.get(),
             PEM_X509_INFO_read_bio(bio.get(), infos.get(), nullptr, nullptr));
-  ASSERT_EQ(2 * OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kExpected); i++) {
+  ASSERT_EQ(2 * std::size(kExpected), sk_X509_INFO_num(infos.get()));
+  for (size_t i = 0; i < std::size(kExpected); i++) {
     SCOPED_TRACE(i);
     check_info(&kExpected[i], sk_X509_INFO_value(infos.get(), i));
-    check_info(
-        &kExpected[i],
-        sk_X509_INFO_value(infos.get(), i + OPENSSL_ARRAY_SIZE(kExpected)));
+    check_info(&kExpected[i],
+               sk_X509_INFO_value(infos.get(), i + std::size(kExpected)));
   }
 
   // Gracefully handle errors in both the append and fresh cases.
@@ -3125,7 +3125,7 @@ wr6JtaX2G+pOmwcSPymZC4u2TncAP7KHgS8UGcMw8CE=
   ASSERT_TRUE(bio);
   EXPECT_FALSE(
       PEM_X509_INFO_read_bio(bio.get(), infos.get(), nullptr, nullptr));
-  EXPECT_EQ(2 * OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
+  EXPECT_EQ(2 * std::size(kExpected), sk_X509_INFO_num(infos.get()));
 }
 
 TEST(X509Test, ReadBIOEmpty) {
@@ -4037,7 +4037,7 @@ TEST(X509Test, GeneralName) {
   };
 
   // Every name should be equal to itself and not equal to any others.
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kNames); i++) {
+  for (size_t i = 0; i < std::size(kNames); i++) {
     SCOPED_TRACE(Bytes(kNames[i]));
 
     const uint8_t *ptr = kNames[i].data();
@@ -4052,7 +4052,7 @@ TEST(X509Test, GeneralName) {
     bssl::UniquePtr<uint8_t> free_enc(enc);
     EXPECT_EQ(Bytes(enc, enc_len), Bytes(kNames[i]));
 
-    for (size_t j = 0; j < OPENSSL_ARRAY_SIZE(kNames); j++) {
+    for (size_t j = 0; j < std::size(kNames); j++) {
       SCOPED_TRACE(Bytes(kNames[j]));
 
       ptr = kNames[j].data();
@@ -7223,14 +7223,17 @@ TEST(X509Test, NameAttributeValues) {
       // These types are not actually supported by the library, but we accept
       // them as |V_ASN1_OTHER|.
       {7 /* ObjectDescriptor */, "", V_ASN1_OTHER, std::string("\x07\x00", 2)},
-      {8 /* EXTERNAL */, "", V_ASN1_OTHER, std::string("\x08\x00", 2)},
+      {CBS_ASN1_CONSTRUCTED | 8 /* EXTERNAL */, "", V_ASN1_OTHER,
+       std::string("\x28\x00", 2)},
       {9 /* REAL */, "", V_ASN1_OTHER, std::string("\x09\x00", 2)},
-      {11 /* EMBEDDED PDV */, "", V_ASN1_OTHER, std::string("\x0b\x00", 2)},
-      {13 /* RELATIVE-OID */, "", V_ASN1_OTHER, std::string("\x0d\x00", 2)},
+      {CBS_ASN1_CONSTRUCTED | 11 /* EMBEDDED PDV */, "", V_ASN1_OTHER,
+       std::string("\x2b\x00", 2)},
+      {13 /* RELATIVE-OID */, "\x01", V_ASN1_OTHER, "\x0d\x01\x01"},
       {14 /* TIME */, "", V_ASN1_OTHER, std::string("\x0e\x00", 2)},
       {15 /* not a type; reserved value */, "", V_ASN1_OTHER,
        std::string("\x0f\x00", 2)},
-      {29 /* CHARACTER STRING */, "", V_ASN1_OTHER, std::string("\x1d\x00", 2)},
+      {CBS_ASN1_CONSTRUCTED | 29 /* CHARACTER STRING */, "", V_ASN1_OTHER,
+       std::string("\x3d\x00", 2)},
 
       // Non-universal tags are allowed as |V_ASN1_OTHER| too.
       {CBS_ASN1_APPLICATION | CBS_ASN1_CONSTRUCTED | 42, "", V_ASN1_OTHER,
@@ -8690,6 +8693,68 @@ TEST(X509Test, ParseIPAddress) {
                                     ASN1_STRING_length(oct.get())));
     }
   }
+}
+
+// Test that, after deleting the last extension, the extension list should be
+// null.
+TEST(X509Test, DeleteLastExtension) {
+  bssl::UniquePtr<X509_EXTENSION> ext1(X509_EXTENSION_new());
+  ASSERT_TRUE(ext1);
+  ASSERT_TRUE(X509_EXTENSION_set_object(
+      ext1.get(), OBJ_nid2obj(NID_subject_key_identifier)));
+
+  bssl::UniquePtr<X509_EXTENSION> ext2(X509_EXTENSION_new());
+  ASSERT_TRUE(ext2);
+  ASSERT_TRUE(X509_EXTENSION_set_object(
+      ext2.get(), OBJ_nid2obj(NID_authority_key_identifier)));
+
+  bssl::UniquePtr<X509> cert(X509_new());
+  ASSERT_TRUE(cert);
+  bssl::UniquePtr<X509_CRL> crl(X509_CRL_new());
+  ASSERT_TRUE(crl);
+  bssl::UniquePtr<X509_REVOKED> rev(X509_REVOKED_new());
+  ASSERT_TRUE(rev);
+
+  // Initially, the extension list is null.
+  EXPECT_EQ(X509_get0_extensions(cert.get()), nullptr);
+  EXPECT_EQ(X509_CRL_get0_extensions(crl.get()), nullptr);
+  EXPECT_EQ(X509_REVOKED_get0_extensions(rev.get()), nullptr);
+
+  // Add an extension.
+  ASSERT_TRUE(X509_add_ext(cert.get(), ext1.get(), -1));
+  ASSERT_TRUE(X509_CRL_add_ext(crl.get(), ext1.get(), -1));
+  ASSERT_TRUE(X509_REVOKED_add_ext(rev.get(), ext1.get(), -1));
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_get0_extensions(cert.get())), 1u);
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_CRL_get0_extensions(crl.get())), 1u);
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_REVOKED_get0_extensions(rev.get())), 1u);
+
+  // Add a second extension.
+  ASSERT_TRUE(X509_add_ext(cert.get(), ext1.get(), -1));
+  ASSERT_TRUE(X509_CRL_add_ext(crl.get(), ext1.get(), -1));
+  ASSERT_TRUE(X509_REVOKED_add_ext(rev.get(), ext1.get(), -1));
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_get0_extensions(cert.get())), 2u);
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_CRL_get0_extensions(crl.get())), 2u);
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_REVOKED_get0_extensions(rev.get())), 2u);
+
+  // Delete one extension.
+  X509_EXTENSION_free(X509_delete_ext(cert.get(), 0));
+  X509_EXTENSION_free(X509_CRL_delete_ext(crl.get(), 0));
+  X509_EXTENSION_free(X509_REVOKED_delete_ext(rev.get(), 0));
+
+  // There is still an extension list.
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_get0_extensions(cert.get())), 1u);
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_CRL_get0_extensions(crl.get())), 1u);
+  EXPECT_EQ(sk_X509_EXTENSION_num(X509_REVOKED_get0_extensions(rev.get())), 1u);
+
+  // Delete the other extension.
+  X509_EXTENSION_free(X509_delete_ext(cert.get(), 0));
+  X509_EXTENSION_free(X509_CRL_delete_ext(crl.get(), 0));
+  X509_EXTENSION_free(X509_REVOKED_delete_ext(rev.get(), 0));
+
+  // There should not only be zero extensions, but not list at all.
+  EXPECT_EQ(X509_get0_extensions(cert.get()), nullptr);
+  EXPECT_EQ(X509_CRL_get0_extensions(crl.get()), nullptr);
+  EXPECT_EQ(X509_REVOKED_get0_extensions(rev.get()), nullptr);
 }
 
 }  // namespace

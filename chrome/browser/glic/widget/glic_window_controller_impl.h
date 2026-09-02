@@ -121,7 +121,6 @@ class GlicWindowControllerImpl
   State state() const override;
   GlicWindowAnimator* window_animator() override;
   Profile* profile() override;
-  bool IsDragging() override;
   gfx::Rect GetInitialBounds(Browser* browser) override;
   void ShowDetachedForTesting() override;
   void SetPreviousPositionForTesting(gfx::Point position) override;
@@ -141,8 +140,10 @@ class GlicWindowControllerImpl
   void OnDisplayMetricsChanged(const display::Display& display,
                                uint32_t changed_metrics) override;
 
+  Host& host() const override;
+  HostManager& host_manager() override;
+
  private:
-  Host& host() const;
 
   // Sets the floating attributes of the glic window.
   //
@@ -177,8 +178,11 @@ class GlicWindowControllerImpl
   void SetupAndShowGlicWidget(Browser* browser);
   void SetupGlicWidgetAccessibilityText();
 
-  void CloseAndReopenDetached(mojom::InvocationSource source);
-  void CloseInternal(std::optional<mojom::InvocationSource> source);
+  // Reset all state associated with an open side panel or floating panel and
+  // close the panel. Before opening the panel again all state must be reset.
+  // No Glic metrics are recorded. This method can safely be called even when
+  // the panel is not open.
+  void ResetAndHidePanel();
 
   // Host::Observer implementation.
   void WebClientInitializeFailed() override;
@@ -220,7 +224,7 @@ class GlicWindowControllerImpl
 
   // Find and return a browser within attachment distance. Returns nullptr if no
   // browsers are within attachment distance.
-  Browser* FindBrowserForAttachment();
+  BrowserWindowInterface* FindBrowserForAttachment();
 
   // Called when the move animation finishes when attaching.
   void AttachAnimationFinished();
@@ -235,7 +239,8 @@ class GlicWindowControllerImpl
   void AttachedBrowserDidClose(BrowserWindowInterface* browser);
 
   // Returns true if a browser is occluded at point in screen coordinates.
-  bool IsBrowserOccludedAtPoint(Browser* browser, gfx::Point point);
+  bool IsBrowserOccludedAtPoint(BrowserWindowInterface* browser,
+                                gfx::Point point);
 
   // Return the last size Resize() was called with, or the default initial size
   // if Resize() hasn't been called. The return value is clamped to fit between
@@ -253,8 +258,8 @@ class GlicWindowControllerImpl
   bool IsWindowOpenAndReady();
 
   // web_modal::WebContentsModalDialogManagerDelegate:
-  web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHost()
-      override;
+  web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHost(
+      content::WebContents* web_contents) override;
 
   // web_modal::WebContentsModalDialogHost:
   gfx::Size GetMaximumDialogSize() override;
@@ -297,6 +302,7 @@ class GlicWindowControllerImpl
   void HandleWindowDragWithOffset(gfx::Vector2d mouse_offset);
 
   const raw_ptr<Profile> profile_;
+  std::unique_ptr<HostManager> host_manager_;
 
   // Exists when the glic panel is open and in window mode.
   std::unique_ptr<GlicWidget> glic_widget_;

@@ -1831,7 +1831,10 @@ void VideoStreamEncoder::MaybeEncodeVideoFrame(const VideoFrame& video_frame,
                      << ", texture=" << last_frame_info_->is_texture << ".";
     // Force full frame update, since resolution has changed.
     accumulated_update_rect_ =
-        VideoFrame::UpdateRect{0, 0, video_frame.width(), video_frame.height()};
+        VideoFrame::UpdateRect{.offset_x = 0,
+                               .offset_y = 0,
+                               .width = video_frame.width(),
+                               .height = video_frame.height()};
   }
 
   // We have to create the encoder before the frame drop logic,
@@ -2021,8 +2024,10 @@ void VideoStreamEncoder::EncodeVideoFrame(const VideoFrame& video_frame,
           cropped_height);
       update_rect.offset_x -= offset_x;
       update_rect.offset_y -= offset_y;
-      update_rect.Intersect(
-          VideoFrame::UpdateRect{0, 0, cropped_width, cropped_height});
+      update_rect.Intersect(VideoFrame::UpdateRect{.offset_x = 0,
+                                                   .offset_y = 0,
+                                                   .width = cropped_width,
+                                                   .height = cropped_height});
 
     } else {
       // The difference is large, scale it.
@@ -2031,8 +2036,10 @@ void VideoStreamEncoder::EncodeVideoFrame(const VideoFrame& video_frame,
       if (!update_rect.IsEmpty()) {
         // Since we can't reason about pixels after scaling, we invalidate whole
         // picture, if anything changed.
-        update_rect =
-            VideoFrame::UpdateRect{0, 0, cropped_width, cropped_height};
+        update_rect = VideoFrame::UpdateRect{.offset_x = 0,
+                                             .offset_y = 0,
+                                             .width = cropped_width,
+                                             .height = cropped_height};
       }
     }
     if (!cropped_buffer) {
@@ -2049,7 +2056,10 @@ void VideoStreamEncoder::EncodeVideoFrame(const VideoFrame& video_frame,
     // frame here.
     if (!accumulated_update_rect_.IsEmpty()) {
       accumulated_update_rect_ =
-          VideoFrame::UpdateRect{0, 0, out_frame.width(), out_frame.height()};
+          VideoFrame::UpdateRect{.offset_x = 0,
+                                 .offset_y = 0,
+                                 .width = out_frame.width(),
+                                 .height = out_frame.height()};
       accumulated_update_rect_is_valid_ = false;
     }
   }
@@ -2060,7 +2070,10 @@ void VideoStreamEncoder::EncodeVideoFrame(const VideoFrame& video_frame,
              out_frame.has_update_rect()) {
     accumulated_update_rect_.Union(out_frame.update_rect());
     accumulated_update_rect_.Intersect(
-        VideoFrame::UpdateRect{0, 0, out_frame.width(), out_frame.height()});
+        VideoFrame::UpdateRect{.offset_x = 0,
+                               .offset_y = 0,
+                               .width = out_frame.width(),
+                               .height = out_frame.height()});
     out_frame.set_update_rect(accumulated_update_rect_);
     accumulated_update_rect_.MakeEmptyUpdate();
   }

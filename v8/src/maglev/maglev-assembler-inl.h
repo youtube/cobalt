@@ -486,6 +486,9 @@ inline bool ClobberedBy(RegList written_registers, Tagged<TaggedIndex> index) {
 inline bool ClobberedBy(RegList written_registers, int32_t imm) {
   return false;
 }
+inline bool ClobberedBy(RegList written_registers, ExternalReference ref) {
+  return false;
+}
 inline bool ClobberedBy(RegList written_registers, RootIndex index) {
   return false;
 }
@@ -513,6 +516,10 @@ inline bool ClobberedBy(DoubleRegList written_registers,
   return false;
 }
 inline bool ClobberedBy(DoubleRegList written_registers, int32_t imm) {
+  return false;
+}
+inline bool ClobberedBy(DoubleRegList written_registers,
+                        ExternalReference ref) {
   return false;
 }
 inline bool ClobberedBy(DoubleRegList written_registers, RootIndex index) {
@@ -552,6 +559,9 @@ inline bool MachineTypeMatches(MachineType type, int32_t imm) {
   // zero-extended.
   return type.representation() == MachineRepresentation::kWord32 ||
          type.representation() == MachineRepresentation::kWord64;
+}
+inline bool MachineTypeMatches(MachineType type, ExternalReference ref) {
+  return type.representation() == MachineType::PointerRepresentation();
 }
 inline bool MachineTypeMatches(MachineType type, RootIndex index) {
   return type.IsTagged() && !type.IsTaggedSigned();
@@ -1136,7 +1146,9 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
   Label* deferred_write_barrier_check = MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef ok, Register object,
          Register value, RegisterSnapshot snapshot) {
+#if DEBUG
         masm->set_allow_call(true);
+#endif  // DEBUG
         {
           SaveRegisterStateForCall save_register_state(masm, snapshot);
 #ifdef V8_COMPRESS_POINTERS
@@ -1147,7 +1159,9 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
           masm->Move(kContextRegister, masm->native_context().object());
           masm->CallRuntime(Runtime::kCheckNoWriteBarrierNeeded, 2);
         }
+#if DEBUG
         masm->set_allow_call(false);
+#endif  // DEBUG
         masm->Jump(*ok);
       },
       ok, object, value, snapshot);

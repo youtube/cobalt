@@ -17,6 +17,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <iterator>
 #include <type_traits>
 
 #include <openssl/bn.h>
@@ -309,7 +311,7 @@ static crypto_word_t word_reverse(crypto_word_t in) {
   };
 #endif
 
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kMasks); i++) {
+  for (size_t i = 0; i < std::size(kMasks); i++) {
     in = ((in >> (1 << i)) & kMasks[i]) | ((in & kMasks[i]) << (1 << i));
   }
 

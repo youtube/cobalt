@@ -13,7 +13,6 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.CollectionUtil;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.WebContentsState;
@@ -29,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Creates historical entries in TabRestoreService. */
 @NullMarked
@@ -230,7 +230,8 @@ public class HistoricalTabSaverImpl implements HistoricalTabSaver {
 
     private boolean tabIdExistsInSecondaryModel(int tabId) {
         for (Supplier<TabModel> tabModelSupplier : mSecondaryTabModelSuppliers) {
-            if (tabModelSupplier.hasValue() && tabModelSupplier.get().getTabById(tabId) != null) {
+            var tabModel = tabModelSupplier.get();
+            if (tabModel != null && tabModel.getTabById(tabId) != null) {
                 return true;
             }
         }

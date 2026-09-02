@@ -115,14 +115,12 @@ class JsepTransport {
   }
 
   RTCError SetLocalJsepTransportDescription(
-      const JsepTransportDescription& jsep_description,
-      SdpType type);
+      const JsepTransportDescription& jsep_description, SdpType type);
 
   // Set the remote TransportDescription to be used by DTLS and ICE channels
   // that are part of this Transport.
   RTCError SetRemoteJsepTransportDescription(
-      const JsepTransportDescription& jsep_description,
-      SdpType type);
+      const JsepTransportDescription& jsep_description, SdpType type);
   RTCError AddRemoteCandidates(const Candidates& candidates);
 
   // Set the "needs-ice-restart" flag as described in JSEP. After the flag is
@@ -204,7 +202,9 @@ class JsepTransport {
     return rtp_dtls_transport_;
   }
 
-  scoped_refptr<SctpTransport> SctpTransport() const { return sctp_transport_; }
+  scoped_refptr<::webrtc::SctpTransport> SctpTransport() const {
+    return sctp_transport_;
+  }
 
   // TODO(bugs.webrtc.org/9719): Delete method, update callers to use
   // SctpTransport() instead.
@@ -328,6 +328,5 @@ class JsepTransport {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // PC_JSEP_TRANSPORT_H_

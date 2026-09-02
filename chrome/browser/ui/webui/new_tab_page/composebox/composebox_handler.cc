@@ -4,40 +4,22 @@
 
 #include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_handler.h"
 
+#include <optional>
+#include <utility>
+#include <vector>
+
+#include "base/containers/span.h"
 #include "base/notreached.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_omnibox_client.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
-#include "chrome/browser/ui/webui/searchbox/searchbox_omnibox_client.h"
+#include "components/lens/contextual_input.h"
 #include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/composebox/composebox_image_helper.h"
 #include "content/public/browser/page_navigator.h"
 
 using composebox::SessionState;
-
-namespace {
-class ComposeboxOmniboxClient final : public SearchboxOmniboxClient {
- public:
-  ComposeboxOmniboxClient(Profile* profile, content::WebContents* web_contents);
-  ~ComposeboxOmniboxClient() override;
-
-  // OmniboxClient:
-  metrics::OmniboxEventProto::PageClassification GetPageClassification(
-      bool is_prefetch) const override;
-};
-
-ComposeboxOmniboxClient::ComposeboxOmniboxClient(
-    Profile* profile,
-    content::WebContents* web_contents)
-    : SearchboxOmniboxClient(profile, web_contents) {}
-
-ComposeboxOmniboxClient::~ComposeboxOmniboxClient() = default;
-
-metrics::OmniboxEventProto::PageClassification
-ComposeboxOmniboxClient::GetPageClassification(bool is_prefetch) const {
-  return metrics::OmniboxEventProto::NTP_COMPOSEBOX;
-}
-
-}  // namespace
 
 ComposeboxHandler::ComposeboxHandler(
     mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
@@ -49,10 +31,18 @@ ComposeboxHandler::ComposeboxHandler(
     Profile* profile,
     content::WebContents* web_contents,
     MetricsReporter* metrics_reporter)
-    : SearchboxHandler(std::move(pending_searchbox_handler),
-                       profile,
-                       web_contents,
-                       metrics_reporter),
+    : SearchboxHandler(
+          std::move(pending_searchbox_handler),
+          profile,
+          web_contents,
+          metrics_reporter,
+          std::make_unique<OmniboxController>(
+              /*view=*/nullptr,
+              std::make_unique<composebox::ComposeboxOmniboxClient>(
+                  profile,
+                  web_contents,
+                  this,
+                  query_controller.get()))),
       query_controller_(std::move(query_controller)),
       metrics_recorder_(std::move(metrics_recorder)),
       web_contents_(web_contents),
@@ -60,17 +50,14 @@ ComposeboxHandler::ComposeboxHandler(
       handler_(this, std::move(pending_handler)) {
   query_controller_->AddObserver(this);
 
-  // TODO(crbug.com/435470637): Consider moving to SearchboxHandler base class.
-  owned_controller_ = std::make_unique<OmniboxController>(
-      /*view=*/nullptr,
-      std::make_unique<ComposeboxOmniboxClient>(profile_, web_contents_));
-  controller_ = owned_controller_.get();
-
   autocomplete_controller_observation_.Observe(autocomplete_controller());
 }
 
 ComposeboxHandler::~ComposeboxHandler() {
   query_controller_->RemoveObserver(this);
+  autocomplete_controller_observation_.Reset();
+  controller_ = nullptr;
+  owned_controller_.reset();
 }
 
 void ComposeboxHandler::NotifySessionStarted() {
@@ -84,23 +71,30 @@ void ComposeboxHandler::NotifySessionAbandoned() {
 }
 
 void ComposeboxHandler::SubmitQuery(const std::string& query_text,
+                                    WindowOpenDisposition disposition) {
+  // This is the time that the user clicked the submit button, however optional
+  // autocomplete logic may be run before this if there was a match associated
+  // with the query.
+  base::Time query_start_time = base::Time::Now();
+  metrics_recorder_->NotifySessionStateChanged(SessionState::kQuerySubmitted);
+  OpenUrl(query_controller_->CreateAimUrl(query_text, query_start_time),
+          disposition);
+  metrics_recorder_->NotifySessionStateChanged(
+      SessionState::kNavigationOccurred);
+  metrics_recorder_->RecordQueryMetrics(
+      query_text.size(), query_controller_->num_files_in_request());
+}
+
+void ComposeboxHandler::SubmitQuery(const std::string& query_text,
                                     uint8_t mouse_button,
                                     bool alt_key,
                                     bool ctrl_key,
                                     bool meta_key,
                                     bool shift_key) {
-  // This is the time that the user clicked the submit button, and should not
-  // go any lower in this method.
-  base::Time query_start_time = base::Time::Now();
-  metrics_recorder_->NotifySessionStateChanged(SessionState::kQuerySubmitted);
   const WindowOpenDisposition disposition = ui::DispositionFromClick(
       /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
       shift_key);
-  OpenUrl(query_controller_->CreateAimUrl(query_text, query_start_time), disposition);
-  metrics_recorder_->NotifySessionStateChanged(
-      SessionState::kNavigationOccurred);
-  metrics_recorder_->RecordQueryMetrics(
-      query_text.size(), query_controller_->num_files_in_request());
+  SubmitQuery(query_text, disposition);
 }
 
 void ComposeboxHandler::FocusChanged(bool focused) {
@@ -119,22 +113,15 @@ void ComposeboxHandler::AddFile(
     composebox::mojom::SelectedFileInfoPtr file_info_mojom,
     mojo_base::BigBuffer file_bytes,
     AddFileCallback callback) {
-  scoped_refptr<base::RefCountedBytes> file_data =
-      base::MakeRefCounted<base::RefCountedBytes>(file_bytes);
-
-  auto file_info_metadata =
-      std::make_unique<ComposeboxQueryController::FileInfo>();
-  file_info_metadata->file_name = file_info_mojom->file_name;
-  file_info_metadata->file_size_bytes = file_bytes.size();
-  file_info_metadata->webui_selection_time = file_info_mojom->selection_time;
-  file_info_metadata->file_token_ = base::UnguessableToken::Create();
+  base::UnguessableToken file_token = base::UnguessableToken::Create();
 
   std::optional<composebox::ImageEncodingOptions> image_options = std::nullopt;
+  lens::MimeType mime_type;
 
   if ((file_info_mojom->mime_type).find("pdf") != std::string::npos) {
-    file_info_metadata->mime_type_ = lens::MimeType::kPdf;
+    mime_type = lens::MimeType::kPdf;
   } else if ((file_info_mojom->mime_type).find("image") != std::string::npos) {
-    file_info_metadata->mime_type_ = lens::MimeType::kImage;
+    mime_type = lens::MimeType::kImage;
     auto image_upload_config =
         ntp_composebox::FeatureConfig::Get().config.composebox().image_upload();
     image_options = composebox::ImageEncodingOptions{
@@ -147,11 +134,20 @@ void ComposeboxHandler::AddFile(
     NOTREACHED();
   }
 
-  std::move(callback).Run(file_info_metadata->file_token_);
-  metrics_recorder_->RecordFileSizeMetric(file_info_metadata->mime_type_,
-                                          file_bytes.size());
-  query_controller_->StartFileUploadFlow(std::move(file_info_metadata),
-                                         std::move(file_data),
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->primary_content_type = mime_type;
+
+  base::span<const uint8_t> file_data_span = base::span(file_bytes);
+  std::vector<uint8_t> file_data_vector(file_data_span.begin(),
+                                        file_data_span.end());
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::move(file_data_vector), mime_type));
+
+  std::move(callback).Run(file_token);
+  metrics_recorder_->RecordFileSizeMetric(mime_type, file_bytes.size());
+  query_controller_->StartFileUploadFlow(file_token, std::move(input_data),
                                          std::move(image_options));
 }
 

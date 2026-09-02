@@ -1179,6 +1179,7 @@ rtc_library("network") {
     "network.h",
   ]
   deps = [
+    ":callback_list",
     ":checks",
     ":ifaddrs_converter",
     ":ip_address",
@@ -1187,6 +1188,7 @@ rtc_library("network") {
     ":mdns_responder_interface",
     ":net_helpers",
     ":network_constants",
+    ":sigslot_trampoline",
     ":socket",
     ":socket_address",
     ":socket_factory",
@@ -1205,6 +1207,7 @@ rtc_library("network") {
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
@@ -1213,6 +1216,26 @@ rtc_library("network") {
   if (is_win) {
     deps += [ ":win32" ]
   }
+}
+
+rtc_source_set("sigslot_trampoline") {
+  sources = [ "sigslot_trampoline.h" ]
+  deps = [
+    ":callback_list",
+    "third_party/sigslot",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+  ]
+}
+
+rtc_library("sigslot_trampoline_unittest") {
+  testonly = true
+  sources = [ "sigslot_trampoline_unittest.cc" ]
+  deps = [
+    ":sigslot_trampoline",
+    "../test:test_support",
+    "third_party/sigslot",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+  ]
 }
 
 rtc_library("socket_address_pair") {
@@ -1765,6 +1788,7 @@ rtc_library("rtc_base_tests_utils") {
     ":network",
     ":network_constants",
     ":rtc_event",
+    ":sigslot_trampoline",
     ":socket",
     ":socket_adapters",
     ":socket_address",

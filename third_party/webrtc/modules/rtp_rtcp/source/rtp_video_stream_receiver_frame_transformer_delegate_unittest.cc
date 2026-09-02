@@ -59,7 +59,7 @@ constexpr int kLastSeqNum = 2;
 std::unique_ptr<RtpFrameObject> CreateRtpFrameObject(
     const RTPVideoHeader& video_header,
     std::vector<uint32_t> csrcs) {
-  RtpPacketInfo packet_info(/*ssrc=*/123, csrcs, /*rtc_timestamp=*/0,
+  RtpPacketInfo packet_info(/*ssrc=*/123, csrcs, /*rtp_timestamp=*/0,
                             /*receive_time=*/Timestamp::Seconds(123456));
   return std::make_unique<RtpFrameObject>(
       kFirstSeqNum, kLastSeqNum, /*markerBit=*/true,
@@ -324,7 +324,7 @@ TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest,
   TestRtpVideoFrameReceiver receiver;
   auto mock_frame_transformer =
       make_ref_counted<NiceMock<MockFrameTransformer>>();
-  SimulatedClock clock(/*initial_timestamp_us=*/12345000);
+  SimulatedClock clock(/*initial_time_us=*/12345000);
   auto delegate =
       make_ref_counted<RtpVideoStreamReceiverFrameTransformerDelegate>(
           &receiver, &clock, mock_frame_transformer, Thread::Current(),

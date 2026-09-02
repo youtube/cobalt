@@ -14,8 +14,10 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "media/audio/agc_audio_stream.h"
+#include "media/audio/apple/glitch_helper.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/mac/audio_manager_mac.h"
+#include "media/base/audio_glitch_info.h"
 #include "media/base/audio_parameters.h"
 
 @class NSError;
@@ -100,7 +102,7 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStream
   bool IsMuted() override;
   void SetOutputDeviceForAec(const std::string& output_device_id) override;
 
-  void OnCatapSample(const base::span<const AudioBuffer> input_buffers,
+  void OnCatapSample(const AudioBuffer* input_buffer,
                      const AudioTimeStamp* input_time);
   void OnError();
 
@@ -128,6 +130,9 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStream
   // Send log messages to the stream creator.
   void SendLogMessage(const char* format, ...);
 
+  // Called from the dtor and when the stream is reset.
+  void ReportAndResetStats();
+
   // Interface used to access the CoreAudio framework.
   const std::unique_ptr<CatapApi> catap_api_;
 
@@ -136,6 +141,9 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStream
 
   // The length of time covered by the audio data in a single audio buffer.
   const base::TimeDelta buffer_frames_duration_;
+
+  // Used to detect and report glitches.
+  GlitchHelper glitch_helper_;
 
   // One of AudioDeviceDescription::kLoopback*.
   const std::string device_id_;

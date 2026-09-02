@@ -64,7 +64,41 @@ enum class RtcpFeedbackType {
   NACK,
   REMB,  // "goog-remb"
   TRANSPORT_CC,
+  CCFB,  // RFC8888
 };
+
+template <typename Sink>
+void AbslStringify(Sink& sink, RtcpFeedbackType type) {
+  switch (type) {
+    case RtcpFeedbackType::CCM:
+      sink.Append("CCM");
+      break;
+    case RtcpFeedbackType::LNTF:
+      sink.Append("LNTF");
+      break;
+    case RtcpFeedbackType::NACK:
+      sink.Append("NACK");
+      break;
+    case RtcpFeedbackType::REMB:
+      sink.Append("REMB");
+      break;
+    case RtcpFeedbackType::TRANSPORT_CC:
+      sink.Append("TRANSPORT_CC");
+      break;
+    case RtcpFeedbackType::CCFB:
+      sink.Append("CCFB");
+      break;
+  }
+}
+
+template <typename Sink>
+void AbslStringify(Sink& sink, std::optional<RtcpFeedbackType> type) {
+  if (!type.has_value()) {
+    sink.Append("nullopt");
+    return;
+  }
+  AbslStringify(sink, *type);
+}
 
 // Used in RtcpFeedback struct when type is NACK or CCM.
 enum class RtcpFeedbackMessageType {

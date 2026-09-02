@@ -43,6 +43,7 @@ rtc_library("frame_instrumentation_data_reader") {
 }
 
 rtc_library("frame_instrumentation_evaluation") {
+  visibility = [ "*" ]
   sources = [
     "frame_instrumentation_evaluation.cc",
     "frame_instrumentation_evaluation.h",

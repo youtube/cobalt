@@ -624,10 +624,6 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
     } else {
       target_rate_msg.target_rate = pushback_target_rate;
     }
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    target_rate_msg.stable_target_rate = loss_based_target_rate;
-#pragma clang diagnostic pop
     target_rate_msg.network_estimate.at_time = at_time;
     target_rate_msg.network_estimate.round_trip_time = round_trip_time;
     target_rate_msg.network_estimate.loss_rate_ratio = fraction_loss / 255.0f;

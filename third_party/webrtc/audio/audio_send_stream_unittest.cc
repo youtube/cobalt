@@ -90,8 +90,11 @@ constexpr double kEchoReturnLoss = -65;
 constexpr double kEchoReturnLossEnhancement = 101;
 constexpr double kResidualEchoLikelihood = -1.0f;
 constexpr double kResidualEchoLikelihoodMax = 23.0f;
-constexpr ChannelSendStatistics kChannelStats = {TimeDelta::Millis(112), 12,
-                                                 13456, 17890};
+constexpr ChannelSendStatistics kChannelStats = {
+    .round_trip_time = TimeDelta::Millis(112),
+    .payload_bytes_sent = 12,
+    .header_and_padding_bytes_sent = 13456,
+    .retransmitted_bytes_sent = 17890};
 constexpr int kFractionLost = 123;
 constexpr int kCumulativeLost = 567;
 constexpr uint32_t kInterarrivalJitter = 132;
@@ -104,9 +107,9 @@ const SdpAudioFormat kIsacFormat = {"isac", 16000, 1};
 const SdpAudioFormat kOpusFormat = {"opus", 48000, 2};
 const SdpAudioFormat kG722Format = {"g722", 8000, 1};
 const AudioCodecSpec kCodecSpecs[] = {
-    {kIsacFormat, {16000, 1, 32000, 10000, 32000}},
-    {kOpusFormat, {48000, 1, 32000, 6000, 510000}},
-    {kG722Format, {16000, 1, 64000}}};
+    {.format = kIsacFormat, .info = {16000, 1, 32000, 10000, 32000}},
+    {.format = kOpusFormat, .info = {48000, 1, 32000, 6000, 510000}},
+    {.format = kG722Format, .info = {16000, 1, 64000}}};
 
 // TODO(dklee): This mirrors calculation in audio_send_stream.cc, which
 // should be made more precise in the future. This can be changed when that
@@ -196,9 +199,8 @@ class ConfigHelper {
     stream_config_.rtp.c_name = kCName;
     stream_config_.rtp.extensions.push_back(
         RtpExtension(RtpExtension::kAudioLevelUri, kAudioLevelId));
-    if (audio_bwe_enabled) {
-      AddBweToConfig(&stream_config_);
-    }
+    stream_config_.include_in_congestion_control_allocation = audio_bwe_enabled;
+
     stream_config_.encoder_factory = SetupEncoderFactoryMock();
     stream_config_.min_bitrate_bps = 10000;
     stream_config_.max_bitrate_bps = 65000;
@@ -223,11 +225,6 @@ class ConfigHelper {
   RtpTransportControllerSendInterface* transport() { return &rtp_transport_; }
   MockBitrateAllocator* bitrate_allocator() { return &bitrate_allocator_; }
 
-  static void AddBweToConfig(AudioSendStream::Config* config) {
-    config->rtp.extensions.push_back(RtpExtension(
-        RtpExtension::kTransportSequenceNumberUri, kTransportSequenceNumberId));
-  }
-
   void SetupDefaultChannelSend(bool audio_bwe_enabled) {
     EXPECT_TRUE(channel_send_ == nullptr);
     channel_send_ = new ::testing::StrictMock<MockChannelSend>();
@@ -246,12 +243,6 @@ class ConfigHelper {
         .Times(1);
     EXPECT_CALL(rtp_transport_, GetRtcpObserver)
         .WillRepeatedly(Return(&rtcp_observer_));
-    if (audio_bwe_enabled) {
-      EXPECT_CALL(rtp_rtcp_,
-                  RegisterRtpHeaderExtension(TransportSequenceNumber::Uri(),
-                                             kTransportSequenceNumberId))
-          .Times(1);
-    }
     EXPECT_CALL(*channel_send_,
                 RegisterSenderCongestionControlObjects(&rtp_transport_))
         .Times(1);
@@ -557,10 +548,10 @@ TEST(AudioSendStreamTest, SendCodecAppliesAudioNetworkAdaptor) {
                                  const SdpAudioFormat& format) {
           auto mock_encoder = SetupAudioEncoderMock(format);
           EXPECT_CALL(*mock_encoder,
-                      EnableAudioNetworkAdaptor(StrEq(kAnaConfigString), _))
+                      EnableAudioNetworkAdaptor(StrEq(kAnaConfigString)))
               .WillOnce(Return(true));
           EXPECT_CALL(*mock_encoder,
-                      EnableAudioNetworkAdaptor(StrEq(kAnaReconfigString), _))
+                      EnableAudioNetworkAdaptor(StrEq(kAnaReconfigString)))
               .WillOnce(Return(true));
           return mock_encoder;
         }));
@@ -589,7 +580,7 @@ TEST(AudioSendStreamTest, AudioNetworkAdaptorReceivesOverhead) {
               *mock_encoder,
               OnReceivedOverhead(Eq(kOverheadPerPacket.bytes<size_t>())));
           EXPECT_CALL(*mock_encoder,
-                      EnableAudioNetworkAdaptor(StrEq(kAnaConfigString), _))
+                      EnableAudioNetworkAdaptor(StrEq(kAnaConfigString)))
               .WillOnce(Return(true));
           // Note: Overhead is received AFTER ANA has been enabled.
           EXPECT_CALL(
@@ -804,12 +795,25 @@ TEST(AudioSendStreamTest, DontRecreateEncoder) {
   }
 }
 
+TEST(AudioSendStreamTest, ConfiguresTransportCcIfExtensionNegotiated) {
+  ConfigHelper helper(true, true, false);
+  helper.config().rtp.extensions.push_back(RtpExtension(
+      RtpExtension::kTransportSequenceNumberUri, kTransportSequenceNumberId));
+
+  EXPECT_CALL(*helper.rtp_rtcp(),
+              RegisterRtpHeaderExtension(TransportSequenceNumber::Uri(),
+                                         kTransportSequenceNumberId))
+      .Times(1);
+  auto send_stream = helper.CreateAudioSendStream();
+}
+
 TEST(AudioSendStreamTest, ReconfigureTransportCcResetsFirst) {
   for (bool use_null_audio_processing : {false, true}) {
     ConfigHelper helper(false, true, use_null_audio_processing);
     auto send_stream = helper.CreateAudioSendStream();
     auto new_config = helper.config();
-    ConfigHelper::AddBweToConfig(&new_config);
+    new_config.rtp.extensions.push_back(RtpExtension(
+        RtpExtension::kTransportSequenceNumberUri, kTransportSequenceNumberId));
 
     EXPECT_CALL(*helper.rtp_rtcp(),
                 RegisterRtpHeaderExtension(TransportSequenceNumber::Uri(),

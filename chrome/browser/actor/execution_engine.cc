@@ -70,14 +70,13 @@ void PostTaskForActCallback(
     ActorTask::ActCallback callback,
     mojom::ActionResultPtr result,
     std::optional<size_t> index_of_failed_action,
-    std::vector<optimization_guide::proto::ScriptToolResult>
-        script_tool_results) {
+    std::vector<ActionResultWithLatencyInfo> action_results) {
   UMA_HISTOGRAM_ENUMERATION("Actor.ExecutionEngine.Action.ResultCode",
                             result->code);
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(callback), std::move(result),
-                     index_of_failed_action, std::move(script_tool_results)));
+                     index_of_failed_action, std::move(action_results)));
 }
 
 }  // namespace
@@ -88,8 +87,6 @@ ExecutionEngine::ExecutionEngine(Profile* profile)
       ui_event_dispatcher_(ui::NewUiEventDispatcher(
           ActorKeyedService::Get(profile)->GetActorUiStateManager())) {
   CHECK(profile_);
-  // Idempotent. Enables the action blocklist if it isn't already enabled.
-  InitActionBlocklist(profile_.get());
 }
 
 ExecutionEngine::ExecutionEngine(
@@ -99,8 +96,6 @@ ExecutionEngine::ExecutionEngine(
       journal_(ActorKeyedService::Get(profile)->GetJournal().GetSafeRef()),
       ui_event_dispatcher_(std::move(ui_event_dispatcher)) {
   CHECK(profile_);
-  // Idempotent. Enables the action blocklist if it isn't already enabled.
-  InitActionBlocklist(profile_.get());
 }
 
 std::unique_ptr<ExecutionEngine> ExecutionEngine::CreateForTesting(
@@ -181,10 +176,6 @@ bool ExecutionEngine::ShouldGateNavigation(
       navigation_handle.GetInitiatorOrigin();
   return initiator_origin &&
          !initiator_origin->IsSameOriginWith(navigation_url);
-}
-
-void ExecutionEngine::RegisterWithProfile(Profile* profile) {
-  InitActionBlocklist(profile);
 }
 
 void ExecutionEngine::CancelOngoingActions(mojom::ActionResultCode reason) {
@@ -344,6 +335,7 @@ void ExecutionEngine::ExecuteNextAction() {
   CHECK(tool_controller_);
 
   ++next_action_index_;
+  action_start_time_ = base::TimeTicks::Now();
 
   SetState(State::kToolCreateAndVerify);
   tool_controller_->CreateToolAndValidate(
@@ -384,17 +376,16 @@ void ExecutionEngine::FinishedToolInvoke(mojom::ActionResultPtr result) {
                     InProgressActionIndex());
     return;
   }
+
   if (!IsOk(*result)) {
+    action_results_.emplace_back(action_start_time_, base::TimeTicks::Now(),
+                                 result->Clone());
     CompleteActions(std::move(result), InProgressActionIndex());
     return;
   }
 
-  if (result->script_tool_response) {
-    auto& script_tool_result = script_tool_results_.emplace_back();
-    script_tool_result.set_index_of_script_tool_action(InProgressActionIndex());
-    script_tool_result.set_result(*result->script_tool_response);
-  }
-
+  action_results_.emplace_back(action_start_time_, base::TimeTicks::Now(),
+                               std::move(result));
   SetState(State::kUiPostInvoke);
   ui_event_dispatcher_->OnPostTool(
       GetInProgressAction(),
@@ -436,7 +427,7 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
 
   // TODO(crbug.com/411462297): Populate observation.
   PostTaskForActCallback(std::move(act_callback_), std::move(result),
-                         action_index, std::move(script_tool_results_));
+                         action_index, std::move(action_results_));
 
   action_sequence_.clear();
   next_action_index_ = 0;
@@ -465,8 +456,28 @@ void ExecutionEngine::PromptToSelectCredential(
     const base::flat_map<GURL, gfx::Image>& favicons,
     ToolDelegate::CredentialSelectedCallback callback) {
   CHECK(!credentials.empty());
-  // TODO(crbug.com/427817882): Wire this up to the WebClient.
-  std::move(callback).Run(credentials.front());
+
+  // In the same task, another login attempt is made before the previous one
+  // responds. Cancel the previous one.
+  if (credential_selected_callback_) {
+    // TODO(crbug.com/427817882): Explicit error reason (kNewLonginAttempt).
+    std::move(credential_selected_callback_)
+        .Run(/*selected_credential=*/webui::mojom::
+                 SelectCredentialDialogResponse::New());
+  }
+  credential_selected_callback_ = std::move(callback);
+
+  // TODO(crbug.com/438710031): Surface the favicons to the WebClient.
+
+  ActorKeyedService::Get(profile_)
+      ->NotifyRequestToShowCredentialSelectionDialog(task_->id(), credentials);
+}
+
+void ExecutionEngine::OnCredentialSelected(
+    webui::mojom::SelectCredentialDialogResponsePtr response) {
+  if (credential_selected_callback_) {
+    std::move(credential_selected_callback_).Run(std::move(response));
+  }
 }
 
 const ToolRequest& ExecutionEngine::GetNextAction() const {

@@ -7,6 +7,10 @@
 // accordingly.
 //
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "libANGLE/renderer/vulkan/spv_utils.h"
 
 #include <array>
@@ -622,7 +626,7 @@ void AssignTransformFeedbackQualifiers(const gl::ProgramExecutable &programExecu
                     std::string fieldName =
                         pos == std::string::npos ? tfVarying.name : tfVarying.name.substr(pos + 1);
 
-                    if (fieldName == varying->frontVarying.varying->name.c_str())
+                    if (fieldName == varying->frontVarying.varying->name)
                     {
                         originalVarying = varying;
                         break;

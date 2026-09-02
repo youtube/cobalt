@@ -371,6 +371,10 @@ void LogSessionKeyMismatch(QuicSessionKeyPartialMatchResult result,
   }
 }
 
+base::TimeDelta GetAdditionalDelayForMainJob() {
+  return features::kAdditionalDelay.Get();
+}
+
 }  // namespace
 
 QuicSessionRequest::QuicSessionRequest(QuicSessionPool* pool) : pool_(pool) {}
@@ -539,7 +543,7 @@ QuicSessionPool::QuicCryptoClientConfigOwner::QuicCryptoClientConfigOwner(
   DCHECK(quic_session_pool_);
   memory_pressure_listener_ =
       std::make_unique<base::AsyncMemoryPressureListener>(
-          FROM_HERE,
+          FROM_HERE, base::MemoryPressureListenerTag::kQuicSessionPool,
           base::BindRepeating(&QuicCryptoClientConfigOwner::OnMemoryPressure,
                               base::Unretained(this)));
   if (quic_session_pool_->ssl_config_service_->GetSSLContextConfig()
@@ -1478,7 +1482,7 @@ base::TimeDelta QuicSessionPool::GetTimeDelayForWaitingJob(
   if (!srtt) {
     srtt = kDefaultRTT;
   }
-  return base::Microseconds(srtt);
+  return base::Microseconds(srtt) + GetAdditionalDelayForMainJob();
 }
 
 const std::set<std::string>& QuicSessionPool::GetDnsAliasesForSessionKey(

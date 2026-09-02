@@ -32,12 +32,14 @@
 #include "content/public/browser/peak_gpu_memory_tracker_factory.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/process_type.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/android/resources/resource_manager.h"
 #include "ui/android/resources/ui_resource_provider.h"
 #include "ui/android/window_android.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gl/gl_features.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/CompositorView_jni.h"
@@ -45,6 +47,10 @@
 using base::android::JavaParamRef;
 
 namespace android {
+
+jboolean JNI_CompositorView_IsSurfaceControlEnabled(JNIEnv* env) {
+  return features::IsAndroidSurfaceControlEnabled();
+}
 
 jlong JNI_CompositorView_Init(
     JNIEnv* env,
@@ -69,6 +75,10 @@ jlong JNI_CompositorView_Init(
   return reinterpret_cast<intptr_t>(view);
 }
 
+jboolean JNI_CompositorView_PreferRgb565ForDisplay(JNIEnv* env) {
+  return features::PreferRGB565ResourcesForDisplay();
+}
+
 CompositorView::CompositorView(JNIEnv* env,
                                const base::android::JavaRef<jobject>& obj,
                                ui::WindowAndroid* window_android,
@@ -88,16 +98,6 @@ CompositorView::CompositorView(JNIEnv* env,
 
   root_layer_->SetIsDrawable(true);
   root_layer_->SetBackgroundColor(SkColors::kWhite);
-
-  // It is safe to not keep a ref on the feature checker because it adds one
-  // internally in CheckGpuFeatureAvailability and unrefs after the callback is
-  // dispatched.
-  scoped_refptr<content::GpuFeatureChecker> surface_control_feature_checker =
-      content::GpuFeatureChecker::Create(
-          gpu::GpuFeatureType::GPU_FEATURE_TYPE_ANDROID_SURFACE_CONTROL,
-          base::BindOnce(&CompositorView::OnSurfaceControlFeatureStatusUpdate,
-                         weak_factory_.GetWeakPtr()));
-  surface_control_feature_checker->CheckGpuFeatureAvailability();
 }
 
 CompositorView::~CompositorView() {
@@ -159,13 +159,6 @@ void CompositorView::DidSwapBuffers(const gfx::Size& swap_size) {
 
 base::WeakPtr<ui::UIResourceProvider> CompositorView::GetUIResourceProvider() {
   return compositor_ ? compositor_->GetUIResourceProvider() : nullptr;
-}
-
-void CompositorView::OnSurfaceControlFeatureStatusUpdate(bool available) {
-  if (available) {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    Java_CompositorView_notifyWillUseSurfaceControl(env, obj_);
-  }
 }
 
 void CompositorView::SurfaceCreated(JNIEnv* env) {

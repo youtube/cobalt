@@ -307,8 +307,11 @@ class TabGroupsPageHandlerTest : public ChromeRenderViewHostTestHarness {
     std::vector<tab_groups::SavedTabGroupTab> tabs1;
     tabs1.emplace_back(GURL("https://a.com/"), u"Title A",
                        base::Uuid::GenerateRandomV4(), 0);
-    groups.emplace_back(u"Third Group", tab_groups::TabGroupColorId::kGrey,
-                        std::move(tabs1), 0);
+    tab_groups::SavedTabGroup group1(u"Third Group",
+                                     tab_groups::TabGroupColorId::kGrey,
+                                     std::move(tabs1), 0);
+    group1.SetCollaborationId(tab_groups::CollaborationId("collaboration_id"));
+    groups.emplace_back(group1);
     groups.back().SetUpdateTime(base::Time::Now() -
                                 base::Days(8));  // Used 1 week ago
 
@@ -317,8 +320,11 @@ class TabGroupsPageHandlerTest : public ChromeRenderViewHostTestHarness {
                        base::Uuid::GenerateRandomV4(), 0);
     tabs2.emplace_back(GURL("https://c.com/"), u"Title C",
                        base::Uuid::GenerateRandomV4(), 0);
-    groups.emplace_back(u"Second Group", tab_groups::TabGroupColorId::kGreen,
-                        std::move(tabs2), 1);
+    tab_groups::SavedTabGroup group2(u"Second Group",
+                                     tab_groups::TabGroupColorId::kGreen,
+                                     std::move(tabs2), 1);
+    group2.SetCollaborationId(tab_groups::CollaborationId("collaboration_id"));
+    groups.emplace_back(group2);
     groups.back().SetUpdateTime(base::Time::Now() -
                                 base::Hours(25));  // Used 1 day ago
 
@@ -479,6 +485,37 @@ TEST_F(TabGroupsPageHandlerTest, GetSavedTabGroups_NoCacheGuid) {
   EXPECT_EQ(std::nullopt, result.value()[0]->device_name);
 }
 
+TEST_F(TabGroupsPageHandlerTest,
+       GetSavedTabGroups_DoNotReturnDeviceNameForCurrentDevice) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpTabGroupsModule, {});
+
+  // Create a tab group with a specific cache GUID.
+  const std::string kLocalCacheGuid = "local_device_guid";
+  std::vector<tab_groups::SavedTabGroup> groups;
+  groups.emplace_back(u"Group Title", tab_groups::TabGroupColorId::kGrey,
+                      std::vector<tab_groups::SavedTabGroupTab>{});
+  groups.back().SetUpdateTime(base::Time::Now());
+  groups.back().SetLastUpdaterCacheGuid(kLocalCacheGuid);
+
+  std::vector<const tab_groups::SavedTabGroup*> groups_ptr;
+  groups_ptr.push_back(&groups[0]);
+
+  ON_CALL(*mock_device_info_tracker(), IsRecentLocalCacheGuid(kLocalCacheGuid))
+      .WillByDefault(testing::Return(true));
+  EXPECT_CALL(*mock_device_info_tracker(), GetDeviceInfo(kLocalCacheGuid))
+      .Times(0);
+  EXPECT_CALL(*service(), ReadAllGroups())
+      .WillOnce(testing::Return(groups_ptr));
+
+  auto result = RunGetTabGroups();
+
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(1u, result->size());
+  EXPECT_EQ(std::nullopt, result.value()[0]->device_name);
+}
+
 TEST_F(TabGroupsPageHandlerTest, GetSavedTabGroups_Empty) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
@@ -491,6 +528,49 @@ TEST_F(TabGroupsPageHandlerTest, GetSavedTabGroups_Empty) {
   auto result = RunGetTabGroups();
   ASSERT_TRUE(result.has_value());
   EXPECT_TRUE(result->empty());
+}
+
+TEST_F(TabGroupsPageHandlerTest,
+       GetSavedTabGroups_UseDefaultTitleForUnnamedGroups) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpTabGroupsModule, {});
+
+  std::vector<tab_groups::SavedTabGroup> groups;
+
+  // Create a group with no title and 1 tab.
+  std::vector<tab_groups::SavedTabGroupTab> tabs1;
+  tabs1.emplace_back(GURL("https://a.com/"), u"Tab 1",
+                     base::Uuid::GenerateRandomV4(), 0);
+  groups.emplace_back(/*title=*/u"", tab_groups::TabGroupColorId::kGrey,
+                      std::move(tabs1), 0);
+  groups.back().SetUpdateTime(base::Time::Now());
+
+  // Create a group with no title and 2 tabs.
+  std::vector<tab_groups::SavedTabGroupTab> tabs2;
+  tabs2.emplace_back(GURL("https://example.com/1"), u"Tab 1",
+                     base::Uuid::GenerateRandomV4(), 0);
+  tabs2.emplace_back(GURL("https://example.com/2"), u"Tab 2",
+                     base::Uuid::GenerateRandomV4(), 1);
+  groups.emplace_back(/*title=*/u"", tab_groups::TabGroupColorId::kBlue,
+                      std::move(tabs2), 0);
+  groups.back().SetUpdateTime(base::Time::Now() - base::Hours(1));
+
+  std::vector<const tab_groups::SavedTabGroup*> groups_ptr;
+  for (const auto& group : groups) {
+    groups_ptr.push_back(&group);
+  }
+
+  EXPECT_CALL(*service(), ReadAllGroups())
+      .WillOnce(testing::Return(groups_ptr));
+
+  auto result = RunGetTabGroups();
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(2u, result->size());
+  // IDS_SAVED_TAB_GROUP_TABS_COUNT is translated to "Tab(s)" on MacOS, and
+  // "tab(s)" elsewhere.
+  EXPECT_EQ("1 tab", base::ToLowerASCII(result.value()[0]->title));
+  EXPECT_EQ("2 tabs", base::ToLowerASCII(result.value()[1]->title));
 }
 
 TEST_F(TabGroupsPageHandlerTest, GetSavedTabGroups) {
@@ -509,6 +589,7 @@ TEST_F(TabGroupsPageHandlerTest, GetSavedTabGroups) {
   ASSERT_EQ(4u, group.size());
 
   const auto& group1 = group[0];
+  EXPECT_EQ(tab_groups::TabGroupColorId::kBlue, group1->color);
   EXPECT_EQ("Newest Group", group1->title);
   EXPECT_EQ("Recently used", group1->update_time);
   EXPECT_EQ(5, group1->total_tab_count);
@@ -517,22 +598,29 @@ TEST_F(TabGroupsPageHandlerTest, GetSavedTabGroups) {
   EXPECT_EQ(GURL("https://e.com/"), group1->favicon_urls[1]);
   EXPECT_EQ(GURL("https://f.com/"), group1->favicon_urls[2]);
   EXPECT_EQ(GURL("https://g.com/"), group1->favicon_urls[3]);
+  EXPECT_EQ(false, group1->is_shared_tab_group);
 
   const auto& group2 = group[1];
+  EXPECT_EQ(tab_groups::TabGroupColorId::kGreen, group2->color);
   EXPECT_EQ("Second Group", group2->title);
   EXPECT_EQ("Used 1 day ago", group2->update_time);
   EXPECT_EQ(2, group2->total_tab_count);
   ASSERT_EQ(2u, group2->favicon_urls.size());
   EXPECT_EQ(GURL("https://b.com/"), group2->favicon_urls[0]);
   EXPECT_EQ(GURL("https://c.com/"), group2->favicon_urls[1]);
+  EXPECT_EQ(true, group2->is_shared_tab_group);
 
   const auto& group3 = group[2];
+  EXPECT_EQ(tab_groups::TabGroupColorId::kGrey, group3->color);
   EXPECT_EQ("Third Group", group3->title);
   EXPECT_EQ("Used 1 week ago", group3->update_time);
+  EXPECT_EQ(true, group3->is_shared_tab_group);
 
   const auto& group4 = group[3];
+  EXPECT_EQ(tab_groups::TabGroupColorId::kBlue, group4->color);
   EXPECT_EQ("Fourth Group", group4->title);
   EXPECT_EQ("Used 2 weeks ago", group4->update_time);
+  EXPECT_EQ(false, group4->is_shared_tab_group);
 }
 
 TEST_F(TabGroupsPageHandlerTest, GetFakeTabGroups) {
@@ -549,6 +637,7 @@ TEST_F(TabGroupsPageHandlerTest, GetFakeTabGroups) {
   ASSERT_FALSE(tab_groups.empty());
 
   const auto& group1 = tab_groups[0];
+  EXPECT_EQ(tab_groups::TabGroupColorId::kBlue, group1->color);
   EXPECT_EQ("Tab Group 1 (3 tabs total)", group1->title);
   EXPECT_EQ(3, group1->total_tab_count);
   EXPECT_EQ(3u, group1->favicon_urls.size());
@@ -559,27 +648,34 @@ TEST_F(TabGroupsPageHandlerTest, GetFakeTabGroups) {
   EXPECT_EQ(GURL("https://www.google.com"), group1->favicon_urls[2]);
   EXPECT_EQ("Recently used", group1->update_time);
   EXPECT_EQ("Test Device", group1->device_name);
+  EXPECT_EQ(false, group1->is_shared_tab_group);
 
   const auto& group2 = tab_groups[1];
+  EXPECT_EQ(tab_groups::TabGroupColorId::kPurple, group2->color);
   EXPECT_EQ("Tab Group 2 (4 tabs total)", group2->title);
   EXPECT_EQ(4u, group2->favicon_urls.size());
   EXPECT_EQ(4, group2->total_tab_count);
   EXPECT_EQ("Used 1 day ago", group2->update_time);
   EXPECT_EQ("Test Device", group2->device_name);
+  EXPECT_EQ(true, group2->is_shared_tab_group);
 
   const auto& group3 = tab_groups[2];
+  EXPECT_EQ(tab_groups::TabGroupColorId::kYellow, group3->color);
   EXPECT_EQ("Tab Group 3 (8 tabs total)", group3->title);
   EXPECT_EQ(4u, group3->favicon_urls.size());
   EXPECT_EQ(8, group3->total_tab_count);
   EXPECT_EQ("Used 1 week ago", group3->update_time);
   EXPECT_EQ("Test Device", group3->device_name);
+  EXPECT_EQ(false, group3->is_shared_tab_group);
 
   const auto& group4 = tab_groups[3];
+  EXPECT_EQ(tab_groups::TabGroupColorId::kGreen, group4->color);
   EXPECT_EQ("Tab Group 4 (199 tabs total)", group4->title);
   EXPECT_EQ(4u, group4->favicon_urls.size());
   EXPECT_EQ(199, group4->total_tab_count);
   EXPECT_EQ("Used 2 weeks ago", group4->update_time);
   EXPECT_EQ(std::nullopt, group4->device_name);
+  EXPECT_EQ(true, group4->is_shared_tab_group);
 }
 
 TEST_F(TabGroupsPageHandlerTest, GetFakeZeroStateTabGroups) {

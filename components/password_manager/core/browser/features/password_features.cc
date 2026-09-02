@@ -25,7 +25,7 @@ BASE_FEATURE(kApplyClientsideModelPredictionsForPasswordTypes,
 
 BASE_FEATURE(kApplyClientsideModelPredictionsForOtps,
              "ApplyClientsideModelPredictionsForOtps",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAutoApproveSharedPasswordUpdatesFromSameSender,
              "AutoApproveSharedPasswordUpdatesFromSameSender",
@@ -71,6 +71,20 @@ BASE_FEATURE(kClearUndecryptablePasswordsOnSync,
              "ClearUndecryptablePasswordsInSync",
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_IOS) || \
     BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
+BASE_FEATURE(kDebugUiForOtps,
+             "DebugUiForOtps",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kFetchChangePasswordUrlForPasswordChange,
+             "FetchChangePasswordUrlForPasswordChange",
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+             // Desktop only since password change is not available on mobile.
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
@@ -195,6 +209,10 @@ BASE_FEATURE(kEnablePasswordManagerMojoApi,
 
 BASE_FEATURE(kImprovedPasswordChangeService,
              "ImprovedPasswordChangeService",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSubmitWithEnterDuringPasswordChange,
+             "SubmitWithEnterDuringPasswordChange",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)

@@ -1393,8 +1393,8 @@ TEST_F(RtpSenderVideoTest, AbsoluteCaptureTime) {
 
 TEST_F(RtpSenderVideoTest, AbsoluteCaptureTimeWithExtensionProvided) {
   constexpr AbsoluteCaptureTime kAbsoluteCaptureTime = {
-      123,
-      std::optional<int64_t>(456),
+      .absolute_capture_timestamp = 123,
+      .estimated_capture_clock_offset = std::optional<int64_t>(456),
   };
   uint8_t kFrame[kMaxPacketLength];
   rtp_module_.RegisterRtpHeaderExtension(AbsoluteCaptureTimeExtension::Uri(),

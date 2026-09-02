@@ -182,21 +182,20 @@ void StackFrameIterator::Advance() {
   StackFrame::State state;
   StackFrame::Type type;
 #if V8_ENABLE_WEBASSEMBLY
-  if (frame_->type() == StackFrame::STACK_SWITCH &&
-      Memory<Address>(frame_->fp() +
-                      StackSwitchFrameConstants::kCallerFPOffset) ==
+  if (frame_->type() == StackFrame::WASM_JSPI &&
+      Memory<Address>(frame_->fp() + WasmJspiFrameConstants::kCallerFPOffset) ==
           kNullAddress &&
       !first_stack_only_) {
     // Handle stack switches here.
     // Note: both the "callee" frame (outermost frame of the child stack) and
     // the "caller" frame (top frame of the parent stack) have frame type
-    // STACK_SWITCH. We use the caller FP to distinguish them: the callee frame
+    // WASM_JSPI. We use the caller FP to distinguish them: the callee frame
     // does not have a caller fp.
     wasm_stack_ = wasm_stack()->jmpbuf()->parent;
     CHECK_NOT_NULL(wasm_stack_);
     CHECK_EQ(wasm_stack_->jmpbuf()->state, wasm::JumpBuffer::Inactive);
-    StackSwitchFrame::GetStateForJumpBuffer(wasm_stack_->jmpbuf(), &state);
-    SetNewFrame(StackFrame::STACK_SWITCH, &state);
+    WasmJspiFrame::GetStateForJumpBuffer(wasm_stack_->jmpbuf(), &state);
+    SetNewFrame(StackFrame::WASM_JSPI, &state);
     return;
   }
 #endif
@@ -297,10 +296,10 @@ void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
     return;
   }
   StackFrame::State state;
-  StackSwitchFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
+  WasmJspiFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
   wasm_stack_ = stack;
-  SetNewFrame(StackFrame::STACK_SWITCH, &state);
+  SetNewFrame(StackFrame::WASM_JSPI, &state);
 }
 #endif
 
@@ -850,13 +849,14 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
 
 #if V8_ENABLE_WEBASSEMBLY
     case StackFrame::JS_TO_WASM:
-    case StackFrame::STACK_SWITCH:
+    case StackFrame::WASM_JSPI:
     case StackFrame::WASM:
     case StackFrame::WASM_DEBUG_BREAK:
     case StackFrame::WASM_EXIT:
     case StackFrame::WASM_LIFTOFF_SETUP:
     case StackFrame::WASM_TO_JS:
     case StackFrame::WASM_SEGMENT_START:
+    case StackFrame::WASM_STACK_ENTRY:
 #if V8_ENABLE_DRUMBRAKE
     case StackFrame::C_WASM_ENTRY:
     case StackFrame::WASM_INTERPRETER_ENTRY:
@@ -914,6 +914,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
         return StackFrame::WASM_EXIT;
       case wasm::WasmCode::kWasmToJsWrapper:
         return StackFrame::WASM_TO_JS;
+      case wasm::WasmCode::kWasmStackEntryWrapper:
+        return StackFrame::WASM_STACK_ENTRY;
 #if V8_ENABLE_DRUMBRAKE
       case wasm::WasmCode::kInterpreterEntry:
         return StackFrame::WASM_INTERPRETER_ENTRY;
@@ -972,6 +974,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
     case CodeKind::WASM_TO_JS_FUNCTION:
+    case CodeKind::WASM_STACK_ENTRY:
       // Should have been found by the WasmCode lookup above.
       UNREACHABLE();
     case CodeKind::WASM_FUNCTION:
@@ -984,6 +987,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     case CodeKind::WASM_FUNCTION:
     case CodeKind::WASM_TO_CAPI_FUNCTION:
     case CodeKind::WASM_TO_JS_FUNCTION:
+    case CodeKind::WASM_STACK_ENTRY:
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CodeKind::BYTECODE_HANDLER:
@@ -1161,7 +1165,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
     case API_CALLBACK_EXIT:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
-    case STACK_SWITCH:
+    case WASM_JSPI:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return frame_type;
     default:
@@ -1539,27 +1543,31 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
         // Ensure that the spill slot contains correct heap object.
         Tagged<HeapObject> raw =
             Cast<HeapObject>(Tagged<Object>(*spill_slot.location()));
-        MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
-        Tagged<HeapObject> forwarded = map_word.IsForwardingAddress()
-                                           ? map_word.ToForwardingAddress(raw)
-                                           : raw;
-        bool is_self_forwarded =
-            HeapLayout::IsSelfForwarded(forwarded, cage_base);
-        if (is_self_forwarded) {
-          // The object might be in a self-forwarding state if it's located
-          // in new large object space. GC will fix this at a later stage.
-          const MemoryChunk* chunk = MemoryChunk::FromHeapObject(forwarded);
-          CHECK(chunk->InNewLargeObjectSpace() ||
-                chunk->Metadata(isolate)->is_quarantined());
-        } else {
-          Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
-          // The map might be forwarded as well.
-          MapWord fwd_map_map_word =
-              forwarded_map->map_word(cage_base, kRelaxedLoad);
-          if (fwd_map_map_word.IsForwardingAddress()) {
-            forwarded_map = fwd_map_map_word.ToForwardingAddress(forwarded_map);
+        // Don't check holes, since the page can be unmapped.
+        if (!IsAnyHole(raw)) {
+          MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
+          Tagged<HeapObject> forwarded = map_word.IsForwardingAddress()
+                                             ? map_word.ToForwardingAddress(raw)
+                                             : raw;
+          bool is_self_forwarded =
+              HeapLayout::IsSelfForwarded(forwarded, cage_base);
+          if (is_self_forwarded) {
+            // The object might be in a self-forwarding state if it's located
+            // in new large object space. GC will fix this at a later stage.
+            const MemoryChunk* chunk = MemoryChunk::FromHeapObject(forwarded);
+            CHECK(chunk->InNewLargeObjectSpace() ||
+                  chunk->Metadata(isolate)->is_quarantined());
+          } else {
+            Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
+            // The map might be forwarded as well.
+            MapWord fwd_map_map_word =
+                forwarded_map->map_word(cage_base, kRelaxedLoad);
+            if (fwd_map_map_word.IsForwardingAddress()) {
+              forwarded_map =
+                  fwd_map_map_word.ToForwardingAddress(forwarded_map);
+            }
+            CHECK(IsMap(forwarded_map, cage_base));
           }
-          CHECK(IsMap(forwarded_map, cage_base));
         }
       }
     }
@@ -3723,14 +3731,14 @@ void WasmToJsFrame::Iterate(RootVisitor* v) const {
 }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-void StackSwitchFrame::Iterate(RootVisitor* v) const {
+void WasmJspiFrame::Iterate(RootVisitor* v) const {
   //  See JsToWasmFrame layout.
   //  We cannot DCHECK that the pc matches the expected builtin code here,
   //  because the return address is on a different stack.
   // The [fp + BuiltinFrameConstants::kGCScanSlotCountOffset] on the stack is a
   // value indicating how many values should be scanned from the top.
-  intptr_t scan_count = Memory<intptr_t>(
-      fp() + StackSwitchFrameConstants::kGCScanSlotCountOffset);
+  intptr_t scan_count =
+      Memory<intptr_t>(fp() + WasmJspiFrameConstants::kGCScanSlotCountOffset);
 
   FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slot_limit(
@@ -3739,10 +3747,10 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
                        spill_slot_limit);
   // Also visit fixed spill slots that contain references.
   FullObjectSlot instance_slot(
-      &Memory<Address>(fp() + StackSwitchFrameConstants::kImplicitArgOffset));
+      &Memory<Address>(fp() + WasmJspiFrameConstants::kImplicitArgOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, instance_slot);
   FullObjectSlot result_array_slot(
-      &Memory<Address>(fp() + StackSwitchFrameConstants::kResultArrayOffset));
+      &Memory<Address>(fp() + WasmJspiFrameConstants::kResultArrayOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
 }
 
@@ -3839,10 +3847,10 @@ Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
 #endif  // V8_ENABLE_DRUMBRAKE
 
 // static
-void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
-                                             State* state) {
+void WasmJspiFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
+                                          State* state) {
   DCHECK_NE(jmpbuf->fp, kNullAddress);
-  DCHECK_EQ(ComputeFrameType(jmpbuf->fp), STACK_SWITCH);
+  DCHECK_EQ(ComputeFrameType(jmpbuf->fp), WASM_JSPI);
   FillState(jmpbuf->fp, jmpbuf->sp, state);
   state->pc_address = &jmpbuf->pc;
   state->is_stack_exit_frame = true;

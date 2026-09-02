@@ -835,7 +835,8 @@ void VideoAnalyzer::PerformFrameComparison(
   MutexLock lock(&comparison_lock_);
 
   if (psnr >= 0.0 && (!worst_frame_ || worst_frame_->psnr > psnr)) {
-    worst_frame_.emplace(FrameWithPsnr{psnr, *comparison.render});
+    worst_frame_.emplace(
+        FrameWithPsnr{.psnr = psnr, .frame = *comparison.render});
   }
 
   if (graph_data_output_file_) {

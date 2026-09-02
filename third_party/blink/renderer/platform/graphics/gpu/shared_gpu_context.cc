@@ -11,6 +11,7 @@
 #include "gpu/command_buffer/client/raster_interface.h"
 #include "gpu/config/gpu_driver_bug_workaround_type.h"
 #include "gpu/config/gpu_feature_info.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "third_party/blink/public/common/features.h"
@@ -95,23 +96,14 @@ static void CreateContextProviderOnMainThread(
     base::WaitableEvent* waitable_event) {
   DCHECK(IsMainThread());
 
-  Platform::ContextAttributes context_attributes;
-  context_attributes.enable_raster_interface = true;
-
-  // The shared GPU context should not trigger a switch to the high-performance
-  // GPU.
-  context_attributes.prefer_low_power_gpu = true;
-
   *gpu_compositing_disabled = Platform::Current()->IsGpuCompositingDisabled();
   if (*gpu_compositing_disabled && only_if_gpu_compositing) {
     waitable_event->Signal();
     return;
   }
 
-  Platform::GraphicsInfo graphics_info;
   auto context_provider =
-      Platform::Current()->CreateOffscreenGraphicsContext3DProvider(
-          context_attributes, WebURL(), &graphics_info);
+      Platform::Current()->CreateRasterGraphicsContextProvider(WebURL());
   if (context_provider) {
     *wrapper = std::make_unique<WebGraphicsContext3DProviderWrapper>(
         std::move(context_provider));
@@ -264,16 +256,11 @@ bool SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade() {
 #if BUILDFLAG(IS_ANDROID)
 bool SharedGpuContext::MaySupportImageChromium() {
   SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
-  this_ptr->CreateContextProviderIfNeeded(/*only_if_gpu_compositing=*/true);
-  if (!this_ptr->context_provider_wrapper_) {
-    return false;
+  if (this_ptr->context_provider_factory_) {
+    // In unit tests, enable support.
+    return true;
   }
-  const gpu::GpuFeatureInfo& gpu_feature_info =
-      this_ptr->context_provider_wrapper_->ContextProvider()
-          .GetGpuFeatureInfo();
-  return gpu_feature_info
-             .status_values[gpu::GPU_FEATURE_TYPE_ANDROID_SURFACE_CONTROL] ==
-         gpu::kGpuFeatureStatusEnabled;
+  return ::features::IsAndroidSurfaceControlEnabled();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

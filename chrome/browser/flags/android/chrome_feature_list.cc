@@ -102,11 +102,8 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &autofill::features::kAutofillEnableCardBenefitsForBmo,
     &autofill::features::kAutofillEnableFlatRateCardBenefitsFromCurinos,
     &autofill::features::kAutofillEnableNewCardBenefitsToggleText,
-    &autofill::features::kAutofillEnablePaymentSettingsCardPromoAndScanCard,
-    &autofill::features::kAutofillEnablePaymentSettingsCardPromoAndScanCard,
     &autofill::features::kAutofillThirdPartyModeContentProvider,
     &autofill::features::kAutofillEnableSecurityTouchEventFilteringAndroid,
-
     &autofill::features::kAutofillDeepLinkAutofillOptions,
     &autofill::features::kAutofillEnableCvcStorageAndFilling,
     &autofill::features::kAutofillSyncEwalletAccounts,
@@ -142,7 +139,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &download::features::kSmartSuggestionForLargeDownloads,
     &base::features::kCollectAndroidFrameTimelineMetrics,
     &download::features::kDownloadNotificationServiceUnifiedAPI,
-    &features::kAndroidAnimatedCompositedProgressBar,
+    &features::kAndroidAnimatedProgressBarInViz,
     &features::kAndroidBcivBottomControls,
     &features::kAndroidBrowserControlsInViz,
     &features::kAndroidWebAppLaunchHandler,
@@ -199,6 +196,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAdaptiveButtonInTopToolbarCustomizationV2,
     &kAdaptiveButtonInTopToolbarPageSummary,
     &kAllowTabClosingUponMinimization,
+    &kAndroidAnimatedProgressBarInBrowser,
     &kAndroidAppIntegration,
     &kAndroidAppIntegrationV2,
     &kNewTabPageCustomization,
@@ -283,6 +281,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTGoogleBottomBarVariantLayouts,
     &kCCTOpenInBrowserButtonIfAllowedByEmbedder,
     &kCCTOpenInBrowserButtonIfEnabledByEmbedder,
+    &kCCTNavigationMetrics,
     &kCCTPredictiveBackGesture,
     &kCCTRealtimeEngagementEventsInBackground,
     &kCCTReportParallelRequestStatus,
@@ -296,6 +295,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kChangeUnfocusedPriority,
     &kChromeNativeUrlOverriding,
     &kDefaultBrowserPromoAndroid2,
+    &kDesktopUAOnConnectedDisplay,
     &kDisableInstanceLimit,
     &kDontAutoHideBrowserControls,
     &kDrawChromePagesEdgeToEdge,
@@ -485,7 +485,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &safety_check::features::kSafetyHub,
     &segmentation_platform::features::kAndroidAppIntegrationModule,
     &segmentation_platform::features::kContextualPageActions,
-    &segmentation_platform::features::kContextualPageActionShareModel,
     &segmentation_platform::features::kContextualPageActionTabGrouping,
     &segmentation_platform::features::kEducationalTipModule,
     &segmentation_platform::features::kSegmentationPlatformEphemeralCardRanker,
@@ -506,6 +505,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &visited_url_ranking::features::kVisitedURLRankingService,
     &webapps::features::kWebApkInstallFailureNotification,
     &webapps::features::kAndroidMinimalUiLargeScreen,
+    &webapps::features::kAndroidWindowControlsOverlay,
     &base::features::kPostGetMyMemoryStateToBackground,
 };
 
@@ -540,6 +540,10 @@ BASE_FEATURE(kAllowTabClosingUponMinimization,
              "AllowTabClosingUponMinimization",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAndroidAnimatedProgressBarInBrowser,
+             "AndroidAnimatedProgressBarInBrowser",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAndroidAppIntegration,
              "AndroidAppIntegration",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -554,7 +558,7 @@ BASE_FEATURE(kAndroidAppIntegrationMultiDataSource,
 
 BASE_FEATURE(kNewTabPageCustomization,
              "NewTabPageCustomization",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNewTabPageCustomizationV2,
              "NewTabPageCustomizationV2",
@@ -827,15 +831,15 @@ BASE_FEATURE(kCCTContextualMenuItems,
 
 BASE_FEATURE(kCCTDestroyTabWhenModelIsEmpty,
              "CCTDestroyTabWhenModelIsEmpty",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCCTEarlyNav, "CCTEarlyNav", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCCTEarlyNav, "CCTEarlyNav", base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTExtendTrustedCdnPublisher,
              "CCTExtendTrustedCdnPublisher",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCCTFixWarmup, "CCTFixWarmup", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCCTFixWarmup, "CCTFixWarmup", base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTFreInSameTask,
              "CCTFreInSameTask",
@@ -893,6 +897,10 @@ BASE_FEATURE(kHubSlideAnimation,
              "HubSlideAnimation",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCCTNavigationMetrics,
+             "CCTNavigationMetrics",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCCTRealtimeEngagementEventsInBackground,
              "CCTRealtimeEngagementEventsInBackground",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -933,6 +941,10 @@ BASE_FEATURE(kChromeNativeUrlOverriding,
 
 BASE_FEATURE(kChangeUnfocusedPriority,
              "ChangeUnfocusedPriority",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDesktopUAOnConnectedDisplay,
+             "DesktopUAOnConnectedDisplay",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDisableInstanceLimit,

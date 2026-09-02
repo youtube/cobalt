@@ -96,6 +96,7 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   scoped_refptr<AudioState> GetAudioState() const override;
 
   std::unique_ptr<VoiceMediaSendChannelInterface> CreateSendChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
@@ -103,6 +104,7 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
       AudioCodecPairId codec_pair_id) override;
 
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
@@ -176,7 +178,8 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
 class WebRtcVoiceSendChannel final : public MediaChannelUtil,
                                      public VoiceMediaSendChannelInterface {
  public:
-  WebRtcVoiceSendChannel(WebRtcVoiceEngine* engine,
+  WebRtcVoiceSendChannel(const Environment& env,
+                         WebRtcVoiceEngine* engine,
                          const MediaConfig& config,
                          const AudioOptions& options,
                          const CryptoOptions& crypto_options,
@@ -285,6 +288,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   bool SetMaxSendBitrate(int bps);
   void SetupRecording();
 
+  const Environment env_;
   TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
   SequenceChecker network_thread_checker_{SequenceChecker::kDetached};
@@ -306,6 +310,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
 
   std::map<uint32_t, WebRtcAudioSendStream*> send_streams_;
   std::vector<RtpExtension> send_rtp_extensions_;
+  std::optional<RtcpFeedbackType> rtcp_cc_ack_type_;
   std::string mid_;
   RtcpMode rtcp_mode_;
 
@@ -333,7 +338,8 @@ class WebRtcVoiceReceiveChannel final
     : public MediaChannelUtil,
       public VoiceMediaReceiveChannelInterface {
  public:
-  WebRtcVoiceReceiveChannel(WebRtcVoiceEngine* engine,
+  WebRtcVoiceReceiveChannel(const Environment& env,
+                            WebRtcVoiceEngine* engine,
                             const MediaConfig& config,
                             const AudioOptions& options,
                             const CryptoOptions& crypto_options,
@@ -432,6 +438,7 @@ class WebRtcVoiceReceiveChannel final
   // unsignaled anymore (i.e. it is now removed, or signaled), and return true.
   bool MaybeDeregisterUnsignaledRecvStream(uint32_t ssrc);
 
+  const Environment env_;
   TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
   SequenceChecker network_thread_checker_{SequenceChecker::kDetached};

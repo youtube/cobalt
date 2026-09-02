@@ -54,7 +54,6 @@
 #include "pc/media_stream_proxy.h"
 #include "pc/media_stream_track_proxy.h"
 #include "pc/peer_connection.h"
-#include "pc/peer_connection_factory_proxy.h"
 #include "pc/peer_connection_proxy.h"
 #include "pc/rtp_parameters_conversion.h"
 #include "pc/video_track.h"
@@ -85,31 +84,6 @@ Environment AssembleEnvironment(PeerConnectionFactoryDependencies& deps) {
 }
 
 }  // namespace
-
-// TODO: bugs.webrtc.org/42220069 - Move this function to
-// 'create_modular_peer_connection_factory' build target when all users of this
-// function would depend on that build target.
-scoped_refptr<PeerConnectionFactoryInterface>
-CreateModularPeerConnectionFactory(
-    PeerConnectionFactoryDependencies dependencies) {
-  // The PeerConnectionFactory must be created on the signaling thread.
-  if (dependencies.signaling_thread &&
-      !dependencies.signaling_thread->IsCurrent()) {
-    return dependencies.signaling_thread->BlockingCall([&dependencies] {
-      return CreateModularPeerConnectionFactory(std::move(dependencies));
-    });
-  }
-
-  auto pc_factory = PeerConnectionFactory::Create(std::move(dependencies));
-  if (!pc_factory) {
-    return nullptr;
-  }
-  // Verify that the invocation and the initialization ended up agreeing on the
-  // thread.
-  RTC_DCHECK_RUN_ON(pc_factory->signaling_thread());
-  return PeerConnectionFactoryProxy::Create(
-      pc_factory->signaling_thread(), pc_factory->worker_thread(), pc_factory);
-}
 
 // Static
 scoped_refptr<PeerConnectionFactory> PeerConnectionFactory::Create(

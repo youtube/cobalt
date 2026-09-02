@@ -130,7 +130,6 @@ public class MostVisitedMediatorUnitTest {
 
         verify(mTileRenderer, atLeastOnce())
                 .renderTileSection(anyList(), eq(mMvTilesLayout), any());
-        verify(mMvTilesLayout).addTile(any());
         verify(mSnapshotTileGridChangedRunnable, atLeastOnce()).run();
     }
 
@@ -227,6 +226,7 @@ public class MostVisitedMediatorUnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testSetPortraitPaddings_NotSmallDevice() {
         mConfiguration.orientation = Configuration.ORIENTATION_PORTRAIT;
         createMediator();
@@ -246,6 +246,7 @@ public class MostVisitedMediatorUnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testSetPortraitPaddings_SmallDevice() {
         mConfiguration.orientation = Configuration.ORIENTATION_PORTRAIT;
         when(mUiConfig.getCurrentDisplayStyle())
@@ -270,6 +271,7 @@ public class MostVisitedMediatorUnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testSetLandscapePaddings() {
         mConfiguration.orientation = Configuration.ORIENTATION_LANDSCAPE;
         createMediator();
@@ -293,6 +295,7 @@ public class MostVisitedMediatorUnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testUpdateTilesView_Tablet() {
         int expectedTileViewEdgePadding =
                 mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_tablet);
@@ -324,6 +327,7 @@ public class MostVisitedMediatorUnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testUpdateTilesView_Phone() {
         mConfiguration.orientation = Configuration.ORIENTATION_PORTRAIT;
         createMediator(/* isTablet= */ false);
@@ -539,7 +543,6 @@ public class MostVisitedMediatorUnitTest {
         when(mMvTilesLayout.getChildAt(0)).thenReturn(mTileView);
         when(mMvTilesLayout.getTileCount()).thenReturn(1);
         when(mMvTilesLayout.getTileAt(0)).thenReturn(mTileView);
-        mMvTilesLayout.addTile(mTileView);
 
         mMediator =
                 new MostVisitedTilesMediator(

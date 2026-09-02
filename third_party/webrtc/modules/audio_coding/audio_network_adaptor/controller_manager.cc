@@ -52,6 +52,7 @@ namespace {
 #if WEBRTC_ENABLE_PROTOBUF
 
 std::unique_ptr<FecControllerPlrBased> CreateFecControllerPlrBased(
+    const Environment& env,
     const audio_network_adaptor::config::FecController& config,
     bool initial_fec_enabled) {
   RTC_CHECK(config.has_fec_enabling_threshold());
@@ -70,8 +71,9 @@ std::unique_ptr<FecControllerPlrBased> CreateFecControllerPlrBased(
   RTC_CHECK(fec_disabling_threshold.has_high_bandwidth_bps());
   RTC_CHECK(fec_disabling_threshold.has_high_bandwidth_packet_loss());
 
-  return std::unique_ptr<FecControllerPlrBased>(
-      new FecControllerPlrBased(FecControllerPlrBased::Config(
+  return std::make_unique<FecControllerPlrBased>(
+      env,
+      FecControllerPlrBased::Config(
           initial_fec_enabled,
           ThresholdCurve(fec_enabling_threshold.low_bandwidth_bps(),
                          fec_enabling_threshold.low_bandwidth_packet_loss(),
@@ -81,7 +83,7 @@ std::unique_ptr<FecControllerPlrBased> CreateFecControllerPlrBased(
                          fec_disabling_threshold.low_bandwidth_packet_loss(),
                          fec_disabling_threshold.high_bandwidth_bps(),
                          fec_disabling_threshold.high_bandwidth_packet_loss()),
-          config.time_constant_ms())));
+          config.time_constant_ms()));
 }
 
 std::unique_ptr<FrameLengthController> CreateFrameLengthController(
@@ -255,7 +257,7 @@ std::unique_ptr<ControllerManager> ControllerManagerImpl::Create(
     switch (controller_config.controller_case()) {
       case audio_network_adaptor::config::Controller::kFecController:
         controller = CreateFecControllerPlrBased(
-            controller_config.fec_controller(), initial_fec_enabled);
+            env, controller_config.fec_controller(), initial_fec_enabled);
         break;
       case audio_network_adaptor::config::Controller::kFecControllerRplrBased:
         // FecControllerRplrBased has been removed and can't be used anymore.

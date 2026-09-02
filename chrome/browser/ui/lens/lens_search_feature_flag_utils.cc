@@ -19,19 +19,13 @@ bool IsLensOverlayContextualSearchboxEnabled() {
   auto* feature_list = base::FeatureList::GetInstance();
   if (feature_list &&
       (feature_list->IsFeatureOverridden(
-           lens::features::kLensOverlayContextualSearchbox.name) ||
-       feature_list->IsFeatureOverridden(
-           lens::features::kLensOverlayContextualSearchboxForOmniboxSuggestions
-               .name))) {
+          lens::features::kLensOverlayContextualSearchbox.name))) {
     // Important: If a server-side config applies to this client (i.e. after
     // accounting for its filters), but the client gets assigned to the default
     // group, they will still take this code path and receive the state
     // specified via BASE_FEATURE() above.
     return base::FeatureList::IsEnabled(
-               lens::features::kLensOverlayContextualSearchbox) ||
-           base::FeatureList::IsEnabled(
-               lens::features::
-                   kLensOverlayContextualSearchboxForOmniboxSuggestions);
+        lens::features::kLensOverlayContextualSearchbox);
   }
 
   // Safety check since this is a CP'd change.
@@ -74,6 +68,28 @@ bool IsAimM3Enabled(Profile* profile) {
   // IsAimEligible() checks the local (DSE and Enterprise policy) eligibility
   // and server eligibility requirements.
   return aim_eligibility_service->IsAimEligible();
+}
+
+bool IsLensOverlayEduActionChipEnabled() {
+  if (!lens::features::IsLensOverlayEduActionChipEnabled()) {
+    return false;
+  }
+
+  if (!g_browser_process) {
+    DCHECK(g_browser_process) << "g_browser_process is null";
+    return false;
+  }
+
+  // Features and locale storage should exist.
+  auto* features = g_browser_process->GetFeatures();
+  if (!features || !features->application_locale_storage()) {
+    return false;
+  }
+
+  // Enable for English only. Three-letter language codes for non-English
+  // languages are theoretically possible so make sure we don't enable on them.
+  std::string locale = features->application_locale_storage()->Get();
+  return locale == "en" || locale.starts_with("en-");
 }
 
 }  // namespace lens

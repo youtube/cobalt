@@ -11,6 +11,10 @@
 #ifndef LIBANGLE_RENDERER_METAL_MTL_STATE_CACHE_H_
 #define LIBANGLE_RENDERER_METAL_MTL_STATE_CACHE_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #import <Metal/Metal.h>
 
 #include <unordered_map>

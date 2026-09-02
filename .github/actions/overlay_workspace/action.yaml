@@ -69,7 +69,9 @@ runs:
 
           gclient config \
             --name=src \
-            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" "${REPO_URL}"
+            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
+            --custom-var="reapi_backend_config_path=\"cobalt.star\"" \
+            "${REPO_URL}"
           echo "target_os=['android', 'linux']" >> .gclient
           echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
           gclient sync -D --no-history

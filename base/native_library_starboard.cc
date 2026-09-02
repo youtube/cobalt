@@ -16,10 +16,8 @@ std::string NativeLibraryLoadError::ToString() const {
   return message;
 }
 
-NativeLibrary LoadNativeLibraryWithOptions(const FilePath&,
-                                           const NativeLibraryOptions&,
-                                           NativeLibraryLoadError*) {
-  NOTREACHED() << "LoadNativeLibraryWithOptions called, but Starboard " 
+NativeLibrary LoadNativeLibrary(const FilePath&, NativeLibraryLoadError*) {
+  NOTREACHED() << "LoadNativeLibrary called, but Starboard "
                << "does not support dlopen. This call will fail.";
 }
 

@@ -32,6 +32,7 @@
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "common_audio/smoothing_filter.h"
 #include "modules/audio_coding/audio_network_adaptor/audio_network_adaptor_impl.h"
 #include "modules/audio_coding/audio_network_adaptor/controller_manager.h"
@@ -46,7 +47,6 @@
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/string_to_number.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -325,8 +325,8 @@ std::optional<int> AudioEncoderOpusImpl::GetNewBandwidth(
 
 class AudioEncoderOpusImpl::PacketLossFractionSmoother {
  public:
-  explicit PacketLossFractionSmoother()
-      : last_sample_time_ms_(TimeMillis()),
+  explicit PacketLossFractionSmoother(Timestamp now)
+      : last_sample_time_(now),
         smoother_(kAlphaForPacketLossFractionSmoother) {}
 
   // Gets the smoothed packet loss fraction.
@@ -336,15 +336,14 @@ class AudioEncoderOpusImpl::PacketLossFractionSmoother {
   }
 
   // Add new observation to the packet loss fraction smoother.
-  void AddSample(float packet_loss_fraction) {
-    int64_t now_ms = TimeMillis();
-    smoother_.Apply(static_cast<float>(now_ms - last_sample_time_ms_),
+  void AddSample(float packet_loss_fraction, Timestamp now) {
+    smoother_.Apply((now - last_sample_time_).ms<float>(),
                     packet_loss_fraction);
-    last_sample_time_ms_ = now_ms;
+    last_sample_time_ = now;
   }
 
  private:
-  int64_t last_sample_time_ms_;
+  Timestamp last_sample_time_;
 
   // An exponential filter is used to smooth the packet loss fraction.
   ExpFilter smoother_;
@@ -389,7 +388,9 @@ AudioEncoderOpusImpl::AudioEncoderOpusImpl(
       bitrate_multipliers_(GetBitrateMultipliers(env_.field_trials())),
       packet_loss_rate_(0.0),
       inst_(nullptr),
-      packet_loss_fraction_smoother_(new PacketLossFractionSmoother()),
+      packet_loss_fraction_smoother_(
+          std::make_unique<PacketLossFractionSmoother>(
+              env_.clock().CurrentTime())),
       audio_network_adaptor_creator_(audio_network_adaptor_creator),
       bitrate_smoother_(std::move(bitrate_smoother)) {
   RTC_DCHECK(0 <= payload_type && payload_type <= 127);
@@ -494,7 +495,8 @@ void AudioEncoderOpusImpl::OnReceivedUplinkPacketLossFraction(
         uplink_packet_loss_fraction);
     ApplyAudioNetworkAdaptor();
   }
-  packet_loss_fraction_smoother_->AddSample(uplink_packet_loss_fraction);
+  packet_loss_fraction_smoother_->AddSample(uplink_packet_loss_fraction,
+                                            env_.clock().CurrentTime());
   float average_fraction_loss = packet_loss_fraction_smoother_->GetAverage();
   SetProjectedPacketLossRate(average_fraction_loss);
 }
@@ -522,7 +524,8 @@ void AudioEncoderOpusImpl::OnReceivedUplinkBandwidthImpl(
     // Then 4 * bwe_period_ms is a good choice.
     if (bwe_period_ms)
       bitrate_smoother_->SetTimeConstantMs(*bwe_period_ms * 4);
-    bitrate_smoother_->AddSample(target_audio_bitrate_bps);
+    bitrate_smoother_->AddSample(target_audio_bitrate_bps,
+                                 env_.clock().CurrentTime());
 
     ApplyAudioNetworkAdaptor();
   } else {
@@ -782,14 +785,15 @@ AudioEncoderOpusImpl::DefaultAudioNetworkAdaptorCreator(
 
 void AudioEncoderOpusImpl::MaybeUpdateUplinkBandwidth() {
   if (audio_network_adaptor_) {
-    int64_t now_ms = TimeMillis();
+    Timestamp now = env_.clock().CurrentTime();
     if (!bitrate_smoother_last_update_time_ ||
-        now_ms - *bitrate_smoother_last_update_time_ >=
+        now.ms() - *bitrate_smoother_last_update_time_ >=
             config_.uplink_bandwidth_update_interval_ms) {
-      std::optional<float> smoothed_bitrate = bitrate_smoother_->GetAverage();
+      std::optional<float> smoothed_bitrate =
+          bitrate_smoother_->GetAverage(now);
       if (smoothed_bitrate)
         audio_network_adaptor_->SetUplinkBandwidth(*smoothed_bitrate);
-      bitrate_smoother_last_update_time_ = now_ms;
+      bitrate_smoother_last_update_time_ = now.ms();
     }
   }
 }

@@ -1147,7 +1147,13 @@ TEST_F(ZeroSuggestProviderTest,
   EXPECT_FALSE(provider_did_notify_);
 }
 
-TEST_F(ZeroSuggestProviderTest, SyncMatchesOnly) {
+// Disabled on iOS due to crbug.com/441269008.
+#if BUILDFLAG(IS_IOS)
+#define MAYBE_SyncMatchesOnly DISABLED_SyncMatchesOnly
+#else
+#define MAYBE_SyncMatchesOnly SyncMatchesOnly
+#endif
+TEST_F(ZeroSuggestProviderTest, MAYBE_SyncMatchesOnly) {
   EXPECT_CALL(*client_, IsAuthenticated())
       .WillRepeatedly(testing::Return(true));
 
@@ -1155,11 +1161,14 @@ TEST_F(ZeroSuggestProviderTest, SyncMatchesOnly) {
   features.InitWithFeatures(
       /*enabled_features=*/
       {omnibox_feature_configs::ContextualSearch::kOmniboxContextualSuggestions,
-       omnibox_feature_configs::ContextualSearch::
-           kOmniboxZeroSuggestSynchronousMatchesOnly,
        omnibox::kZeroSuggestPrefetchingOnSRP,
        omnibox::kZeroSuggestPrefetchingOnWeb},
       /*disabled_features=*/{omnibox::kZeroSuggestInMemoryCaching});
+
+  omnibox_feature_configs::ScopedConfigForTesting<
+      omnibox_feature_configs::ContextualSearch>
+      config;
+  config.Get().zero_suggest_synchronous_matches_only = true;
 
   auto clear_matches = [&]() {
     while (!provider_->matches().empty()) {
@@ -3216,6 +3225,9 @@ TEST_F(ZeroSuggestProviderTest, SuggestUrlIncludesCtxus) {
       config;
   config.Get().contextual_url_suggest_param = "1";
 
+  EXPECT_CALL(*client_, ShouldSendContextualUrlSuggestParam())
+      .WillRepeatedly(testing::Return(true));
+
   // Web gets the param when Lens is enabled.
   {
     EXPECT_CALL(*client_, IsLensEnabled())
@@ -3263,6 +3275,9 @@ TEST_F(ZeroSuggestProviderTest, SuggestUrlIncludesPageTitle) {
       omnibox_feature_configs::ContextualSearch>
       config;
   config.Get().send_page_title_suggest_param = true;
+
+  EXPECT_CALL(*client_, ShouldSendPageTitleSuggestParam())
+      .WillRepeatedly(testing::Return(true));
 
   // Web gets the param (URL-encoded page title).
   {

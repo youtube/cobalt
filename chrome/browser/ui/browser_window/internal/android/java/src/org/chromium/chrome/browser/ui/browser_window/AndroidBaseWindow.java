@@ -11,6 +11,8 @@ import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.ui.base.WindowAndroid;
 
 /** Java class for communicating with the native {@code AndroidBaseWindow}. */
 @NullMarked
@@ -75,8 +77,18 @@ final class AndroidBaseWindow {
     }
 
     @CalledByNative
+    private void show() {
+        mChromeAndroidTask.show();
+    }
+
+    @CalledByNative
     private boolean isVisible() {
         return mChromeAndroidTask.isVisible();
+    }
+
+    @CalledByNative
+    private void showInactive() {
+        mChromeAndroidTask.showInactive();
     }
 
     @CalledByNative
@@ -87,6 +99,11 @@ final class AndroidBaseWindow {
     @CalledByNative
     private void activate() {
         mChromeAndroidTask.activate();
+    }
+
+    @CalledByNative
+    private void deactivate() {
+        mChromeAndroidTask.deactivate();
     }
 
     @CalledByNative
@@ -107,6 +124,11 @@ final class AndroidBaseWindow {
     @CalledByNative
     private void clearNativePtr() {
         mNativeAndroidBaseWindow = 0;
+    }
+
+    @CalledByNative
+    private @Nullable WindowAndroid getWindowAndroid() {
+        return mChromeAndroidTask.getActivityWindowAndroid();
     }
 
     long getNativePtrForTesting() {

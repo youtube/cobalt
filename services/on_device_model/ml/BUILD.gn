@@ -79,8 +79,8 @@ if (use_blink || (is_ios && build_with_internal_optimization_guide)) {
     if (use_blink) {
       deps += [ "//gpu/config" ]
     }
-    if (is_cobalt_hermetic_build) {
-      deps -= [ "//third_party/dawn/src/dawn/native" ]
+    if (!is_fuchsia && !is_cobalt_hermetic_build && build_with_tflite_lib) {
+      deps += [ "//services/on_device_model/safety:bert_safety_model" ]
     }
     public_deps = [
       ":api",

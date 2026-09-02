@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -253,7 +254,7 @@ static void TestDigest(const DigestTestVector *test) {
 }
 
 TEST(DigestTest, TestVectors) {
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kTestVectors); i++) {
+  for (size_t i = 0; i < std::size(kTestVectors); i++) {
     SCOPED_TRACE(i);
     TestDigest(&kTestVectors[i]);
   }

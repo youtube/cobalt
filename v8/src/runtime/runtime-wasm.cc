@@ -609,12 +609,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       kind = wasm::ImportCallKind::kUseCallBuiltin;
     }
     wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-    wasm::CanonicalTypeIndex canonical_sig_index =
-        wasm::GetTypeCanonicalizer()->FindIndex_Slow(sig);
     wasm::Suspend suspend = import_data->suspend();
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-        cache->GetCompiled(isolate, kind, canonical_sig_index, expected_arity,
-                           suspend, sig);
+        cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
     DCHECK_EQ(TrustedCast<WasmInternalFunction>(*origin)->call_target(),
               wrapper_handle->code_pointer());
     return ReadOnlyRoots(isolate).undefined_value();
@@ -646,8 +643,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->GetCompiled(isolate, kind, sig_index, expected_arity, suspend,
-                         sig);
+      cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
 
   DCHECK_EQ(dispatch_table->target(table_slot), wrapper_handle->code_pointer());
 
@@ -2389,11 +2385,18 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
-  DirectHandle<WasmFuncRef> func_ref(Cast<WasmFuncRef>(args[0]), isolate);
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
+  DirectHandle<WasmFuncRef> func_ref =
+      handle(Cast<WasmFuncRef>(args[1]), isolate);
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject();
+  // TODO(thibaudm): Store the WasmCodePointer instead.
+  cont->stack()->jmpbuf()->pc = trusted_instance_data->native_module()
+                                    ->continuation_wrapper()
+                                    ->instruction_start();
   cont->stack()->set_func_ref(*func_ref);
   return *cont;
 }

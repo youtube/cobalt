@@ -10,6 +10,7 @@
 #import <optional>
 
 #import "base/check_deref.h"
+#import "base/check_op.h"
 #import "base/functional/callback_helpers.h"
 #import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
@@ -289,6 +290,7 @@
 #import "ios/chrome/browser/signin/model/account_consistency_browser_agent.h"
 #import "ios/chrome/browser/signin/model/account_consistency_service_factory.h"
 #import "ios/chrome/browser/snapshots/model/model_swift.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_source_tab_helper.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/snapshots/model/web_state_snapshot_info.h"
 #import "ios/chrome/browser/spotlight_debugger/ui_bundled/spotlight_debugger_coordinator.h"
@@ -804,6 +806,13 @@ enum class ToolbarKind {
 
   [super start];
   self.started = YES;
+
+  CHECK_GE(_numberOfActivityOverly, 0);
+  if (_numberOfActivityOverly > 0 && !self.activityOverlayCoordinator) {
+    // The activity overlay was requested before the UI got ready, need to start
+    // the overlay now.
+    [self startActivityOverlay];
+  }
 }
 
 - (void)stop {
@@ -1077,6 +1086,15 @@ enum class ToolbarKind {
   }
   _webUsageEnabled = webUsageEnabled;
   self.viewController.webUsageEnabled = webUsageEnabled;
+}
+
+// Starts the activity overlay that was requested using `-showActivityOverlay`.
+- (void)startActivityOverlay {
+  CHECK(self.viewController);
+  self.activityOverlayCoordinator = [[ActivityOverlayCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser];
+  [self.activityOverlayCoordinator start];
 }
 
 // Hides activity overlay number. Remove it if the number becomes 0..
@@ -2212,9 +2230,7 @@ enum class ToolbarKind {
 
 - (void)printTabWithBaseViewController:(UIViewController*)baseViewController {
   DCHECK(self.printCoordinator);
-  web::WebState* webState =
-      self.browser->GetWebStateList()->GetActiveWebState();
-  [self.printCoordinator printWebState:webState
+  [self.printCoordinator printWebState:self.activeWebStateOrReaderMode
                     baseViewController:baseViewController];
 }
 
@@ -2324,13 +2340,17 @@ enum class ToolbarKind {
   _urlLoadingBrowserAgent->Load(params);
 }
 
-// Displays activity overlay.
+// Requests that the activity overlay is shown. The actual creation of the
+// overlay might be deferred until the UI is ready.
 - (base::ScopedClosureRunner)showActivityOverlay {
-  _numberOfActivityOverly++;
-  self.activityOverlayCoordinator = [[ActivityOverlayCoordinator alloc]
-      initWithBaseViewController:self.viewController
-                         browser:self.browser];
-  [self.activityOverlayCoordinator start];
+  ++_numberOfActivityOverly;
+  if (_numberOfActivityOverly == 1) {
+    // Start the overlay immediately if the UI is ready. Otherwise,
+    // `startActivityOverlay` will be invoked from `[BrowserCoordinator start]`.
+    if (self.viewController) {
+      [self startActivityOverlay];
+    }
+  }
   return base::ScopedClosureRunner(base::BindOnce(
       [](BrowserCoordinator* strongSelf) {
         [strongSelf decreaseActivityOverlay];
@@ -3057,6 +3077,11 @@ enum class ToolbarKind {
 }
 
 - (void)dismissBWGFlowWithCompletion:(ProceduralBlock)completion {
+  if (!_BWGCoordinator) {
+    completion();
+    return;
+  }
+
   [_BWGCoordinator stopWithCompletion:completion];
   _BWGCoordinator = nil;
 }
@@ -4064,6 +4089,15 @@ enum class ToolbarKind {
     return UIEdgeInsetsZero;
   }
 
+  ReaderModeTabHelper* readerModeTabHelper =
+      ReaderModeTabHelper::FromWebState(webState);
+  if (readerModeTabHelper && readerModeTabHelper->GetReaderModeWebState()) {
+    // If Reader mode content is used in `webState` then no additional insets
+    // are necessary since the Reader mode view is already constrained to fit
+    // between toolbars.
+    return UIEdgeInsetsZero;
+  }
+
   LensOverlayTabHelper* lensOverlayTabHelper =
       LensOverlayTabHelper::FromWebState(webState);
   bool isLensOverlayAvailable =
@@ -4178,11 +4212,6 @@ enum class ToolbarKind {
     [overlays addObject:sadTabView];
   }
 
-  UIView* readerModeView = _readerModeCoordinator.viewForSnapshot;
-  if (readerModeView) {
-    [overlays addObject:readerModeView];
-  }
-
   BrowserContainerViewController* browserContainerViewController =
       self.browserContainerCoordinator.viewController;
   // The overlay container view controller is presenting something if it has
@@ -4236,7 +4265,9 @@ enum class ToolbarKind {
       return _NTPCoordinator.viewController.view;
     }
   }
-  return webState->GetView();
+  SnapshotSourceTabHelper* snapshotSource =
+      SnapshotSourceTabHelper::FromWebState(webState);
+  return snapshotSource->GetView();
 }
 
 #pragma mark - NewTabPageCommands

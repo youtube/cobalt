@@ -4254,9 +4254,12 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/regexp-ast.h",
     "src/regexp/regexp-bytecode-generator-inl.h",
     "src/regexp/regexp-bytecode-generator.h",
+    "src/regexp/regexp-bytecode-iterator-inl.h",
+    "src/regexp/regexp-bytecode-iterator.h",
     "src/regexp/regexp-bytecode-peephole.h",
     "src/regexp/regexp-bytecodes-inl.h",
     "src/regexp/regexp-bytecodes.h",
+    "src/regexp/regexp-code-generator.h",
     "src/regexp/regexp-compiler.h",
     "src/regexp/regexp-dotprinter.h",
     "src/regexp/regexp-error.h",
@@ -5826,8 +5829,10 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/experimental/experimental.cc",
     "src/regexp/regexp-ast.cc",
     "src/regexp/regexp-bytecode-generator.cc",
+    "src/regexp/regexp-bytecode-iterator.cc",
     "src/regexp/regexp-bytecode-peephole.cc",
     "src/regexp/regexp-bytecodes.cc",
+    "src/regexp/regexp-code-generator.cc",
     "src/regexp/regexp-compiler-tonode.cc",
     "src/regexp/regexp-compiler.cc",
     "src/regexp/regexp-dotprinter.cc",
@@ -6878,6 +6883,10 @@ v8_component("v8_libbase") {
     if (v8_enable_etw_stack_walking) {
       libs += [ "advapi32.lib" ]  # Needed for TraceLoggingProvider.h
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
     data_deps += [ "//build/win:runtime_libs" ]
   } else if (current_os == "zos") {

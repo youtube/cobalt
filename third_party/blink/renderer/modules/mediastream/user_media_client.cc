@@ -113,7 +113,7 @@ UserMediaClient::RequestQueue::RequestQueue(
       apply_constraints_processor_(
           MakeGarbageCollected<ApplyConstraintsProcessor>(
               frame,
-              WTF::BindRepeating(
+              BindRepeating(
                   [](UserMediaClient* client)
                       -> mojom::blink::MediaDevicesDispatcherHost* {
                     // |client| is guaranteed to be not null because |client|
@@ -202,21 +202,21 @@ void UserMediaClient::RequestQueue::MaybeProcessNextRequestInfo() {
   if (current_request->IsUserMedia()) {
     user_media_processor_->ProcessRequest(
         current_request->MoveUserMediaRequest(),
-        WTF::BindOnce(&UserMediaClient::RequestQueue::CurrentRequestCompleted,
-                      WrapWeakPersistent(this)));
+        BindOnce(&UserMediaClient::RequestQueue::CurrentRequestCompleted,
+                 WrapWeakPersistent(this)));
   } else if (current_request->IsApplyConstraints()) {
     apply_constraints_processor_->ProcessRequest(
         current_request->apply_constraints_request(),
-        WTF::BindOnce(&UserMediaClient::RequestQueue::CurrentRequestCompleted,
-                      WrapWeakPersistent(this)));
+        BindOnce(&UserMediaClient::RequestQueue::CurrentRequestCompleted,
+                 WrapWeakPersistent(this)));
   } else {
     DCHECK(current_request->IsStopTrack());
     MediaStreamTrackPlatform* track = MediaStreamTrackPlatform::GetTrack(
         WebMediaStreamTrack(current_request->track_to_stop()));
     if (track) {
       track->StopAndNotify(
-          WTF::BindOnce(&UserMediaClient::RequestQueue::CurrentRequestCompleted,
-                        WrapWeakPersistent(this)));
+          BindOnce(&UserMediaClient::RequestQueue::CurrentRequestCompleted,
+                   WrapWeakPersistent(this)));
     } else {
       CurrentRequestCompleted();
     }
@@ -230,7 +230,7 @@ void UserMediaClient::RequestQueue::CurrentRequestCompleted() {
     frame_->GetTaskRunner(blink::TaskType::kInternalMedia)
         ->PostTask(
             FROM_HERE,
-            WTF::BindOnce(
+            BindOnce(
                 &UserMediaClient::RequestQueue::MaybeProcessNextRequestInfo,
                 WrapWeakPersistent(this)));
   }
@@ -287,7 +287,7 @@ UserMediaClient::UserMediaClient(
   CHECK(frame_);
 
   // WrapWeakPersistent is safe because the |frame_| owns UserMediaClient.
-  frame_->SetIsCapturingMediaCallback(WTF::BindRepeating(
+  frame_->SetIsCapturingMediaCallback(BindRepeating(
       [](UserMediaClient* client) { return client && client->IsCapturing(); },
       WrapWeakPersistent(this)));
 }
@@ -299,7 +299,7 @@ UserMediaClient::UserMediaClient(
           frame,
           MakeGarbageCollected<UserMediaProcessor>(
               frame,
-              WTF::BindRepeating(
+              BindRepeating(
                   [](UserMediaClient* client)
                       -> mojom::blink::MediaDevicesDispatcherHost* {
                     // |client| is guaranteed to be not null because |client|
@@ -311,7 +311,7 @@ UserMediaClient::UserMediaClient(
               frame->GetTaskRunner(blink::TaskType::kInternalMedia)),
           MakeGarbageCollected<UserMediaProcessor>(
               frame,
-              WTF::BindRepeating(
+              BindRepeating(
                   [](UserMediaClient* client)
                       -> mojom::blink::MediaDevicesDispatcherHost* {
                     // |client| is guaranteed to be not null because

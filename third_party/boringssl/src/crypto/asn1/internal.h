@@ -225,6 +225,18 @@ typedef struct ASN1_EXTERN_FUNCS_st {
   ASN1_ex_i2d *asn1_ex_i2d;
 } ASN1_EXTERN_FUNCS;
 
+// ASN1_TIME is an |ASN1_ITEM| whose ASN.1 type is X.509 Time (RFC 5280) and C
+// type is |ASN1_TIME*|.
+DECLARE_ASN1_ITEM(ASN1_TIME)
+
+// DIRECTORYSTRING is an |ASN1_ITEM| whose ASN.1 type is X.509 DirectoryString
+// (RFC 5280) and C type is |ASN1_STRING*|.
+DECLARE_ASN1_ITEM(DIRECTORYSTRING)
+
+// DISPLAYTEXT is an |ASN1_ITEM| whose ASN.1 type is X.509 DisplayText (RFC
+// 5280) and C type is |ASN1_STRING*|.
+DECLARE_ASN1_ITEM(DISPLAYTEXT)
+
 // ASN1_ANY_AS_STRING is an |ASN1_ITEM| with ASN.1 type ANY and C type
 // |ASN1_STRING*|. Types which are not represented with |ASN1_STRING|, such as
 // |ASN1_OBJECT|, are represented with type |V_ASN1_OTHER|.

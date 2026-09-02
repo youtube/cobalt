@@ -17,7 +17,7 @@
 
 #include <openssl/base.h>
 
-#include <openssl/rsa.h>
+#include <openssl/span.h>
 
 #include "../internal.h"
 
@@ -29,6 +29,21 @@ extern "C" {
 typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
 typedef struct evp_pkey_ctx_method_st EVP_PKEY_CTX_METHOD;
 
+struct evp_pkey_alg_st {
+  // method implements operations for this |EVP_PKEY_ALG|.
+  const EVP_PKEY_ASN1_METHOD *method;
+
+  // ec_group returns the |EC_GROUP| for this algorithm, if |method| is for
+  // |EVP_PKEY_EC|.
+  const EC_GROUP *(*ec_group)();
+};
+
+enum evp_decode_result_t {
+  evp_decode_error = 0,
+  evp_decode_ok = 1,
+  evp_decode_unsupported = 2,
+};
+
 struct evp_pkey_asn1_method_st {
   // pkey_id contains one of the |EVP_PKEY_*| values and corresponds to the OID
   // in the key type's AlgorithmIdentifier.
@@ -39,13 +54,19 @@ struct evp_pkey_asn1_method_st {
   const EVP_PKEY_CTX_METHOD *pkey_method;
 
   // pub_decode decodes |params| and |key| as a SubjectPublicKeyInfo
-  // and writes the result into |out|. It returns one on success and zero on
-  // error. |params| is the AlgorithmIdentifier after the OBJECT IDENTIFIER
-  // type field, and |key| is the contents of the subjectPublicKey with the
-  // leading padding byte checked and removed. Although X.509 uses BIT STRINGs
-  // to represent SubjectPublicKeyInfo, every key type defined encodes the key
-  // as a byte string with the same conversion to BIT STRING.
-  int (*pub_decode)(EVP_PKEY *out, CBS *params, CBS *key);
+  // and writes the result into |out|. It returns |evp_decode_ok| on success,
+  // and |evp_decode_error| on error, and |evp_decode_unsupported| if the input
+  // was not supported by this |EVP_PKEY_ALG|. In case of
+  // |evp_decode_unsupported|, it does not add an error to the error queue. May
+  // modify |params| and |key|. Callers must make a copy if calling in a loop.
+  //
+  // |params| is the AlgorithmIdentifier after the OBJECT IDENTIFIER type field,
+  // and |key| is the contents of the subjectPublicKey with the leading padding
+  // byte checked and removed. Although X.509 uses BIT STRINGs to represent
+  // SubjectPublicKeyInfo, every key type defined encodes the key as a byte
+  // string with the same conversion to BIT STRING.
+  evp_decode_result_t (*pub_decode)(const EVP_PKEY_ALG *alg, EVP_PKEY *out,
+                                    CBS *params, CBS *key);
 
   // pub_encode encodes |key| as a SubjectPublicKeyInfo and appends the result
   // to |out|. It returns one on success and zero on error.
@@ -54,10 +75,16 @@ struct evp_pkey_asn1_method_st {
   int (*pub_cmp)(const EVP_PKEY *a, const EVP_PKEY *b);
 
   // priv_decode decodes |params| and |key| as a PrivateKeyInfo and writes the
-  // result into |out|. It returns one on success and zero on error. |params| is
-  // the AlgorithmIdentifier after the OBJECT IDENTIFIER type field, and |key|
-  // is the contents of the OCTET STRING privateKey field.
-  int (*priv_decode)(EVP_PKEY *out, CBS *params, CBS *key);
+  // result into |out|.  It returns |evp_decode_ok| on success, and
+  // |evp_decode_error| on error, and |evp_decode_unsupported| if the key type
+  // was not supported by this |EVP_PKEY_ALG|. In case of
+  // |evp_decode_unsupported|, it does not add an error to the error queue. May
+  // modify |params| and |key|. Callers must make a copy if calling in a loop.
+  //
+  // |params| is the AlgorithmIdentifier after the OBJECT IDENTIFIER type field,
+  // and |key| is the contents of the OCTET STRING privateKey field.
+  evp_decode_result_t (*priv_decode)(const EVP_PKEY_ALG *alg, EVP_PKEY *out,
+                                     CBS *params, CBS *key);
 
   // priv_encode encodes |key| as a PrivateKeyInfo and appends the result to
   // |out|. It returns one on success and zero on error.
@@ -248,11 +275,13 @@ typedef struct {
 extern const EVP_PKEY_ASN1_METHOD dsa_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ec_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD rsa_asn1_meth;
+extern const EVP_PKEY_ASN1_METHOD rsa_pss_sha256_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD x25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD dh_asn1_meth;
 
 extern const EVP_PKEY_CTX_METHOD rsa_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD rsa_pss_sha256_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD ec_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD ed25519_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD x25519_pkey_meth;

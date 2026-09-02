@@ -71,7 +71,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_VULKAN)
-#include "gpu/vulkan/drm_modifiers_filter_vulkan.h"
+#include "gpu/command_buffer/service/drm_modifiers_filter_vulkan.h"
 #include "gpu/vulkan/init/vulkan_factory.h"
 #include "gpu/vulkan/vulkan_implementation.h"
 #include "gpu/vulkan/vulkan_instance.h"

@@ -878,6 +878,12 @@ enum ssl_private_key_result_t ssl_private_key_decrypt(SSL_HANDSHAKE *hs,
                                                       size_t max_out,
                                                       Span<const uint8_t> in);
 
+// ssl_parse_peer_subject_public_key_info decodes a SubjectPublicKeyInfo
+// representing the peer TLS key. It returns a newly-allocated |EVP_PKEY| or
+// nullptr on error.
+bssl::UniquePtr<EVP_PKEY> ssl_parse_peer_subject_public_key_info(
+    Span<const uint8_t> spki);
+
 // ssl_pkey_supports_algorithm returns whether |pkey| may be used to sign
 // |sigalg|.
 bool ssl_pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,

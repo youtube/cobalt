@@ -562,8 +562,13 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
       isolate->factory()
           ->NewStringFromUtf8(base::CStrVector(""))
           .ToHandleChecked();
+  DirectHandle<IrRegExpData> re_data =
+      TrustedCast<IrRegExpData>(isolate->factory()->NewIrRegExpData(
+          pattern, JSRegExp::AsJSRegExpFlags(flags), compile_data.capture_count,
+          JSRegExp::kNoBacktrackLimit, 0));
+
   RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
-                            sample_subject, is_one_byte);
+                            sample_subject, re_data, is_one_byte);
   return compile_data.node;
 }
 
@@ -1075,13 +1080,15 @@ TEST_F(RegExpTest, MacroAssemblerNativeRegisters) {
   Label fail;
   Label backtrack;
   m.WriteCurrentPositionToRegister(out1, 0);  // Output: [0]
-  m.PushRegister(out1, RegExpMacroAssembler::kNoStackLimitCheck);
+  m.PushRegister(out1,
+                 RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck);
   m.PushBacktrack(&backtrack);
   m.WriteStackPointerToRegister(sp);
   // Fill stack and registers
   m.AdvanceCurrentPosition(2);
   m.WriteCurrentPositionToRegister(out1, 0);
-  m.PushRegister(out1, RegExpMacroAssembler::kNoStackLimitCheck);
+  m.PushRegister(out1,
+                 RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck);
   m.PushBacktrack(&fail);
   // Drop backtrack stack frames.
   m.ReadStackPointerFromRegister(sp);
@@ -1116,8 +1123,10 @@ TEST_F(RegExpTest, MacroAssemblerNativeRegisters) {
 
   Label loop3;
   Label exit_loop3;
-  m.PushRegister(out4, RegExpMacroAssembler::kNoStackLimitCheck);
-  m.PushRegister(out4, RegExpMacroAssembler::kNoStackLimitCheck);
+  m.PushRegister(out4,
+                 RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck);
+  m.PushRegister(out4,
+                 RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck);
   m.ReadCurrentPositionFromRegister(out3);
   m.Bind(&loop3);
   m.AdvanceCurrentPosition(1);
@@ -1206,7 +1215,8 @@ TEST_F(RegExpTest, MacroAssemblerNativeLotsOfRegisters) {
   Label done;
   m.CheckNotBackReference(0, false, &done);  // Performs a system-stack push.
   m.Bind(&done);
-  m.PushRegister(large_number, RegExpMacroAssembler::kNoStackLimitCheck);
+  m.PushRegister(large_number,
+                 RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck);
   m.PopRegister(1);
   m.Succeed();
 
@@ -1239,7 +1249,7 @@ TEST_F(RegExpTest, MacroAssembler) {
   Label start, fail, backtrack;
 
   m.SetRegister(4, 42);
-  m.PushRegister(4, RegExpMacroAssembler::kNoStackLimitCheck);
+  m.PushRegister(4, RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck);
   m.AdvanceRegister(4, 42);
   m.GoTo(&start);
   m.Fail();

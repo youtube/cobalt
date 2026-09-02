@@ -11,11 +11,9 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <variant>
 
 #include "base/check.h"
 #include "base/check_deref.h"
-#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
@@ -26,6 +24,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
+#include "base/types/optional_util.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/callback_utils.h"
@@ -48,31 +47,12 @@
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/types/iwa_version.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
 
 namespace web_app {
-
-IsolatedWebAppApplyUpdateCommandSuccess::
-    IsolatedWebAppApplyUpdateCommandSuccess(
-        const base::Version& updated_version,
-        const IsolatedWebAppStorageLocation& updated_location)
-    : updated_version_(updated_version), updated_location_(updated_location) {}
-
-IsolatedWebAppApplyUpdateCommandSuccess::
-    IsolatedWebAppApplyUpdateCommandSuccess(
-        const IsolatedWebAppApplyUpdateCommandSuccess& other) = default;
-
-IsolatedWebAppApplyUpdateCommandSuccess&
-IsolatedWebAppApplyUpdateCommandSuccess::operator=(
-    IsolatedWebAppApplyUpdateCommandSuccess&& other) = default;
-
-IsolatedWebAppApplyUpdateCommandSuccess::
-    ~IsolatedWebAppApplyUpdateCommandSuccess() = default;
-
-bool IsolatedWebAppApplyUpdateCommandSuccess::operator==(
-    const IsolatedWebAppApplyUpdateCommandSuccess& other) const = default;
 
 std::ostream& operator<<(std::ostream& os,
                          const IsolatedWebAppApplyUpdateCommandError& error) {
@@ -86,13 +66,12 @@ IsolatedWebAppApplyUpdateCommand::IsolatedWebAppApplyUpdateCommand(
     std::unique_ptr<content::WebContents> web_contents,
     std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
     std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive,
-    base::OnceCallback<
-        void(base::expected<IsolatedWebAppApplyUpdateCommandSuccess,
-                            IsolatedWebAppApplyUpdateCommandError>)> callback,
+    base::OnceCallback<void(
+        base::expected<void, IsolatedWebAppApplyUpdateCommandError>)> callback,
     std::unique_ptr<IsolatedWebAppInstallCommandHelper> command_helper)
-    : WebAppCommand<AppLock,
-                    base::expected<IsolatedWebAppApplyUpdateCommandSuccess,
-                                   IsolatedWebAppApplyUpdateCommandError>>(
+    : WebAppCommand<
+          AppLock,
+          base::expected<void, IsolatedWebAppApplyUpdateCommandError>>(
           "IsolatedWebAppApplyUpdateCommand",
           AppLockDescription(url_info.app_id()),
           std::move(callback), /*args_for_shutdown=*/
@@ -176,8 +155,8 @@ void IsolatedWebAppApplyUpdateCommand::OnTrustAndSignaturesChecked(
 
 void IsolatedWebAppApplyUpdateCommand::HandleKeyRotationOrDowngradeIfNecessary(
     base::OnceClosure next_step_callback) {
-  const base::Version& pending_version = pending_update_info().version;
-  const base::Version& current_version = isolation_data().version();
+  const IwaVersion& pending_version = pending_update_info().version;
+  const IwaVersion& current_version = isolation_data().version();
 
   if (pending_version > current_version) {
     std::move(next_step_callback).Run();
@@ -296,14 +275,8 @@ void IsolatedWebAppApplyUpdateCommand::CleanupOnFailure(
 }
 
 void IsolatedWebAppApplyUpdateCommand::ReportSuccess() {
-  const WebApp& updated_iwa =
-      CHECK_DEREF(lock_->registrar().GetAppById(url_info_.app_id()));
-
   GetMutableDebugValue().Set("result", "success");
-  CompleteAndSelfDestruct(CommandResult::kSuccess,
-                          IsolatedWebAppApplyUpdateCommandSuccess(
-                              updated_iwa.isolation_data()->version(),
-                              updated_iwa.isolation_data()->location()));
+  CompleteAndSelfDestruct(CommandResult::kSuccess, base::ok());
 }
 
 Profile& IsolatedWebAppApplyUpdateCommand::profile() {

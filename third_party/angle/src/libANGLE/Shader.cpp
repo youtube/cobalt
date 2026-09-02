@@ -8,6 +8,10 @@
 // VertexShader and FragmentShader. Implements GL shader objects and related
 // functionality. [OpenGL ES 2.0.24] section 2.10 page 24 and section 3.8 page 84.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "libANGLE/Shader.h"
 
 #include <functional>
@@ -263,9 +267,7 @@ angle::Result CompileTask::postTranslate()
         else
         {
             std::string dumpFile = GetShaderDumpFilePath(mSourceHash, suffix);
-
-            const std::string &translatedSource = mCompiledState->translatedSource;
-            writeFile(dumpFile.c_str(), translatedSource.c_str(), translatedSource.length());
+            writeFile(dumpFile.c_str(), mCompiledState->translatedSource);
             INFO() << "Dumped translated source: " << dumpFile;
         }
     }
@@ -487,7 +489,7 @@ void Shader::setSource(const Context *context,
     {
         std::string dumpFile = GetShaderDumpFilePath(sourceHash, suffix);
 
-        writeFile(dumpFile.c_str(), source.c_str(), source.length());
+        writeFile(dumpFile.c_str(), source);
         INFO() << "Dumped shader source: " << dumpFile;
     }
 

@@ -632,6 +632,10 @@ void WebFrameWidgetImpl::DragTargetDrop(const WebDragData& web_drag_data,
                      operations_allowed_, web_drag_data.ForceDefaultAction());
   GetPage()->GetDragController().PerformDrag(
       &drag_data, *local_root_->GetFrame(), drag_operation_);
+  // Drops that initiated in the browser get reported via `DragSourceEndedAt`.
+  if (!GetPage()->GetDragController().did_initiate_drag()) {
+    local_root_->GetFrame()->GetEventHandler().ReportDragEnd();
+  }
 }
 
 void WebFrameWidgetImpl::DragSourceEndedAt(const gfx::PointF& point_in_viewport,
@@ -849,13 +853,6 @@ void WebFrameWidgetImpl::BindInputTargetClient(
   // renderer running the disconnect handlers on input_target_receivers_ for the
   // destroyed GPU process, implying there may be 3 receivers transiently. See
   // crbug.com/424109284 for more details.
-  if (input_target_receivers_.size() >= 2) {
-    // TODO(424109284): Cleanup after investigation.
-    SCOPED_CRASH_KEY_STRING64(
-        "crbug424109284", "receivers_size",
-        base::NumberToString(input_target_receivers_.size()));
-    base::debug::DumpWithoutCrashing();
-  }
   input_target_receivers_.Add(
       std::move(receiver),
       local_root_->GetTaskRunner(TaskType::kInternalInputBlocking));

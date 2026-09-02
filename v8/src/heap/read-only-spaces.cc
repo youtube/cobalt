@@ -19,6 +19,7 @@
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/read-only-heap.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/snapshot-data.h"
 #include "src/snapshot/snapshot-utils.h"
@@ -148,7 +149,13 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
 }
 
 MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
-  return MemoryChunk::READ_ONLY_HEAP | MemoryChunk::CONTAINS_ONLY_OLD;
+  MemoryChunk::MainThreadFlags flags = MemoryChunk::READ_ONLY_HEAP;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  if constexpr (v8_flags.sticky_mark_bits.value()) {
+    flags |= MemoryChunk::STICKY_MARK_BIT_CONTAINS_ONLY_OLD;
+  }
+#endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
+  return flags;
 }
 
 void ReadOnlyPageMetadata::MakeHeaderRelocatableAndMarkAsSealed() {
@@ -241,7 +248,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       const int obj_size = obj->Size();
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
-      if (!IsFreeSpaceOrFiller(obj)) {
+      if (IsAnyHole(obj) || !IsFreeSpaceOrFiller(obj)) {
         DCHECK_VALID_REGULAR_OBJECT_SIZE(obj_size);
         return obj;
       }
@@ -303,7 +310,7 @@ void ReadOnlySpace::VerifyCounters(Heap* heap) const {
     size_t real_allocated = 0;
     for (Tagged<HeapObject> object = it.Next(); !object.is_null();
          object = it.Next()) {
-      if (!IsFreeSpaceOrFiller(object)) {
+      if (IsAnyHole(object) || !IsFreeSpaceOrFiller(object)) {
         real_allocated += object->Size();
       }
     }

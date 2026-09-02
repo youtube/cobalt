@@ -474,7 +474,7 @@ int32_t H264EncoderImpl::Encode(
   // Encode image for each layer.
   for (size_t i = 0; i < encoders_.size(); ++i) {
     // EncodeFrame input.
-    pictures_[i] = {0};
+    pictures_[i] = {};
     pictures_[i].iPicWidth = configurations_[i].width;
     pictures_[i].iPicHeight = configurations_[i].height;
     pictures_[i].iColorFormat = EVideoFormatType::videoFormatI420;

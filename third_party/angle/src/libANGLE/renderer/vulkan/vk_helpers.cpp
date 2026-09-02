@@ -6,6 +6,10 @@
 // vk_helpers:
 //   Helper utility classes that manage Vulkan resources.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "libANGLE/renderer/vulkan/vk_helpers.h"
 
 #include "common/aligned_memory.h"
@@ -5626,6 +5630,41 @@ angle::Result BufferHelper::initAndAcquireFromExternalMemory(
     return angle::Result::Continue;
 }
 
+angle::Result BufferHelper::initHostExternal(ErrorContext *context,
+                                             VkMemoryPropertyFlags memoryProperties,
+                                             const VkBufferCreateInfo &requestedCreateInfo,
+                                             void *hostPtr)
+{
+    Renderer *renderer = context->getRenderer();
+
+    initializeBarrierTracker(context);
+
+    VkBufferCreateInfo modifiedCreateInfo             = requestedCreateInfo;
+    VkExternalMemoryBufferCreateInfo externCreateInfo = {};
+    externCreateInfo.sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO;
+    externCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
+    externCreateInfo.pNext       = nullptr;
+    modifiedCreateInfo.pNext     = &externCreateInfo;
+
+    DeviceScoped<Buffer> buffer(renderer->getDevice());
+    ANGLE_VK_TRY(context, buffer.get().init(renderer->getDevice(), modifiedCreateInfo));
+
+    DeviceScoped<DeviceMemory> deviceMemory(renderer->getDevice());
+    VkMemoryPropertyFlags memoryPropertyFlagsOut;
+    VkDeviceSize allocatedSize = 0;
+    uint32_t memoryTypeIndex   = UINT32_MAX;
+
+    ANGLE_TRY(InitExternalHostMemory(context, hostPtr, memoryProperties, &buffer.get(),
+                                     &memoryPropertyFlagsOut, &memoryTypeIndex, &deviceMemory.get(),
+                                     &allocatedSize));
+
+    mSuballocation.initWithEntireBuffer(context, buffer.get(), MemoryAllocationType::BufferExternal,
+                                        memoryTypeIndex, deviceMemory.get(), memoryPropertyFlagsOut,
+                                        requestedCreateInfo.size, allocatedSize);
+
+    return angle::Result::Continue;
+}
+
 VkResult BufferHelper::initSuballocation(Context *context,
                                          uint32_t memoryTypeIndex,
                                          size_t size,
@@ -7309,7 +7348,7 @@ angle::Result ImageHelper::initLayerImageViewImpl(ContextVk *contextVk,
         ASSERT((contextVk->getFeatures().supportsYUVSamplerConversion.enabled));
         yuvConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO;
         yuvConversionInfo.pNext = nullptr;
-        ANGLE_TRY(contextVk->getRenderer()->getYuvConversionCache().getSamplerYcbcrConversion(
+        ANGLE_TRY(contextVk->getShareGroup()->getYuvConversionCache().getSamplerYcbcrConversion(
             contextVk, conversionDesc, &yuvConversionInfo.conversion));
         AddToPNextChain(&viewInfo, &yuvConversionInfo);
 

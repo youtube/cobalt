@@ -19,6 +19,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include <iterator>
+
 #include <openssl/err.h>
 #include <openssl/md5.h>
 #include <openssl/mem.h>
@@ -445,7 +447,7 @@ static const CIPHER_ALIAS kCipherAliases[] = {
     {"SHA384", 0, 0, 0, 0, 0},
 };
 
-static const size_t kCipherAliasesLen = OPENSSL_ARRAY_SIZE(kCipherAliases);
+static const size_t kCipherAliasesLen = std::size(kCipherAliases);
 
 bool ssl_cipher_get_evp_aead(const EVP_AEAD **out_aead,
                              size_t *out_mac_secret_len,
@@ -916,11 +918,10 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
       // Look for a matching exact cipher. These aren't allowed in multipart
       // rules.
       if (!multi && ch != '+') {
-        for (j = 0; j < OPENSSL_ARRAY_SIZE(kCiphers); j++) {
-          const SSL_CIPHER *cipher = &kCiphers[j];
-          if (rule_equals(cipher->name, buf, buf_len) ||
-              rule_equals(cipher->standard_name, buf, buf_len)) {
-            cipher_id = cipher->id;
+        for (const SSL_CIPHER &cipher : kCiphers) {
+          if (rule_equals(cipher.name, buf, buf_len) ||
+              rule_equals(cipher.standard_name, buf, buf_len)) {
+            cipher_id = cipher.id;
             break;
           }
         }
@@ -1037,18 +1038,16 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
   };
 
   // Set up a linked list of ciphers.
-  CIPHER_ORDER co_list[OPENSSL_ARRAY_SIZE(kAESCiphers) +
-                       OPENSSL_ARRAY_SIZE(kChaChaCiphers) +
-                       OPENSSL_ARRAY_SIZE(kLegacyCiphers)];
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(co_list); i++) {
-    co_list[i].next =
-        i + 1 < OPENSSL_ARRAY_SIZE(co_list) ? &co_list[i + 1] : nullptr;
+  CIPHER_ORDER co_list[std::size(kAESCiphers) + std::size(kChaChaCiphers) +
+                       std::size(kLegacyCiphers)];
+  for (size_t i = 0; i < std::size(co_list); i++) {
+    co_list[i].next = i + 1 < std::size(co_list) ? &co_list[i + 1] : nullptr;
     co_list[i].prev = i == 0 ? nullptr : &co_list[i - 1];
     co_list[i].active = false;
     co_list[i].in_group = false;
   }
   CIPHER_ORDER *head = &co_list[0];
-  CIPHER_ORDER *tail = &co_list[OPENSSL_ARRAY_SIZE(co_list) - 1];
+  CIPHER_ORDER *tail = &co_list[std::size(co_list) - 1];
 
   // Order AES ciphers vs ChaCha ciphers based on whether we have AES hardware.
   //
@@ -1075,9 +1074,8 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
     co_list[num++].cipher = SSL_get_cipher_by_value(id);
     assert(co_list[num - 1].cipher != nullptr);
   }
-  assert(num == OPENSSL_ARRAY_SIZE(co_list));
-  static_assert(OPENSSL_ARRAY_SIZE(co_list) + NumTLS13Ciphers() ==
-                    OPENSSL_ARRAY_SIZE(kCiphers),
+  assert(num == std::size(co_list));
+  static_assert(std::size(co_list) + NumTLS13Ciphers() == std::size(kCiphers),
                 "Not all ciphers are included in the cipher order");
 
   // If the rule_string begins with DEFAULT, apply the default rule before
@@ -1104,7 +1102,7 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
   UniquePtr<STACK_OF(SSL_CIPHER)> cipherstack(sk_SSL_CIPHER_new_null());
   Array<bool> in_group_flags;
   if (cipherstack == nullptr ||
-      !in_group_flags.InitForOverwrite(OPENSSL_ARRAY_SIZE(kCiphers))) {
+      !in_group_flags.InitForOverwrite(std::size(kCiphers))) {
     return false;
   }
 
@@ -1221,7 +1219,7 @@ const SSL_CIPHER *SSL_get_cipher_by_value(uint16_t value) {
 
   c.id = 0x03000000L | value;
   return reinterpret_cast<const SSL_CIPHER *>(
-      bsearch(&c, kCiphers, OPENSSL_ARRAY_SIZE(kCiphers), sizeof(SSL_CIPHER),
+      bsearch(&c, kCiphers, std::size(kCiphers), sizeof(SSL_CIPHER),
               ssl_cipher_id_cmp_void));
 }
 

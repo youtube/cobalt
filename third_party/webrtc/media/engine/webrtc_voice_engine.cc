@@ -577,23 +577,25 @@ scoped_refptr<AudioState> WebRtcVoiceEngine::GetAudioState() const {
 }
 
 std::unique_ptr<VoiceMediaSendChannelInterface>
-WebRtcVoiceEngine::CreateSendChannel(Call* call,
+WebRtcVoiceEngine::CreateSendChannel(const Environment& env,
+                                     Call* call,
                                      const MediaConfig& config,
                                      const AudioOptions& options,
                                      const CryptoOptions& crypto_options,
                                      AudioCodecPairId codec_pair_id) {
   return std::make_unique<WebRtcVoiceSendChannel>(
-      this, config, options, crypto_options, call, codec_pair_id);
+      env, this, config, options, crypto_options, call, codec_pair_id);
 }
 
 std::unique_ptr<VoiceMediaReceiveChannelInterface>
-WebRtcVoiceEngine::CreateReceiveChannel(Call* call,
+WebRtcVoiceEngine::CreateReceiveChannel(const Environment& env,
+                                        Call* call,
                                         const MediaConfig& config,
                                         const AudioOptions& options,
                                         const CryptoOptions& crypto_options,
                                         AudioCodecPairId codec_pair_id) {
   return std::make_unique<WebRtcVoiceReceiveChannel>(
-      this, config, options, crypto_options, call, codec_pair_id);
+      env, this, config, options, crypto_options, call, codec_pair_id);
 }
 
 void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
@@ -833,6 +835,7 @@ AudioState* WebRtcVoiceEngine::audio_state() {
 class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
  public:
   WebRtcAudioSendStream(
+      const Environment& env,
       uint32_t ssrc,
       const std::string& mid,
       const std::string& c_name,
@@ -841,6 +844,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
           send_codec_spec,
       bool extmap_allow_mixed,
       const std::vector<RtpExtension>& extensions,
+      std::optional<RtcpFeedbackType> rtcp_cc_ack_type,
       int max_send_bitrate_bps,
       int rtcp_report_interval_ms,
       const std::optional<std::string>& audio_network_adaptor_config,
@@ -850,7 +854,8 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
       const std::optional<AudioCodecPairId> codec_pair_id,
       scoped_refptr<FrameEncryptorInterface> frame_encryptor,
       const CryptoOptions& crypto_options)
-      : adaptive_ptime_config_(call->trials()),
+      : env_(env),
+        adaptive_ptime_config_(env_.field_trials()),
         call_(call),
         config_(send_transport),
         max_send_bitrate_bps_(max_send_bitrate_bps),
@@ -862,6 +867,8 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
     config_.rtp.c_name = c_name;
     config_.rtp.extmap_allow_mixed = extmap_allow_mixed;
     config_.rtp.extensions = extensions;
+    config_.include_in_congestion_control_allocation =
+        rtcp_cc_ack_type.has_value();
     config_.has_dscp =
         rtp_parameters_.encodings[0].network_priority != Priority::kLow;
     config_.encoder_factory = encoder_factory;
@@ -904,6 +911,12 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
     RTC_DCHECK_RUN_ON(&worker_thread_checker_);
     config_.rtp.extensions = extensions;
     rtp_parameters_.header_extensions = extensions;
+    ReconfigureAudioSendStream(nullptr);
+  }
+
+  void SetIncludeInCongestionControlAllocation() {
+    RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+    config_.include_in_congestion_control_allocation = true;
     ReconfigureAudioSendStream(nullptr);
   }
 
@@ -1078,7 +1091,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
   RTCError SetRtpParameters(const RtpParameters& parameters,
                             SetParametersCallback callback) {
     RTCError error = CheckRtpParametersInvalidModificationAndValues(
-        rtp_parameters_, parameters, call_->trials());
+        rtp_parameters_, parameters, env_.field_trials());
     if (!error.ok()) {
       return InvokeSetParametersCallback(callback, error);
     }
@@ -1199,7 +1212,8 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
           std::min(info->max_bitrate_bps, *send_codec_spec.target_bitrate_bps));
     }
 
-    audio_codec_spec_.emplace(AudioCodecSpec{send_codec_spec.format, *info});
+    audio_codec_spec_.emplace(
+        AudioCodecSpec{.format = send_codec_spec.format, .info = *info});
 
     config_.send_codec_spec->target_bitrate_bps = ComputeSendBitrate(
         max_send_bitrate_bps_, rtp_parameters_.encodings[0].max_bitrate_bps,
@@ -1235,6 +1249,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
 
   int NumPreferredChannels() const override { return num_encoded_channels_; }
 
+  const Environment env_;
   const AdaptivePtimeConfig adaptive_ptime_config_;
   SequenceChecker worker_thread_checker_;
   RaceChecker audio_capture_race_checker_;
@@ -1260,6 +1275,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
 };
 
 WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
+    const Environment& env,
     WebRtcVoiceEngine* engine,
     const MediaConfig& config,
     const AudioOptions& options,
@@ -1267,6 +1283,7 @@ WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
     Call* call,
     AudioCodecPairId codec_pair_id)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
+      env_(env),
       worker_thread_(call->worker_thread()),
       engine_(engine),
       call_(call),
@@ -1363,13 +1380,28 @@ bool WebRtcVoiceSendChannel::SetSenderParameters(
 
   std::vector<RtpExtension> filtered_extensions =
       FilterRtpExtensions(params.extensions, RtpExtension::IsSupportedForAudio,
-                          true, call_->trials());
+                          true, env_.field_trials());
   if (send_rtp_extensions_ != filtered_extensions) {
     send_rtp_extensions_.swap(filtered_extensions);
     for (auto& it : send_streams_) {
       it.second->SetRtpExtensions(send_rtp_extensions_);
     }
   }
+  if (rtcp_cc_ack_type_.has_value() &&
+      rtcp_cc_ack_type_ != params.rtcp_cc_ack_type) {
+    RTC_LOG(LS_WARNING) << "RTCP cc ack type change is not supported! Current: "
+                        << *rtcp_cc_ack_type_;
+  } else {
+    rtcp_cc_ack_type_ = params.rtcp_cc_ack_type;
+    if (rtcp_cc_ack_type_.has_value()) {
+      // It does not matter what type of RTCP feedback we use for congestion
+      // control. Only that audio is included in the BWE allocation.
+      for (auto& it : send_streams_) {
+        it.second->SetIncludeInCongestionControlAllocation();
+      }
+    }
+  }
+
   if (!params.mid.empty()) {
     mid_ = params.mid;
     for (auto& it : send_streams_) {
@@ -1600,8 +1632,8 @@ bool WebRtcVoiceSendChannel::AddSendStream(const StreamParams& sp) {
   std::optional<std::string> audio_network_adaptor_config =
       GetAudioNetworkAdaptorConfig(options_);
   WebRtcAudioSendStream* stream = new WebRtcAudioSendStream(
-      ssrc, mid_, sp.cname, sp.id, send_codec_spec_, ExtmapAllowMixed(),
-      send_rtp_extensions_, max_send_bitrate_bps_,
+      env_, ssrc, mid_, sp.cname, sp.id, send_codec_spec_, ExtmapAllowMixed(),
+      send_rtp_extensions_, rtcp_cc_ack_type_, max_send_bitrate_bps_,
       audio_config_.rtcp_report_interval_ms, audio_network_adaptor_config,
       call_, transport(), engine()->encoder_factory_, codec_pair_id_, nullptr,
       crypto_options_);
@@ -2080,6 +2112,7 @@ class WebRtcVoiceReceiveChannel::WebRtcAudioReceiveStream {
 };
 
 WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
+    const Environment& env,
     WebRtcVoiceEngine* engine,
     const MediaConfig& config,
     const AudioOptions& options,
@@ -2087,6 +2120,7 @@ WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
     Call* call,
     AudioCodecPairId codec_pair_id)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
+      env_(env),
       worker_thread_(call->worker_thread()),
       engine_(engine),
       call_(call),
@@ -2129,7 +2163,7 @@ bool WebRtcVoiceReceiveChannel::SetReceiverParameters(
   }
   std::vector<RtpExtension> filtered_extensions =
       FilterRtpExtensions(params.extensions, RtpExtension::IsSupportedForAudio,
-                          false, call_->trials());
+                          false, env_.field_trials());
   if (recv_rtp_extensions_ != filtered_extensions) {
     recv_rtp_extensions_.swap(filtered_extensions);
     recv_rtp_extension_map_ = RtpHeaderExtensionMap(recv_rtp_extensions_);
@@ -2554,7 +2588,7 @@ void WebRtcVoiceReceiveChannel::OnPacketReceived(
         // applied directly in RtpTransport::DemuxPacket;
         packet.IdentifyExtensions(recv_rtp_extension_map_);
         if (!packet.arrival_time().IsFinite()) {
-          packet.set_arrival_time(call_->env().clock().CurrentTime());
+          packet.set_arrival_time(env_.clock().CurrentTime());
         }
 
         call_->Receiver()->DeliverRtpPacket(

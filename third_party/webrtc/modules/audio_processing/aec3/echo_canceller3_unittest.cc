@@ -974,7 +974,7 @@ TEST(EchoCanceller3, DetectionOfProperStereo) {
   EchoCanceller3 aec3(CreateEnvironment(), mono_config, multichannel_config,
                       /*sample_rate_hz=*/kSampleRateHz,
                       /*num_render_channels=*/kNumChannels,
-                      /*num_capture_input_channels=*/kNumChannels);
+                      /*num_capture_channels=*/kNumChannels);
 
   EXPECT_FALSE(aec3.StereoRenderProcessingActiveForTesting());
   EXPECT_EQ(
@@ -1022,7 +1022,7 @@ TEST(EchoCanceller3, DetectionOfProperStereoUsingThreshold) {
   EchoCanceller3 aec3(CreateEnvironment(), mono_config, multichannel_config,
                       /*sample_rate_hz=*/kSampleRateHz,
                       /*num_render_channels=*/kNumChannels,
-                      /*num_capture_input_channels=*/kNumChannels);
+                      /*num_capture_channels=*/kNumChannels);
 
   EXPECT_FALSE(aec3.StereoRenderProcessingActiveForTesting());
   EXPECT_EQ(
@@ -1069,7 +1069,7 @@ TEST(EchoCanceller3, DetectionOfProperStereoUsingHysteresis) {
   EchoCanceller3 aec3(CreateEnvironment(), mono_config, surround_config,
                       /*sample_rate_hz=*/kSampleRateHz,
                       /*num_render_channels=*/kNumChannels,
-                      /*num_capture_input_channels=*/kNumChannels);
+                      /*num_capture_channels=*/kNumChannels);
 
   EXPECT_FALSE(aec3.StereoRenderProcessingActiveForTesting());
   EXPECT_EQ(
@@ -1135,7 +1135,7 @@ TEST(EchoCanceller3, StereoContentDetectionForMonoSignals) {
     EchoCanceller3 aec3(env, mono_config, multichannel_config,
                         /*sample_rate_hz=*/kSampleRateHz,
                         /*num_render_channels=*/1,
-                        /*num_capture_input_channels=*/1);
+                        /*num_capture_channels=*/1);
 
     EXPECT_FALSE(aec3.StereoRenderProcessingActiveForTesting());
     EXPECT_EQ(

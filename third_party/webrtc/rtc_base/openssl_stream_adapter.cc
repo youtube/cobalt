@@ -852,10 +852,15 @@ void OpenSSLStreamAdapter::SetTimeout(int delay_ms) {
           // We check the timer even after SSL_CONNECTED,
           // but ContinueSSL() is only needed when SSL_CONNECTING
           if (state_ == SSL_CONNECTING) {
+            // Note: timeout is set inside ContinueSSL()
             ContinueSSL();
+          } else if (state_ == SSL_CONNECTED) {
+            MaybeSetTimeout();
+          } else {
+            RTC_DCHECK_NOTREACHED() << "state_: " << state_;
           }
         } else {
-          RTC_DCHECK_NOTREACHED();
+          RTC_DCHECK_NOTREACHED() << "flag->alive() == false";
         }
         // This callback will never run again (stopped above).
         return TimeDelta::PlusInfinity();
@@ -970,6 +975,12 @@ int OpenSSLStreamAdapter::ContinueSSL() {
     }
   }
 
+  MaybeSetTimeout();
+
+  return 0;
+}
+
+void OpenSSLStreamAdapter::MaybeSetTimeout() {
   if (ssl_ != nullptr) {
     struct timeval timeout;
     if (DTLSv1_get_timeout(ssl_, &timeout)) {
@@ -977,8 +988,6 @@ int OpenSSLStreamAdapter::ContinueSSL() {
       SetTimeout(delay);
     }
   }
-
-  return 0;
 }
 
 void OpenSSLStreamAdapter::Error(absl::string_view context,

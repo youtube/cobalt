@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <functional>
+#include <iterator>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -529,7 +530,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
 
   // If the number of functions exceeds this limit then the code needs to do
   // more than sample a single uint8_t to pick the function.
-  static_assert(OPENSSL_ARRAY_SIZE(kAPIs) < 256, "kAPIs too large");
+  static_assert(std::size(kAPIs) < 256, "kAPIs too large");
 
   CBS cbs;
   CBS_init(&cbs, buf, len);
@@ -540,7 +541,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
       break;
     }
 
-    kAPIs[index % OPENSSL_ARRAY_SIZE(kAPIs)](ctx.get(), &cbs);
+    kAPIs[index % std::size(kAPIs)](ctx.get(), &cbs);
   }
 
   bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));

@@ -46,11 +46,11 @@ DialServerManager::DialServerManager(ExecutionContext* context)
 
   context->GetBrowserInterfaceBroker().GetInterface(
       dial_server_.BindNewPipeAndPassReceiver(task_runner));
-  dial_server_.set_disconnect_handler(WTF::BindOnce(
+  dial_server_.set_disconnect_handler(BindOnce(
       &DialServerManager::OnConnectionError, WrapWeakPersistent(this)));
   dial_server_->RegisterHandler(
       receiver_.BindNewPipeAndPassRemote(task_runner));
-  receiver_.set_disconnect_handler(WTF::BindOnce(
+  receiver_.set_disconnect_handler(BindOnce(
       &DialServerManager::OnConnectionError, WrapWeakPersistent(this)));
 }
 

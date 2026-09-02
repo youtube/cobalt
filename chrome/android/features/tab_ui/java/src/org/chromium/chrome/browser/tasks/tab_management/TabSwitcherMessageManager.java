@@ -18,7 +18,6 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.ValueChangedCallback;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -64,6 +63,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Manages message related glue for the {@link TabSwitcher}. */
 @NullMarked
@@ -414,7 +414,8 @@ public class TabSwitcherMessageManager {
      */
     private void translateStartMergeAnimation(
             @TabId int targetTabId, List<@TabId Integer> tabIdsToMerge, Runnable onAnimationEnd) {
-        if (!mTabListCoordinatorSupplier.hasValue()) return;
+        TabListCoordinator oldTabListCoordinator = mTabListCoordinatorSupplier.get();
+        if (oldTabListCoordinator == null) return;
 
         TabListCoordinator tabListCoordinator = assumeNonNull(mTabListCoordinatorSupplier.get());
         int targetTabIndex = tabListCoordinator.getTabIndexFromTabId(targetTabId);

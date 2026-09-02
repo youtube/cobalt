@@ -18,7 +18,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.OneshotSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityUtils;
 import org.chromium.chrome.browser.IntentHandler;
@@ -74,6 +73,7 @@ import org.chromium.ui.base.ActivityWindowAndroid;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.function.Supplier;
 
 /** Creates a new Tab or retrieves an existing Tab for the CustomTabActivity, and initializes it. */
 public class CustomTabActivityTabController implements PauseResumeWithNativeObserver, Destroyable {
@@ -164,10 +164,11 @@ public class CustomTabActivityTabController implements PauseResumeWithNativeObse
         int mode = mTabProvider.getInitialTabCreationMode();
         if (mode == TabCreationMode.EARLY || mode == TabCreationMode.HIDDEN) return false;
         if (hasSpeculated) return false;
-        if (!mProfileProviderSupplier.hasValue()) return true;
+        var profileProvider = mProfileProviderSupplier.get();
+        if (profileProvider == null) return true;
         Profile profile =
                 ProfileProvider.getOrCreateProfile(
-                        mProfileProviderSupplier.get(), mIntentDataProvider.isOffTheRecord());
+                        profileProvider, mIntentDataProvider.isOffTheRecord());
         return !WarmupManager.getInstance()
                 .hasSpareTab(profile, mIntentDataProvider.hasTargetNetwork());
     }
@@ -344,15 +345,6 @@ public class CustomTabActivityTabController implements PauseResumeWithNativeObse
     // initialization steps necessary at this stage.
     private void finalizeCreatingTab(TabModelOrchestrator tabModelOrchestrator, TabModel tabModel) {
         Tab earlyCreatedTab = mTabProvider.getTab();
-
-        // This could occur if a CCT was used to pass the redirect to an external handler. This
-        // check prevents it from being added to the model which could result in an empty tab that
-        // persists on a back navigation from the external handler.
-        if (ChromeFeatureList.sCctDestroyTabWhenModelIsEmpty.isEnabled()
-                && earlyCreatedTab != null
-                && earlyCreatedTab.isDestroyed()) {
-            return;
-        }
 
         Tab tab = earlyCreatedTab;
         @TabCreationMode int mode = mTabProvider.getInitialTabCreationMode();

@@ -322,19 +322,19 @@ class AudioCodingModuleTestWithComfortNoiseOldApi
     const struct {
       int ix;
       AudioFrameType type;
-    } expectation[] = {{2, AudioFrameType::kAudioFrameCN},
-                       {5, AudioFrameType::kEmptyFrame},
-                       {8, AudioFrameType::kEmptyFrame},
-                       {11, AudioFrameType::kAudioFrameCN},
-                       {14, AudioFrameType::kEmptyFrame},
-                       {17, AudioFrameType::kEmptyFrame},
-                       {20, AudioFrameType::kAudioFrameCN},
-                       {23, AudioFrameType::kEmptyFrame},
-                       {26, AudioFrameType::kEmptyFrame},
-                       {29, AudioFrameType::kEmptyFrame},
-                       {32, AudioFrameType::kAudioFrameCN},
-                       {35, AudioFrameType::kEmptyFrame},
-                       {38, AudioFrameType::kEmptyFrame}};
+    } expectation[] = {{.ix = 2, .type = AudioFrameType::kAudioFrameCN},
+                       {.ix = 5, .type = AudioFrameType::kEmptyFrame},
+                       {.ix = 8, .type = AudioFrameType::kEmptyFrame},
+                       {.ix = 11, .type = AudioFrameType::kAudioFrameCN},
+                       {.ix = 14, .type = AudioFrameType::kEmptyFrame},
+                       {.ix = 17, .type = AudioFrameType::kEmptyFrame},
+                       {.ix = 20, .type = AudioFrameType::kAudioFrameCN},
+                       {.ix = 23, .type = AudioFrameType::kEmptyFrame},
+                       {.ix = 26, .type = AudioFrameType::kEmptyFrame},
+                       {.ix = 29, .type = AudioFrameType::kEmptyFrame},
+                       {.ix = 32, .type = AudioFrameType::kAudioFrameCN},
+                       {.ix = 35, .type = AudioFrameType::kEmptyFrame},
+                       {.ix = 38, .type = AudioFrameType::kEmptyFrame}};
     for (int i = 0; i < kLoops; ++i) {
       int num_calls_before = packet_cb_.num_calls();
       EXPECT_EQ(i / blocks_per_packet, num_calls_before);

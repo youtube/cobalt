@@ -526,7 +526,7 @@ TEST_F(RemoteEstimatorProxyOnRequestTest, RequestSinglePacketFeedback) {
           }));
 
   constexpr FeedbackRequest kSinglePacketFeedbackRequest = {
-      /*include_timestamps=*/true, /*sequence_count=*/1};
+      .include_timestamps = true, .sequence_count = 1};
   IncomingPacketV2(kBaseSeq + 3, kBaseTime + 3 * kMaxSmallDelta,
                    kSinglePacketFeedbackRequest);
 }
@@ -558,7 +558,7 @@ TEST_F(RemoteEstimatorProxyOnRequestTest, RequestLastFivePacketFeedback) {
           }));
 
   constexpr FeedbackRequest kFivePacketsFeedbackRequest = {
-      /*include_timestamps=*/true, /*sequence_count=*/5};
+      .include_timestamps = true, .sequence_count = 5};
   IncomingPacketV2(kBaseSeq + i, kBaseTime + i * kMaxSmallDelta,
                    kFivePacketsFeedbackRequest);
 }
@@ -589,7 +589,7 @@ TEST_F(RemoteEstimatorProxyOnRequestTest,
           }));
 
   constexpr FeedbackRequest kFivePacketsFeedbackRequest = {
-      /*include_timestamps=*/true, /*sequence_count=*/5};
+      .include_timestamps = true, .sequence_count = 5};
   IncomingPacketV2(kBaseSeq + i, kBaseTime + i * kMaxSmallDelta,
                    kFivePacketsFeedbackRequest);
 }

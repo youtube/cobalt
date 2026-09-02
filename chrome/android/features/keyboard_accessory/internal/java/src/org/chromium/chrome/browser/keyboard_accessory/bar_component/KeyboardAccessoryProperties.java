@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.keyboard_accessory.bar_component;
 
-import android.util.Pair;
 import android.view.View;
 
 import androidx.annotation.IntDef;
@@ -17,6 +16,7 @@ import org.chromium.base.Callback;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
 import org.chromium.chrome.browser.keyboard_accessory.AccessoryAction;
+import org.chromium.chrome.browser.keyboard_accessory.ManualFillingMetricsRecorder;
 import org.chromium.chrome.browser.keyboard_accessory.R;
 import org.chromium.chrome.browser.keyboard_accessory.button_group_component.KeyboardAccessoryButtonGroupCoordinator.SheetOpenerCallbacks;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.Action;
@@ -57,8 +57,8 @@ class KeyboardAccessoryProperties {
             new WritableObjectPropertyKey<>("dismiss_item");
     static final ReadableBooleanPropertyKey DISABLE_ANIMATIONS_FOR_TESTING =
             new ReadableBooleanPropertyKey("skip_all_animations_for_testing");
-    static final WritableObjectPropertyKey<Pair<Integer, Integer>> OFFSET_AND_GRAVITY =
-            new WritableObjectPropertyKey<>("offset_and_gravity");
+    static final WritableObjectPropertyKey<KeyboardAccessoryStyle> STYLE =
+            new WritableObjectPropertyKey<>("style");
     static final WritableObjectPropertyKey<Callback<Integer>> OBFUSCATED_CHILD_AT_CALLBACK =
             new WritableObjectPropertyKey<>("obfuscated_child_at_callback");
     static final PropertyModel.WritableObjectPropertyKey<Callback<Boolean>>
@@ -80,7 +80,7 @@ class KeyboardAccessoryProperties {
                         BAR_ITEMS,
                         VISIBLE,
                         SKIP_CLOSING_ANIMATION,
-                        OFFSET_AND_GRAVITY,
+                        STYLE,
                         SHEET_OPENER_ITEM,
                         DISMISS_ITEM,
                         OBFUSCATED_CHILD_AT_CALLBACK,
@@ -293,6 +293,8 @@ class KeyboardAccessoryProperties {
                     new Action(
                             AccessoryAction.DISMISS,
                             unused -> {
+                                ManualFillingMetricsRecorder.recordActionSelected(
+                                        AccessoryAction.DISMISS);
                                 dismissRunnable.run();
                             }),
                     R.string.keyboard_accessory_dismiss_button);

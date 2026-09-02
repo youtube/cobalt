@@ -32,6 +32,7 @@
 #include "api/peer_connection_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/units/timestamp.h"
 #include "call/call.h"
 #include "media/base/media_channel.h"
 #include "p2p/base/connection_info.h"
@@ -57,6 +58,7 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/thread.h"
+#include "system_wrappers/include/clock.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -580,8 +582,8 @@ void InitVoiceReceiverInfo(VoiceReceiverInfo* voice_receiver_info) {
 
 class LegacyStatsCollectorForTest : public LegacyStatsCollector {
  public:
-  explicit LegacyStatsCollectorForTest(PeerConnectionInternal* pc)
-      : LegacyStatsCollector(pc), time_now_(19477) {}
+  explicit LegacyStatsCollectorForTest(PeerConnectionInternal* pc, Clock& clock)
+      : LegacyStatsCollector(pc, clock), time_now_(19477) {}
 
   double GetTimeNow() override { return time_now_; }
 
@@ -597,7 +599,7 @@ class LegacyStatsCollectorTest : public ::testing::Test {
 
   std::unique_ptr<LegacyStatsCollectorForTest> CreateStatsCollector(
       PeerConnectionInternal* pc) {
-    return std::make_unique<LegacyStatsCollectorForTest>(pc);
+    return std::make_unique<LegacyStatsCollectorForTest>(pc, clock_);
   }
 
   void VerifyAudioTrackStats(FakeAudioTrack* audio_track,
@@ -723,6 +725,7 @@ class LegacyStatsCollectorTest : public ::testing::Test {
   }
 
  private:
+  SimulatedClock clock_{Timestamp::Millis(1337)};
   AutoThread main_thread_;
 };
 

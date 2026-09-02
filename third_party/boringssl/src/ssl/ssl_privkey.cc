@@ -101,12 +101,25 @@ static const SSL_SIGNATURE_ALGORITHM kSignatureAlgorithms[] = {
 };
 
 static const SSL_SIGNATURE_ALGORITHM *get_signature_algorithm(uint16_t sigalg) {
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kSignatureAlgorithms); i++) {
-    if (kSignatureAlgorithms[i].sigalg == sigalg) {
-      return &kSignatureAlgorithms[i];
+  for (const auto &alg : kSignatureAlgorithms) {
+    if (alg.sigalg == sigalg) {
+      return &alg;
     }
   }
-  return NULL;
+  return nullptr;
+}
+
+bssl::UniquePtr<EVP_PKEY> ssl_parse_peer_subject_public_key_info(
+    Span<const uint8_t> spki) {
+  // Ideally the set of reachable algorithms would flow from |SSL_CTX| for dead
+  // code elimination, but for now we just specify every algorithm that might be
+  // reachable from libssl.
+  const EVP_PKEY_ALG *const algs[] = {
+      EVP_pkey_rsa(),     EVP_pkey_ec_p256(), EVP_pkey_ec_p384(),
+      EVP_pkey_ec_p521(), EVP_pkey_ed25519(),
+  };
+  return bssl::UniquePtr<EVP_PKEY>(EVP_PKEY_from_subject_public_key_info(
+      spki.data(), spki.size(), algs, std::size(algs)));
 }
 
 bool ssl_pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,

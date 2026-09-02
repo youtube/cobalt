@@ -107,7 +107,9 @@ ChunksFileReader CreatePitchBuffer24kHzReader() {
       /*filename=*/test::ResourcePath(
           "audio_processing/agc2/rnn_vad/pitch_buf_24k", "dat"));
   const int num_chunks = CheckedDivExact(reader->size(), kBufSize24kHz);
-  return {/*chunk_size=*/kBufSize24kHz, num_chunks, std::move(reader)};
+  return {.chunk_size = kBufSize24kHz,
+          .num_chunks = num_chunks,
+          .reader = std::move(reader)};
 }
 
 ChunksFileReader CreateLpResidualAndPitchInfoReader() {
@@ -117,7 +119,9 @@ ChunksFileReader CreateLpResidualAndPitchInfoReader() {
       /*filename=*/test::ResourcePath(
           "audio_processing/agc2/rnn_vad/pitch_lp_res", "dat"));
   const int num_chunks = CheckedDivExact(reader->size(), kChunkSize);
-  return {kChunkSize, num_chunks, std::move(reader)};
+  return {.chunk_size = kChunkSize,
+          .num_chunks = num_chunks,
+          .reader = std::move(reader)};
 }
 
 std::unique_ptr<FileReader> CreateGruInputReader() {
