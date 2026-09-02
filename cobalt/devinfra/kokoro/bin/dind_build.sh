@@ -52,7 +52,7 @@ pipeline () {
   cd "${gclient_root}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
-  gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' --custom-var='reapi_backend_config_path="src/build/config/siso/cobalt.star"' "${git_url}"
+  gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' --custom-var='reapi_backend_config_path="cobalt.star"' "${git_url}"
   if [[ "${TARGET_PLATFORM}" =~ android ]]; then
     echo "target_os=['android']" >> .gclient
   fi

@@ -7,15 +7,11 @@
 
 #include <vector>
 
-<<<<<<< HEAD
-=======
-#include "base/memory/raw_ptr.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/time/time.h"
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 

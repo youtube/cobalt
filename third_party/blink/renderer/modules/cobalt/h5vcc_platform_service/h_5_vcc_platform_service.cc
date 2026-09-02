@@ -93,8 +93,8 @@ H5vccPlatformService* H5vccPlatformService::open(
       manager.BindNewPipeAndPassReceiver(
           execution_context->GetTaskRunner(TaskType::kNetworking)));
   manager.set_disconnect_handler(
-      WTF::BindOnce(&H5vccPlatformService::OnManagerConnectionError,
-                    WrapWeakPersistent(instance)));
+      BindOnce(&H5vccPlatformService::OnManagerConnectionError,
+               WrapWeakPersistent(instance)));
 
   // Set up pipes for the instance-specific PlatformService
   mojo::PendingRemote<ServiceObserver> observer_remote =
@@ -109,8 +109,8 @@ H5vccPlatformService* H5vccPlatformService::open(
       std::move(service_remote),
       execution_context->GetTaskRunner(TaskType::kNetworking));
   instance->platform_service_remote_.set_disconnect_handler(
-      WTF::BindOnce(&H5vccPlatformService::OnServiceConnectionError,
-                    WrapWeakPersistent(instance)));
+      BindOnce(&H5vccPlatformService::OnServiceConnectionError,
+               WrapWeakPersistent(instance)));
 
   // Open the service on the browser side, transferring the pipes
   manager->Open(service_name, std::move(observer_remote),

@@ -131,7 +131,6 @@ template("write_build_config") {
   _deps = []
   _type = invoker.type
 
-<<<<<<< HEAD
   # Targets that run compile_resources.py or dist_aar.py.
   # Keys are split from the main config to minimize size of .json that the
   # action needs to parse, and to avoid marking other actions as dirty when
@@ -152,10 +151,7 @@ template("write_build_config") {
                                  ".rtxt.build_config.json") ]
   }
 
-  if (current_toolchain == default_toolchain) {
-=======
   if (current_toolchain == android_toolchain) {
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     # Ensure targets match naming patterns so that __assetres, __header, __host,
     # and __validate targets work properly.
     if (filter_exclude([ _type ], _java_resource_types) == []) {

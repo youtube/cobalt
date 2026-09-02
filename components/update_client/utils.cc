@@ -101,30 +101,23 @@ std::string GetCrxIdFromPublicKeyHash(base::span<const uint8_t> pk_hash) {
 
 #if BUILDFLAG(IS_STARBOARD)
 #if defined(IN_MEMORY_UPDATES)
-
 bool VerifyHash256(const std::string* content,
                    const std::string& expected_hash_str) {
-  std::vector<uint8_t> expected_hash;
-  if (!base::HexStringToBytes(expected_hash_str, &expected_hash) ||
-      expected_hash.size() != crypto::kSHA256Length) {
+  std::array<uint8_t, crypto::hash::kSha256Size> expected_hash;
+  if (!base::HexStringToSpan(expected_hash_str, expected_hash)) {
     return false;
   }
 
-  uint8_t actual_hash[crypto::kSHA256Length] = {0};
-  std::unique_ptr<crypto::SecureHash> hasher(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+  std::array<uint8_t, crypto::hash::kSha256Size> hash;
+  crypto::hash::Hash(crypto::hash::kSha256, *content, hash);
 
-  hasher->Update(content->c_str(), content->size());
-  hasher->Finish(actual_hash, sizeof(actual_hash));
-
-  return base::span(actual_hash) == base::span(expected_hash);
+  return base::span(hash) == base::span(expected_hash);
 }
 #else  // defined(IN_MEMORY_UPDATES)
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
-  std::vector<uint8_t> expected_hash;
-  if (!base::HexStringToBytes(expected_hash_str, &expected_hash) ||
-      expected_hash.size() != crypto::kSHA256Length) {
+  std::array<uint8_t, crypto::hash::kSha256Size> expected_hash;
+  if (!base::HexStringToSpan(expected_hash_str, expected_hash)) {
     return false;
   }
 
@@ -136,31 +129,12 @@ bool VerifyFileHash256(const base::FilePath& filepath,
     return false;
   }
 
-  const size_t kBufferSize = 32768;
-  std::vector<char> buffer(kBufferSize);
-  uint8_t actual_hash[crypto::kSHA256Length] = {0};
-  std::unique_ptr<crypto::SecureHash> hasher(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-
-  while (true) {
-    int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
-    if (bytes_read < 0) {
-      DPLOG(ERROR) << "VerifyFileHash256(): error reading from source file: "
-                   << filepath.value();
-
-      return false;
-    }
-
-    if (bytes_read == 0) {
-      break;
-    }
-
-    hasher->Update(&buffer[0], bytes_read);
+  std::array<uint8_t, crypto::hash::kSha256Size> hash;
+  if (!crypto::hash::HashFile(crypto::hash::kSha256, &source_file, hash)) {
+    return false;
   }
 
-  hasher->Finish(actual_hash, sizeof(actual_hash));
-
-  return base::span(actual_hash) == base::span(expected_hash);
+  return base::span(hash) == base::span(expected_hash);
 }
 #endif  // defined(IN_MEMORY_UPDATES)
 

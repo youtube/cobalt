@@ -909,6 +909,7 @@ void AutofillManager::LogCurrentFieldTypes(const FormStructure& form) {
 void AutofillManager::SubscribeToMlModelChanges(
     FieldClassificationModelHandler& handler,
     optimization_guide::proto::OptimizationTarget optimization_target) {
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   switch (optimization_target) {
     case optimization_guide::proto::OptimizationTarget::
         OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
@@ -929,6 +930,9 @@ void AutofillManager::SubscribeToMlModelChanges(
     default:
       NOTREACHED();
   }
+#else
+  NOTREACHED();
+#endif
 }
 
 }  // namespace autofill

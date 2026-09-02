@@ -37,8 +37,8 @@ ScriptPromise<IDLString> H5vccSystem::getAdvertisingId(
   EnsureReceiverIsBound();
 
   remote_h5vcc_system_->GetAdvertisingId(
-      WTF::BindOnce(&H5vccSystem::OnGetAdvertisingId, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccSystem::OnGetAdvertisingId, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -63,8 +63,8 @@ ScriptPromise<IDLBoolean> H5vccSystem::getLimitAdTracking(
   EnsureReceiverIsBound();
 
   remote_h5vcc_system_->GetLimitAdTracking(
-      WTF::BindOnce(&H5vccSystem::OnGetLimitAdTracking, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccSystem::OnGetLimitAdTracking, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -91,8 +91,8 @@ ScriptPromise<IDLString> H5vccSystem::getFriendlyName(
   EnsureReceiverIsBound();
 
   remote_h5vcc_system_->GetFriendlyName(
-      WTF::BindOnce(&H5vccSystem::OnGetFriendlyName, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccSystem::OnGetFriendlyName, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -111,8 +111,8 @@ ScriptPromise<IDLDouble> H5vccSystem::getScreenDiagonal(
   EnsureReceiverIsBound();
 
   remote_h5vcc_system_->GetScreenDiagonal(
-      WTF::BindOnce(&H5vccSystem::OnGetScreenDiagonal, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccSystem::OnGetScreenDiagonal, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -132,8 +132,8 @@ ScriptPromise<IDLString> H5vccSystem::getTrackingAuthorizationStatus(
   EnsureReceiverIsBound();
 
   remote_h5vcc_system_->GetTrackingAuthorizationStatus(
-      WTF::BindOnce(&H5vccSystem::OnGetTrackingAuthorizationStatus,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccSystem::OnGetTrackingAuthorizationStatus,
+               WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -160,8 +160,8 @@ ScriptPromise<IDLUndefined> H5vccSystem::requestTrackingAuthorization(
   EnsureReceiverIsBound();
 
   remote_h5vcc_system_->RequestTrackingAuthorization(
-      WTF::BindOnce(&H5vccSystem::OnRequestTrackingAuthorization,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccSystem::OnRequestTrackingAuthorization,
+               WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
