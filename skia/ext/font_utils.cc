@@ -16,6 +16,7 @@
 #include "base/base_paths_android.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "third_party/skia/include/ports/SkFontMgr_android.h"
 #include "third_party/skia/include/ports/SkFontScanner_Fontations.h"
