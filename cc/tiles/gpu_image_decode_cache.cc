@@ -16,7 +16,9 @@
 #include "base/containers/span.h"
 #include "base/debug/alias.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/hash/hash.h"
 #include "base/logging.h"
 #include "base/memory/discardable_memory_allocator.h"
@@ -28,8 +30,9 @@
 #include "base/strings/stringprintf.h"
 #if BUILDFLAG(IS_COBALT)
 #include "base/strings/string_number_conversions.h"
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 #include "base/synchronization/lock.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
@@ -1222,7 +1225,7 @@ GpuImageDecodeCache::GpuImageDecodeCache(
 #if BUILDFLAG(IS_COBALT)
     size_t max_persistent_cache_items,
     size_t max_persistent_cache_memory_size,
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
     RasterDarkModeFilter* const dark_mode_filter)
     : color_type_(color_type),
       use_transfer_cache_(use_transfer_cache),
@@ -1240,11 +1243,14 @@ GpuImageDecodeCache::GpuImageDecodeCache(
           max_persistent_cache_items,
           static_cast<size_t>(kNormalMaxItemsInCacheForGpu))),
       max_persistent_cache_memory_size_(max_persistent_cache_memory_size),
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
       dark_mode_filter_(dark_mode_filter) {
   if (base::SequencedTaskRunner::HasCurrentDefault()) {
     task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
   }
+#if BUILDFLAG(IS_COBALT)
+  weak_ptr_ = weak_ptr_factory_.GetWeakPtr();
+#endif  // BUILDFLAG(IS_COBALT)
 
   DCHECK_NE(generator_client_id_, PaintImage::kDefaultGeneratorClientId);
   // Note that to compute |allow_accelerated_jpeg_decodes_| and
@@ -2186,6 +2192,21 @@ void GpuImageDecodeCache::UnrefImageDecode(const DrawImage& draw_image,
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+void GpuImageDecodeCache::RefImageDecode(ImageData* image_data) {
+  DCHECK(image_data);
+  ++image_data->decode.ref_count;
+  OwnershipChanged(image_data);
+}
+
+void GpuImageDecodeCache::UnrefImageDecode(ImageData* image_data) {
+  DCHECK(image_data);
+  DCHECK_GT(image_data->decode.ref_count, 0u);
+  --image_data->decode.ref_count;
+  OwnershipChanged(image_data);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void GpuImageDecodeCache::RefImage(const DrawImage& draw_image,
                                    const InUseCacheKey& cache_key) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
@@ -2321,6 +2342,105 @@ void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
 #endif
 }
 
+#if BUILDFLAG(IS_COBALT)
+void GpuImageDecodeCache::OwnershipChanged(ImageData* image_data) {
+  bool has_any_refs =
+      image_data->upload.ref_count > 0 || image_data->decode.ref_count > 0;
+
+  // If we have no image refs on an image, we should unbudget it.
+  if (!has_any_refs && image_data->is_budgeted) {
+    DCHECK_GE(working_set_bytes_, image_data->GetTotalSize());
+    DCHECK_GE(working_set_items_, 1u);
+    working_set_bytes_ -= image_data->GetTotalSize();
+    working_set_items_ -= 1;
+    image_data->is_budgeted = false;
+  }
+
+  // GpuImageDecodeCache::OwnershipChanged(ImageData*) is identical to the
+  // chromium version, but with the draw_image parameter removed and the code
+  // below is commented out.
+  // // Don't keep around completely empty images. This can happen if an image's
+  // // decode/upload tasks were both cancelled before completing.
+  // const bool has_cpu_data = image_data->decode.HasData() ||
+  //                           (image_data->is_bitmap_backed &&
+  //                            image_data->decode.image(0, AuxImage::kDefault));
+  // bool is_empty = !has_any_refs && !image_data->HasUploadedData() &&
+  //                 !has_cpu_data && !image_data->is_orphaned;
+  // if (is_empty || draw_image.paint_image().no_cache()) {
+  //   auto found_persistent = persistent_cache_.Peek(draw_image.frame_key());
+  //   if (found_persistent != persistent_cache_.end())
+  //     RemoveFromPersistentCache(found_persistent);
+  // }
+
+  // Don't keep discardable cpu memory for GPU backed images. The cache hit rate
+  // of the cpu fallback (in case we don't find this image in gpu memory) is
+  // too low to cache this data.
+  if (image_data->decode.ref_count == 0 &&
+      image_data->mode != DecodedDataMode::kCpu &&
+      image_data->HasUploadedData()) {
+    image_data->decode.ResetData();
+    image_data->speculative_decode_usage_stats_.reset();
+  }
+
+  // If we have no refs on an uploaded image, it should be unlocked. Do this
+  // before any attempts to delete the image.
+  if (image_data->IsGpuOrTransferCache() && image_data->upload.ref_count == 0 &&
+      image_data->upload.is_locked()) {
+    UnlockImage(image_data);
+  }
+
+  // Don't keep around orphaned images.
+  if (image_data->is_orphaned && !has_any_refs) {
+    DeleteImage(image_data);
+  }
+
+  // Don't keep CPU images if they are unused, these images can be recreated by
+  // re-locking discardable (rather than requiring a full upload like GPU
+  // images).
+  if (image_data->mode == DecodedDataMode::kCpu && !has_any_refs) {
+    DeleteImage(image_data);
+  }
+
+  // If we have image that could be budgeted, but isn't, budget it now.
+  if (has_any_refs && !image_data->is_budgeted &&
+      CanFitInWorkingSet(image_data->GetTotalSize())) {
+    working_set_bytes_ += image_data->GetTotalSize();
+    working_set_items_ += 1;
+    image_data->is_budgeted = true;
+  }
+
+  // We should unlock the decoded image memory for the image in two cases:
+  // 1) The image is no longer being used (no decode or upload refs).
+  // 2) This is a non-CPU image that has already been uploaded and we have
+  //    no remaining decode refs.
+  bool should_unlock_decode = !has_any_refs || (image_data->HasUploadedData() &&
+                                                !image_data->decode.ref_count);
+
+  if (should_unlock_decode && image_data->decode.is_locked()) {
+    if (image_data->is_bitmap_backed) {
+      DCHECK(!image_data->decode.HasData());
+      image_data->decode.ResetBitmapImage();
+    } else {
+      DCHECK(image_data->decode.HasData());
+      image_data->decode.Unlock();
+    }
+  }
+
+  // EnsureCapacity to make sure we are under our cache limits.
+  EnsureCapacity(0);
+
+#if DCHECK_IS_ON()
+  // Sanity check the above logic.
+  if (image_data->HasUploadedData()) {
+    if (image_data->mode == DecodedDataMode::kCpu)
+      DCHECK(image_data->decode.is_locked());
+  } else {
+    DCHECK(!image_data->is_budgeted || has_any_refs);
+  }
+#endif
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 // Checks whether we can fit a new image of size |required_size| in our
 // working set. Also frees unreferenced entries to keep us below our preferred
 // items limit.
@@ -2379,10 +2499,37 @@ void GpuImageDecodeCache::InsertTransferCacheEntry(
     ImageData* image_data) {
   DCHECK(image_data);
   uint32_t size = image_entry.SerializedSize();
+
+#if BUILDFLAG(IS_COBALT)
+  bool use_in_process_transfer = false;
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltInProcessImageTransferCache) &&
+      task_runner_) {
+    use_in_process_transfer = true;
+    size = image_entry.SerializedSizeInProcess();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   base::span<uint8_t> data =
       context_->ContextSupport()->MapTransferCacheEntry(size);
   if (!data.empty()) {
-    bool succeeded = image_entry.Serialize(data);
+    bool succeeded = false;
+#if BUILDFLAG(IS_COBALT)
+    if (use_in_process_transfer) {
+      RefImageDecode(image_data);
+      succeeded = image_entry.SerializeInProcess(
+          UNSAFE_TODO(base::span(static_cast<uint8_t*>(data), size)),
+          base::ScopedClosureRunner(base::BindPostTask(
+              task_runner_,
+              base::BindOnce(
+                  &GpuImageDecodeCache::OnInProcessImageTransferCompleted,
+                  weak_ptr_, base::WrapRefCounted(image_data)))));
+    } else
+#endif  // BUILDFLAG(IS_COBALT)
+    {
+      succeeded = image_entry.Serialize(
+          UNSAFE_TODO(base::span(static_cast<uint8_t*>(data), size)));
+    }
     DCHECK(succeeded);
     context_->ContextSupport()->UnmapAndCreateTransferCacheEntry(
         image_entry.UnsafeType(), image_entry.Id());
@@ -2395,6 +2542,14 @@ void GpuImageDecodeCache::InsertTransferCacheEntry(
     image_data->decode.decode_failure = true;
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void GpuImageDecodeCache::OnInProcessImageTransferCompleted(
+    scoped_refptr<ImageData> image_data) {
+  base::AutoLock lock(lock_);
+  UnrefImageDecode(image_data.get());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 bool GpuImageDecodeCache::NeedsDarkModeFilter(const DrawImage& draw_image,
                                               ImageData* image_data) {
