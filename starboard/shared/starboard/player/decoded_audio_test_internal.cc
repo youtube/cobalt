@@ -164,8 +164,6 @@ TEST(DecodedAudioTest, CtorWithSize) {
     EXPECT_FALSE(decoded_audio.is_end_of_stream());
     EXPECT_EQ(decoded_audio.channels(), kChannels);
     EXPECT_EQ(decoded_audio.sample_type(), sample_type);
-    EXPECT_EQ(decoded_audio.storage_type(),
-              kSbMediaAudioFrameStorageTypeInterleaved);
     EXPECT_EQ(decoded_audio.size_in_bytes(), kSizeInBytes);
     EXPECT_EQ(decoded_audio.frames(),
               kSizeInBytes / GetBytesPerSample(decoded_audio.sample_type()) /
@@ -409,7 +407,6 @@ TEST(DecodedAudioTest, MoveConstructor) {
   const uint8_t* original_data = original.data();
   int original_channels = original.channels();
   auto original_sample_type = original.sample_type();
-  auto original_storage_type = original.storage_type();
   int64_t original_timestamp = original.timestamp();
   int original_size = original.size_in_bytes();
 
@@ -418,7 +415,6 @@ TEST(DecodedAudioTest, MoveConstructor) {
   EXPECT_EQ(moved.data(), original_data);
   EXPECT_EQ(moved.channels(), original_channels);
   EXPECT_EQ(moved.sample_type(), original_sample_type);
-  EXPECT_EQ(moved.storage_type(), original_storage_type);
   EXPECT_EQ(moved.timestamp(), original_timestamp);
   EXPECT_EQ(moved.size_in_bytes(), original_size);
   Verify(moved);
@@ -438,7 +434,6 @@ TEST(DecodedAudioTest, MoveAssignment) {
   const uint8_t* original_data = original.data();
   int original_channels = original.channels();
   auto original_sample_type = original.sample_type();
-  auto original_storage_type = original.storage_type();
   int64_t original_timestamp = original.timestamp();
   int original_size = original.size_in_bytes();
 
@@ -448,7 +443,6 @@ TEST(DecodedAudioTest, MoveAssignment) {
   EXPECT_EQ(moved.data(), original_data);
   EXPECT_EQ(moved.channels(), original_channels);
   EXPECT_EQ(moved.sample_type(), original_sample_type);
-  EXPECT_EQ(moved.storage_type(), original_storage_type);
   EXPECT_EQ(moved.timestamp(), original_timestamp);
   EXPECT_EQ(moved.size_in_bytes(), original_size);
   Verify(moved);
