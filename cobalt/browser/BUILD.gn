@@ -122,6 +122,7 @@ source_set("browser") {
     deps += [
       "//cobalt/android:jni_headers",
       "//cobalt/android:pip_jni_headers",
+      "//components/crash/content/browser",
       "//components/embedder_support/android:web_contents_delegate",
       "//components/thin_webview",
       "//components/thin_webview/internal",

@@ -15,10 +15,12 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 
 #include <memory>
+#include <set>
 
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
@@ -27,6 +29,7 @@
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/thread_pool.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -64,6 +67,10 @@
 #include "components/services/heap_profiling/public/mojom/heap_profiling_service.mojom.h"  // nogncheck
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/tracing/public/cpp/trace_startup.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -215,6 +222,33 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
   }
 }
 
+#if BUILDFLAG(IS_ANDROID)
+void RecordPriorSessionExitReasons() {
+  base::FilePath base_dir;
+  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
+    return;
+  }
+  base::FilePath metrics_dir =
+      base_dir.AppendASCII(kBrowserStabilityMetricsName);
+  base::FileEnumerator file_iter(metrics_dir, /*recursive=*/false,
+                                 base::FileEnumerator::FILES);
+  std::set<base::ProcessId> recorded_pids;
+  for (base::FilePath file = file_iter.Next(); !file.empty();
+       file = file_iter.Next()) {
+    std::string name;
+    base::Time stamp;
+    base::ProcessId previous_pid;
+    if (base::GlobalHistogramAllocator::ParseFilePath(file, &name, &stamp,
+                                                      &previous_pid) &&
+        previous_pid > 0 && previous_pid != base::GetCurrentProcId() &&
+        recorded_pids.insert(previous_pid).second) {
+      crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
+          previous_pid, "Cobalt.Stability.Android.SystemExitReason");
+    }
+  }
+}
+#endif
+
 }  // namespace
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
@@ -319,6 +353,13 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
+
+#if BUILDFLAG(IS_ANDROID)
+  base::ThreadPool::PostTask(FROM_HERE,
+                             {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+                              base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+                             base::BindOnce(&RecordPriorSessionExitReasons));
+#endif
 
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
