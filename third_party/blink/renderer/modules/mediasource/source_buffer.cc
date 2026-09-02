@@ -2089,16 +2089,11 @@ void SourceBuffer::AppendBufferInternal_Locked(
   append_buffer_async_task_handle_ = PostCancellableTask(
       *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
       FROM_HERE,
-<<<<<<< HEAD
-      BindOnce(&SourceBuffer::AppendBufferAsyncPart, WrapPersistent(this)));
-=======
       WTF::BindOnce(&SourceBuffer::AppendBufferAsyncPart,
                     WrapPersistent(this)));
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
   TRACE_EVENT_NESTABLE_ASYNC_END0("media", "prepareAsyncAppend",
                                   TRACE_ID_LOCAL(this));
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("media", "delay", TRACE_ID_LOCAL(this),

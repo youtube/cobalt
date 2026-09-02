@@ -815,14 +815,9 @@ void UserMediaProcessor::SetupAudioInput() {
                            current_request_info_->request_id()));
     current_request_info_->StartTrace("GetAudioInputCapabilities");
     GetMediaDevicesDispatcher()->GetAudioInputCapabilities(
-<<<<<<< HEAD
-        BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
+BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
                  WrapWeakPersistent(this), WrapPersistent(request)));
-=======
-        WTF::BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
-                      WrapWeakPersistent(this), WrapPersistent(request)));
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else {
     if (!blink::IsAudioInputMediaType(audio_controls.stream_type)) {
       String failed_constraint_name = String(
