@@ -37,7 +37,6 @@ struct SharedMemoryLimits {
       min_transfer_buffer_size = 32 * 1024;
       mapped_memory_chunk_size = 256 * 1024;
     }
-#endif
 
 #if BUILDFLAG(IS_COBALT)
     // When in-process image transfer is enabled, decoded images bypass

@@ -2518,7 +2518,7 @@ void GpuImageDecodeCache::InsertTransferCacheEntry(
     if (use_in_process_transfer) {
       RefImageDecode(image_data);
       succeeded = image_entry.SerializeInProcess(
-          UNSAFE_TODO(base::span(static_cast<uint8_t*>(data), size)),
+          data,
           base::ScopedClosureRunner(base::BindPostTask(
               task_runner_,
               base::BindOnce(
@@ -2527,8 +2527,7 @@ void GpuImageDecodeCache::InsertTransferCacheEntry(
     } else
 #endif  // BUILDFLAG(IS_COBALT)
     {
-      succeeded = image_entry.Serialize(
-          UNSAFE_TODO(base::span(static_cast<uint8_t*>(data), size)));
+      succeeded = image_entry.Serialize(data);
     }
     DCHECK(succeeded);
     context_->ContextSupport()->UnmapAndCreateTransferCacheEntry(
