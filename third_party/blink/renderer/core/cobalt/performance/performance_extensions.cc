@@ -63,6 +63,7 @@ SystemMemoryInfo* PerformanceExtensions::measureSystemMemoryInfo(
     result->setTotalCpuMemory(info->total_cpu_memory);
     result->setUsedPssMemory(info->used_pss_memory);
     result->setApplicationLimitMemory(info->application_limit_memory);
+    result->setApplicationUsageMemory(info->application_usage_memory);
     if (info->used_gpu_memory.has_value()) {
       result->setUsedGpuMemory(info->used_gpu_memory.value());
     }
@@ -171,6 +172,15 @@ uint64_t PerformanceExtensions::measureApplicationLimitMemory(
   BindRemotePerformance(script_state)
       ->MeasureApplicationLimitMemory(&app_limit_memory);
   return app_limit_memory;
+}
+
+uint64_t PerformanceExtensions::measureApplicationUsageMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t usage_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureApplicationUsageMemory(&usage_memory);
+  return usage_memory;
 }
 
 uint64_t PerformanceExtensions::measureUsedGpuMemory(
