@@ -280,12 +280,10 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     SB_DCHECK(!channel_mixer_);
     output_format_checked_ = true;
     if (output_sample_type_ != decoded_audio->sample_type() ||
-        output_storage_type_ != decoded_audio->storage_type() ||
         output_samples_per_second_ != decoded_sample_rate) {
       resampler_ = AudioResampler::Create(
-          decoded_audio->sample_type(), decoded_audio->storage_type(),
-          decoded_sample_rate, output_sample_type_, output_storage_type_,
-          output_samples_per_second_,
+          decoded_audio->sample_type(), decoded_sample_rate,
+          output_sample_type_, output_samples_per_second_,
           input_audio_stream_info_.number_of_channels);
     }
     if (input_audio_stream_info_.number_of_channels !=

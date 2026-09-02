@@ -586,13 +586,10 @@ void AudioRendererPcm::OnFirstOutput(
   // kSbMediaAudioFrameStorageTypeInterleaved, so we resample the audio to that
   // format to avoid unnecessary extra conversion.
   if (decoded_sample_rate != destination_sample_rate ||
-      decoded_sample_type != kSbMediaAudioSampleTypeFloat32 ||
-      decoded_storage_type != kSbMediaAudioFrameStorageTypeInterleaved) {
+      decoded_sample_type != kSbMediaAudioSampleTypeFloat32) {
     resampler_ = AudioResampler::Create(
-        decoded_sample_type, decoded_storage_type, decoded_sample_rate,
-        kSbMediaAudioSampleTypeFloat32,
-        kSbMediaAudioFrameStorageTypeInterleaved, destination_sample_rate,
-        channels_);
+        decoded_sample_type, decoded_sample_rate,
+        kSbMediaAudioSampleTypeFloat32, destination_sample_rate, channels_);
     SB_DCHECK(resampler_);
   } else {
     resampler_.reset(new IdentityAudioResampler);
