@@ -35,6 +35,7 @@ env:
   CI_ESSENTIALS: |
     .github
     cobalt/build
+    cobalt/devinfra
     cobalt/docker
     cobalt/testing/browser_tests/tools
     cobalt/testing/filters
@@ -610,6 +611,7 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   e2e-test:
     needs: [initialize, build]
@@ -788,7 +790,7 @@ jobs:
     env:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -812,6 +814,7 @@ jobs:
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
           test_executables_json: ${{ steps.parse-host-targets.outputs.test_executables_json }}
           test_type: gtest
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       - name: Parse Test Target JSON (Host JUnit)
         id: parse-host-junit-targets
         uses: ./.github/actions/test_targets_json
@@ -828,6 +831,7 @@ jobs:
           num_gtest_shards: 1
           test_executables_json: ${{ steps.parse-host-junit-targets.outputs.test_executables_json }}
           test_type: junit
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
@@ -917,6 +921,13 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Prepare Test Filters
+        id: prepare-test-filters
+        uses: ./.github/actions/prepare_test_filters
+        with:
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          platform: ${{ matrix.platform }}
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       - name: Extract Test Target Name
         id: extract-target-name
         env:
@@ -927,22 +938,18 @@ jobs:
         id: filter
         env:
           TEST_TARGET: ${{ steps.extract-target-name.outputs.test_target }}
-          PLATFORM: ${{ matrix.platform }}
+          FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
         run: |
-          set -x
-          # Get first entry in test filters file.
-          test_filter=""
-          test_target="${TEST_TARGET}"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}/${test_target}_filter.json"
-          if [ -f "${test_filter_json_dir}" ]; then
-            test_filter="$(jq -cr '.failing_tests[0]' "${test_filter_json_dir}")"
-            if [ "${test_filter}" = '*' ]; then
-              echo "${test_target} was skipped due to test filter."
-              echo "skipped=true" >> "${GITHUB_OUTPUT}"
-            else
-              echo "skipped=false" >> "${GITHUB_OUTPUT}"
-            fi
+          set -ex
+          test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
+              --filter-dir "${FILTER_DIR}" \
+              --target "${TEST_TARGET}")
+          skipped="false"
+          if [ "${test_filter}" == "-*" ]; then
+            echo "${TEST_TARGET} was skipped due to test filter."
+            skipped="true"
           fi
+          echo "skipped=${skipped}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
@@ -965,8 +972,6 @@ jobs:
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
-          # TODO: Enable symbolization when it works.
-          # symbolize: true
           symbolize: 'false'
       - name: ${{ matrix.test_info.target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
@@ -974,9 +979,13 @@ jobs:
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-          # TODO: Enable symbolization when it works.
-          # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
+      - name: Generate Retry Filter
+        if: always() && steps.filter.outputs.skipped != 'true'
+        uses: ./.github/actions/generate_retry_filter
+        with:
+          target_name: ${{ steps.extract-target-name.outputs.test_target }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
