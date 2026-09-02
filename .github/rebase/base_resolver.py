@@ -110,12 +110,71 @@ def resolve_repo_file_path(raw_path: str, repo_path: str) -> str:
   return direct
 
 
+_COBALT_GIT_HISTORY_CACHE: Dict[Tuple[str, str], bool] = {}
+
+
+def has_cobalt_git_history(rel_path: str, repo_path: str) -> bool:
+  """Checks if git history shows Cobalt-specific commits touching the file."""
+  cache_key = (os.path.abspath(repo_path), rel_path)
+  if cache_key in _COBALT_GIT_HISTORY_CACHE:
+    return _COBALT_GIT_HISTORY_CACHE[cache_key]
+
+  try:
+    cmd = [
+        "git",
+        "-C",
+        repo_path,
+        "log",
+        "-n",
+        "30",
+        "--format=%ae%x09%s",
+        "--",
+        rel_path,
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if res.returncode != 0:
+      _COBALT_GIT_HISTORY_CACHE[cache_key] = False
+      return False
+    for line in res.stdout.splitlines():
+      if not line.strip():
+        continue
+      parts = line.split("\t", 1)
+      author_email = parts[0].strip().lower()
+      subject = parts[1].strip() if len(parts) > 1 else ""
+      s_lower = subject.lower()
+
+      # 1. Skip automated Chromium rolling PRs
+      is_roll = ("cherry pick commit" in s_lower or "update to " in s_lower or
+                 "autoroll" in s_lower or "releaser-bot" in author_email)
+      if is_roll:
+        continue
+
+      # 2. Skip upstream Chromium commits (@chromium.org)
+      if author_email.endswith(("@chromium.org", ".chromium.org")):
+        continue
+
+      # 3. Any commit with a Cobalt PR number (#<id>) or Cobalt/Starboard
+      # reference authored by developers/contractors (Google, Igalia, etc.)
+      # indicates Cobalt customization.
+      has_pr_number = bool(re.search(r"\(#\d+\)|cherry pick pr #", s_lower))
+      has_cobalt_keyword = any(k in s_lower for k in ("cobalt", "starboard"))
+      if has_pr_number or has_cobalt_keyword:
+        _COBALT_GIT_HISTORY_CACHE[cache_key] = True
+        return True
+  except (OSError, subprocess.SubprocessError):
+    _COBALT_GIT_HISTORY_CACHE[cache_key] = False
+    return False
+
+  _COBALT_GIT_HISTORY_CACHE[cache_key] = False
+  return False
+
+
 def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
   """Checks if a file is pure third-party source code without Cobalt changes."""
   rel = os.path.relpath(file_path, repo_path)
   if not rel.startswith("third_party/"):
     return False
-  # TODO(b/547499991) This should send to the LLM with skills to decide whehter
+  # TODO(b/547499991) This should send to the LLM with skills to decide whether
   # agent can modify.
   # In-tree generator and build tooling in third_party (e.g. jni_zero) can be
   # patched for toolchain and API compatibility.
@@ -124,6 +183,9 @@ def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
   # Cobalt/Starboard-specific directories or files hosted under third_party
   rel_lower = rel.lower()
   if "cobalt" in rel_lower or "starboard" in rel_lower:
+    return False
+  # Check if Cobalt git history previously touched this file
+  if has_cobalt_git_history(rel, repo_path):
     return False
   try:
     with open(file_path, "r", encoding="utf-8", errors="replace") as f:
@@ -148,6 +210,7 @@ def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
             "is_cobalt",
             "checkout_cobalt_internal",
             "checkout_copybara",
+            "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17",
         )):
       return False
   except OSError:
