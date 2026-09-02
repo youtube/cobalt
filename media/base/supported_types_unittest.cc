@@ -32,10 +32,8 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoTypeBasics) {
   // Expect support for baseline configuration of known codecs.
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, kColorSpace}));
-#if defined(ENABLE_LIBVPX)
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, kColorSpace}));
-#endif
   EXPECT_FALSE(IsDecoderSupportedVideoType({VideoCodec::kTheora,
                                             VIDEO_CODEC_PROFILE_UNKNOWN,
                                             kUnspecifiedLevel, kColorSpace}));
@@ -71,7 +69,6 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoTypeBasics) {
 #endif
 }
 
-#if defined(ENABLE_LIBVPX)
 TEST(SupportedTypesTest, IsDecoderSupportedVideoType_VP9TransferFunctions) {
   size_t num_found = 0;
   // TODO(hubbe): Verify support for HDR codecs when color management enabled.
@@ -193,7 +190,6 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoType_VP9Profiles) {
       {VideoCodec::kVP9, VP9PROFILE_PROFILE2, kUnspecifiedLevel, kColorSpace}));
 #endif
 }
-#endif
 
 TEST(SupportedTypesTest,
      IsDecoderSupportedAudioTypeWithSpatialRenderingBasics) {
@@ -288,10 +284,8 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoTypeWithHdrMetadataBasics) {
   // Expect support for baseline configuration of known codecs.
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, color_space}));
-#if defined(ENABLE_LIBVPX)
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, color_space}));
-#endif
   EXPECT_FALSE(IsDecoderSupportedVideoType({VideoCodec::kTheora,
                                             VIDEO_CODEC_PROFILE_UNKNOWN,
                                             kUnspecifiedLevel, color_space}));
@@ -307,10 +301,8 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoTypeWithHdrMetadataBasics) {
   color_space.transfer = VideoColorSpace::TransferID::SMPTEST2084;
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, color_space}));
-#if defined(ENABLE_LIBVPX)
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, color_space}));
-#endif
   EXPECT_FALSE(IsDecoderSupportedVideoType({VideoCodec::kTheora,
                                             VIDEO_CODEC_PROFILE_UNKNOWN,
                                             kUnspecifiedLevel, color_space}));
@@ -322,10 +314,8 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoTypeWithHdrMetadataBasics) {
   color_space.transfer = VideoColorSpace::TransferID::ARIB_STD_B67;
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, color_space}));
-#if defined(ENABLE_LIBVPX)
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, color_space}));
-#endif
   EXPECT_FALSE(IsDecoderSupportedVideoType({VideoCodec::kTheora,
                                             VIDEO_CODEC_PROFILE_UNKNOWN,
                                             kUnspecifiedLevel, color_space}));

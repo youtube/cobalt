@@ -6,7 +6,6 @@ package org.jni_zero;
 
 import android.graphics.Rect;
 
-import org.jni_zero.extrapackage.ImportsTinySample;
 import org.jni_zero.internal.Nullable;
 
 import java.util.ArrayList;
@@ -201,7 +200,7 @@ class SampleForTests {
 
     @CalledByNative
     private SampleForTests.@Nullable InnerStructA addStructA(
-            SampleForTests.@Nullable InnerStructA a, @Nullable ImportsTinySample b) {
+            SampleForTests.@Nullable InnerStructA a) {
         // Called by the native side to append another element.
         mListInnerStructA.add(a);
         return null;
@@ -267,7 +266,7 @@ class SampleForTests {
 
     // Test overloads (causes names to be mangled).
     @CalledByNative
-    static ImportsTinySample getInnerEnum(int a) {
+    static InnerEnum getInnerEnum(int a) {
         return null;
     }
 
