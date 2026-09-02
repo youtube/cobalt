@@ -145,6 +145,11 @@ constexpr int kDefaultMaxPendingInputsSize = 128;
 // frames in the codec and renderer.
 constexpr int kVideoFrameTrackerMargin = 100;
 
+// Temporary capacity increase for VideoFrameTracker until the experiment for
+// backpressure fix (kMediaFixNeedMoreInputBackpressure) is completed.
+// TODO: b/539672039 - Remove this once the experiment is completed.
+constexpr int kVideoFrameTrackerCapacityWithoutBackpressureFix = 3'000;
+
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
 // kPoolSize (20) is chosen to accommodate the maximum number of video frames
@@ -429,7 +434,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ = std::make_unique<VideoFrameTracker>(
-        max_pending_inputs_size_ + kVideoFrameTrackerMargin,
+        fix_need_more_input_backpressure_
+            ? max_pending_inputs_size_ + kVideoFrameTrackerMargin
+            : kVideoFrameTrackerCapacityWithoutBackpressureFix,
         ignore_stale_rendered_frames_after_seek_);
   }
 
