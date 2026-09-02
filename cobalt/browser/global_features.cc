@@ -26,6 +26,7 @@
 #include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/constants/cobalt_pref_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
@@ -38,12 +39,6 @@
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace cobalt {
-
-constexpr base::FilePath::CharType kExperimentConfigFilename[] =
-    FILE_PATH_LITERAL("Experiment Config");
-
-constexpr base::FilePath::CharType kMetricsConfigFilename[] =
-    FILE_PATH_LITERAL("Metrics Config");
 
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
@@ -201,12 +196,11 @@ void GlobalFeatures::InitializeActiveConfigData(
           : kExperimentConfigActiveConfigData);
 }
 
-base::FilePath GlobalFeatures::GetPrefFilePath(
-    const base::FilePath::CharType filename[],
-    const char* label) {
+base::FilePath GlobalFeatures::GetPrefFilePath(std::string_view filename,
+                                               const char* label) {
   base::FilePath path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &path));
-  path = path.Append(filename);
+  path = path.AppendASCII(filename);
 
   CHECK(base::CreateDirectory(path.DirName()))
       << "Failed to create directory for " << label << ": "
