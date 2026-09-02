@@ -140,6 +140,13 @@ public class JavaSwitches {
   /** Flag to disable BackForwardCache for WebContents. */
   public static final String DISABLE_BACK_FORWARD_CACHE = "DisableBackForwardCache";
 
+  /**
+   * Flag to enable activity lifecycle coordination and safe surface teardown across overlapping
+   * activities.
+   */
+  public static final String ENABLE_ACTIVITY_LIFECYCLE_COORDINATION =
+      "EnableActivityLifecycleCoordination";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -347,6 +354,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
       extraCommandLineArgs.add("--disable-back-forward-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
+      extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
     }
 
     return extraCommandLineArgs;

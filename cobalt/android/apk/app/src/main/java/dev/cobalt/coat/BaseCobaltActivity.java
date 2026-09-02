@@ -82,6 +82,11 @@ public abstract class BaseCobaltActivity extends Activity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    BaseStarboardBridge bridge = getStarboardBridge();
+    if (bridge != null) {
+      bridge.onActivityCreate(this);
+    }
+
     // Record the application start timestamp.
     mTimeInNanoseconds = System.nanoTime();
 
@@ -107,8 +112,17 @@ public abstract class BaseCobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    super.onDestroy();
-    getStarboardBridge().onActivityDestroy(this);
+    try {
+      super.onDestroy();
+    } catch (Throwable t) {
+      Log.e(TAG, "Error in super.onDestroy()", t);
+      throw t;
+    } finally {
+      BaseStarboardBridge bridge = getStarboardBridge();
+      if (bridge != null) {
+        bridge.onActivityDestroy(this);
+      }
+    }
   }
 
   @Override

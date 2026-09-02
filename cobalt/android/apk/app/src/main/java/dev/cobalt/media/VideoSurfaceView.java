@@ -22,6 +22,8 @@ import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import androidx.annotation.VisibleForTesting;
+import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.util.Log;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -32,30 +34,53 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("starboard")
 public class VideoSurfaceView extends SurfaceView {
+  @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
   @NativeMethods
-  interface Natives {
+  public interface Natives {
     void onVideoSurfaceChanged(Surface surface);
   }
 
-  private static Surface sCurrentSurface = null;
+  private static Natives sNatives;
+
+  @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+  public static void setNativesForTesting(Natives natives) {
+    sNatives = natives;
+  }
+
+  private static Natives getNatives() {
+    if (sNatives != null) {
+      return sNatives;
+    }
+    return VideoSurfaceViewJni.get();
+  }
+
+  public static void notifyVideoSurfaceChanged(Surface surface) {
+    getNatives().onVideoSurfaceChanged(surface);
+  }
+
+  private final BaseStarboardBridge mBridge;
 
   public VideoSurfaceView(Context context) {
     super(context);
+    mBridge = getStarboardBridge(context);
     initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs) {
     super(context, attrs);
+    mBridge = getStarboardBridge(context);
     initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs, int defStyleAttr) {
     super(context, attrs, defStyleAttr);
+    mBridge = getStarboardBridge(context);
     initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
     super(context, attrs, defStyleAttr, defStyleRes);
+    mBridge = getStarboardBridge(context);
     initialize(context);
   }
 
@@ -68,14 +93,33 @@ public class VideoSurfaceView extends SurfaceView {
     // punch-out video when the position / size is animated.
   }
 
+  private static BaseStarboardBridge getStarboardBridge(Context context) {
+    Context appContext = context.getApplicationContext();
+    if (appContext instanceof BaseStarboardBridge.HostApplication) {
+      return ((BaseStarboardBridge.HostApplication) appContext).getStarboardBridge();
+    }
+    return BaseStarboardBridge.getInstance();
+  }
+
+  private BaseStarboardBridge getBridge() {
+    if (mBridge != null) {
+      return mBridge;
+    }
+    return getStarboardBridge(getContext());
+  }
+
   private class SurfaceHolderCallback implements SurfaceHolder.Callback {
 
     boolean mSawInitialChange = false;
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-      sCurrentSurface = holder.getSurface();
-      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+      BaseStarboardBridge bridge = getBridge();
+      if (bridge != null) {
+        bridge.onVideoSurfaceCreated(holder.getSurface());
+      } else {
+        notifyVideoSurfaceChanged(holder.getSurface());
+      }
     }
 
     @Override
@@ -89,12 +133,17 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-      sCurrentSurface = null;
-      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+      BaseStarboardBridge bridge = getBridge();
+      if (bridge != null) {
+        bridge.onVideoSurfaceDestroyed(holder.getSurface());
+      } else {
+        notifyVideoSurfaceChanged(null);
+      }
     }
   }
 
   public static Surface getCurrentSurface() {
-    return sCurrentSurface;
+    BaseStarboardBridge bridge = BaseStarboardBridge.getInstance();
+    return bridge != null ? bridge.getVideoSurface() : null;
   }
 }

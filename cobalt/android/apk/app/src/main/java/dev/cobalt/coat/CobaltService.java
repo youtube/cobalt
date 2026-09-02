@@ -22,11 +22,48 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
-/** Abstract class that provides an interface for Cobalt to interact with a platform service. */
+/**
+ * Abstract class that provides an interface for Cobalt to interact with a platform service.
+ *
+ * <p>Threading model:
+ * <ul>
+ *   <li>{@code openCobaltService}, {@code closeCobaltService}, and {@link #receiveFromClient}
+ *       are invoked on the browser UI thread (Android main looper) and are serialized with
+ *       Activity lifecycle callbacks.</li>
+ *   <li>{@link #sendToClient} may be invoked from any thread; synchronization ensures safety
+ *       against concurrent {@link #onClose}.</li>
+ * </ul>
+ */
 public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
   protected boolean opened = true;
+  private volatile String mServiceName;
+  private volatile long mNativeService;
   private final Object lock = new Object();
+
+  public CobaltService() {
+    this.mNativeService = 0;
+  }
+
+  public CobaltService(long nativeService) {
+    this.mNativeService = nativeService;
+  }
+
+  void setNativeService(long nativeService) {
+    this.mNativeService = nativeService;
+  }
+
+  public long getNativeService() {
+    return mNativeService;
+  }
+
+  void setServiceName(String serviceName) {
+    mServiceName = serviceName;
+  }
+
+  public String getServiceName() {
+    return mServiceName;
+  }
 
   @JNINamespace("starboard")
   @NativeMethods
@@ -90,7 +127,6 @@ public abstract class CobaltService {
    * <p>Once this function returns, it is invalid to call sendToClient for the nativeService, so
    * synchronization must be used to protect against this.
    */
-  @CalledByNative
   public void onClose() {
     synchronized (lock) {
       if (!opened) {
@@ -114,6 +150,15 @@ public abstract class CobaltService {
       return sNatives;
     }
     return CobaltServiceJni.get();
+  }
+
+  /**
+   * Send data from the service to the client using the service's bound native handle.
+   *
+   * <p>This may be called from a separate thread.
+   */
+  protected void sendToClient(byte[] data) {
+    sendToClient(mNativeService, data);
   }
 
   /**

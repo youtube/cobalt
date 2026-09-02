@@ -30,9 +30,12 @@ import android.media.AudioManager;
 import android.os.Build;
 import android.view.Display;
 import android.view.InputDevice;
+import android.view.Surface;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -40,11 +43,14 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
+import org.chromium.base.CommandLine;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -55,6 +61,17 @@ import org.jni_zero.NativeMethods;
 // this property.
 public class BaseStarboardBridge {
 
+  private static volatile BaseStarboardBridge sInstance;
+
+  public static BaseStarboardBridge getInstance() {
+    return sInstance;
+  }
+
+  @VisibleForTesting
+  public static void setInstanceForTesting(BaseStarboardBridge bridge) {
+    sInstance = bridge;
+  }
+
   /** Interface to be implemented by the Android Application hosting the starboard app. */
   public interface HostApplication {
     void setStarboardBridge(BaseStarboardBridge starboardBridge);
@@ -62,6 +79,8 @@ public class BaseStarboardBridge {
     BaseStarboardBridge getStarboardBridge();
   }
 
+  private Surface mVideoSurface;
+  private final Object mVideoSurfaceLock = new Object();
   private CobaltSystemConfigChangeReceiver mSysConfigChangeReceiver;
   private CobaltTextToSpeechHelper mTtsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
@@ -72,6 +91,10 @@ public class BaseStarboardBridge {
   private final Context mAppContext;
   protected final Holder<Activity> mActivityHolder;
   private final Holder<Service> mServiceHolder;
+  // Maps each live Activity to whether it is currently started (Boolean.TRUE) or stopped (Boolean.FALSE).
+  // Backed by WeakHashMap to prevent pinning Activity instances in the singleton bridge.
+  private final Map<Activity, Boolean> mActivities =
+      Collections.synchronizedMap(new WeakHashMap<>());
   private final String[] mArgs;
   private final long mNativeApp;
   private final Runnable mStopRequester =
@@ -95,7 +118,9 @@ public class BaseStarboardBridge {
   private long mAppStartTimestamp = 0;
 
   private final Map<String, CobaltService.Factory> mCobaltServiceFactories = new HashMap<>();
-  private final Map<String, CobaltService> mCobaltServices = new ConcurrentHashMap<>();
+  // Keyed by native pointer handle so multiple documents, iframes, or overlapping Activities
+  // can open services with the same name without colliding or leaking on close.
+  private final Map<Long, CobaltService> mCobaltServices = new ConcurrentHashMap<>();
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
@@ -105,6 +130,7 @@ public class BaseStarboardBridge {
   private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
   private static final String DEFAULT_DEVICE_NAME = "Android";
+  private final Natives mNatives = getNatives();
 
   public BaseStarboardBridge(
       Context appContext,
@@ -114,10 +140,11 @@ public class BaseStarboardBridge {
       String startDeepLink) {
 
     Log.i(TAG, "BaseStarboardBridge init.");
+    sInstance = this;
 
     // Make sure the JNI stack is properly initialized first as there is a
     // race condition as soon as any of the following objects creates a new thread.
-    BaseStarboardBridgeJni.get().initJNI(this);
+    mNatives.initJNI(this);
 
     mAppContext = appContext;
     mActivityHolder = activityHolder;
@@ -132,19 +159,17 @@ public class BaseStarboardBridge {
     mIsAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
     mNativeApp =
-        BaseStarboardBridgeJni.get()
-            .startNativeStarboard(
-                getAssetsFromContext(),
-                getFilesCanonicalPath(),
-                getCacheCanonicalPath(),
-                getNativeLibraryDir());
+        mNatives.startNativeStarboard(
+            getAssetsFromContext(),
+            getFilesCanonicalPath(),
+            getCacheCanonicalPath(),
+            getNativeLibraryDir());
 
-    BaseStarboardBridgeJni.get().handleDeepLink(startDeepLink, /* applicationStarted= */ false);
-    BaseStarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
-    BaseStarboardBridgeJni.get().setAndroidOSExperience(mIsAmatiDevice);
-    BaseStarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
-    BaseStarboardBridgeJni.get()
-        .setYoutubeCertificationScope(getSystemProperty(YTS_CERT_SCOPE_SYSTEM_PROPERTY));
+    mNatives.handleDeepLink(startDeepLink, /* applicationStarted= */ false);
+    mNatives.setAndroidBuildFingerprint(getBuildFingerprint());
+    mNatives.setAndroidOSExperience(mIsAmatiDevice);
+    mNatives.setAndroidPlayServicesVersion(getPlayServicesVersion());
+    mNatives.setYoutubeCertificationScope(getSystemProperty(YTS_CERT_SCOPE_SYSTEM_PROPERTY));
   }
 
   @NativeMethods
@@ -175,40 +200,166 @@ public class BaseStarboardBridge {
     boolean isDevelopmentBuild();
   }
 
+  private static Natives sNatives;
+
+  public static void setNativesForTesting(Natives natives) {
+    sNatives = natives;
+  }
+
+  private static Natives getNatives() {
+    if (sNatives != null) {
+      return sNatives;
+    }
+    return BaseStarboardBridgeJni.get();
+  }
+
+  private static Boolean sActivityLifecycleCoordinationEnabledForTesting = null;
+
+  @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+  public static void setActivityLifecycleCoordinationEnabledForTesting(Boolean enabled) {
+    sActivityLifecycleCoordinationEnabledForTesting = enabled;
+  }
+
+  public static boolean isActivityLifecycleCoordinationEnabled() {
+    if (sActivityLifecycleCoordinationEnabledForTesting != null) {
+      return sActivityLifecycleCoordinationEnabledForTesting;
+    }
+    return CommandLine.isInitialized()
+        && CommandLine.getInstance().hasSwitch("enable-activity-lifecycle-coordination");
+  }
+
+  public boolean hasStartedActivities() {
+    return mActivities.containsValue(Boolean.TRUE);
+  }
+
+  public boolean hasLiveActivities() {
+    return !mActivities.isEmpty();
+  }
+
+  private int countStartedActivities() {
+    synchronized (mActivities) {
+      int count = 0;
+      for (Boolean started : mActivities.values()) {
+        if (Boolean.TRUE.equals(started)) {
+          count++;
+        }
+      }
+      return count;
+    }
+  }
+
+  protected void onActivityCreate(Activity activity) {
+    Log.i(TAG, "onActivityCreate ran: " + activity);
+    mActivities.put(activity, Boolean.FALSE);
+  }
+
   protected void onActivityStart(Activity activity) {
-    Log.i(TAG, "onActivityStart ran");
+    Log.i(TAG, "onActivityStart ran: " + activity);
+    synchronized (mActivities) {
+      for (Map.Entry<Activity, Boolean> entry : mActivities.entrySet()) {
+        if (entry.getKey() != activity && Boolean.TRUE.equals(entry.getValue())) {
+          Log.w(
+              TAG,
+              String.format(
+                  "onActivityStart: New activity %s starting while previous activity %s is still active.",
+                  activity, entry.getKey()));
+        }
+      }
+      mActivities.put(activity, Boolean.TRUE);
+    }
     mActivityHolder.set(activity);
     mSysConfigChangeReceiver.setForeground(true);
-    beforeStartOrResume();
+    if (isActivityLifecycleCoordinationEnabled()) {
+      // Only resume services and trigger foreground logic on 0 -> 1 started activity transition.
+      if (countStartedActivities() == 1) {
+        beforeStartOrResume();
+      }
+    } else {
+      beforeStartOrResume();
+    }
   }
 
   protected void onActivityStop(Activity activity) {
-    Log.i(TAG, "onActivityStop ran");
-    beforeSuspend();
-    if (mActivityHolder.get() == activity) {
-      mActivityHolder.set(null);
+    Log.i(TAG, "onActivityStop ran: " + activity);
+    mActivities.put(activity, Boolean.FALSE);
+    if (isActivityLifecycleCoordinationEnabled()) {
+      // Only suspend services and disable foreground config updates if no other activity instance
+      // is currently started.
+      if (!hasStartedActivities()) {
+        beforeSuspend();
+        if (mActivityHolder.get() == activity) {
+          mActivityHolder.set(null);
+        }
+        mSysConfigChangeReceiver.setForeground(false);
+      } else {
+        if (mActivityHolder.get() == activity) {
+          mActivityHolder.set(null);
+        }
+        Log.i(
+            TAG,
+            "onActivityStop: Another activity is still started; skipping suspend and foreground change.");
+      }
+    } else {
+      beforeSuspend();
+      if (mActivityHolder.get() == activity) {
+        mActivityHolder.set(null);
+      }
+      mSysConfigChangeReceiver.setForeground(false);
     }
-    mSysConfigChangeReceiver.setForeground(false);
   }
 
   protected void onActivityDestroy(Activity activity) {
-    // Note: During rapid restarts or configuration changes, Android allows a new Activity
-    // instance's
-    // onCreate()/onStart() to run before the old instance's onDestroy() executes. When that
-    // happens,
-    // mActivityHolder will already point to the new activity instance. We must avoid cleaning
-    // up
-    // shared platform services or killing the process if another active instance has taken
-    // over.
-    if (mActivityHolder.get() != activity && mActivityHolder.get() != null) {
-      Log.i(TAG, "Activity destroyed but another activity is active; skipping service cleanup.");
-      return;
+    Log.i(TAG, "onActivityDestroy ran: " + activity);
+    mActivities.remove(activity);
+    if (isActivityLifecycleCoordinationEnabled()) {
+      if (mActivityHolder.get() == activity) {
+        mActivityHolder.set(null);
+      }
+      if (hasLiveActivities()) {
+        Log.i(
+            TAG,
+            "Activity destroyed but another activity instance is still live; skipping exit check.");
+        return;
+      }
+      boolean shouldNotifySurface = false;
+      synchronized (mVideoSurfaceLock) {
+        if (mVideoSurface != null) {
+          mVideoSurface = null;
+          shouldNotifySurface = true;
+        }
+      }
+      if (shouldNotifySurface) {
+        VideoSurfaceView.notifyVideoSurfaceChanged(null);
+      }
+      // Safety net: if all activities are destroyed but services remain in mCobaltServices (e.g.
+      // if WebContents/RFH teardown was deferred or skipped), clean them up to prevent leaks.
+      if (!mCobaltServices.isEmpty()) {
+        Log.w(
+            TAG,
+            String.format(
+                "onActivityDestroy: %d CobaltService instance(s) still open after last activity destroyed; force cleaning up.",
+                mCobaltServices.size()));
+        closeAllCobaltService();
+      }
+    } else {
+      // Note: During rapid restarts or configuration changes, Android allows a new Activity
+      // instance's onCreate()/onStart() to run before the old instance's onDestroy() executes.
+      // When that happens, mActivityHolder will already point to the new activity instance.
+      // We must avoid cleaning up shared platform services or killing the process if another
+      // active instance has taken over.
+      if (mActivityHolder.get() != activity && mActivityHolder.get() != null) {
+        Log.i(TAG, "Activity destroyed but another activity is active; skipping service cleanup.");
+        return;
+      }
+      if (mActivityHolder.get() == activity) {
+        mActivityHolder.set(null);
+      }
+      closeAllCobaltService();
     }
-    closeAllCobaltService();
     if (mApplicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
-      BaseStarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
+      mNatives.closeNativeStarboard(mNativeApp);
       mTtsHelper.shutdown();
       mAdvertisingId.shutdown();
       System.exit(0);
@@ -311,12 +462,12 @@ public class BaseStarboardBridge {
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
   public static boolean isReleaseBuild() {
-    return BaseStarboardBridgeJni.get().isReleaseBuild();
+    return getNatives().isReleaseBuild();
   }
 
   /** Returns true if the native code is compiled for development (i.e. 'devel' build). */
   public static boolean isDevelopmentBuild() {
-    return BaseStarboardBridgeJni.get().isDevelopmentBuild();
+    return getNatives().isDevelopmentBuild();
   }
 
   protected Holder<Activity> getActivityHolder() {
@@ -334,12 +485,12 @@ public class BaseStarboardBridge {
   // Initialize the platform's AudioTrackAudioSink. This must be done after the browser client
   // loads in the feature list and field trials.
   public void initializePlatformAudioSink() {
-    BaseStarboardBridgeJni.get().initializePlatformAudioSink();
+    mNatives.initializePlatformAudioSink();
   }
 
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    BaseStarboardBridgeJni.get().handleDeepLink(url, mApplicationStarted);
+    mNatives.handleDeepLink(url, mApplicationStarted);
   }
 
   public AssetManager getAssetsFromContext() {
@@ -597,6 +748,59 @@ public class BaseStarboardBridge {
     mAudioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
+  /**
+   * Called when a VideoSurfaceView creates its underlying Surface.
+   *
+   * Note: Starboard assumes a single active video surface at any given time for
+   * punch-out video decoding. During activity recreation or overlapping transitions,
+   * the newest activity's surface supersedes any previous surface as the active target.
+   */
+  public void onVideoSurfaceCreated(Surface surface) {
+    Log.i(TAG, String.format("onVideoSurfaceCreated: surface=%s", surface));
+    synchronized (mVideoSurfaceLock) {
+      mVideoSurface = surface;
+    }
+    VideoSurfaceView.notifyVideoSurfaceChanged(surface);
+  }
+
+  /**
+   * Called when a VideoSurfaceView destroys its underlying Surface.
+   *
+   * If this destruction event is for an old surface that was already superseded by a newer
+   * activity's surface, it is safely ignored so that the active video decoding target is not
+   * torn down prematurely.
+   */
+  public void onVideoSurfaceDestroyed(Surface surface) {
+    Log.i(TAG, String.format("onVideoSurfaceDestroyed: surface=%s", surface));
+    boolean shouldNotify = false;
+    synchronized (mVideoSurfaceLock) {
+      if (isActivityLifecycleCoordinationEnabled()) {
+        // If this destruction is for a surface that is no longer active (e.g. from an old activity
+        // during an overlapping activity transition), ignore it to avoid tearing down the new surface.
+        if (mVideoSurface != surface) {
+          Log.i(
+              TAG,
+              String.format(
+                  "onVideoSurfaceDestroyed: Ignoring destroyed surface %s from stale activity;"
+                      + " current surface is %s",
+                  surface, mVideoSurface));
+          return;
+        }
+      }
+      mVideoSurface = null;
+      shouldNotify = true;
+    }
+    if (shouldNotify) {
+      VideoSurfaceView.notifyVideoSurfaceChanged(null);
+    }
+  }
+
+  public Surface getVideoSurface() {
+    synchronized (mVideoSurfaceLock) {
+      return mVideoSurface;
+    }
+  }
+
   @SuppressWarnings("unused")
   @CalledByNative
   public void resetVideoSurface() {
@@ -637,20 +841,27 @@ public class BaseStarboardBridge {
     mCobaltServiceFactories.put(factory.getServiceName(), factory);
   }
 
+  public void unregisterCobaltService(String serviceName) {
+    mCobaltServiceFactories.remove(serviceName);
+  }
+
+  public void clearCobaltServiceFactories() {
+    mCobaltServiceFactories.clear();
+  }
+
   @CalledByNative
   public boolean hasCobaltService(String serviceName) {
     return mCobaltServiceFactories.get(serviceName) != null;
+  }
+
+  protected void onServiceCreated(CobaltService service) {
+    service.receiveBaseStarboardBridge(this);
   }
 
   // Explicitly pass activity as parameter.
   // Avoid using mActivityHolder.get(), because onActivityStop() can set it to null.
   @CalledByNative
   public CobaltService openCobaltService(long nativeService, String serviceName) {
-    if (mCobaltServices.get(serviceName) != null) {
-      // Attempting to re-open an already open service fails.
-      Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
-      return null;
-    }
     final CobaltService.Factory factory = mCobaltServiceFactories.get(serviceName);
     if (factory == null) {
       Log.e(TAG, String.format("Cannot open unregistered service %s", serviceName));
@@ -658,47 +869,75 @@ public class BaseStarboardBridge {
     }
     CobaltService service = factory.createCobaltService(nativeService);
     if (service != null) {
-      if (this instanceof StarboardBridge) {
-        service.receiveStarboardBridge((StarboardBridge) this);
-      }
-      service.receiveBaseStarboardBridge(this);
-      mCobaltServices.put(serviceName, service);
-      Log.i(TAG, String.format("Opened platform service %s.", serviceName));
+      service.setServiceName(serviceName);
+      service.setNativeService(nativeService);
+      onServiceCreated(service);
+      mCobaltServices.put(nativeService, service);
+      Log.i(
+          TAG,
+          String.format(
+              "Opened platform service %s [handle: 0x%x].", serviceName, nativeService));
     }
     return service;
   }
 
   public CobaltService getOpenedCobaltService(String serviceName) {
-    return mCobaltServices.get(serviceName);
+    if (serviceName == null) {
+      return null;
+    }
+    CobaltService matchedService = null;
+    // Count matching instances across open handles to detect and warn if name-based lookup is ambiguous.
+    int count = 0;
+    for (CobaltService service : mCobaltServices.values()) {
+      if (!serviceName.equals(service.getServiceName())) {
+        continue;
+      }
+      if (matchedService == null) {
+        matchedService = service;
+      }
+      count++;
+    }
+    if (count > 1) {
+      Log.w(
+          TAG,
+          String.format(
+              "Multiple open CobaltService instances (%d) found for %s; returning first instance.",
+              count, serviceName));
+    }
+    return matchedService;
   }
 
   @CalledByNative
-  public void closeCobaltService(String serviceName) {
-    CobaltService service = mCobaltServices.remove(serviceName);
+  public void closeCobaltService(long nativeService) {
+    CobaltService service = mCobaltServices.remove(nativeService);
     if (service != null) {
       service.afterStopped();
       service.onClose();
+      Log.i(
+          TAG,
+          String.format(
+              "Closed platform service %s [handle: 0x%x].",
+              service.getServiceName(), nativeService));
     }
-    Log.i(TAG, String.format("Closed platform service %s.", serviceName));
   }
 
   @CalledByNative
   public void closeAllCobaltService() {
-    for (String serviceName : new ArrayList<>(mCobaltServices.keySet())) {
-      closeCobaltService(serviceName);
+    for (Long nativeService : new ArrayList<>(mCobaltServices.keySet())) {
+      closeCobaltService(nativeService);
     }
   }
 
   public byte[] sendToCobaltService(String serviceName, byte[] data) {
-    CobaltService service = mCobaltServices.get(serviceName);
+    CobaltService service = getOpenedCobaltService(serviceName);
     if (service == null) {
       Log.e(TAG, String.format("Service not opened: %s", serviceName));
       return null;
     }
     CobaltService.ResponseToClient response = service.receiveFromClient(data);
-    if (response.invalidState) {
+    if (response == null || response.invalidState) {
       Log.e(TAG, String.format("Service %s received invalid data, closing.", serviceName));
-      closeCobaltService(serviceName);
+      closeCobaltService(service.getNativeService());
       return null;
     }
     return response.data;
@@ -718,7 +957,7 @@ public class BaseStarboardBridge {
     long appStartDuration =
         (javaStopTimestamp - javaStartTimestamp) / mTimeNanosecondsPerMicrosecond;
 
-    long cppTimestamp = BaseStarboardBridgeJni.get().currentMonotonicTime();
+    long cppTimestamp = mNatives.currentMonotonicTime();
     mAppStartTimestamp = cppTimestamp - appStartDuration;
   }
 
