@@ -1,5 +1,0 @@
-bool b = sk_Caps.bugFreeDriver;
-
-/*%%*
-unknown capability flag 'bugFreeDriver'
-*%%*/
