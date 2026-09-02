@@ -822,7 +822,7 @@ void UserMediaProcessor::SetupAudioInput() {
         WTF::BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
                       WrapWeakPersistent(this), WrapPersistent(request)));
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else {
     if (!blink::IsAudioInputMediaType(audio_controls.stream_type)) {
       String failed_constraint_name = String(

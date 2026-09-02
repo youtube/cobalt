@@ -206,7 +206,7 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
     if (render_frame_host_ && !observing_auction_worklets_) {
       observing_auction_worklets_ = true;
       DebuggableAuctionWorkletTracker::GetInstance()->AddObserver(this);
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
     if (render_frame_host_ &&
         !shared_storage_worklet_devtools_manager_observation_.IsObserving()) {
@@ -234,7 +234,7 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       observing_shared_storage_worklets_ = false;
     }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   RendererAutoAttacherBase::UpdateAutoAttach(std::move(callback));
 }

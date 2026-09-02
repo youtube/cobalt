@@ -2097,7 +2097,7 @@ void SourceBuffer::AppendBufferInternal_Locked(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   TRACE_EVENT_NESTABLE_ASYNC_END0("media", "prepareAsyncAppend",
                                   TRACE_ID_LOCAL(this));

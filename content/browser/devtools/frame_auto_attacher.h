@@ -77,7 +77,7 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
   bool observing_auction_worklets_ = false;
   bool observing_shared_storage_worklets_ = false;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace content

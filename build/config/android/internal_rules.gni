@@ -155,7 +155,7 @@ template("write_build_config") {
   if (current_toolchain == default_toolchain) {
 =======
   if (current_toolchain == android_toolchain) {
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     # Ensure targets match naming patterns so that __assetres, __header, __host,
     # and __validate targets work properly.
     if (filter_exclude([ _type ], _java_resource_types) == []) {

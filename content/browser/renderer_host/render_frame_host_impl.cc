@@ -191,7 +191,7 @@
 #include "content/browser/webid/federated_auth_request_impl.h"
 #include "content/browser/webid/flags.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/websockets/websocket_connector_impl.h"
 #include "content/browser/webtransport/web_transport_connector_impl.h"
 #include "content/browser/webui/url_data_manager_backend.h"
@@ -14480,7 +14480,7 @@ void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FederatedAuthRequestImpl::Create(this, std::move(receiver));
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void RenderFrameHostImpl::BindRestrictedCookieManager(
