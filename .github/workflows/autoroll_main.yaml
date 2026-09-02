@@ -136,7 +136,7 @@ jobs:
             echo "To merge these changes, run the autoroll script:"
             echo ""
             echo '```bash'
-            echo "cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
+            echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY} python3 cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
             echo "  --source-branch ${SOURCE_BRANCH} \\"
             echo "  --target-branch ${TARGET_BRANCH}"
             echo '```'
