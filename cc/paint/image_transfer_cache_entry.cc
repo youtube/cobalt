@@ -1001,7 +1001,7 @@ bool ServiceImageTransferCacheEntry::DeserializeInProcess(
 
   // Perform color conversion (if no tone mapping is needed).
   if (payload->target_color_space && !is_tone_mapped) {
-    image_ = image_->makeColorSpace(gr_context, payload->target_color_space);
+    image_ = image_->makeColorSpace(nullptr, payload->target_color_space, {});
     if (payload->needs_mips && gr_context && image_ &&
         image_->isTextureBacked()) {
       image_ = SkImages::TextureFromImage(
