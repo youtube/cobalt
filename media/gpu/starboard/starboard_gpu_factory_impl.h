@@ -37,6 +37,10 @@ class StarboardGpuFactoryImpl : public StarboardGpuFactory {
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context,
       base::WaitableEvent* done_event) override;
+  void RunStandaloneFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) override;
   void RunCallbackOnGpu(base::OnceCallback<void()> callback,
                         base::WaitableEvent* done_event) override;
   void PostCallbackToGpu(base::OnceCallback<void()> callback) override;

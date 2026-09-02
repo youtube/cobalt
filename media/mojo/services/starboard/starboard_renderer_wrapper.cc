@@ -721,9 +721,18 @@ void StarboardRendererWrapper::GraphicsContextRunner(
     base::WaitableEvent done_event(
         base::WaitableEvent::ResetPolicy::MANUAL,
         base::WaitableEvent::InitialState::NOT_SIGNALED);
-    provider->gpu_factory_
-        .AsyncCall(&StarboardGpuFactory::RunSbDecodeTargetFunctionOnGpu)
-        .WithArgs(target_function, target_function_context, &done_event);
+    // In non decode-to-texture playbacks, post standalone functions
+    // (which manage their own EGL context) via RunStandaloneFunctionOnGpu to
+    // avoid dependency on CommandBufferStub.
+    if (!provider->overlay_plane_id_.is_empty()) {
+      provider->gpu_factory_
+          .AsyncCall(&StarboardGpuFactory::RunStandaloneFunctionOnGpu)
+          .WithArgs(target_function, target_function_context, &done_event);
+    } else {
+      provider->gpu_factory_
+          .AsyncCall(&StarboardGpuFactory::RunSbDecodeTargetFunctionOnGpu)
+          .WithArgs(target_function, target_function_context, &done_event);
+    }
     // Blocking is okay here to allow SbPlayer to post |target_function|
     // on gpu thread, and StarboardRenderer waits for the execution.
     base::ScopedAllowBaseSyncPrimitives allow_wait;

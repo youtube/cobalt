@@ -52,6 +52,10 @@ class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context,
       base::WaitableEvent* done_event) = 0;
+  virtual void RunStandaloneFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) = 0;
   virtual void RunCallbackOnGpu(base::OnceCallback<void()> callback,
                                 base::WaitableEvent* done_event) = 0;
   virtual void PostCallbackToGpu(base::OnceCallback<void()> callback) = 0;
