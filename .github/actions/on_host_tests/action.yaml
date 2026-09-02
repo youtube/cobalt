@@ -20,6 +20,10 @@ inputs:
     description: "The test type (gtest or junit)."
     required: false
     default: "gtest"
+  retry_all:
+    description: "Whether to retry all tests instead of analyzing previous results."
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -49,6 +53,7 @@ runs:
       with:
         test_results_key: ${{ inputs.test_results_key }}
         platform: ${{ matrix.platform }}
+        retry_all: ${{ inputs.retry_all }}
     - name: Prepare Test Execution
       id: prepare-test-execution
       shell: bash

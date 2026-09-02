@@ -22,6 +22,10 @@ inputs:
   test_attempts:
     description: "Number of attempts for the tests."
     default: ""
+  retry_all:
+    description: "Whether to retry all tests instead of analyzing previous results."
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -32,6 +36,7 @@ runs:
       with:
         test_results_key: ${{ inputs.test_results_key }}
         platform: ${{ matrix.platform }}
+        retry_all: ${{ inputs.retry_all }}
     - name: Install Requirements
       run: |
         pip3 install --require-hashes --no-deps -r "${GITHUB_WORKSPACE}/cobalt/tools/requirements.txt"

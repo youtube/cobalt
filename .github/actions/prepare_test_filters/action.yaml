@@ -7,18 +7,10 @@ inputs:
   platform:
     description: "The platform being tested."
     required: true
-  download_path:
-    description: "Directory to download test results to."
+  retry_all:
+    description: "Whether to retry all tests instead of analyzing previous results."
     required: false
-    default: "previous_results"
-  download_behavior:
-    description: "Download behavior: 'always', 'on_retry', or 'never'."
-    required: false
-    default: "on_retry"
-  allow_download_failure:
-    description: "Whether to allow download failures."
-    required: false
-    default: "true"
+    default: "false"
 
 outputs:
   filter_dir:
@@ -29,17 +21,17 @@ runs:
   using: "composite"
   steps:
     - name: Download Results
-      if: ${{ inputs.download_behavior == 'always' || (inputs.download_behavior == 'on_retry' && github.run_attempt > 1) }}
+      if: ${{ inputs.retry_all != 'true' && inputs.retry_all != true && github.run_attempt > 1 }}
       uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
-      continue-on-error: ${{ inputs.allow_download_failure == 'true' }}
+      continue-on-error: true
       with:
         pattern: ${{ inputs.test_results_key }}*
-        path: ${{ inputs.download_path }}
+        path: previous_results
     - name: Prepare Test Filters
       id: prepare-filters
       env:
         PLATFORM: ${{ inputs.platform }}
-        DOWNLOAD_PATH: ${{ inputs.download_path }}
+        RETRY_ALL: ${{ inputs.retry_all }}
       run: |
         # Prepare resolved filter directory.
         set -ex
@@ -49,9 +41,9 @@ runs:
 
         cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
 
-        # Overwrite with retry filters if they exist.
-        if [ -n "${DOWNLOAD_PATH}" ] && [ -d "${GITHUB_WORKSPACE}/${DOWNLOAD_PATH}" ]; then
-          find "${GITHUB_WORKSPACE}/${DOWNLOAD_PATH}" \
+        # Overwrite with retry filters if they exist and not retrying all tests.
+        if [ "${RETRY_ALL}" != "true" ] && [ -d "${GITHUB_WORKSPACE}/previous_results" ]; then
+          find "${GITHUB_WORKSPACE}/previous_results" \
             -type d -name "retry_filters" \
             -exec cp -r {}/. "${RESOLVED_FILTER_DIR}/" \; || true
         fi

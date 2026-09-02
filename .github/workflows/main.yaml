@@ -611,6 +611,7 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   e2e-test:
     needs: [initialize, build]
@@ -811,6 +812,7 @@ jobs:
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
           test_executables_json: ${{ steps.parse-host-targets.outputs.test_executables_json }}
           test_type: gtest
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       - name: Parse Test Target JSON (Host JUnit)
         id: parse-host-junit-targets
         uses: ./.github/actions/test_targets_json
@@ -827,6 +829,7 @@ jobs:
           num_gtest_shards: 1
           test_executables_json: ${{ steps.parse-host-junit-targets.outputs.test_executables_json }}
           test_type: junit
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
@@ -922,9 +925,7 @@ jobs:
         with:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           platform: ${{ matrix.platform }}
-          download_path: "results"
-          download_behavior: "always"
-          allow_download_failure: "false"
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       - name: Extract Test Target Name
         id: extract-target-name
         env:
@@ -948,6 +949,12 @@ jobs:
           fi
           echo "skipped=${skipped}" >> "${GITHUB_OUTPUT}"
         shell: bash
+      - name: Download Test Results
+        if: steps.filter.outputs.skipped != 'true'
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          path: results/
       - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
