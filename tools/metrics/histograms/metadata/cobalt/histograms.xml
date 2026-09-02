@@ -201,6 +201,7 @@ Always run the pretty print utility on this file after editing:
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
 <!-- TODO(b/537769651): Consider recording this metric for libcobalt.zst
      installations. -->
 
@@ -230,6 +231,7 @@ Always run the pretty print utility on this file after editing:
 <histogram name="Cobalt.LoaderApp.ElfLoadUnexplainedDuration" units="ms"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
 <!-- TODO(b/537769651): Consider recording this metric for libcobalt.zst
      installations. -->
 
@@ -369,6 +371,53 @@ Always run the pretty print utility on this file after editing:
     Records whether a splash screen resource was successfully retrieved from
     cache and indicates the reason when on error. This is recorded for every
     splash screen request handled by h5vcc scheme loader.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.IsNearCapacity" enum="Boolean"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether the Cobalt Persistent Memory Allocator (PMA) for stability
+    metrics is full or within 90% of capacity. Recorded at key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.PercentFull" units="%"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The percentage of capacity currently used in the Cobalt Persistent Memory
+    Allocator (PMA) for stability metrics (BrowserStabilityMetrics). Recorded at
+    key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.UsedKilobytes" units="KB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The number of kilobytes currently used in the Cobalt Persistent Memory
+    Allocator (PMA) for stability metrics (BrowserStabilityMetrics). Recorded at
+    key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records startup milestone markers reached during browser initialization and
+    initial navigation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.Time.NavigationDispatchToCommit" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration from DidStartNavigation to DidFinishNavigation
+    (commit) for the initial startup navigation in the primary main frame.
   </summary>
 </histogram>
 
@@ -710,6 +759,16 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram
+    name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint"
+    units="MB" expires_after="2027-08-13">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The peak resident set at the time of the highest private memory footprint.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"
     expires_after="never">
   <owner>tasunny@google.com</owner>
@@ -746,16 +805,6 @@ Always run the pretty print utility on this file after editing:
     are emitted.
   </summary>
 </histogram>
-
-<histogram name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint"
-    units="MB" expires_after="2027-08-13">
-  <owner>avvall@google.com</owner>
-  <owner>cobalt-dev@google.com</owner>
-  <summary>
-    The peak resident set at the time of the highest private memory footprint.
-  </summary>
-</histogram>
-
 
 </histograms>
 
