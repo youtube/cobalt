@@ -113,14 +113,16 @@ EOF
   # Build Cobalt.
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
 
-  # Extract test targets from JSON.
+  # Extract test targets from JSON for non-nightly (e.g. presubmit) builds.
   local json_targets=""
-  local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json"
-  if [[ -f "${test_targets_json}" ]]; then
-    # Extract test targets from the JSON file (list of dicts schema)
-    # and format them as a space-separated list of target names (after the colon).
-    json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e]; print(' '.join(t.split(':')[-1] for t in targets))")
-    GN_TARGET="${GN_TARGET:-} ${json_targets}"
+  if ! is_nightly_build; then
+    local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/${TARGET_PLATFORM}/test_targets.json"
+    if [[ -f "${test_targets_json}" ]]; then
+      # Extract test targets from the JSON file (list of dicts schema)
+      # and format them as a space-separated list of target names (after the colon).
+      json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e]; print(' '.join(t.split(':')[-1] for t in targets))")
+      GN_TARGET="${GN_TARGET:-} ${json_targets}"
+    fi
   fi
 
   autoninja -C "${out_dir}" ${GN_TARGET}
