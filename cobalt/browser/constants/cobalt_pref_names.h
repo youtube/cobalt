@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_LOADER_APP_METRICS_H_
-#define COBALT_BROWSER_LOADER_APP_METRICS_H_
-
-#include "base/functional/callback.h"
+#ifndef COBALT_BROWSER_CONSTANTS_COBALT_PREF_NAMES_H_
+#define COBALT_BROWSER_CONSTANTS_COBALT_PREF_NAMES_H_
 
 namespace cobalt {
-namespace browser {
 
-void RecordLoaderAppMetrics();
+// Filenames for persistent preference stores in the cache directory.
+constexpr char kExperimentConfigFilename[] = "Experiment Config";
+constexpr char kMetricsConfigFilename[] = "Metrics Config";
 
-using GetExtensionCallback = base::RepeatingCallback<const void*(const char*)>;
+// Variations preference keys.
+constexpr char kVariationsCrashStreak[] = "variations_crash_streak";
 
-// Injects a custom Starboard extension getter callback for testing.
-void SetGetExtensionForTesting(GetExtensionCallback get_extension_callback);
-
-}  // namespace browser
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_LOADER_APP_METRICS_H_
+#endif  // COBALT_BROWSER_CONSTANTS_COBALT_PREF_NAMES_H_
