@@ -246,11 +246,11 @@ jobs:
           name: tvos_${{ matrix.target }}_test_results
           path: results/*
 
-  validate-test-result:
+  validate-result:
     needs: [wait-for-kokoro-build, run-tests]
     if: always() && !cancelled() && needs.wait-for-kokoro-build.result == 'success'
     runs-on: ubuntu-latest
-    name: tvos_tests_passing
+    name: tvos_validation
     steps:
       - name: Check test results
         env:
