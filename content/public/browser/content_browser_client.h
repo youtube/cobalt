@@ -83,9 +83,6 @@
 #include "services/network/public/mojom/websocket.mojom-forward.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 #include "storage/browser/file_system/file_system_context.h"
-#if BUILDFLAG(IS_COBALT)
-#include "storage/browser/quota/quota_settings.h"
-#endif
 #include "third_party/blink/public/common/mediastream/media_devices.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom-forward.h"
@@ -117,6 +114,10 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "third_party/blink/public/mojom/installedapp/related_application.mojom-forward.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_COBALT)
+#include "storage/browser/quota/quota_settings.h"
+#endif
 
 namespace net {
 class SiteForCookies;
