@@ -9,7 +9,16 @@
 
 #include <jni.h>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_COBALT)
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 #include <concepts>
+#endif
+#else
+#include <concepts>
+#endif
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -17,16 +26,30 @@
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/logging.h"
 
+#if BUILDFLAG(IS_COBALT)
+#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
+#define JNI_ZERO_ENABLE_COMPAT_API 1
+#endif
+#else
 #if !defined(JNI_ZERO_ENABLE_COMPAT_API)
 #define JNI_ZERO_ENABLE_COMPAT_API 0
+#endif
 #endif
 
 namespace jni_zero {
 
 namespace internal {
+#if BUILDFLAG(IS_COBALT)
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
 concept IsJobject =
     std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
+#endif
+#else
+template <typename T>
+concept IsJobject =
+    std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
+#endif
 }
 
 // Creates a new local reference frame, in which at least a given number of
@@ -49,9 +72,17 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalFrame {
 };
 
 // Forward declare the generic java reference template class.
+#if BUILDFLAG(IS_COBALT)
+template <typename T = jobject>
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  requires internal::IsJobject<T>
+#endif
+class JavaRef;
+#else
 template <typename T = jobject>
   requires internal::IsJobject<T>
 class JavaRef;
+#endif
 
 // Template specialization of JavaRef, which acts as the base class for all
 // other JavaRef<> template types. This allows you to e.g. pass
@@ -135,9 +166,17 @@ class JavaObjectArrayReader;
 // Generic base class for ScopedJavaLocalRef and ScopedJavaGlobalRef. Useful
 // for allowing functions to accept a reference without having to mandate
 // whether it is a local or global type.
+#if BUILDFLAG(IS_COBALT)
+template <typename T>
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  requires internal::IsJobject<T>
+#endif
+class JavaRef : public JavaRef<jobject> {
+#else
 template <typename T>
   requires internal::IsJobject<T>
 class JavaRef : public JavaRef<jobject> {
+#endif
  public:
   constexpr JavaRef() {}
   constexpr JavaRef(std::nullptr_t) {}

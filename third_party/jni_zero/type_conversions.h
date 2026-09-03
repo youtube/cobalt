@@ -12,6 +12,8 @@
 #include <optional>
 #include <type_traits>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "third_party/jni_zero/java_refs.h"
 
 #define JNI_ZERO_ENABLE_TYPE_CONVERSIONS 1
@@ -27,7 +29,56 @@ namespace jni_zero {
   "_jni.h one."
 
 namespace internal {
+#if BUILDFLAG(IS_COBALT)
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+template <typename T>
+concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
+
+template <typename T>
+concept HasReserve = requires(T t) { t.reserve(0); };
+
+template <typename T>
+concept HasPushBack = requires(T t, T::value_type v) { t.push_back(v); };
+
+template <typename T>
+concept HasInsert = requires(T t, T::value_type v) { t.insert(v); };
+
+template <typename T>
+concept IsMap = requires(T t) {
+  typename T::key_type;
+  typename T::mapped_type;
+};
+
+template <typename T>
+concept IsContainer = requires(T t) {
+  requires !IsMap<T>;
+  typename T::value_type;
+  t.begin();
+  t.end();
+  t.size();
+};
+
+template <typename T>
+concept IsObjectContainer =
+    IsContainer<T> && !std::is_arithmetic_v<typename T::value_type>;
+
+template <typename T>
+concept IsOptional = !std::is_arithmetic_v<T> &&
+                     std::same_as<T, std::optional<typename T::value_type>>;
+
+template <typename T>
+concept IsPrimitive = std::is_arithmetic<T>::value;
+
+template <typename T>
+concept HasSpecificSpecialization = requires(T t) {
+  requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
+               IsPrimitive<T> || IsJavaRef<T>;
+};
+#else
+template <typename T>
+inline constexpr bool IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
+#endif
+#else
 template <typename T>
 concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
 
@@ -131,6 +182,8 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T obj) {
 }
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
   requires(internal::IsJavaRef<T>)
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
@@ -138,6 +191,22 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
   // for catching coding errors?
   static_assert(sizeof(T) == 0, "Type does not require conversion.");
 }
+#else
+template <typename T,
+          std::enable_if_t<internal::IsJavaRef<T>, int> = 0>
+inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
+  static_assert(sizeof(T) == 0, "Type does not require conversion.");
+}
+#endif
+#else
+template <typename T>
+  requires(internal::IsJavaRef<T>)
+inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
+  // Might want to change this to an identity function, but maybe it's useful
+  // for catching coding errors?
+  static_assert(sizeof(T) == 0, "Type does not require conversion.");
+}
+#endif
 
 // Allow conversions using pointers by wrapping non-pointer conversions.
 // Cannot live in default_conversions.h because we want code to be able to
