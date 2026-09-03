@@ -32,8 +32,8 @@ if (is_ios) {
 if (prebuilt_cobalt_lib != "") {
   copy("copy_prebuilt") {
     sources = [ prebuilt_cobalt_lib ]
-    output_ext = string_split("libcobalt.")
-    outputs = [ "$root_out_dir/app/cobalt/lib/libcobalt.${output_ext[0]}" ]
+    _ext = get_path_info(prebuilt_cobalt_lib, "extension")
+    outputs = [ "$root_out_dir/app/cobalt/lib/libcobalt.${_ext}" ]
   }
 }
 

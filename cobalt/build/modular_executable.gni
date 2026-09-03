@@ -194,42 +194,57 @@ template("evergreen_final_target") {
       ]
     }
 
-    copy("copy_${original_target_name}_uncompressed_lib") {
-      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-      sources = [ "$root_out_dir/${lib_name}.so" ]
-      outputs =
-          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.so" ]
-      deps = [ ":${original_target_name}" ]
+    if (original_target_name != "cobalt" || prebuilt_cobalt_lib == "") {
+      copy("copy_${original_target_name}_uncompressed_lib") {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+        sources = [ "$root_out_dir/${lib_name}.so" ]
+        outputs =
+            [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.so" ]
+        deps = [ ":${original_target_name}" ]
+      }
+
+      compiled_action("copy_${original_target_name}_lib") {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+
+        tool = "//starboard/tools/lz4_compress"
+        inputs = [ "$root_out_dir/${lib_name}.so" ]
+        outputs =
+            [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.lz4" ]
+        args = rebase_path(inputs, root_out_dir) +
+               rebase_path(outputs, root_out_dir)
+        deps = [ ":${original_target_name}" ]
+        data_deps = deps  # Needed for the .runtime_deps file.
+      }
+
+      compiled_action("copy_${original_target_name}_zstd_lib") {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+
+        tool = "//starboard/tools/zstd_compress"
+        inputs = [ "$root_out_dir/${lib_name}.so" ]
+        outputs =
+            [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.zst" ]
+        args = rebase_path(inputs, root_out_dir) +
+               rebase_path(outputs, root_out_dir)
+        deps = [ ":${original_target_name}" ]
+        data_deps = deps  # Needed for the .runtime_deps file.
+      }
     }
 
-    compiled_action("copy_${original_target_name}_lib") {
-      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-
-      tool = "//starboard/tools/lz4_compress"
-      inputs = [ "$root_out_dir/${lib_name}.so" ]
-      outputs =
-          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.lz4" ]
-      args =
-          rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
-      deps = [ ":${original_target_name}" ]
-      data_deps = deps  # Needed for the .runtime_deps file.
-    }
-
-    compiled_action("copy_${original_target_name}_zstd_lib") {
-      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-
-      tool = "//starboard/tools/zstd_compress"
-      inputs = [ "$root_out_dir/${lib_name}.so" ]
-      outputs =
-          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.zst" ]
-      args =
-          rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
-      deps = [ ":${original_target_name}" ]
-      data_deps = deps  # Needed for the .runtime_deps file.
-    }
-
-    shared_library(original_target_name) {
-      forward_variables_from(invoker, "*", [ "lib_name" ])
+    if (original_target_name == "cobalt" && prebuilt_cobalt_lib != "") {
+      not_needed(invoker,
+                 "*",
+                 [
+                   "lib_name",
+                   "testonly",
+                   "visibility",
+                 ])
+      group(original_target_name) {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      }
+    } else {
+      shared_library(original_target_name) {
+        forward_variables_from(invoker, "*", [ "lib_name" ])
+      }
     }
   }
 }
@@ -251,9 +266,21 @@ template("modular_executable") {
   }
 
   if (is_android) {
-    target("executable", _name) {
-      forward_variables_from(invoker, "*")
-      not_needed("*")
+    if (prebuilt_cobalt_lib != "" && _name == "cobalt") {
+      not_needed(invoker,
+                 "*",
+                 [
+                   "testonly",
+                   "visibility",
+                 ])
+      group(_name) {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      }
+    } else {
+      target("executable", _name) {
+        forward_variables_from(invoker, "*")
+        not_needed("*")
+      }
     }
     modular_apk("${_name}_apk") {
       forward_variables_from(invoker, [ "testonly" ])

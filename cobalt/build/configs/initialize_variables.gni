@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Get the path to the starboard implementation and include its GN
-# configuration.
+import("//cobalt/prebuilt.gni")
 
 declare_args() {
   # Temporary gn arg for work on base/net update.

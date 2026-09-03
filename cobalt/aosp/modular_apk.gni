@@ -14,6 +14,7 @@
 
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//cobalt/prebuilt.gni")
 import("//starboard/content/fonts/variables.gni")
 import("//starboard/content/ssl/certs.gni")
 
@@ -32,8 +33,15 @@ template("modular_apk") {
     forward_variables_from(invoker, [ "testonly" ])
     disable_compression = true
 
-    renaming_sources = [ "$root_build_dir/app/${_name}/lib/${_lib_name}.lz4" ]
-    renaming_destinations = [ "app/cobalt/lib/${_lib_name}.lz4" ]
+    if (_name == "cobalt" && prebuilt_cobalt_lib != "") {
+      _ext = get_path_info(prebuilt_cobalt_lib, "extension")
+      renaming_sources =
+          [ "$root_build_dir/app/${_name}/lib/${_lib_name}.${_ext}" ]
+      renaming_destinations = [ "app/cobalt/lib/${_lib_name}.${_ext}" ]
+    } else {
+      renaming_sources = [ "$root_build_dir/app/${_name}/lib/${_lib_name}.lz4" ]
+      renaming_destinations = [ "app/cobalt/lib/${_lib_name}.lz4" ]
+    }
 
     # Cobalt Evergreen uses the empty font package.
     renaming_sources +=
@@ -51,10 +59,15 @@ template("modular_apk") {
 
     deps = [
       ":copy_${_name}_empty_fonts($default_toolchain)",
-      ":copy_${_name}_lib($default_toolchain)",
       "//starboard/content/fonts:copy_fonts($default_toolchain)",
       "//starboard/content/fonts:fonts_xml($default_toolchain)",
     ]
+
+    if (_name == "cobalt" && prebuilt_cobalt_lib != "") {
+      deps += [ "//cobalt:copy_prebuilt($default_toolchain)" ]
+    } else {
+      deps += [ ":copy_${_name}_lib($default_toolchain)" ]
+    }
 
     foreach(_cert, network_certs) {
       renaming_sources += [ _cert ]
