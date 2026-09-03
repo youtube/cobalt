@@ -593,6 +593,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, pause_using_audio_track_state)
           << "pause_using_audio_track_state is set to true.";
 
+      AudioOutputManager::SetSeamlessAudioSwitching(
+          experimental_features.GetBool(kMediaSeamlessAudioSwitching));
+
       const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
           [enable_flush_during_seek, force_platform_opus_decoder, job_queue](
