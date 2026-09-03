@@ -18,15 +18,13 @@ import zip_helpers
 class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # Ex. 'BASE_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
   # or 'BASE_FEATURE(ConstantName, ...)'
-  # or 'STARBOARD_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
-  # or 'STARBOARD_FEATURE(ConstantName, ...)'
   # would parse as:
   #   ExtractConstantName() -> 'ConstantName'
   #   ExtractValue() -> '"StringNameOfTheFeature"' or '"ConstantName"'
   # For 3-arg macro: BASE_FEATURE(kMyFeature, "MyFeature", ...)
-  _FEATURE_RE_3_ARGS = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(k([^,]+),')
+  _FEATURE_RE_3_ARGS = re.compile(r'BASE_FEATURE\(k([^,]+),')
   # For 2-arg macro: BASE_FEATURE(MyFeature, ...)
-  _FEATURE_RE_2_ARGS = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(([^,]+),')
+  _FEATURE_RE_2_ARGS = re.compile(r'BASE_FEATURE\(([^,]+),')
   _VALUE_RE = re.compile(r'\s*("(?:\\"|[^"])*")\s*,')
 
   def ExtractConstantName(self, line):

@@ -23,7 +23,6 @@
 #include "services/tracing/public/cpp/perfetto/perfetto_traced_process.h"
 #include "services/tracing/public/cpp/perfetto/producer_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "third_party/perfetto/protos/perfetto/trace/memory_graph.pbzero.h"
 #include "third_party/perfetto/protos/perfetto/trace/profiling/smaps.pbzero.h"
 #include "third_party/perfetto/protos/perfetto/trace/ps/process_stats.pbzero.h"
@@ -132,19 +131,6 @@ memory_instrumentation::mojom::OSMemDump GetFakeOSMemDump(
     uint32_t resident_set_kb,
     uint32_t private_footprint_kb,
     uint32_t shared_footprint_kb) {
-#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-  // In Cobalt, mojom::OSMemDump has conditional, Cobalt-specific fields
-  // (e.g. libchrobalt_pss_kb) that change the parameterized constructor signature
-  // depending on build flags. We use the default constructor and set only the
-  // relevant fields to remain robust against future Mojom changes.
-  memory_instrumentation::mojom::OSMemDump os_dump;
-  os_dump.resident_set_kb = resident_set_kb;
-  os_dump.peak_resident_set_kb = resident_set_kb;
-  os_dump.is_peak_rss_resettable = true;
-  os_dump.private_footprint_kb = private_footprint_kb;
-  os_dump.shared_footprint_kb = shared_footprint_kb;
-  return os_dump;
-#else
   return memory_instrumentation::mojom::OSMemDump(
       resident_set_kb, /*peak_resident_set_kb=*/resident_set_kb,
       /*is_peak_rss_resettable=*/true, private_footprint_kb, shared_footprint_kb
@@ -153,7 +139,6 @@ memory_instrumentation::mojom::OSMemDump GetFakeOSMemDump(
       0, 0, 0, 0
 #endif
   );
-#endif
 }
 
 // crbug.com/1242040: flaky on linux, chromeos

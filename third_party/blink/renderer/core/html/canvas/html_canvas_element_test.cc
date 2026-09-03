@@ -331,7 +331,6 @@ class HTMLCanvasElementWithTracingTest : public RenderingTest {
   base::test::TracingEnvironment tracing_environment_;
 };
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 class HTMLCanvasElementWithTracingSyncTest
     : public HTMLCanvasElementWithTracingTest,
       public testing::WithParamInterface<const char*> {};
@@ -523,6 +522,5 @@ TEST_P(HTMLCanvasElementWithTracingAsyncTest,
                                                      StartsWith("data:"))));
   }
 }
-#endif
 
 }  // namespace blink
