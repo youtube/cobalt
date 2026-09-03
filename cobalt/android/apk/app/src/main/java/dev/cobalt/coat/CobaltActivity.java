@@ -279,30 +279,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     StartupGuard.getInstance().setStartupMilestone(8);
     // TODO(b/377025559): Bring back WebTests launch capability
-<<<<<<< HEAD
-    BrowserStartupController.getInstance()
-        .startBrowserProcessesAsync(
-            LibraryProcessType.PROCESS_BROWSER,
-            false, // Do not start a separate GPU process
-            // TODO(b/377025565): Figure out what this means
-            false, // Do not start in "minimal" or paused mode
-            /* singleProcess= */ true, // Cobalt always runs in single-process mode
-            /* scheduleFlushStartupTasks= */ false,
-            new BrowserStartupController.StartupCallback() {
-              @Override
-              public void onSuccess() {
-                // NOTE: This log message is hard-coded in smoke tests to detect browser startup
-                // success.
-                // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
-                Log.i(TAG, "Browser process init succeeded");
-=======
     if (useStarboardLifeCycle()) {
       AppEventBridge.handleStartEvent(
           getStarboardBridge().getArgs(), mStartDeepLink, mTimeInNanoseconds / 1000L);
       // NOTE: This log message is hard-coded in smoke tests to detect browser startup success.
       // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
       Log.i(TAG, "Browser process init succeeded");
->>>>>>> 737ddaa9d0 (android: Migrate Android lifecycle handling to AppEventDelegate (#11162))
 
       finishInitialization(savedInstanceState);
     } else {
@@ -542,8 +524,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       try {
         matcher.setRuleList(new ArrayList<String>());
         Log.d(
-              TAG,
-              "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+            TAG,
+            "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
         javascriptInjector.addPossiblyUnsafeInterfaceToOrigins(
             javascriptAndroidObject,
             javascriptAndroidObject.getJavaScriptInterfaceName(),

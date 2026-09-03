@@ -25,13 +25,10 @@
 #include "base/android/input_hint_checker.h"
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
-<<<<<<< HEAD
 #include "base/android/yield_to_looper_checker.h"
-=======
 #if BUILDFLAG(IS_COBALT)
 #include "base/auto_reset.h"
 #endif
->>>>>>> 737ddaa9d0 (android: Migrate Android lifecycle handling to AppEventDelegate (#11162))
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/message_loop/io_watcher.h"

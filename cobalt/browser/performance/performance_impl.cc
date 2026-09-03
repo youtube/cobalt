@@ -16,12 +16,8 @@
 
 #include <utility>
 
-<<<<<<< HEAD
-#include "base/notimplemented.h"
-=======
 #include "base/command_line.h"
-#include "base/notreached.h"
->>>>>>> 737ddaa9d0 (android: Migrate Android lifecycle handling to AppEventDelegate (#11162))
+#include "base/notimplemented.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
