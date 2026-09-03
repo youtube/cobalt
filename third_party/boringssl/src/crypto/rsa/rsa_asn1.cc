@@ -210,59 +210,23 @@ int RSA_private_key_to_bytes(uint8_t **out_bytes, size_t *out_len,
 }
 
 RSA *d2i_RSAPublicKey(RSA **out, const uint8_t **inp, long len) {
-  if (len < 0) {
-    return NULL;
-  }
-  CBS cbs;
-  CBS_init(&cbs, *inp, (size_t)len);
-  RSA *ret = RSA_parse_public_key(&cbs);
-  if (ret == NULL) {
-    return NULL;
-  }
-  if (out != NULL) {
-    RSA_free(*out);
-    *out = ret;
-  }
-  *inp = CBS_data(&cbs);
-  return ret;
+  return bssl::D2IFromCBS(out, inp, len, RSA_parse_public_key);
 }
 
 int i2d_RSAPublicKey(const RSA *in, uint8_t **outp) {
-  CBB cbb;
-  if (!CBB_init(&cbb, 0) ||
-      !RSA_marshal_public_key(&cbb, in)) {
-    CBB_cleanup(&cbb);
-    return -1;
-  }
-  return CBB_finish_i2d(&cbb, outp);
+  return bssl::I2DFromCBB(
+      /*initial_capacity=*/256, outp,
+      [&](CBB *cbb) -> bool { return RSA_marshal_public_key(cbb, in); });
 }
 
 RSA *d2i_RSAPrivateKey(RSA **out, const uint8_t **inp, long len) {
-  if (len < 0) {
-    return NULL;
-  }
-  CBS cbs;
-  CBS_init(&cbs, *inp, (size_t)len);
-  RSA *ret = RSA_parse_private_key(&cbs);
-  if (ret == NULL) {
-    return NULL;
-  }
-  if (out != NULL) {
-    RSA_free(*out);
-    *out = ret;
-  }
-  *inp = CBS_data(&cbs);
-  return ret;
+  return bssl::D2IFromCBS(out, inp, len, RSA_parse_private_key);
 }
 
 int i2d_RSAPrivateKey(const RSA *in, uint8_t **outp) {
-  CBB cbb;
-  if (!CBB_init(&cbb, 0) ||
-      !RSA_marshal_private_key(&cbb, in)) {
-    CBB_cleanup(&cbb);
-    return -1;
-  }
-  return CBB_finish_i2d(&cbb, outp);
+  return bssl::I2DFromCBB(
+      /*initial_capacity=*/512, outp,
+      [&](CBB *cbb) -> bool { return RSA_marshal_private_key(cbb, in); });
 }
 
 RSA *RSAPublicKey_dup(const RSA *rsa) {

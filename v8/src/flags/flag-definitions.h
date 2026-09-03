@@ -1418,6 +1418,12 @@ DEFINE_INT(max_inlined_bytecode_size, 460,
 // and use {max_inlined_bytecode_size_small_total} instead.
 DEFINE_INT(max_inlined_bytecode_size_cumulative, 920,
            "maximum cumulative size of bytecode considered for inlining")
+// Turbolev (currently) is different enough from Turbofan wrt inlining that
+// it needs a separate budget. For example: TF inlines before peeling; whereas
+// TL inlines after peeling, duplicating calls inside the loop. Due to this,
+// we use double the TF budget by default.
+DEFINE_INT(max_turbolev_inlined_bytecode_size_cumulative, 1840,
+           "maximum cumulative size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_absolute, 4600,
            "maximum absolute size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_small_total, 30000,
@@ -1683,6 +1689,10 @@ DEFINE_BOOL(turboshaft_trace_load_elimination, false,
             "trace Turboshaft's late load elimination")
 DEFINE_BOOL(turboshaft_trace_if_else_to_switch, false,
             "trace Turboshaft's if-else to switch reducer")
+
+DEFINE_BOOL(trace_turbolev_graph_building, false,
+            "trace the translation from Maglev to Turboshaft in Turbolev")
+DEFINE_IMPLICATION(trace_turbolev_graph_building, turboshaft_trace_emitted)
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
@@ -2441,10 +2451,8 @@ DEFINE_BOOL(flush_bytecode, true,
 DEFINE_INT(bytecode_old_age, 6, "number of gcs before we flush code")
 DEFINE_BOOL(flush_code_based_on_time, false,
             "Use time-base code flushing instead of age.")
-DEFINE_IMPLICATION(flush_code_based_on_time, late_heap_limit_check)
 DEFINE_BOOL(flush_code_based_on_tab_visibility, false,
             "Flush code when tab goes into the background.")
-DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
 DEFINE_INT(bytecode_old_time, 30, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)
@@ -2543,8 +2551,6 @@ DEFINE_FLOAT(memory_balancer_c_value, 3e-10,
              "The smaller the more memory it uses.")
 DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
 DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
-DEFINE_BOOL(late_heap_limit_check, false,
-            "skips heap limit check for early GCs on allocation failure.")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -3046,9 +3052,9 @@ DEFINE_INT(regexp_tier_up_ticks, 1,
 DEFINE_BOOL(regexp_peephole_optimization, REGEXP_PEEPHOLE_OPTIMIZATION_BOOL,
             "enable peephole optimization for regexp bytecode")
 DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
-DEFINE_BOOL(regexp_assemble_from_bytecode, false,
-            "assemble regexp JIT-code from bytecode")
-DEFINE_IMPLICATION(regexp_assemble_from_bytecode, experimental)
+DEFINE_EXPERIMENTAL_FEATURE(regexp_assemble_from_bytecode,
+                            "assemble regexp JIT-code from bytecode")
+DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
 DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")

@@ -225,7 +225,7 @@ void Connection::ConnectionRequest::OnSent() {
 }
 
 int Connection::ConnectionRequest::resend_delay() {
-  return CONNECTION_RESPONSE_TIMEOUT;
+  return kConnectionResponseTimeout.ms();
 }
 
 Connection::Connection(const Environment& env,
@@ -422,7 +422,7 @@ void Connection::SetUnwritableTimeout(std::optional<TimeDelta> value) {
 
 int Connection::unwritable_min_checks() const {
   RTC_DCHECK_RUN_ON(network_thread_);
-  return unwritable_min_checks_.value_or(CONNECTION_WRITE_CONNECT_FAILURES);
+  return unwritable_min_checks_.value_or(kConnectionWriteConnectFailures);
 }
 
 void Connection::set_unwritable_min_checks(const std::optional<int>& value) {
@@ -798,7 +798,7 @@ void Connection::SendStunBindingResponse(const StunMessage* message) {
     response.AddAttribute(std::make_unique<StunUInt32Attribute>(
         STUN_ATTR_RETRANSMIT_COUNT, retransmit_attr->value()));
 
-    if (retransmit_attr->value() > CONNECTION_WRITE_CONNECT_FAILURES) {
+    if (retransmit_attr->value() > kConnectionWriteConnectFailures) {
       RTC_LOG(LS_INFO)
           << ToString()
           << ": Received a remote ping with high retransmit count: "

@@ -42,9 +42,11 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -54,6 +56,7 @@
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_controllee_request_handler.h"
 #include "content/browser/service_worker/service_worker_fetch_dispatcher.h"
+#include "content/browser/service_worker/service_worker_loader_helpers.h"
 #include "content/browser/service_worker/service_worker_registration.h"
 #include "content/browser/service_worker/service_worker_test_utils.h"
 #include "content/browser/service_worker/service_worker_version.h"
@@ -95,6 +98,7 @@
 #include "content/public/test/url_loader_interceptor.h"
 #include "content/shell/browser/shell.h"
 #include "content/shell/browser/shell_browser_context.h"
+#include "content/shell/common/shell_switches.h"
 #include "content/test/content_browser_test_utils_internal.h"
 #include "media/media_buildflags.h"
 #include "net/base/features.h"
@@ -7612,7 +7616,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // Test class for synthetic response (crbug.com/352578800) browsertest.
 class ServiceWorkerSyntheticResponseBrowserTest
-    : public ServiceWorkerBrowserTest {
+    : public ServiceWorkerBrowserTest,
+      public ::testing::WithParamInterface<bool> {
  public:
   static constexpr char kHostname[] = "synthetic-response.test";
   static constexpr char kTargetPath[] =
@@ -7640,6 +7645,7 @@ class ServiceWorkerSyntheticResponseBrowserTest
     ASSERT_TRUE(https_server_->InitializeAndListen());
     https_server_->StartAcceptingConnections();
     ServiceWorkerBrowserTest::SetUpOnMainThread();
+    ServiceWorkerSyntheticResponseManager::SetDryRunMode(IsDryRunMode());
   }
 
   RenderFrameHost* GetPrimaryMainFrame() {
@@ -7677,6 +7683,7 @@ class ServiceWorkerSyntheticResponseBrowserTest
     mock_content_browser_client = std::make_unique<MockContentBrowserClient>();
     mock_content_browser_client->set_synthetic_response_enabled(true);
   }
+  bool IsDryRunMode() { return GetParam(); }
 
   std::unique_ptr<MockContentBrowserClient> mock_content_browser_client;
 
@@ -7756,7 +7763,11 @@ class ServiceWorkerSyntheticResponseBrowserTest
   base::HistogramTester histogram_tester_;
 };
 
-IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
+INSTANTIATE_TEST_SUITE_P(All,
+                         ServiceWorkerSyntheticResponseBrowserTest,
+                         testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                        FakeRegistration) {
   GURL::Replacements replacements;
   replacements.ClearQuery();
@@ -7791,7 +7802,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
             blink::ServiceWorkerStatusCode::kErrorNotFound);
 }
 
-IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
+IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                        MatchedPageIsServiceWorkerControlled) {
   SetUpMockContentBrowserClient();
   // Navigated URL matched with the URL in the allowlist is controlled by
@@ -7804,7 +7815,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
   EXPECT_EQ("[SyntheticResponse] Response from the network", GetInnerText());
 }
 
-IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
+IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                        ResponseHeaderIsStored) {
   SetUpMockContentBrowserClient();
   // Navigate and store the response header.
@@ -7823,8 +7834,10 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
       static_cast<int>(ServiceWorkerMetrics::SyntheticResponseEligibility::
                            kNotEligibleByNoHeaderStored),
       1);
+  // If dry run mode, `IsHeaderStored` is not recorded.
   histogram_tester().ExpectBucketCount(
-      "ServiceWorker.SyntheticResponse.IsHeaderStored", true, 1);
+      "ServiceWorker.SyntheticResponse.IsHeaderStored", true,
+      IsDryRunMode() ? 0 : 1);
 
   // The second navigation. The browser should have stored the response header
   // from the previous navigation, and receive the response header locally.
@@ -7845,7 +7858,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
       1);
 }
 
-IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
+IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                        InlineScriptIsNotAllowedUntilMetaCSPScriptSrc) {
   SetUpMockContentBrowserClient();
   // Navigate and store the response header.
@@ -7875,7 +7888,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
                          "window.is_inline_script_executed"));
 }
 
-IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
+IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                        HeaderMismatch) {
   SetUpMockContentBrowserClient();
   // Navigate and store the response header.
@@ -7899,7 +7912,8 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
           kHostname,
           base::StrCat(
               {kTargetPath, "foo&echo=bar&server_slow&header_mismatch"})),
-      /*number_of_navigations=*/2, /*ignore_uncommitted_navigations=*/false);
+      /*number_of_navigations=*/IsDryRunMode() ? 1 : 2,
+      /*ignore_uncommitted_navigations=*/false);
   EXPECT_EQ("[SyntheticResponse] bar", GetInnerText());
   // After the reload, synthetic response is not enabled. `responseStart` is
   // 2000ms due to the server delay.
@@ -7915,7 +7929,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
       0);
 }
 
-IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
+IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                        HeaderMismatch_DuplicatedHeader) {
   SetUpMockContentBrowserClient();
   // Navigate and store the response header.
@@ -7939,7 +7953,8 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
                              base::StrCat({kTargetPath,
                                            "foo&echo=bar&server_slow&header_"
                                            "mismatch_with_duplicated_header"})),
-      /*number_of_navigations=*/2, /*ignore_uncommitted_navigations=*/false);
+      /*number_of_navigations=*/IsDryRunMode() ? 1 : 2,
+      /*ignore_uncommitted_navigations=*/false);
   EXPECT_EQ("[SyntheticResponse] bar", GetInnerText());
   // After the reload, synthetic response is not enabled. `responseStart` is
   // 2000ms due to the server delay.
@@ -7948,7 +7963,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
                      "responseStart) >= 2000"));
 }
 
-IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
+IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                        HeaderMismatch_IgnoredHeader) {
   SetUpMockContentBrowserClient();
   // Navigate and store the response header.
@@ -7979,6 +7994,136 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
   EXPECT_TRUE(ExecJs(shell()->web_contents()->GetPrimaryMainFrame(),
                      "Math.ceil(performance.getEntriesByType('navigation')[0]."
                      "responseStart) < 2000"));
+}
+
+class CanvasNoiseTestContentBrowserClient
+    : public ContentBrowserTestContentBrowserClient {
+ public:
+  explicit CanvasNoiseTestContentBrowserClient() = default;
+  ~CanvasNoiseTestContentBrowserClient() override = default;
+
+ private:
+  bool ShouldEnableCanvasNoise(content::BrowserContext* browser_context,
+                               const GURL& origin) override {
+    return enabled_;
+  }
+
+  bool enabled_ = true;
+};
+
+class ServiceWorkerCanvasNoiseTokenBrowserTest
+    : public ServiceWorkerBrowserTest {
+ public:
+  ServiceWorkerCanvasNoiseTokenBrowserTest() = default;
+
+  void SetUpOnMainThread() override {
+    ServiceWorkerBrowserTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    embedded_test_server()->StartAcceptingConnections();
+
+    content_browser_client_ =
+        std::make_unique<CanvasNoiseTestContentBrowserClient>();
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ServiceWorkerBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(switches::kExposeInternalsForTesting);
+  }
+
+  WebContents* web_contents() const { return shell()->web_contents(); }
+
+  // This can change depending on the origin of the currently navigated site.
+  // See https://crbug.com/442616874 on why we don't use the CanvasNoiseToken
+  // from the Page.
+  std::optional<uint64_t> GetCurrentPageToken() {
+    return GetCanvasNoiseTokenForPage(
+        web_contents()->GetPrimaryMainFrame()->GetPage());
+  }
+
+  // Gets the canvas noise token from the Service Worker in the renderer.
+  std::optional<uint64_t> GetNoiseHashesFromServiceWorker(
+      RenderFrameHost* rfh) {
+    EvalJsResult js_result = EvalJs(rfh, R"(
+	new Promise(resolve => {
+	    navigator.serviceWorker.ready.then((reg) => reg.active.postMessage({}));
+	    navigator.serviceWorker.addEventListener('message', (event) => {
+	      resolve(event.data);
+	})});
+      )");
+
+    CHECK(js_result.is_ok());
+    if (js_result == base::Value()) {
+      return std::nullopt;
+    }
+    uint64_t token;
+    CHECK(base::StringToUint64(js_result.ExtractString(), &token));
+    return token;
+  }
+
+  scoped_refptr<ServiceWorkerVersion> RegisterCanvasServiceWorkerVersion(
+      GURL page_url) {
+    WorkerRunningStatusObserver observer(public_context());
+    EXPECT_TRUE(NavigateToURL(shell(), page_url));
+    EXPECT_EQ("DONE", EvalJs(shell(), "register('canvas_noise_worker.js');"));
+    observer.WaitUntilRunning();
+    return wrapper()->GetLiveVersion(observer.version_id());
+  }
+
+ protected:
+  std::unique_ptr<CanvasNoiseTestContentBrowserClient> content_browser_client_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      fingerprinting_protection_interventions::features::kCanvasNoise};
+};
+
+IN_PROC_BROWSER_TEST_F(ServiceWorkerCanvasNoiseTokenBrowserTest,
+                       SameOriginServiceWorkerHasSameCanvasNoiseToken) {
+  const GURL page_url = embedded_test_server()->GetURL(
+      "/service_worker/create_service_worker.html");
+  scoped_refptr<ServiceWorkerVersion> version =
+      RegisterCanvasServiceWorkerVersion(page_url);
+
+  // TODO(https://crbug.com/442616874): change to EXPECT_EQ once we key canvas
+  // noise tokens with StorageKey.
+  EXPECT_NE(GetCurrentPageToken(),
+            version->embedded_worker()->GetOrCreateCanvasNoiseToken());
+
+  std::optional<uint64_t> worker_token =
+      GetNoiseHashesFromServiceWorker(web_contents()->GetPrimaryMainFrame());
+  EXPECT_EQ(worker_token,
+            version->embedded_worker()->GetOrCreateCanvasNoiseToken());
+}
+
+IN_PROC_BROWSER_TEST_F(ServiceWorkerCanvasNoiseTokenBrowserTest,
+                       CrossOriginServiceWorkerHasSameCanvasNoiseToken) {
+  ASSERT_TRUE(embedded_https_test_server().Start());
+  const GURL iframe_url = embedded_https_test_server().GetURL(
+      "b.com", "/service_worker/create_service_worker.html");
+
+  // Now create a cross origin subframe that spawns a service worker.
+  ASSERT_TRUE(NavigateToURL(
+      shell(), embedded_https_test_server().GetURL(
+                   "a.com", "/service_worker/one_subframe.html?subframe_url=" +
+                                iframe_url.spec())));
+  auto* subframe_rfh =
+      static_cast<RenderFrameHostImpl*>(ChildFrameAt(shell(), 0));
+  ASSERT_EQ(subframe_rfh->GetLastCommittedURL(), iframe_url);
+  EXPECT_EQ("DONE",
+            EvalJs(subframe_rfh, "register('canvas_noise_worker.js');"));
+  std::optional<uint64_t> subframe_worker_token =
+      GetNoiseHashesFromServiceWorker(subframe_rfh);
+
+  std::vector<ServiceWorkerVersionInfo> versions =
+      wrapper()->GetAllLiveVersionInfo();
+  EXPECT_EQ(versions.size(), 1);
+  scoped_refptr<ServiceWorkerVersion> version =
+      wrapper()->GetLiveVersion(versions[0].version_id);
+
+  EXPECT_EQ(subframe_worker_token,
+            version->embedded_worker()->GetOrCreateCanvasNoiseToken());
+
+  // TODO(https://crbug.com/442616874): change to EXPECT_EQ once we key canvas
+  // noise tokens with StorageKey.
+  EXPECT_NE(GetCurrentPageToken(), subframe_worker_token);
 }
 
 }  // namespace content

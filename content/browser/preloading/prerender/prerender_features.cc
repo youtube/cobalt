@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/browser/preloading/prerender/prerender_features.h"
 
 #include "content/public/browser/content_browser_client.h"
@@ -104,5 +106,7 @@ bool UsePrefetchPrerenderIntegration() {
              ->browser()
              ->UsePrefetchPrerenderIntegration();
 }
+
+BASE_FEATURE(Prerender2CrossOriginIframes, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features

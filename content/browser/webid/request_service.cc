@@ -49,6 +49,7 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/page_visibility_state.h"
+#include "mojo/public/cpp/base/values_mojom_traits.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/blink/public/common/webid/login_status_account.h"
 #include "third_party/blink/public/common/webid/login_status_options.h"
@@ -300,7 +301,7 @@ void RequestService::RequestToken(
         base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
             FROM_HERE,
             base::BindOnce(std::move(callback), RequestTokenStatus::kError,
-                           std::nullopt, "",
+                           std::nullopt, std::nullopt,
                            /*error=*/nullptr,
                            /*is_auto_selected=*/false),
             delay);
@@ -315,11 +316,12 @@ void RequestService::RequestToken(
     // the lifecycle state for further investigation.
     RenderFrameHostImpl* host_impl =
         static_cast<RenderFrameHostImpl*>(&render_frame_host());
-    RecordLifecycleStateFailureReason(
 
+    RecordLifecycleStateFailureReason(
         LifecycleStateImplLifecycleStateImplToFedCmLifecycleStateFailureReason(
             host_impl->lifecycle_state()));
-    std::move(callback).Run(RequestTokenStatus::kError, std::nullopt, "",
+    std::move(callback).Run(RequestTokenStatus::kError, std::nullopt,
+                            std::nullopt,
                             /*error=*/nullptr,
                             /*is_auto_selected=*/false);
     return;
@@ -343,7 +345,7 @@ void RequestService::RequestToken(
       HandlePendingRequestAndCancelNewRequest(
           old_idp_order, idp_get_params_ptrs, requirement)) {
     std::move(callback).Run(RequestTokenStatus::kErrorTooManyRequests,
-                            std::nullopt, "", /*error=*/nullptr,
+                            std::nullopt, std::nullopt, /*error=*/nullptr,
                             /*is_auto_selected=*/false);
     return;
   }
@@ -364,14 +366,32 @@ void RequestService::RequestToken(
     fedcm_metrics_ = CreateFedCmMetrics();
   }
   std::set<GURL> idps_with_nonce;
+  std::set<GURL> idps_with_nonce_outside_params_only;
   for (const auto& idp_get_params_ptr : idp_get_params_ptrs) {
     for (const auto& idp_ptr : idp_get_params_ptr->providers) {
       if (!idp_ptr->nonce.empty()) {
         idps_with_nonce.insert(idp_ptr->config->config_url);
+
+        bool has_nonce_in_params = false;
+        if (idp_ptr->params_json) {
+          std::optional<base::Value> params =
+              base::JSONReader::Read(*idp_ptr->params_json);
+          if (params && params->is_dict()) {
+            if (params->GetDict().contains("nonce")) {
+              has_nonce_in_params = true;
+            }
+          }
+        }
+        if (!has_nonce_in_params) {
+          idps_with_nonce_outside_params_only.insert(
+              idp_ptr->config->config_url);
+        }
       }
     }
   }
   fedcm_metrics_->RecordHasNonce(idps_with_nonce);
+  fedcm_metrics_->RecordHasNonceOutsideParamsOnly(
+      idps_with_nonce_outside_params_only);
 
   // TODO(crbug.com/40218857): handle active mode with multiple IdP.
   if (idp_get_params_ptrs[0]->mode == blink::mojom::RpMode::kActive) {
@@ -1673,8 +1693,8 @@ void RequestService::ShowErrorDialog(
 void RequestService::OnTokenResponseReceived(
     IdentityProviderRequestOptionsPtr idp,
     IdpNetworkRequestManager::FetchStatus status,
-    IdpNetworkRequestManager::TokenResult result) {
-  CHECK(result.token.empty() || !result.error);
+    IdpNetworkRequestManager::TokenResult&& result) {
+  CHECK(result.token.has_value() || result.error.has_value());
 
   verifying_dialog_result_ = identity_selection_type_ == kExplicit
                                  ? VerifyingDialogResult::kSuccessExplicit
@@ -1690,8 +1710,8 @@ void RequestService::OnTokenResponseReceived(
                            idp->config->config_url, status, result.error)
           : base::BindOnce(&RequestService::CompleteTokenRequest,
                            weak_ptr_factory_.GetWeakPtr(),
-                           idp->config->config_url, status, result.token,
-                           result.error,
+                           idp->config->config_url, status,
+                           std::move(result.token), result.error,
                            /*should_delay_callback=*/false);
 
   // When fetching id tokens we show a "Verify" sheet to users in case fetching
@@ -1737,7 +1757,7 @@ void RequestService::MarkUserAsSignedIn(const GURL& idp_config_url,
 void RequestService::CompleteTokenRequest(
     const GURL& idp_config_url,
     IdpNetworkRequestManager::FetchStatus status,
-    std::optional<std::string> token,
+    std::optional<base::Value> token,
     std::optional<TokenError> token_error,
     bool should_delay_callback) {
   DCHECK(!start_time_.is_null());
@@ -1781,13 +1801,21 @@ void RequestService::CompleteTokenRequest(
   DCHECK(provider);
 
   if (provider->format && *provider->format == blink::mojom::Format::kSdJwt) {
-    federated_sdjwt_handler_->ProcessSdJwt(token.value());
-    return;
+    if (token->is_string()) {
+      federated_sdjwt_handler_->ProcessSdJwt(token->GetString());
+      return;
+    } else {
+      CompleteRequestWithError(FederatedAuthRequestResult::kError,
+                               TokenStatus::kIdTokenInvalidResponse,
+                               /*should_delay_callback=*/false);
+      return;
+    }
   }
 
   CompleteRequest(FederatedAuthRequestResult::kSuccess,
                   TokenStatus::kSuccessUsingTokenInHttpResponse,
-                  /*token_error=*/std::nullopt, idp_config_url, token.value(),
+                  /*token_error=*/std::nullopt, idp_config_url,
+                  std::move(*token),
                   /*should_delay_callback=*/false);
 }
 
@@ -1797,7 +1825,7 @@ void RequestService::CompleteRequestWithError(
     bool should_delay_callback) {
   CompleteRequest(result, token_status, token_error_,
                   /*selected_idp_config_url=*/std::nullopt,
-                  /*token=*/"", should_delay_callback);
+                  /*token_data=*/std::nullopt, should_delay_callback);
 }
 
 void RequestService::CompleteRequest(
@@ -1805,9 +1833,10 @@ void RequestService::CompleteRequest(
     std::optional<RequestIdTokenStatus> token_status,
     std::optional<TokenError> token_error,
     const std::optional<GURL>& selected_idp_config_url,
-    const std::string& id_token,
+    std::optional<base::Value> token_data,
     bool should_delay_callback) {
-  DCHECK(result == FederatedAuthRequestResult::kSuccess || id_token.empty());
+  DCHECK(result == FederatedAuthRequestResult::kSuccess ||
+         !token_data.has_value());
 
   if (accounts_dialog_shown_time_.has_value()) {
     fedcm_metrics_->RecordAccountsDialogShownDuration(
@@ -1925,8 +1954,8 @@ void RequestService::CompleteRequest(
     RequestTokenStatus status =
         FederatedAuthRequestResultToRequestTokenStatus(result);
     std::move(auth_request_token_callback_)
-        .Run(status, selected_idp_config_url, id_token, std::move(error),
-             is_auto_selected);
+        .Run(status, selected_idp_config_url, std::move(token_data),
+             std::move(error), is_auto_selected);
     auth_request_token_callback_.Reset();
 
     TRACE_EVENT_END("content.fedcm", perfetto_track_);
@@ -2152,8 +2181,8 @@ bool RequestService::OnResolve(GURL idp_config_url,
 
   CompleteRequest(FederatedAuthRequestResult::kSuccess,
                   TokenStatus::kSuccessUsingIdentityProviderResolve,
-                  /*token_error=*/std::nullopt, idp_config_url, token,
-                  /*should_delay_callback=*/false);
+                  /*token_error=*/std::nullopt, idp_config_url,
+                  base::Value(token), /*should_delay_callback=*/false);
   // TODO(crbug.com/40262526): handle the corner cases where CompleteRequest
   // can't actually fulfill the request.
   return true;

@@ -21,7 +21,11 @@
 
 namespace webrtc {
 
-class MockSessionDescriptionInterface : public SessionDescriptionInterface {
+class [[deprecated(
+    "Use the SessionDescriptionInterface directly instead, including the "
+    "static Create() methods within the "
+    "interface.")]] MockSessionDescriptionInterface
+    : public SessionDescriptionInterface {
  public:
   MOCK_METHOD(std::unique_ptr<SessionDescriptionInterface>,
               Clone,
@@ -42,8 +46,6 @@ class MockSessionDescriptionInterface : public SessionDescriptionInterface {
               (const, override));
   MOCK_METHOD(bool, ToString, (std::string*), (const, override));
 };
-
-static_assert(!std::is_abstract_v<MockSessionDescriptionInterface>);
 
 }  // namespace webrtc
 

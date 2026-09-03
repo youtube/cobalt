@@ -197,7 +197,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   }
 
   void PruneAllPorts();
-  int check_receiving_interval() const;
+  TimeDelta check_receiving_interval() const;
   std::optional<NetworkRoute> network_route() const override;
 
   void RemoveConnection(Connection* connection);
@@ -364,7 +364,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // When pruning a port, move it from `ports_` to `pruned_ports_`.
   // Returns true if the port is found and removed from `ports_`.
   bool PrunePort(PortInterface* port);
-  void NotifyRoleConflict();
+  void NotifyRoleConflictInternal();
 
   void OnConnectionStateChange(Connection* connection);
   void OnReadPacket(Connection* connection, const ReceivedIpPacket& packet);
@@ -484,7 +484,8 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   std::unique_ptr<BasicRegatheringController> regathering_controller_
       RTC_GUARDED_BY(network_thread_);
   Timestamp last_ping_sent_ RTC_GUARDED_BY(network_thread_) = Timestamp::Zero();
-  int weak_ping_interval_ RTC_GUARDED_BY(network_thread_) = WEAK_PING_INTERVAL;
+  int weak_ping_interval_ RTC_GUARDED_BY(network_thread_) =
+      kWeakPingInterval.ms();
   // TODO(jonasolsson): Remove state_ and rename standardized_state_ once state_
   // is no longer used to compute the ICE connection state.
   IceTransportStateInternal state_ RTC_GUARDED_BY(network_thread_) =

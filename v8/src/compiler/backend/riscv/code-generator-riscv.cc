@@ -288,6 +288,36 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   IndirectPointerTag indirect_pointer_tag_;
 };
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+#ifdef V8_TARGET_ARCH_RISCV64
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
+#endif
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
   switch (condition) {
     case kEqual:
@@ -660,6 +690,7 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 }
 
 namespace {
+
 void AdjustStackPointerForTailCall(MacroAssembler* masm,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
@@ -781,8 +812,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
         DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
@@ -793,9 +823,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             i.InputRegister(0),
             i.InputInt64(instr->WasmSignatureHashInputIndex()));
       } else {
-        // TODO(thibaudm): Use a WasmCodePointer for
-        // kArchResumeWasmContinuation. Can this be merged with
-        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
@@ -852,37 +879,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
+      Register func = i.InputOrZeroRegister(0);
+      if (v8_flags.debug_code) {
+        // Check the function's context matches the context argument.
+        __ LoadTaggedField(kScratchReg,
+                           FieldMemOperand(func, JSFunction::kContextOffset));
+        __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
+                  Operand(kScratchReg));
+      }
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      if (instr->InputAt(0)->IsImmediate()) {
-        Constant constant = i.ToConstant(instr->InputAt(0));
-        Handle<JSFunction> function = Cast<JSFunction>(constant.ToHeapObject());
-        __ li(kJavaScriptCallTargetRegister, function);
-        if (function->shared()->HasBuiltinId()) {
-          Builtin builtin = function->shared()->builtin_id();
-          SBXCHECK_EQ(num_arguments,
-                      Builtins::GetFormalParameterCount(builtin));
-          __ CallBuiltin(builtin);
-        } else {
-          JSDispatchHandle dispatch_handle = function->dispatch_handle();
-          size_t expected =
-              IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-                  dispatch_handle);
-          SBXCHECK_GE(num_arguments, expected);
-          __ CallJSDispatchEntry(dispatch_handle, expected);
-        }
-      } else {
-        Register func = i.InputRegister(0);
-        if (v8_flags.debug_code) {
-          // Check the function's context matches the context argument.
-          UseScratchRegisterScope scope(masm());
-          Register temp = scope.Acquire();
-          __ LoadTaggedField(temp,
-                             FieldMemOperand(func, JSFunction::kContextOffset));
-          __ Assert(eq, AbortReason::kWrongFunctionContext, cp, Operand(temp));
-        }
-        __ CallJSFunction(func, num_arguments);
-      }
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -1088,6 +1095,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        Label done;
+        __ CompareTaggedAndBranch(&done, ne, value,
+                                  Operand(kClearedWeakHeapObjectLower32));
+        __ Abort(AbortReason::kOperandIsCleared);
+        __ bind(&done);
+      }
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      __ AddWord(kScratchReg, object, offset);
+      __ StoreTaggedField(value, MemOperand(kScratchReg, 0), trapper);
+      break;
+    }
     case kArchAtomicStoreWithWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
       MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
@@ -1117,6 +1150,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       UNREACHABLE();
 #endif
     }
+    case kArchAtomicStoreSkippedWriteBarrier: {
+#ifdef V8_TARGET_ARCH_RISCV64
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      __ AddWord(kScratchReg, object, offset);
+      __ AtomicStoreTaggedField(value, MemOperand(kScratchReg, 0), trapper);
+      break;
+#else
+      UNREACHABLE();
+#endif
+    }
     case kArchStoreIndirectWithWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
@@ -1134,6 +1187,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
+      break;
+#else
+      UNREACHABLE();
+#endif
+    }
+    case kArchStoreIndirectSkippedWriteBarrier: {
+#ifdef V8_TARGET_ARCH_RISCV64
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+
+#if DEBUG
+      IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
+      DCHECK(IsValidIndirectPointerTag(tag));
+#endif  // DEBUG
+
+      __ AddWord(kScratchReg, object, offset);
+      __ StoreIndirectPointerField(value, MemOperand(kScratchReg, 0), trapper);
       break;
 #else
       UNREACHABLE();
@@ -1346,6 +1417,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kRiscvClz32:
       __ Clz32(i.OutputRegister(), i.InputOrZeroRegister(0));
+      break;
+    case kRiscvSh1add:
+      __ sh1add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvSh2add:
+      __ sh2add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvSh3add:
+      __ sh3add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvClz64:

@@ -35,7 +35,6 @@
 #include "api/transport/network_control.h"
 #include "api/units/data_rate.h"
 #include "call/call_config.h"
-#include "call/rtp_transport_controller_send_factory.h"
 #include "media/base/codec.h"
 #include "media/base/media_engine.h"
 #include "p2p/base/basic_async_resolver_factory.h"
@@ -111,10 +110,6 @@ PeerConnectionFactory::PeerConnectionFactory(
       injected_network_controller_factory_(
           std::move(dependencies->network_controller_factory)),
       neteq_factory_(std::move(dependencies->neteq_factory)),
-      transport_controller_send_factory_(
-          (dependencies->transport_controller_send_factory)
-              ? std::move(dependencies->transport_controller_send_factory)
-              : std::make_unique<RtpTransportControllerSendFactory>()),
       decode_metronome_(std::move(dependencies->decode_metronome)),
       encode_metronome_(std::move(dependencies->encode_metronome)) {}
 
@@ -384,9 +379,6 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
   } else {
     RTC_LOG(LS_INFO) << "Using default network controller factory";
   }
-
-  call_config.rtp_transport_controller_send_factory =
-      transport_controller_send_factory_.get();
   call_config.decode_metronome = decode_metronome_.get();
   call_config.encode_metronome = encode_metronome_.get();
   call_config.pacer_burst_interval = configuration.pacer_burst_interval;

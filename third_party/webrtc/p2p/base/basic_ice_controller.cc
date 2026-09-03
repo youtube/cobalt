@@ -130,18 +130,17 @@ IceControllerInterface::PingResult BasicIceController::SelectConnectionToPing(
   bool need_more_pings_at_weak_interval =
       absl::c_any_of(connections_, [](const Connection* conn) {
         return conn->active() &&
-               conn->num_pings_sent() < MIN_PINGS_AT_WEAK_PING_INTERVAL;
+               conn->num_pings_sent() < kMinPingsAtWeakPingInterval;
       });
-  int ping_interval = (weak() || need_more_pings_at_weak_interval)
-                          ? weak_ping_interval()
-                          : strong_ping_interval();
+  TimeDelta ping_interval = (weak() || need_more_pings_at_weak_interval)
+                                ? weak_ping_interval()
+                                : strong_ping_interval();
 
   const Connection* conn = nullptr;
-  if (TimeMillis() >= last_ping_sent_ms + ping_interval) {
+  if (TimeMillis() >= last_ping_sent_ms + ping_interval.ms()) {
     conn = FindNextPingableConnection();
   }
-  PingResult res(conn, std::min(ping_interval, check_receiving_interval()));
-  return res;
+  return PingResult(conn, std::min(ping_interval, check_receiving_interval()));
 }
 
 void BasicIceController::MarkConnectionPinged(const Connection* conn) {
@@ -265,23 +264,23 @@ const Connection* BasicIceController::FindOldestConnectionNeedingTriggeredCheck(
 bool BasicIceController::WritableConnectionPastPingInterval(
     const Connection* conn,
     int64_t now) const {
-  int interval = CalculateActiveWritablePingInterval(conn, now);
-  return conn->last_ping_sent() + interval <= now;
+  TimeDelta interval = CalculateActiveWritablePingInterval(conn, now);
+  return conn->LastPingSent() + interval <= Timestamp::Millis(now);
 }
 
-int BasicIceController::CalculateActiveWritablePingInterval(
+TimeDelta BasicIceController::CalculateActiveWritablePingInterval(
     const Connection* conn,
     int64_t now) const {
   // Ping each connection at a higher rate at least
-  // MIN_PINGS_AT_WEAK_PING_INTERVAL times.
-  if (conn->num_pings_sent() < MIN_PINGS_AT_WEAK_PING_INTERVAL) {
+  // kMinPingsAtWeakPingInterval times.
+  if (conn->num_pings_sent() < kMinPingsAtWeakPingInterval) {
     return weak_ping_interval();
   }
 
-  int stable_interval =
+  TimeDelta stable_interval =
       config_.stable_writable_connection_ping_interval_or_default();
-  int weak_or_stablizing_interval = std::min(
-      stable_interval, WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL);
+  TimeDelta weak_or_stablizing_interval = std::min(
+      stable_interval, kWeakOrStabilizingWritableConnectionPingInterval);
   // If the channel is weak or the connection is not stable yet, use the
   // weak_or_stablizing_interval.
   return (!weak() && conn->stable(now)) ? stable_interval
@@ -327,8 +326,9 @@ bool BasicIceController::IsPingable(const Connection* conn, int64_t now) const {
   // or not, but backup connections are pinged at a slower rate.
   if (IsBackupConnection(conn)) {
     return conn->rtt_samples() == 0 ||
-           (now >= conn->last_ping_response_received() +
-                       config_.backup_connection_ping_interval_or_default());
+           (now >=
+            conn->last_ping_response_received() +
+                config_.backup_connection_ping_interval_or_default().ms());
   }
   // Don't ping inactive non-backup connections.
   if (!conn->active()) {
@@ -519,20 +519,20 @@ IceControllerInterface::SwitchResult BasicIceController::ShouldSwitchConnection(
 
   bool missed_receiving_unchanged_threshold = false;
   std::optional<int64_t> receiving_unchanged_threshold(
-      TimeMillis() - config_.receiving_switching_delay_or_default());
+      TimeMillis() - config_.receiving_switching_delay_or_default().ms());
   int cmp = CompareConnections(selected_connection_, new_connection,
                                receiving_unchanged_threshold,
                                &missed_receiving_unchanged_threshold);
 
   std::optional<IceRecheckEvent> recheck_event;
   if (missed_receiving_unchanged_threshold &&
-      config_.receiving_switching_delay_or_default()) {
+      config_.receiving_switching_delay_or_default() > TimeDelta::Zero()) {
     // If we do not switch to the connection because it missed the receiving
     // threshold, the new connection is in a better receiving state than the
     // currently selected connection. So we need to re-check whether it needs
     // to be switched at a later time.
     recheck_event.emplace(reason,
-                          config_.receiving_switching_delay_or_default());
+                          config_.receiving_switching_delay_or_default().ms());
   }
 
   if (cmp < 0) {

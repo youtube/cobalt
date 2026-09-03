@@ -138,8 +138,7 @@ AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
   return AllocateRawWithLightRetrySlowPath(Allocate, allocation);
 }
 
-void HeapAllocator::CollectGarbage(
-    AllocationType allocation, PerformHeapLimitCheck perform_heap_limit_check) {
+void HeapAllocator::CollectGarbage(AllocationType allocation) {
   if (IsSharedAllocationType(allocation)) {
     heap_->CollectGarbageShared(local_heap_,
                                 GarbageCollectionReason::kAllocationFailure);
@@ -148,7 +147,7 @@ void HeapAllocator::CollectGarbage(
     AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
     heap_->CollectGarbage(space_to_gc,
                           GarbageCollectionReason::kAllocationFailure,
-                          kNoGCCallbackFlags, perform_heap_limit_check);
+                          kNoGCCallbackFlags, PerformHeapLimitCheck::kNo);
   } else {
     // Request GC from main thread.
     heap_->CollectGarbageFromAnyThread(local_heap_);
@@ -467,7 +466,8 @@ bool HeapAllocator::IsMostRecentYoungAllocation(Address object_address) {
            object_address < new_space_allocator_->top();
   } else {
     // Otherwise the last young allocation has to be a large object.
-    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(last);
+    MemoryChunkMetadata* chunk =
+        MemoryChunkMetadata::FromAddress(heap_->isolate(), last);
     CHECK(chunk->is_large());
     CHECK_EQ(chunk->owner_identity(), NEW_LO_SPACE);
     // No allocation folding with large objects, so object_address has to match

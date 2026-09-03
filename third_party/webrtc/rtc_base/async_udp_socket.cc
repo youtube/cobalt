@@ -13,7 +13,10 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <utility>
 
+#include "absl/base/nullability.h"
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -28,6 +31,22 @@
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
+
+absl_nullable std::unique_ptr<AsyncUDPSocket> AsyncUDPSocket::Create(
+    const Environment& env,
+    const SocketAddress& bind_address,
+    SocketFactory& factory) {
+  std::unique_ptr<Socket> socket =
+      factory.Create(bind_address.family(), SOCK_DGRAM);
+  if (socket == nullptr) {
+    return nullptr;
+  }
+  if (socket->Bind(bind_address) < 0) {
+    RTC_LOG(LS_ERROR) << "Bind() failed with error " << socket->GetError();
+    return nullptr;
+  }
+  return std::make_unique<AsyncUDPSocket>(env, std::move(socket));
+}
 
 AsyncUDPSocket* AsyncUDPSocket::Create(Socket* socket,
                                        const SocketAddress& bind_address) {
@@ -46,6 +65,10 @@ AsyncUDPSocket* AsyncUDPSocket::Create(SocketFactory* factory,
     return nullptr;
   return Create(socket, bind_address);
 }
+
+AsyncUDPSocket::AsyncUDPSocket(const Environment& env,
+                               absl_nonnull std::unique_ptr<Socket> socket)
+    : AsyncUDPSocket(socket.release()) {}
 
 AsyncUDPSocket::AsyncUDPSocket(Socket* socket) : socket_(socket) {
   sequence_checker_.Detach();

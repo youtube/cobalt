@@ -13,42 +13,44 @@
 #include <cstdint>
 #include <memory>
 
-#include "absl/memory/memory.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 
-static const SocketAddress kAddr("22.22.22.22", 0);
+using ::testing::NotNull;
 
 TEST(AsyncUDPSocketTest, SetSocketOptionIfEctChange) {
+  const SocketAddress kAddr("22.22.22.22", 0);
   VirtualSocketServer socket_server;
-  Socket* socket = socket_server.CreateSocket(kAddr.family(), SOCK_DGRAM);
-  std::unique_ptr<AsyncUDPSocket> udp__socket =
-      absl::WrapUnique(AsyncUDPSocket::Create(socket, kAddr));
+  std::unique_ptr<AsyncUDPSocket> udp_socket =
+      AsyncUDPSocket::Create(CreateTestEnvironment(), kAddr, socket_server);
+  ASSERT_THAT(udp_socket, NotNull());
 
   int ect = 0;
-  socket->GetOption(Socket::OPT_SEND_ECN, &ect);
+  udp_socket->GetOption(Socket::OPT_SEND_ECN, &ect);
   ASSERT_EQ(ect, 0);
 
   uint8_t buffer[] = "hello";
   AsyncSocketPacketOptions packet_options;
   packet_options.ecn_1 = false;
-  udp__socket->SendTo(buffer, 5, kAddr, packet_options);
-  socket->GetOption(Socket::OPT_SEND_ECN, &ect);
+  udp_socket->SendTo(buffer, 5, kAddr, packet_options);
+  udp_socket->GetOption(Socket::OPT_SEND_ECN, &ect);
   EXPECT_EQ(ect, 0);
 
   packet_options.ecn_1 = true;
-  udp__socket->SendTo(buffer, 5, kAddr, packet_options);
-  socket->GetOption(Socket::OPT_SEND_ECN, &ect);
+  udp_socket->SendTo(buffer, 5, kAddr, packet_options);
+  udp_socket->GetOption(Socket::OPT_SEND_ECN, &ect);
   EXPECT_EQ(ect, 1);
 
   packet_options.ecn_1 = false;
-  udp__socket->SendTo(buffer, 5, kAddr, packet_options);
-  socket->GetOption(Socket::OPT_SEND_ECN, &ect);
+  udp_socket->SendTo(buffer, 5, kAddr, packet_options);
+  udp_socket->GetOption(Socket::OPT_SEND_ECN, &ect);
   EXPECT_EQ(ect, 0);
 }
 

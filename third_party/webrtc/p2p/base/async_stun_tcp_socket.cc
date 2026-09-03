@@ -13,8 +13,13 @@
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <utility>
 
+#include "absl/base/nullability.h"
+#include "absl/memory/memory.h"
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "api/transport/stun.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/async_packet_socket.h"
@@ -42,20 +47,13 @@ inline bool IsStunMessage(uint16_t msg_type) {
   return (msg_type & 0xC000) ? false : true;
 }
 
-// AsyncStunTCPSocket
-// Binds and connects `socket` and creates AsyncTCPSocket for
-// it. Takes ownership of `socket`. Returns NULL if bind() or
-// connect() fail (`socket` is destroyed in that case).
-AsyncStunTCPSocket* AsyncStunTCPSocket::Create(
-    Socket* socket,
-    const SocketAddress& bind_address,
-    const SocketAddress& remote_address) {
-  return new AsyncStunTCPSocket(
-      AsyncTCPSocketBase::ConnectSocket(socket, bind_address, remote_address));
-}
+AsyncStunTCPSocket::AsyncStunTCPSocket(
+    const Environment& /*env*/,
+    absl_nonnull std::unique_ptr<Socket> socket)
+    : AsyncTCPSocketBase(std::move(socket), kBufSize) {}
 
 AsyncStunTCPSocket::AsyncStunTCPSocket(Socket* socket)
-    : AsyncTCPSocketBase(socket, kBufSize) {}
+    : AsyncTCPSocketBase(absl::WrapUnique(socket), kBufSize) {}
 
 int AsyncStunTCPSocket::Send(const void* pv,
                              size_t cb,

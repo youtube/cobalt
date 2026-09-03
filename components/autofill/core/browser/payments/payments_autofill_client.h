@@ -34,6 +34,9 @@ enum class AutofillProgressDialogType;
 class AutofillSaveCardBottomSheetBridge;
 struct CardUnmaskChallengeOption;
 class CardUnmaskDelegate;
+class AutofillProgressDialogController;
+class CardUnmaskOtpInputDialogController;
+class CardUnmaskPromptController;
 struct CardUnmaskPromptOptions;
 class CreditCard;
 class CreditCardCvcAuthenticator;
@@ -498,6 +501,16 @@ class PaymentsAutofillClient : public RiskDataLoader {
       const CardUnmaskPromptOptions& card_unmask_prompt_options,
       base::WeakPtr<CardUnmaskDelegate> delegate);
   virtual void OnUnmaskVerificationResult(PaymentsRpcResult result);
+
+#if BUILDFLAG(IS_IOS)
+  virtual std::unique_ptr<AutofillProgressDialogController>
+  ExtractProgressDialogModel() = 0;
+
+  virtual std::unique_ptr<CardUnmaskOtpInputDialogController>
+  ExtractOtpInputDialogModel() = 0;
+
+  virtual CardUnmaskPromptController* GetCardUnmaskPromptModel() = 0;
+#endif
 
   // Returns a pointer to a VirtualCardEnrollmentManager that is owned by
   // PaymentsAutofillClient. VirtualCardEnrollmentManager is used for virtual

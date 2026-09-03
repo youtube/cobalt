@@ -479,11 +479,8 @@ declare_args() {
   # closely mimic in-browser behavior.
   #
   # Currently used in d8.
-  # TODO(399144247,400141120,392817524): Temporarily disabled again because of
-  # performance regressions in multi-threaded, Zone-allocation heavy workloads,
-  # e.g., JetStream startup or Wasm eager compilation.
   v8_enable_partition_alloc =
-      false && !build_with_v8_embedder &&
+      !build_with_v8_embedder &&
       !(defined(build_with_node) && build_with_node) &&
       (v8_target_cpu != "ppc64" && v8_target_cpu != "s390x")
 
@@ -1174,9 +1171,16 @@ config("features") {
     defines += [ "V8_TLS_USED_IN_LIBRARY" ]
   }
 
-  if (v8_enable_pointer_compression &&
-      !v8_enable_pointer_compression_shared_cage) {
-    defines += [ "V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES" ]
+  if (v8_enable_pointer_compression) {
+    if (v8_enable_pointer_compression_shared_cage) {
+      defines += [
+        # TODO(442942399): Re-enable after bug has been addressed.
+        # "V8_CONTIGUOUS_COMPRESSED_RO_SPACE",
+        # "V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB=${v8_contiguous_compressed_ro_space_size_mb}",
+      ]
+    } else {
+      defines += [ "V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES" ]
+    }
   }
 
   if (v8_embedder_string != "") {
@@ -3780,6 +3784,7 @@ v8_header_set("v8_internal_headers") {
     "src/extensions/ignition-statistics-extension.h",
     "src/extensions/statistics-extension.h",
     "src/extensions/trigger-failure-extension.h",
+    "src/flags/save-flags.h",
     "src/handles/global-handles-inl.h",
     "src/handles/global-handles.h",
     "src/handles/handles-inl.h",
@@ -5598,6 +5603,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/extensions/statistics-extension.cc",
     "src/extensions/trigger-failure-extension.cc",
     "src/flags/flags.cc",
+    "src/flags/save-flags.cc",
     "src/handles/global-handles.cc",
     "src/handles/handles.cc",
     "src/handles/local-handles.cc",

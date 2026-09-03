@@ -185,6 +185,8 @@
 #include "ash/public/mojom/hid_preserving_bluetooth_state_controller.mojom.h"
 #include "ash/webui/annotator/mojom/untrusted_annotator.mojom.h"
 #include "ash/webui/annotator/untrusted_annotator_ui.h"
+#include "ash/webui/boca_receiver_app_ui/boca_receiver_untrusted_ui.h"
+#include "ash/webui/boca_receiver_app_ui/mojom/boca_receiver.mojom.h"
 #include "ash/webui/boca_ui/boca_ui.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom.h"
 #include "ash/webui/camera_app_ui/camera_app_helper.mojom.h"
@@ -1381,6 +1383,9 @@ void PopulateChromeWebUIFrameInterfaceBrokers(
       .Add<ash::boca::mojom::BocaPageHandlerFactory>()
       .Add<color_change_listener::mojom::PageHandler>();
 
+  registry.ForWebUI<ash::BocaReceiverUntrustedUI>()
+      .Add<ash::boca_receiver::mojom::UntrustedPageHandlerFactory>();
+
   if (chromeos::features::IsOrcaEnabled() ||
       ash::features::IsLobsterEnabled()) {
     registry.ForWebUI<ash::MakoUntrustedUI>()
@@ -1456,6 +1461,7 @@ void PopulateChromeWebUIFrameInterfaceBrokers(
 
   if (webui_browser::IsWebUIBrowserEnabled()) {
     registry.ForWebUI<WebUIBrowserUI>()
+        .Add<color_change_listener::mojom::PageHandler>()
         .Add<webui_browser::mojom::PageHandlerFactory>()
         .Add<bookmark_bar::mojom::PageHandlerFactory>()
         .Add<searchbox::mojom::PageHandler>()

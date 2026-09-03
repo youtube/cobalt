@@ -33,9 +33,12 @@ struct SetFieldTrials {
     factory.Set(CreateTestFieldTrialsPtr(field_trials));
   }
 
-  void operator()(FieldTrialsView* absl_nonnull field_trials) {
-    RTC_CHECK(field_trials != nullptr);
-    factory.Set(field_trials);
+  void operator()(const FieldTrialsView* absl_nullable field_trials) {
+    if (field_trials != nullptr) {
+      factory.Set(field_trials);
+    } else {
+      factory.Set(CreateTestFieldTrialsPtr());
+    }
   }
 
   void operator()(absl_nonnull std::unique_ptr<FieldTrialsView> field_trials) {

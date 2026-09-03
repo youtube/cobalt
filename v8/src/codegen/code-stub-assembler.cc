@@ -1595,6 +1595,20 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
   if (v8_flags.sticky_mark_bits && (flags & AllocationFlag::kPretenured)) {
     CSA_DCHECK(this, IsMarked(result.value()));
   }
+  if (v8_flags.verify_write_barriers) {
+    TNode<ExternalReference> last_young_allocation_address = ExternalConstant(
+        ExternalReference::last_young_allocation_address(isolate()));
+
+    if (flags & AllocationFlag::kPretenured) {
+      StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                          last_young_allocation_address, IntPtrConstant(0));
+    } else {
+      StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                          last_young_allocation_address,
+                          IntPtrSub(BitcastTaggedToWord(result.value()),
+                                    IntPtrConstant(kHeapObjectTag)));
+    }
+  }
   return UncheckedCast<HeapObject>(result.value());
 }
 
@@ -1648,36 +1662,12 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
     }
     return heap_object;
   }
-  TNode<ExternalReference> top_address = ExternalConstant(
-      new_space
-          ? ExternalReference::new_space_allocation_top_address(isolate())
-          : ExternalReference::old_space_allocation_top_address(isolate()));
-
-#ifdef DEBUG
-  // New space is optional and if disabled both top and limit return
-  // kNullAddress.
-  if (ExternalReference::new_space_allocation_top_address(isolate())
-          .address() != kNullAddress) {
-    Address raw_top_address =
-        ExternalReference::new_space_allocation_top_address(isolate())
-            .address();
-    Address raw_limit_address =
-        ExternalReference::new_space_allocation_limit_address(isolate())
-            .address();
-
-    CHECK_EQ(kSystemPointerSize, raw_limit_address - raw_top_address);
-  }
-
-  DCHECK_EQ(kSystemPointerSize,
-            ExternalReference::old_space_allocation_limit_address(isolate())
-                    .address() -
-                ExternalReference::old_space_allocation_top_address(isolate())
-                    .address());
-#endif
-
-  TNode<IntPtrT> limit_address =
-      IntPtrAdd(ReinterpretCast<IntPtrT>(top_address),
-                IntPtrConstant(kSystemPointerSize));
+  TNode<ExternalReference> top_address =
+      IsolateField(new_space ? IsolateFieldId::kNewAllocationInfoTop
+                             : IsolateFieldId::kOldAllocationInfoTop);
+  TNode<ExternalReference> limit_address =
+      IsolateField(new_space ? IsolateFieldId::kNewAllocationInfoLimit
+                             : IsolateFieldId::kOldAllocationInfoLimit);
 
   if (flags & AllocationFlag::kDoubleAlignment) {
     return AllocateRawDoubleAligned(size_in_bytes, flags,
@@ -14410,8 +14400,8 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   Label no_memento_found(this);
   Label top_check(this), map_check(this);
 
-  TNode<ExternalReference> new_space_top_address = ExternalConstant(
-      ExternalReference::new_space_allocation_top_address(isolate()));
+  TNode<ExternalReference> new_space_top_address =
+      IsolateField(IsolateFieldId::kNewAllocationInfoTop);
   const int kMementoMapOffset =
       ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize);
   const int kMementoLastWordOffset =

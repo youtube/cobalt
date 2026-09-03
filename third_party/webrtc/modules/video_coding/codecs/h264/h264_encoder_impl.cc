@@ -756,6 +756,10 @@ VideoEncoder::EncoderInfo H264EncoderImpl::GetEncoderInfo() const {
   info.implementation_name = "OpenH264";
   info.scaling_settings =
       VideoEncoder::ScalingSettings(kLowH264QpThreshold, kHighH264QpThreshold);
+  if (!configurations_.empty()) {
+    info.mapped_resolution = VideoEncoder::Resolution(
+        configurations_.back().width, configurations_.back().height);
+  }
   info.is_hardware_accelerated = false;
   info.supports_simulcast = true;
   info.preferred_pixel_formats = {VideoFrameBuffer::Type::kI420};

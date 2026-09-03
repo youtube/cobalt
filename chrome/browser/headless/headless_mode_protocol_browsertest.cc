@@ -338,11 +338,26 @@ HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsRotationAngle,
 HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsPixelRatio,
                             "shared/screen-details-pixel-ratio.js")
 
-HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsColorDepth,
+// TODO(crbug.com/442920826): Re-enable this test
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_ScreenDetailsColorDepth DISABLED_ScreenDetailsColorDepth
+#else
+#define MAYBE_ScreenDetailsColorDepth ScreenDetailsColorDepth
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_ScreenDetailsColorDepth,
                             "shared/screen-details-color-depth.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsWorkArea,
                             "shared/screen-details-work-area.js")
+
+// This fails on Linux and Mac, see http://crbug.com/442922581.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+#define MAYBE_ScreenDetailsWorkAreaScaled DISABLED_ScreenDetailsWorkAreaScaled
+#else
+#define MAYBE_ScreenDetailsWorkAreaScaled ScreenDetailsWorkAreaScaled
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_ScreenDetailsWorkAreaScaled,
+                            "shared/screen-details-work-area-scaled.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(RequestFullscreen, "shared/request-fullscreen.js")
 
@@ -451,4 +466,28 @@ HEADLESS_MODE_PROTOCOL_TEST(WindowScreenSizeOrientation,
 
 HEADLESS_MODE_PROTOCOL_TEST(AutofillTriggerCreditCard,
                             "autofill/autofill-trigger-credit-card.js")
+
+// These are only supported on Linux at this time,
+// see http://crbug.com/437387607.
+#if BUILDFLAG(IS_LINUX)
+HEADLESS_MODE_PROTOCOL_TEST(GetScreenInfos, "shared/get-screen-infos.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(AddScreen, "shared/add-screen.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(AddScreenScaleFactor,
+                            "shared/add-screen-scale-factor.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(AddScreenWorkArea, "shared/add-screen-work-area.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(AddScreenGetScreenDetails,
+                            "shared/add-screen-get-screen-details.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(RemoveScreen, "shared/remove-screen.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(RemoveScreenGetScreenDetails,
+                            "shared/remove-screen-get-screen-details.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(AddRemoveScreen, "shared/add-remove-screen.js")
+#endif  // BUILDFLAG(IS_LINUX)
+
 }  // namespace headless

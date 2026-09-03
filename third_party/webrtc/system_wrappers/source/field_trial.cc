@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/environment/deprecated_global_field_trials.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
@@ -24,9 +25,6 @@
 // specify desired flags in InitFieldTrialsFromString.
 namespace webrtc {
 namespace field_trial {
-
-static const char* trials_init_string = nullptr;
-
 namespace {
 
 constexpr char kPersistentStringSeparator = '/';
@@ -114,11 +112,7 @@ void InitFieldTrialsFromString(const char* trials_string) {
     RTC_DCHECK(FieldTrialsStringIsValidInternal(trials_string))
         << "Invalid field trials string:" << trials_string;
   };
-  trials_init_string = trials_string;
-}
-
-const char* GetFieldTrialString() {
-  return trials_init_string;
+  DeprecatedGlobalFieldTrials::Set(trials_string);
 }
 
 }  // namespace field_trial

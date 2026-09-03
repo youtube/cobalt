@@ -65,7 +65,7 @@
 
 namespace ash {
 
-BASE_FEATURE(BlockUiTabletModeInKiosk, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kBlockUiTabletModeInKiosk, base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace {
 

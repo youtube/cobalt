@@ -298,6 +298,7 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
     GlicKeyedService* glic_service,
     GlicEnabling* enabling)
     : profile_(profile),
+      host_(profile, base::DoNothing()),
       host_manager_(std::make_unique<HostManager>(profile)),
       window_finder_(std::make_unique<WindowFinder>()),
       glic_service_(glic_service),
@@ -308,7 +309,8 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
     previous_position_ = GetPreviousPositionFromPrefs(profile_->GetPrefs());
   }
   application_hotkey_manager_ = MakeApplicationHotkeyManager(GetWeakPtr());
-  host_manager_->Initialize(this);
+  host_.Initialize(this);
+  host_manager_->AddHost(&host_);
   host_observation_.Observe(&host());
 }
 
@@ -532,7 +534,8 @@ void GlicWindowControllerImpl::ToggleWhenNotAlwaysDetached(
   // In the future, when the WebUI can send its status back to the controller
   // via mojom, we could explicitly restrict the second case to loading,
   // offline, and error states.
-  if (state_ == State::kOpen || state_ == State::kWaitingForGlicToLoad) {
+  if (state_ == State::kOpen || state_ == State::kWaitingForGlicToLoad ||
+      state_ == State::kWaitingForSidePanelToShow) {
     if (new_attached_browser) {
       if (new_attached_browser == attached_browser_) {
         // Button was clicked on same browser: close.
@@ -545,7 +548,8 @@ void GlicWindowControllerImpl::ToggleWhenNotAlwaysDetached(
         maybe_close();
       } else {
         // Button clicked on a different browser: attach to that one.
-        AttachToBrowser(*new_attached_browser, AttachChangeReason::kInit);
+        AttachToBrowserAndShow(*new_attached_browser,
+                               AttachChangeReason::kInit);
       }
       return;
     }
@@ -621,16 +625,24 @@ void GlicWindowControllerImpl::SetPreviousPositionForTesting(
   previous_position_ = position;
 }
 
-Host& GlicWindowControllerImpl::host() const {
-  return host_manager_->primary_host();
+Host& GlicWindowControllerImpl::host() {
+  return host_;
 }
 
 HostManager& GlicWindowControllerImpl::host_manager() {
   return *host_manager_;
 }
 
-void GlicWindowControllerImpl::Show(Browser* browser,
-                                    mojom::InvocationSource source) {
+Host* GlicWindowControllerImpl::GetHostForTab(tabs::TabInterface* tab) {
+  return &host_;
+}
+
+bool GlicWindowControllerImpl::BeforeViewCreated(
+    Browser* browser,
+    mojom::InvocationSource source) {
+  if (state_ == State::kWaitingForSidePanelToShow) {
+    return false;
+  }
   // At this point State must be kClosed, and all glic window state must be
   // unset.
   CHECK(!attached_browser_);
@@ -639,7 +651,7 @@ void GlicWindowControllerImpl::Show(Browser* browser,
           base::BindOnce(&GlicWindowControllerImpl::ShowAfterSignIn,
                          weak_ptr_factory_.GetWeakPtr(),
                          browser ? browser->AsWeakPtr() : nullptr))) {
-    return;
+    return false;
   }
 
   SetWindowState(State::kWaitingForGlicToLoad);
@@ -655,13 +667,10 @@ void GlicWindowControllerImpl::Show(Browser* browser,
   host().NotifyWindowIntentToShow();
 
   glic_panel_hotkey_manager_ = MakeGlicWindowHotkeyManager(GetWeakPtr());
+  return true;
+}
 
-  if (browser && !AlwaysDetached()) {
-    AttachToBrowser(*browser, AttachChangeReason::kInit);
-  } else {
-    SetupAndShowGlicWidget(browser);
-  }
-
+void GlicWindowControllerImpl::AfterViewShown() {
   glic_panel_hotkey_manager_->InitializeAccelerators();
 
   // Notify the web client that the panel will open, and wait for the response
@@ -669,7 +678,7 @@ void GlicWindowControllerImpl::Show(Browser* browser,
   // `NotifyIfPanelStateChanged()` first, so that the host will receive the
   // correct panel state.
   NotifyIfPanelStateChanged();
-  host().PanelWillOpen(source);
+  host().PanelWillOpen(opening_source_.value());
 
   if (login_page_committed_) {
     // This indicates that we've warmed the web client and it has hit a login
@@ -682,14 +691,38 @@ void GlicWindowControllerImpl::Show(Browser* browser,
   }
 }
 
-std::unique_ptr<GlicView>
-GlicWindowControllerImpl::CreateGlicViewForSidePanel() {
+void GlicWindowControllerImpl::Show(Browser* browser,
+                                    mojom::InvocationSource source) {
+  if (!BeforeViewCreated(browser, source)) {
+    return;
+  }
+  if (browser && !AlwaysDetached()) {
+    AttachToBrowserAndShow(*browser, AttachChangeReason::kInit);
+  } else {
+    SetupAndShowGlicWidget(browser);
+    AfterViewShown();
+  }
+}
+
+std::unique_ptr<views::View> GlicWindowControllerImpl::CreateViewForSidePanel(
+    tabs::TabInterface* tab) {
+  // GetBrowserForMigrationOnly() is a stop-gap until the rest of the code in
+  // GlicWindowController is updated to use BrowserWindowInterface instead of
+  // Browser
+  auto* browser =
+      tab->GetBrowserWindowInterface()->GetBrowserForMigrationOnly();
+  // TODO: Add Invocation source for toolbar button
+  if (BeforeViewCreated(browser, mojom::InvocationSource::kThreeDotsMenu) &&
+      browser) {
+    AttachToBrowser(*browser, AttachChangeReason::kInit);
+  }
   auto glic_view =
       std::make_unique<GlicView>(profile_, GlicWidget::GetInitialSize(),
                                  glic_panel_hotkey_manager_->GetWeakPtr());
   glic_view->SetWebContents(host().webui_contents());
   glic_view->UpdateBackgroundColor();
   glic_view_ = glic_view.get();
+  SetWindowState(GlicWindowController::State::kWaitingForSidePanelToShow);
   return glic_view;
 }
 
@@ -953,8 +986,8 @@ void GlicWindowControllerImpl::Attach() {
   if (AlwaysDetached()) {
     return;
   }
-  AttachToBrowser(*browser->GetBrowserForMigrationOnly(),
-                  AttachChangeReason::kMenu);
+  AttachToBrowserAndShow(*browser->GetBrowserForMigrationOnly(),
+                         AttachChangeReason::kMenu);
 }
 
 void GlicWindowControllerImpl::Detach() {
@@ -986,16 +1019,26 @@ void GlicWindowControllerImpl::AttachToBrowser(Browser& browser,
   browser_close_subscription_ = attached_browser_->RegisterBrowserDidClose(
       base::BindRepeating(&GlicWindowControllerImpl::AttachedBrowserDidClose,
                           base::Unretained(this)));
+}
+
+void GlicWindowControllerImpl::AttachToBrowserAndShow(
+    Browser& browser,
+    AttachChangeReason reason) {
+  AttachToBrowser(browser, reason);
+  SetWindowState(GlicWindowController::State::kWaitingForSidePanelToShow);
 
   auto* side_panel_coordinator = browser.GetFeatures().side_panel_coordinator();
   side_panel_coordinator->Show(SidePanelEntry::Id::kGlic);
+}
 
+void GlicWindowControllerImpl::SidePanelShown(Browser* browser) {
   SetWindowState(State::kOpen);
   NotifyIfPanelStateChanged();
 
   // Trigger custom event for testing.
   views::ElementTrackerViews::GetInstance()->NotifyCustomEvent(
-      kGlicWidgetAttached, GetGlicButton(browser));
+      kGlicWidgetAttached, GetGlicButton(*browser));
+  AfterViewShown();
 }
 
 void GlicWindowControllerImpl::Resize(const gfx::Size& size,
@@ -1081,9 +1124,12 @@ gfx::Size GlicWindowControllerImpl::GetSize() {
   if (IsDetached()) {
     return GetGlicWidget()->GetSize();
   }
-  // TODO(crbug.com/439745838): Return side panel size when attached.
-  NOTIMPLEMENTED();
-  return gfx::Size();
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(attached_browser_);
+  CHECK(browser_view->unified_side_panel());
+  // This returns the size of the entire side panel (including content,
+  // heading, and surrounding padding).
+  return browser_view->unified_side_panel()->size();
 }
 
 void GlicWindowControllerImpl::SetDraggableAreas(
@@ -1124,7 +1170,7 @@ bool GlicWindowControllerImpl::ActivateBrowser() {
 }
 
 void GlicWindowControllerImpl::Close() {
-  if (state_ == State::kClosed) {
+  if (state_ == State::kClosed || state_ == State::kDetaching) {
     return;
   }
   window_config_.SetLastCloseTime();
@@ -1456,7 +1502,7 @@ void GlicWindowControllerImpl::Reload() {
 }
 
 bool GlicWindowControllerImpl::IsWarmed() const {
-  return !!host().contents_container();
+  return const_cast<Host&>(host_).contents_container();
 }
 
 base::WeakPtr<GlicWindowController> GlicWindowControllerImpl::GetWeakPtr() {
@@ -1538,8 +1584,8 @@ void GlicWindowControllerImpl::SetWindowState(State new_state) {
     }
   }
 
-  floaty_state_change_callback_list_.Notify(
-      state_, glic_service_->host().GetPrimaryCurrentView());
+  floaty_state_change_callback_list_.Notify(state_,
+                                            host().GetPrimaryCurrentView());
 
   if (IsWindowOpenAndReady()) {
     glic_service_->metrics()->OnGlicWindowOpenAndReady();

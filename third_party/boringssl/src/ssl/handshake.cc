@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <utility>
 
+#include <openssl/err.h>
 #include <openssl/rand.h>
 
 #include "../crypto/internal.h"

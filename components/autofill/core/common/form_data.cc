@@ -16,6 +16,8 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/autofill/core/common/autofill_constants.h"
+#include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/autofill/core/common/logging/log_buffer.h"
 #include "components/autofill/core/common/logging/stream_operator_util.h"
@@ -118,6 +120,16 @@ bool FormData::DeepEqual(const FormData& a, const FormData& b) {
   return true;
 }
 
+const FormFieldData* FormData::FindFieldByGlobalId(
+    const FieldGlobalId& global_id) const {
+  auto fields_it =
+      std::ranges::find(fields(), global_id, &FormFieldData::global_id);
+
+  // If the field is found, return a pointer to the field, otherwise return
+  // nullptr.
+  return fields_it != fields().end() ? &*fields_it : nullptr;
+}
+
 bool FormHasNonEmptyPasswordField(const FormData& form) {
   for (const auto& field : form.fields()) {
     if (field.IsPasswordInputElement()) {
@@ -169,16 +181,6 @@ std::ostream& PrintWithIndentation(std::ostream& os,
 }
 
 }  // namespace internal
-
-const FormFieldData* FormData::FindFieldByGlobalId(
-    const FieldGlobalId& global_id) const {
-  auto fields_it =
-      std::ranges::find(fields(), global_id, &FormFieldData::global_id);
-
-  // If the field is found, return a pointer to the field, otherwise return
-  // nullptr.
-  return fields_it != fields().end() ? &*fields_it : nullptr;
-}
 
 void SerializeFormData(const FormData& form_data, base::Pickle* pickle) {
   pickle->WriteInt(kFormDataPickleVersion);

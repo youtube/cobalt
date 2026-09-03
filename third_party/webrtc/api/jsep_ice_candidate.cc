@@ -58,6 +58,12 @@ void IceCandidateCollection::add(IceCandidate* candidate) {
   candidates_.push_back(absl::WrapUnique(candidate));
 }
 
+void IceCandidateCollection::Append(IceCandidateCollection collection) {
+  candidates_.insert(candidates_.end(),
+                     std::make_move_iterator(collection.candidates_.begin()),
+                     std::make_move_iterator(collection.candidates_.end()));
+}
+
 const IceCandidate* IceCandidateCollection::at(size_t index) const {
   return candidates_[index].get();
 }

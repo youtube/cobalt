@@ -28,7 +28,7 @@
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/window_open_disposition.h"
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "url/gurl.h"
 
 class OmniboxController;
@@ -458,6 +458,8 @@ class OmniboxEditModel {
       const std::u16string& match_text,
       bool include_positional_info,
       int* label_prefix_length = nullptr);
+
+  std::u16string GetPopupAccessibilityLabelForAimButton();
 
   // The IPH message that sometimes appears at the bottom of the Omnibox is
   // informational only and cannot be selected/focused. Its a11y label therefore

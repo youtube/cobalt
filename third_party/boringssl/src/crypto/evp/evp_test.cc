@@ -39,6 +39,7 @@
 #include <openssl/obj.h>
 #include <openssl/rsa.h>
 
+#include "../test/der_trailing_data.h"
 #include "../test/file_test.h"
 #include "../test/test_util.h"
 #include "../test/wycheproof_util.h"
@@ -162,6 +163,21 @@ static bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
     return false;
   }
   keys.emplace_back(format_name + " - all algs", std::move(new_key));
+
+  // Test that the parsers reject trailing data.
+  bool ok = TestDERTrailingData(
+      input, [&](bssl::Span<const uint8_t> rewritten, size_t n) {
+        // We currently intentionally ignore trailing data in the outermost
+        // PKCS#8 PrivateKeyInfo element because we don't parse the attributes.
+        if (n == 0 && key_role == KeyRole::kPrivate) {
+          return;
+        }
+        SCOPED_TRACE(n);
+        bssl::UniquePtr<EVP_PKEY> parsed(parse_func(
+            rewritten.data(), rewritten.size(), algs.data(), algs.size()));
+        EXPECT_FALSE(parsed);
+      });
+  EXPECT_TRUE(ok);
 
   // Parse with just the specific algorithm.
   std::string alg_name;

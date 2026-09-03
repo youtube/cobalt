@@ -603,7 +603,7 @@ bool PhysicalFragment::IsMonolithic() const {
 
 bool PhysicalFragment::IsImplicitAnchor() const {
   if (Element* element = DynamicTo<Element>(GetNode())) {
-    return element->HasImplicitlyAnchoredElement();
+    return element->MayBeImplicitAnchor();
   }
   return false;
 }
@@ -732,32 +732,6 @@ void PhysicalFragment::TraceAfterDispatch(Visitor* visitor) const {
   visitor->Trace(propagated_data_);
   visitor->Trace(break_token_);
   visitor->Trace(oof_data_);
-}
-
-// TODO(dlibby): remove `Children` and `PostLayoutChildren` and move the
-// casting and/or branching to the callers.
-base::span<const PhysicalFragmentLink> PhysicalFragment::Children() const {
-  if (Type() == kFragmentBox)
-    return static_cast<const PhysicalBoxFragment*>(this)->Children();
-  return {};
-}
-
-PhysicalFragment::PostLayoutChildLinkList PhysicalFragment::PostLayoutChildren()
-    const {
-  if (Type() == kFragmentBox) {
-    return static_cast<const PhysicalBoxFragment*>(this)->PostLayoutChildren();
-  }
-  return PostLayoutChildLinkList(base::span<const PhysicalFragmentLink>());
-}
-
-void PhysicalFragment::SetChildrenInvalid() const {
-  if (!children_valid_)
-    return;
-
-  for (const PhysicalFragmentLink& child : Children()) {
-    const_cast<PhysicalFragmentLink&>(child).fragment = nullptr;
-  }
-  children_valid_ = false;
 }
 
 bool PhysicalFragment::DependsOnPercentageBlockSize(

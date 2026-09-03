@@ -19,6 +19,7 @@
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/assert-scope.h"
@@ -546,32 +547,80 @@ class MaglevGraphBuilder::MaglevSubGraphBuilder::Variable {
   interpreter::Register pseudo_register_;
 };
 
+class MaglevGraphBuilder::MaglevSubGraphBuilder::
+    LabelForTrackingInterpreterFrameState {
+ public:
+  LabelForTrackingInterpreterFrameState(MaglevSubGraphBuilder* sub_builder,
+                                        int predecessor_count,
+                                        int future_bind_offset)
+      : sub_builder_(sub_builder),
+        predecessor_count_(predecessor_count),
+        future_bind_offset_(future_bind_offset) {}
+  LabelForTrackingInterpreterFrameState(MaglevSubGraphBuilder* sub_builder,
+                                        int predecessor_count,
+                                        std::initializer_list<Variable*> vars,
+                                        int future_bind_offset)
+      : sub_builder_(sub_builder),
+        predecessor_count_(predecessor_count),
+        vars_(vars),
+        future_bind_offset_(future_bind_offset) {}
+
+ private:
+  friend class Label;
+  MaglevSubGraphBuilder* sub_builder_;
+  int predecessor_count_;
+  std::vector<Variable*> vars_;
+  int future_bind_offset_;
+};
+
 class MaglevGraphBuilder::MaglevSubGraphBuilder::Label {
  public:
   Label(MaglevSubGraphBuilder* sub_builder, int predecessor_count)
       : predecessor_count_(predecessor_count),
-        liveness_(
+        variable_liveness_(
             sub_builder->builder_->zone()->New<compiler::BytecodeLivenessState>(
-                sub_builder->compilation_unit_->register_count(),
+                sub_builder->variable_compilation_unit_->register_count(),
                 sub_builder->builder_->zone())) {}
   Label(MaglevSubGraphBuilder* sub_builder, int predecessor_count,
         std::initializer_list<Variable*> vars)
       : Label(sub_builder, predecessor_count) {
     for (Variable* var : vars) {
-      liveness_->MarkRegisterLive(var->pseudo_register_.index());
+      variable_liveness_->MarkRegisterLive(var->pseudo_register_.index());
     }
   }
 
- private:
-  explicit Label(MergePointInterpreterFrameState* merge_state,
-                 BasicBlock* basic_block)
-      : merge_state_(merge_state), ref_(basic_block) {}
+  // NOLINTNEXTLINE(runtime/explicit)
+  Label(const LabelForTrackingInterpreterFrameState& label)
+      : Label(label.sub_builder_, label.predecessor_count_) {
+    for (Variable* var : label.vars_) {
+      variable_liveness_->MarkRegisterLive(var->pseudo_register_.index());
+    }
+    future_bind_offset_ = label.future_bind_offset_;
+  }
 
+  bool ShouldTrackInterpreterFrameState() const {
+    return future_bind_offset_.has_value();
+  }
+
+ private:
   friend class MaglevSubGraphBuilder;
   friend class BranchBuilder;
-  MergePointInterpreterFrameState* merge_state_ = nullptr;
   int predecessor_count_ = -1;
-  compiler::BytecodeLivenessState* liveness_ = nullptr;
+
+  // These are for tracking the values of Variables and merging them into
+  // variable_frame_.
+  MergePointInterpreterFrameState* variable_merge_state_ = nullptr;
+  compiler::BytecodeLivenessState* variable_liveness_ = nullptr;
+
+  // These are for tracking the values of registers and merging into the
+  // interpreter frame. Setting the future_bind_offset to the bytecode offset
+  // where the "bind" for this label will be enables tracking.
+
+  // TODO(marja): Unify merge_state_ and variable_merge_state_ and only have
+  // one.
+  std::optional<int> future_bind_offset_;
+  MergePointInterpreterFrameState* merge_state_ = nullptr;
+
   BasicBlockRef ref_;
 };
 
@@ -700,15 +749,15 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BranchBuilder::Build(
 MaglevGraphBuilder::MaglevSubGraphBuilder::MaglevSubGraphBuilder(
     MaglevGraphBuilder* builder, int variable_count)
     : builder_(builder),
-      compilation_unit_(MaglevCompilationUnit::NewDummy(
+      variable_compilation_unit_(MaglevCompilationUnit::NewDummy(
           builder->zone(), builder->compilation_unit(), variable_count, 0, 0)),
-      pseudo_frame_(*compilation_unit_, nullptr) {
+      variable_frame_(*variable_compilation_unit_, nullptr) {
   // We need to set a context, since this is unconditional in the frame state,
   // so set it to the real context.
-  pseudo_frame_.set(interpreter::Register::current_context(),
-                    builder_->current_interpreter_frame().get(
-                        interpreter::Register::current_context()));
-  DCHECK_NULL(pseudo_frame_.known_node_aspects());
+  variable_frame_.set(interpreter::Register::current_context(),
+                      builder_->current_interpreter_frame().get(
+                          interpreter::Register::current_context()));
+  DCHECK_NULL(variable_frame_.known_node_aspects());
 }
 
 MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel
@@ -718,10 +767,10 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   // set to be live and assigned inside the loop.
   compiler::BytecodeLivenessState* loop_header_liveness =
       builder_->zone()->New<compiler::BytecodeLivenessState>(
-          compilation_unit_->register_count(), builder_->zone());
+          variable_compilation_unit_->register_count(), builder_->zone());
   compiler::LoopInfo* loop_info = builder_->zone()->New<compiler::LoopInfo>(
-      -1, 0, kMaxInt, compilation_unit_->parameter_count(),
-      compilation_unit_->register_count(), builder_->zone());
+      -1, 0, kMaxInt, variable_compilation_unit_->parameter_count(),
+      variable_compilation_unit_->register_count(), builder_->zone());
   for (Variable* var : loop_vars) {
     loop_header_liveness->MarkRegisterLive(var->pseudo_register_.index());
     loop_info->assignments().Add(var->pseudo_register_);
@@ -736,18 +785,18 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   // and the back edge), and initialise with the current state.
   MergePointInterpreterFrameState* loop_state =
       MergePointInterpreterFrameState::NewForLoop(
-          pseudo_frame_, builder_->graph(), *compilation_unit_, 0, 2,
+          variable_frame_, builder_->graph(), *variable_compilation_unit_, 0, 2,
           loop_header_liveness, loop_info);
 
   {
     BorrowParentKnownNodeAspectsAndVOs borrow(this);
-    loop_state->Merge(builder_, *compilation_unit_, pseudo_frame_,
+    loop_state->Merge(builder_, *variable_compilation_unit_, variable_frame_,
                       loop_predecessor);
   }
 
   // Start a new basic block for the loop.
-  DCHECK_NULL(pseudo_frame_.known_node_aspects());
-  pseudo_frame_.CopyFrom(*compilation_unit_, *loop_state);
+  DCHECK_NULL(variable_frame_.known_node_aspects());
+  variable_frame_.CopyFrom(*variable_compilation_unit_, *loop_state);
   MoveKnownNodeAspectsAndVOsToParent();
 
   builder_->ProcessMergePointPredecessors(*loop_state, loop_header_ref);
@@ -815,14 +864,18 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::ReducePredecessorCount(
     return;
   }
   label->predecessor_count_ -= num;
-  if (label->merge_state_ != nullptr) {
-    label->merge_state_->MergeDead(*compilation_unit_, num);
+  if (label->variable_merge_state_ != nullptr) {
+    label->variable_merge_state_->MergeDead(*variable_compilation_unit_, num);
+    if (label->ShouldTrackInterpreterFrameState()) {
+      DCHECK_NOT_NULL(label->merge_state_);
+      label->merge_state_->MergeDead(*compilation_unit(), num);
+    }
   }
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
   if (builder_->current_block() == nullptr) {
-    loop_label->merge_state_->MergeDeadLoop(*compilation_unit_);
+    loop_label->merge_state_->MergeDeadLoop(*variable_compilation_unit_);
     return;
   }
 
@@ -830,17 +883,24 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
       builder_->FinishBlock<JumpLoop>({}, loop_label->loop_header_);
   {
     BorrowParentKnownNodeAspectsAndVOs borrow(this);
-    loop_label->merge_state_->MergeLoop(builder_, *compilation_unit_,
-                                        pseudo_frame_, block);
+    loop_label->merge_state_->MergeLoop(builder_, *variable_compilation_unit_,
+                                        variable_frame_, block);
   }
   block->set_predecessor_id(loop_label->merge_state_->predecessor_count() - 1);
 }
 
 ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::TrimPredecessorsAndBind(
     Label* label) {
-  int predecessors_so_far = label->merge_state_ == nullptr
-                                ? 0
-                                : label->merge_state_->predecessors_so_far();
+  int predecessors_so_far =
+      label->variable_merge_state_ == nullptr
+          ? 0
+          : label->variable_merge_state_->predecessors_so_far();
+  if (label->ShouldTrackInterpreterFrameState()) {
+    DCHECK_EQ(predecessors_so_far,
+              label->merge_state_ == nullptr
+                  ? 0
+                  : label->merge_state_->predecessors_so_far());
+  }
   DCHECK_LE(predecessors_so_far, label->predecessor_count_);
   builder_->set_current_block(nullptr);
   ReducePredecessorCount(label,
@@ -853,24 +913,45 @@ ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::TrimPredecessorsAndBind(
 void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
   DCHECK_NULL(builder_->current_block());
 
-  DCHECK_NULL(pseudo_frame_.known_node_aspects());
-  pseudo_frame_.CopyFrom(*compilation_unit_, *label->merge_state_);
+  DCHECK_NULL(variable_frame_.known_node_aspects());
+  variable_frame_.CopyFrom(*variable_compilation_unit_,
+                           *label->variable_merge_state_);
+
+  if (label->ShouldTrackInterpreterFrameState()) {
+    DCHECK_EQ(*label->future_bind_offset_,
+              builder_->iterator_.current_offset());
+    builder_->current_interpreter_frame_.CopyFrom(*compilation_unit(),
+                                                  *label->merge_state_);
+  }
+
   MoveKnownNodeAspectsAndVOsToParent();
 
-  CHECK_EQ(label->merge_state_->predecessors_so_far(),
+  CHECK_EQ(label->variable_merge_state_->predecessors_so_far(),
            label->predecessor_count_);
+  if (label->ShouldTrackInterpreterFrameState()) {
+    DCHECK_EQ(label->merge_state_->predecessors_so_far(),
+              label->predecessor_count_);
 
-  builder_->ProcessMergePointPredecessors(*label->merge_state_, label->ref_);
-  builder_->StartNewBlock(nullptr, label->merge_state_, label->ref_);
+    // The new block created below only points to label->variable_merge_state_.
+    // Move the phis in label->merge_state_ into it, so that they get processed,
+    // too.
+
+    label->variable_merge_state_->phis()->Append(
+        std::move(*label->merge_state_->phis()));
+  }
+
+  builder_->ProcessMergePointPredecessors(*label->variable_merge_state_,
+                                          label->ref_);
+  builder_->StartNewBlock(nullptr, label->variable_merge_state_, label->ref_);
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::set(Variable& var,
                                                     ValueNode* value) {
-  pseudo_frame_.set(var.pseudo_register_, value);
+  variable_frame_.set(var.pseudo_register_, value);
 }
 ValueNode* MaglevGraphBuilder::MaglevSubGraphBuilder::get(
     const Variable& var) const {
-  return pseudo_frame_.get(var.pseudo_register_);
+  return variable_frame_.get(var.pseudo_register_);
 }
 
 template <typename FCond, typename FTrue, typename FFalse>
@@ -990,32 +1071,44 @@ ReduceResult MaglevGraphBuilder::SelectReduction(
 // known node aspects without having to worry about this pseudo frame.
 void MaglevGraphBuilder::MaglevSubGraphBuilder::
     TakeKnownNodeAspectsAndVOsFromParent() {
-  DCHECK_NULL(pseudo_frame_.known_node_aspects());
-  pseudo_frame_.set_known_node_aspects(
+  DCHECK_NULL(variable_frame_.known_node_aspects());
+  variable_frame_.set_known_node_aspects(
       builder_->current_interpreter_frame_.known_node_aspects());
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::
     MoveKnownNodeAspectsAndVOsToParent() {
-  DCHECK_NOT_NULL(pseudo_frame_.known_node_aspects());
+  DCHECK_NOT_NULL(variable_frame_.known_node_aspects());
   builder_->current_interpreter_frame_.set_known_node_aspects(
-      pseudo_frame_.known_node_aspects());
-  pseudo_frame_.clear_known_node_aspects();
+      variable_frame_.known_node_aspects());
+  variable_frame_.clear_known_node_aspects();
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
     Label* label, BasicBlock* predecessor) {
   BorrowParentKnownNodeAspectsAndVOs borrow(this);
-
-  if (label->merge_state_ == nullptr) {
+  if (label->variable_merge_state_ == nullptr) {
     // If there's no merge state, allocate a new one.
-    label->merge_state_ = MergePointInterpreterFrameState::New(
-        *compilation_unit_, pseudo_frame_, 0, label->predecessor_count_,
-        predecessor, label->liveness_);
+    DCHECK_NULL(label->merge_state_);
+    label->variable_merge_state_ = MergePointInterpreterFrameState::New(
+        *variable_compilation_unit_, variable_frame_, 0,
+        label->predecessor_count_, predecessor, label->variable_liveness_);
+    if (label->ShouldTrackInterpreterFrameState()) {
+      label->merge_state_ = MergePointInterpreterFrameState::New(
+          *compilation_unit(), builder_->current_interpreter_frame_, 0,
+          label->predecessor_count_, predecessor,
+          builder_->GetInLivenessFor(*label->future_bind_offset_));
+    }
   } else {
     // If there already is a frame state, merge.
-    label->merge_state_->Merge(builder_, *compilation_unit_, pseudo_frame_,
-                               predecessor);
+    label->variable_merge_state_->Merge(builder_, *variable_compilation_unit_,
+                                        variable_frame_, predecessor);
+    if (label->ShouldTrackInterpreterFrameState()) {
+      DCHECK_NOT_NULL(label->merge_state_);
+      label->merge_state_->Merge(builder_, *compilation_unit(),
+                                 builder_->current_interpreter_frame_,
+                                 predecessor);
+    }
   }
 }
 
@@ -2356,10 +2449,15 @@ ReduceResult MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
                                                            ValueNode* right) {
-  auto left_type = GetType(left);
-  auto right_type = GetType(right);
-  auto left_is_string = NodeTypeIs(left_type, NodeType::kString);
-  auto right_is_string = NodeTypeIs(right_type, NodeType::kString);
+  NodeType left_type = GetType(left);
+  NodeType right_type = GetType(right);
+  bool left_is_string = NodeTypeIs(left_type, NodeType::kString);
+  bool right_is_string = NodeTypeIs(right_type, NodeType::kString);
+
+  if (IsEmptyNodeType(left_type) || IsEmptyNodeType(right_type)) {
+    // We must be in unreachable code.
+    return BuildAbort(AbortReason::kUnreachable);
+  }
 
   if (!left_is_string && !right_is_string) {
     return MaybeReduceResult::Fail();
@@ -2375,16 +2473,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
   // operands using `ToString(ToPrimitive(op))`.
   if (!left_is_string) {
     if (NodeTypeCanBe(left_type, NodeType::kJSReceiver)) {
-      constexpr auto kTarget = Builtin::kStringAddConvertLeft;
-      auto result = BuildCallBuiltin<kTarget>({left, right});
+      constexpr Builtin kTarget = Builtin::kStringAddConvertLeft;
+      CallBuiltin* result = BuildCallBuiltin<kTarget>({left, right});
       SetAccumulator(result);
       return result;
     }
     left = BuildToString(left, ToString::kThrowOnSymbol);
   } else if (!right_is_string) {
     if (NodeTypeCanBe(right_type, NodeType::kJSReceiver)) {
-      constexpr auto kTarget = Builtin::kStringAddConvertRight;
-      auto result = BuildCallBuiltin<kTarget>({left, right});
+      constexpr Builtin kTarget = Builtin::kStringAddConvertRight;
+      CallBuiltin* result = BuildCallBuiltin<kTarget>({left, right});
       SetAccumulator(result);
       return result;
     }
@@ -4487,7 +4585,8 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
 ReduceResult MaglevGraphBuilder::BuildCompareMaps(
     ValueNode* object, ValueNode* object_map,
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
-    std::optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
+    std::optional<MaglevSubGraphBuilder::Label>& if_not_matched,
+    std::optional<int> future_bind_offset) {
   GetOrCreateInfoFor(object);
   KnownMapsMerger merger(broker(), zone(), maps);
   merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
@@ -4520,7 +4619,13 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
           {object_map, GetConstant(relevant_maps.at(map_index))});
     }
   }
-  if_not_matched.emplace(sub_graph, 1);
+  if (future_bind_offset) {
+    if_not_matched.emplace(
+        MaglevSubGraphBuilder::LabelForTrackingInterpreterFrameState(
+            sub_graph, 1, *future_bind_offset));
+  } else {
+    if_not_matched.emplace(sub_graph, 1);
+  }
   sub_graph->GotoIfFalse<BranchIfReferenceEqual>(
       &*if_not_matched, {object_map, GetConstant(relevant_maps.at(0))});
   if (map_matched.has_value()) {
@@ -5120,7 +5225,10 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
 
   // Do the load.
   if (field_index.is_double()) {
-    return AddNewNode<LoadDoubleField>({load_source}, field_index.offset());
+    ValueNode* heap_number =
+        AddNewNode<LoadTaggedField>({load_source}, field_index.offset());
+    return AddNewNode<LoadFloat64>(
+        {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
   ValueNode* value = BuildLoadTaggedField<LoadTaggedFieldForProperty>(
       load_source, field_index.offset(), name);
@@ -5304,7 +5412,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                                     access_info.transition_map().value(),
                                     StoreMap::Kind::kTransitioning));
     } else {
-      AddNewNode<StoreDoubleField>({store_target, value}, field_index.offset());
+      ValueNode* heap_number =
+          AddNewNode<LoadTaggedField>({store_target}, field_index.offset());
+      AddNewNode<StoreFloat64>({heap_number, value},
+                               static_cast<int>(offsetof(HeapNumber, value_)));
     }
     return ReduceResult::Done();
   }
@@ -6632,6 +6743,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     }
   }
 
+  int start_offset = iterator_.current_offset();
+  SourcePositionTableIterator::IndexAndPositionState
+      start_source_position_iterator_state =
+          source_position_iterator_.GetState();
+  std::optional<ContinuationOffsets> continuation;
+  if (!is_any_store) {
+    continuation = FindContinuationForPolymorphicPropertyLoad();
+  }
+
   // Stores don't return a value, so we don't need a variable for the result.
   MaglevSubGraphBuilder sub_graph(this, is_any_store ? 0 : 1);
   std::optional<MaglevSubGraphBuilder::Variable> ret_val;
@@ -6640,7 +6760,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   std::optional<MaglevSubGraphBuilder::Label> generic_access;
 
   if (number_map_index_for_smi >= 0) {
-    is_number.emplace(&sub_graph, 2);
+    if (continuation) {
+      int future_bind_offset = iterator_.current_offset();
+      is_number.emplace(
+          MaglevSubGraphBuilder::LabelForTrackingInterpreterFrameState(
+              &sub_graph, 2, future_bind_offset));
+    } else {
+      is_number.emplace(&sub_graph, 2);
+    }
     sub_graph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
   } else {
     // The lookup start object is a HeapNumber, but we haven't seen the
@@ -6661,15 +6788,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
         {lookup_start_object_map, lookup_start_object});
   }
 
-  int start_offset = iterator_.current_offset();
-  SourcePositionTableIterator::IndexAndPositionState
-      start_source_position_iterator_state =
-          source_position_iterator_.GetState();
-  std::optional<ContinuationOffsets> continuation;
-  if (!is_any_store) {
-    continuation = FindContinuationForPolymorphicPropertyLoad();
-  }
-
+  std::optional<MaglevSubGraphBuilder::Label> check_next_map;
   for (int i = 0; i < access_info_count; i++) {
     // Reset the state before generating the next polymorphic arm, in case
     // FindContinuationForPolymorphicPropertyLoad or a continuation in the
@@ -6678,8 +6797,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     source_position_iterator_.RestoreState(
         start_source_position_iterator_state);
 
+    if (check_next_map.has_value()) {
+      sub_graph.Bind(&*check_next_map);
+      check_next_map.reset();
+    }
+
     compiler::PropertyAccessInfo const& access_info = access_infos[i];
-    std::optional<MaglevSubGraphBuilder::Label> check_next_map;
     MaybeReduceResult map_check_result;
     const auto& maps = access_info.lookup_start_object_maps();
     if (i == access_info_count - 1) {
@@ -6687,9 +6810,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
           lookup_start_object, base::VectorOf(maps), {},
           has_deprecated_map_without_migration_target, needs_migration);
     } else {
-      map_check_result =
-          BuildCompareMaps(lookup_start_object, lookup_start_object_map,
-                           base::VectorOf(maps), &sub_graph, check_next_map);
+      std::optional<int> future_bind_offset;
+      if (continuation) future_bind_offset = iterator_.current_offset();
+      map_check_result = BuildCompareMaps(
+          lookup_start_object, lookup_start_object_map, base::VectorOf(maps),
+          &sub_graph, check_next_map, future_bind_offset);
     }
     if (map_check_result.IsDoneWithAbort()) {
       DCHECK_NE(i, number_map_index_for_smi);
@@ -6729,10 +6854,20 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
             done.emplace(&sub_graph, possible_predecessors);
           } else {
             ret_val.emplace(0);
-            done.emplace(
-                &sub_graph, possible_predecessors,
-                std::initializer_list<MaglevSubGraphBuilder::Variable*>{
-                    &*ret_val});
+            if (continuation) {
+              int future_bind_offset = continuation->last_continuation;
+              done.emplace(
+                  MaglevSubGraphBuilder::LabelForTrackingInterpreterFrameState(
+                      &sub_graph, possible_predecessors,
+                      std::initializer_list<MaglevSubGraphBuilder::Variable*>{
+                          &*ret_val},
+                      future_bind_offset));
+            } else {
+              done.emplace(
+                  &sub_graph, possible_predecessors,
+                  std::initializer_list<MaglevSubGraphBuilder::Variable*>{
+                      &*ret_val});
+            }
           }
         }
         if (is_any_store) {
@@ -6769,21 +6904,25 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
           // Conservatively assume that all remaining branches can go into the
           // generic path, as we have to initialize the predecessors upfront.
           // TODO(pthier): Find a better way to do that.
-          generic_access.emplace(&sub_graph, access_info_count - i);
+          if (continuation) {
+            int future_bind_offset = iterator_.current_offset();
+            generic_access.emplace(
+                MaglevSubGraphBuilder::LabelForTrackingInterpreterFrameState(
+                    &sub_graph, access_info_count - i, future_bind_offset));
+          } else {
+            generic_access.emplace(&sub_graph, access_info_count - i);
+          }
         }
         sub_graph.Goto(&*generic_access);
         break;
       default:
         UNREACHABLE();
     }
-
-    if (check_next_map.has_value()) {
-      sub_graph.Bind(&*check_next_map);
-    } else if (i != access_info_count - 1) {
+    if (!check_next_map.has_value() && i != access_info_count - 1) {
       // The map check will always succeed, so we do not need to try other
       // options.
       DCHECK(map_check_result.IsDone());
-      DCHECK(!check_next_map.has_value());
+
       // TODO(victorgomes): We should avoid calling the polymorphic builder in
       // the first place. If we statically know one of the map comparison will
       // always succeed, then we should call the non-polymorphic build access.
@@ -6847,19 +6986,41 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
     return {};
   }
 
+  int start_offset = iterator_.current_offset();
+  SourcePositionTableIterator::IndexAndPositionState
+      start_source_position_iterator_state =
+          source_position_iterator_.GetState();
+
+  std::optional<ContinuationOffsets> continuation =
+      FindContinuationForPolymorphicPropertyLoadImpl();
+
+  iterator_.SetOffset(start_offset);
+  source_position_iterator_.RestoreState(start_source_position_iterator_state);
+  return continuation;
+}
+
+std::optional<MaglevGraphBuilder::ContinuationOffsets>
+MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
   interpreter::Register loaded_property_register =
       interpreter::Register::virtual_accumulator();
 
-  // For now, we only generate the continuation for this pattern:
-  // GeNamedProperty ...
+  // We generate continuations for this pattern:
+  // GetNamedProperty ...
   // Sta-REG
+  // <Allowed bytecodes>
   // CallProperty REG ...
+  // Where <allowed bytecodes> are:
+  // - not affecting control flow
+  // - not storing into REG
+  // and the continuation is limited in length.
 
+  // Skip GetnamedProperty.
   iterator_.Advance();
   if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
     return {};
   }
 
+  // Handle Sta-REG and read REG into loaded_property_register.
   switch (iterator_.current_bytecode()) {
 #define CASE(Name, ...)                                                       \
   case interpreter::Bytecode::k##Name:                                        \
@@ -6873,13 +7034,16 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
       return {};
   }
 
-  iterator_.Advance();
-  if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
-    return {};
-  }
+  // TODO(marja): Find out a good limit.
+  int limit = 20;
+  while (--limit > 0) {
+    iterator_.Advance();
+    if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
+      return {};
+    }
 
-  switch (iterator_.current_bytecode()) {
-#define CASE(Name, ...)                                                \
+    switch (iterator_.current_bytecode()) {
+#define CALL_CASE(Name, ...)                                           \
   case interpreter::Bytecode::k##Name:                                 \
     if (iterator_.GetRegisterOperand(0) == loaded_property_register) { \
       return ContinuationOffsets{iterator_.current_offset(),           \
@@ -6887,11 +7051,42 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
     }                                                                  \
     break;
 
-    CALL_PROPERTY_BYTECODES(CASE)
-#undef CASE
+      // Call bytecodes (if they call the loaded property) end the continuation.
+      CALL_PROPERTY_BYTECODES(CALL_CASE)
+#undef CALL_CASE
 
-    default:
-      break;
+#define STA_CASE(Name, ...)                                                \
+  case interpreter::Bytecode::k##Name:                                     \
+    if (interpreter::Register::FromShortStar(                              \
+            interpreter::Bytecode::k##Name) == loaded_property_register) { \
+      return {};                                                           \
+    }                                                                      \
+    break;
+
+      // Sta bytecodes might clobber the register we loaded into.
+      SHORT_STAR_BYTECODE_LIST(STA_CASE)
+#undef STA_CASE
+
+      case interpreter::Bytecode::kStar:
+        if (iterator_.GetRegisterOperand(0) == loaded_property_register) {
+          return {};
+        }
+        break;
+
+#define CONTROL_NODE_CASE(Name, ...)   \
+  case interpreter::Bytecode::k##Name: \
+    return {};
+
+        // The continuation cannot extend beyond control flow altering
+        // bytecodes.
+        JUMP_BYTECODE_LIST(CONTROL_NODE_CASE)
+        RETURN_BYTECODE_LIST(CONTROL_NODE_CASE)
+        UNCONDITIONAL_THROW_BYTECODE_LIST(CONTROL_NODE_CASE)
+#undef CONTROL_NODE_CASE
+
+      default:
+        break;
+    }
   }
   return {};
 
@@ -7922,6 +8117,11 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
   }
   inlining_id_ = static_cast<int>(graph()->inlined_functions().size() - 1);
 
+  if (should_abort_compilation_) {
+    // We will abort the compilation at the end.
+    return BuildAbort(AbortReason::kMaglevGraphBuildingFailed);
+  }
+
   DCHECK_NE(inlining_id_, SourcePosition::kNotInlined);
   reducer_.SetBytecodeOffset(entrypoint_);
   reducer_.SetStartSourcePosition(inlining_id_);
@@ -8156,6 +8356,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
 
   TRACE_INLINING("  considering " << shared << " for inlining");
   auto arguments = GetArgumentsAsArrayOfValueNodes(shared, args);
+
+  // Creating the CallKnownJSFUnction node will conservatively clear the
+  // unstable maps from the KNA. So, we save them before doing this, since this
+  // could clear maps that don't need to be cleared.
+  KnownNodeAspects* call_aspects = known_node_aspects().Clone(zone());
+
   auto generic_call = BuildCallKnownJSFunction(context, function, new_target,
 #ifdef V8_ENABLE_LEAPTIERING
                                                dispatch_handle,
@@ -8175,8 +8381,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
-          known_node_aspects().Clone(zone()), loop_effects_,
-          unobserved_context_slot_stores_, catch_details, IsInsideLoop(),
+          call_aspects, loop_effects_, unobserved_context_slot_stores_,
+          catch_details, IsInsideLoop(),
           /* is_eager_inline */ false, call_frequency},
       generic_call, feedback_cell, score, bytecode.length());
   graph()->inlineable_calls().push(call_site);
@@ -8229,7 +8435,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   ReduceResult result = inner_graph_builder.BuildInlineFunction(
       GetCurrentSourcePosition(), context, function, new_target);
 
-  // Prapagate back (or reset) builder state.
+  // Propagate back (or reset) builder state.
   unobserved_context_slot_stores_ =
       inner_graph_builder.unobserved_context_slot_stores_;
   latest_checkpointed_frame_ = nullptr;
@@ -9292,9 +9498,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+
   ValueNode* search_element =
-      BuildToString(GetValueOrUndefined(args[0]), ToString::kThrowOnSymbol);
+      args[0] ? args[0] : GetRootConstant(RootIndex::kundefined_string);
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+
+  if (!NodeTypeIs(GetType(search_element), NodeType::kString)) return {};
+
   ValueNode* start_arg = GetValueOrUndefined(args[1]);
   ValueNode* start =
       IsUndefinedValue(start_arg) ? GetInt32Constant(0) : start_arg;
@@ -9578,10 +9789,8 @@ bool AllOfInstanceTypesAre(const PossibleMaps& maps, InstanceType type) {
 }
 }  // namespace
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
-    compiler::JSFunctionRef target, CallArguments& args,
-    JSDate::FieldIndex field_index) {
-  DCHECK_LT(field_index, JSDate::kFirstUncachedField);
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetFieldPrologue(
+    compiler::JSFunctionRef target, CallArguments& args) {
   if (!v8_flags.maglev_inline_date_accessors) return {};
   if (!CanSpeculateCall()) return {};
 
@@ -9620,6 +9829,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
         "NoDateTimeConfigurationChangeProtector invalidated");
   }
 
+  return ReduceResult::Done();
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
+    compiler::JSFunctionRef target, CallArguments& args,
+    JSDate::FieldIndex field_index) {
+  DCHECK_LT(field_index, JSDate::kFirstUncachedField);
+  auto prologue_result = TryReduceDatePrototypeGetFieldPrologue(target, args);
+  if (!prologue_result.IsDoneWithoutValue()) return prologue_result;
+
+  ValueNode* receiver = args.receiver();
+  DCHECK_NOT_NULL(receiver);
   int field_offset = JSDate::kYearOffset + field_index * kTaggedSize;
   ValueNode* field_value = BuildLoadTaggedField(receiver, field_offset);
   // All cached JSDate fields are Smi|NaN.
@@ -9628,6 +9849,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
   // encountering such an object. Alternatively, to avoid the deopt we could
   // fall back to Number: EnsureType(field_value, NodeType::kNumber);
   return field_value;
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetTime(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  auto prologue_result = TryReduceDatePrototypeGetFieldPrologue(target, args);
+  if (!prologue_result.IsDoneWithoutValue()) return prologue_result;
+
+  ValueNode* receiver = args.receiver();
+  DCHECK_NOT_NULL(receiver);
+  return AddNewNode<LoadFloat64>({receiver}, JSDate::kValueOffset);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetFullYear(
@@ -15386,8 +15617,9 @@ DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 #undef DEBUG_BREAK
 ReduceResult MaglevGraphBuilder::VisitIllegal() { UNREACHABLE(); }
 
-void MaglevGraphBuilder::Build() {
+bool MaglevGraphBuilder::Build() {
   DCHECK(!is_inline());
+  if (should_abort_compilation_) return false;
 
   DCHECK_EQ(inlining_id_, SourcePosition::kNotInlined);
   reducer_.SetBytecodeOffset(entrypoint_);
@@ -15442,6 +15674,7 @@ void MaglevGraphBuilder::Build() {
   }
 
   BuildBody();
+  return !should_abort_compilation_;
 }
 
 void MaglevGraphBuilder::BuildBody() {
@@ -15916,17 +16149,15 @@ CatchBlockDetails MaglevGraphBuilder::GetCurrentTryCatchBlock() {
 
 CatchBlockDetails MaglevGraphBuilder::GetTryCatchBlockForNonEagerInlining(
     ExceptionHandlerInfo* info) {
-  if (IsInsideTryBlock()) {
-    return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), true, 0};
-  }
-  if (!is_inline()) {
-    return CatchBlockDetails{};
-  }
+  if (!info->HasExceptionHandler()) return CatchBlockDetails{};
+  int deopt_frame_distance =
+      is_inline() && !IsInsideTryBlock()
+          ? caller_details_->catch_block.deopt_frame_distance
+          : 0;
   // Since this CatchBlockDetails is stored in a non-eager call site,
   // the catch block will already exist by the time inlining is attempted.
-  CatchBlockDetails catch_details = caller_details_->catch_block;
-  catch_details.block_already_exists = true;
-  return catch_details;
+  return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), true,
+          deopt_frame_distance};
 }
 
 ValueNode* MaglevGraphBuilder::GetTaggedValue(

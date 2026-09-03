@@ -133,7 +133,6 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   function_index: Smi;
   // Contains a Smi; boxed so that generated code can update the value.
   wrapper_budget: Cell;
-  canonical_type_index: Smi;
 
   // Experimental: set this to non-zero to let the JS-side receiver be passed
   // as Wasm-side first parameter.
@@ -159,8 +158,6 @@ extern class WasmJSFunctionData extends WasmFunctionData {
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {
-  // TODO(jkummerow): Move {canonical_sig_index} into {WasmFunctionData}.
-  canonical_sig_index: Smi;
   embedder_data: Foreign;  // Managed<wasm::FuncData>
   sig: RawFunctionSigPtr;
 }

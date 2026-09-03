@@ -34,10 +34,6 @@ namespace field_trial {
     "Create FieldTrials and pass is where FieldTrialsView is expected")]]
 void InitFieldTrialsFromString(const char* trials_string);
 
-// TODO: bugs.webrtc.org/42220378 - Remove from api after September 1, 2025.
-[[deprecated("Propagate and query FieldTrialsView interface")]]
-const char* GetFieldTrialString();
-
 // Validates the given field trial string.
 // TODO: bugs.webrtc.org/42220378 - Delete after January 1, 2026.
 [[deprecated("Use FieldTrials::Create to validate field trial string")]]

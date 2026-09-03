@@ -632,6 +632,7 @@ Chrome'дун ишин жакшыртуу үчүн маалыматтарды к
 <translation id="4042941173059740150"><ph name="SITE_ETLD_PLUS_ONE" /> сайтына <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> аккаунту менен өтүңүз</translation>
 <translation id="4044708993631234325">Ылдыйкы экран</translation>
 <translation id="4045441967987592849">Кайра ачуу</translation>
+<translation id="4049920046559074950"><ph name="INSTANCE_TITLE" />: кошумча параметрлер</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{Бөлүшүлгөн өтмөк топторундагы жаңы аракет менен <ph name="TABS_COUNT_ONE" /> стандарттуу өтмөк}other{Бөлүшүлгөн өтмөк топторундагы жаңы аракет менен <ph name="TABS_COUNT_MANY" /> стандарттуу өтмөк}}</translation>
 <translation id="405365679581583349">Google Play кызматтарын жаңыртуу</translation>
 <translation id="405399507749852140">Кандайдыр бир сайтта баасы төмөндөсө, эскертүүлөрдү алыңыз</translation>
@@ -1830,6 +1831,7 @@ Google аккаунтуңуздун башка Google кызматтарынан
 <translation id="930124987204876019">Таржымалды, cookie файлдарын, сайттагы маалыматты, кешти өчүрүү…</translation>
 <translation id="938850635132480979">Ката: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Купуя сөз айкашын киргизиңиз</translation>
+<translation id="945522503751344254">Пикириңизди билдириңиз</translation>
 <translation id="95817756606698420">Chrome Кытай жергесинде издөө үчүн <ph name="BEGIN_BOLD" />Sogou'ду<ph name="END_BOLD" /> колдоно алат. Аны <ph name="BEGIN_LINK" />Параметрлерден<ph name="END_LINK" /> өзгөртүп койсоңуз болот.</translation>
 <translation id="961856697154696964">Серептөө дайындарын өчүрүү</translation>
 <translation id="963246339335003378">Маселелерди башкаргычты ачуу</translation>

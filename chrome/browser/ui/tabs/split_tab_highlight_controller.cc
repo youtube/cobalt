@@ -14,8 +14,12 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+#include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/web_contents.h"
+#include "ui/views/view.h"
+#include "ui/views/widget/widget.h"
 
 namespace split_tabs {
 
@@ -32,9 +36,10 @@ SplitTabHighlightController::SplitTabHighlightController(
   chip_controller_observation_.Observe(
       browser_view->toolbar()->location_bar()->GetChipController());
   page_info_bubble_created_subscription_ =
-      PageInfoBubbleView::RegisterPageInfoCreatedCallback(base::BindRepeating(
-          &SplitTabHighlightController::OnPageInfoBubbleCreated,
-          base::Unretained(this)));
+      PageInfoBubbleViewBase::RegisterPageInfoCreatedCallback(
+          base::BindRepeating(
+              &SplitTabHighlightController::OnPageInfoBubbleCreated,
+              base::Unretained(this)));
 }
 
 SplitTabHighlightController::~SplitTabHighlightController() = default;
@@ -86,6 +91,9 @@ void SplitTabHighlightController::OnActiveTabChange(
         OmniboxTabHelper::FromWebContents(active_tab->GetContents());
     CHECK(tab_helper);
     omnibox_tab_helper_observation_.Observe(tab_helper);
+    tab_will_discard_subscription_ = active_tab->RegisterWillDiscardContents(
+        base::BindRepeating(&SplitTabHighlightController::OnTabWillDiscard,
+                            base::Unretained(this)));
   }
   // Need to update the highlight because the omnibox focus state
   // event might have already been triggered before the active tab change.
@@ -101,13 +109,28 @@ void SplitTabHighlightController::OnTabWillDetach(
   tab_will_detach_subscription_ = base::CallbackListSubscription();
 }
 
+void SplitTabHighlightController::OnTabWillDiscard(
+    tabs::TabInterface* tab_interface,
+    content::WebContents* old_contents,
+    content::WebContents* new_contents) {
+  // Reset the observation of the omnibox tab helper since it is possible for
+  // the active tab to be discarded on CrOS.
+  omnibox_tab_helper_observation_.Reset();
+  is_omnibox_popup_showing_ = false;
+  UpdateHighlight();
+}
+
 void SplitTabHighlightController::OnPageInfoBubbleCreated(
-    content::WebContents* web_contents,
-    views::Widget* bubble_widget) {
+    PageInfoBubbleViewBase* bubble_view) {
+  views::Widget* const bubble_widget = bubble_view->GetWidget();
   if (browser_window_interface_->GetActiveTabInterface()->GetContents() ==
-      web_contents) {
+      bubble_view->web_contents()) {
+    page_info_bubble_observation_.Reset();
     page_info_bubble_observation_.Observe(bubble_widget);
   }
+
+  is_page_info_bubble_showing_ = bubble_widget->IsVisible();
+  UpdateHighlight();
 }
 
 void SplitTabHighlightController::UpdateHighlight() {

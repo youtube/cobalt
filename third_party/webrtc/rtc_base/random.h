@@ -21,20 +21,15 @@ namespace webrtc {
 
 class Random {
  public:
-  // TODO(tommi): Change this so that the seed can be initialized internally,
-  // e.g. by offering two ways of constructing or offer a static method that
-  // returns a seed that's suitable for initialization.
-  // The problem now is that callers are calling clock_->TimeInMicroseconds()
-  // which calls TickTime::Now().Ticks(), which can return a very low value on
-  // Mac and can result in a seed of 0 after conversion to microseconds.
-  // Besides the quality of the random seed being poor, this also requires
-  // the client to take on extra dependencies to generate a seed.
-  // If we go for a static seed generator in Random, we can use something from
-  // webrtc/rtc_base and make sure that it works the same way across platforms.
-  // See also discussion here: https://codereview.webrtc.org/1623543002/
+  // Returns a random number generator with a random seed.
+  Random();
+
+  // Returns a random number generator with the given seed. The seed must not
+  // be 0. It is expected that callers intelligently generate their seeds and do
+  // not simply pass a constant value or use the current time as a seed.
+  // This function should only be used for testing.
   explicit Random(uint64_t seed);
 
-  Random() = delete;
   Random(const Random&) = delete;
   Random& operator=(const Random&) = delete;
 

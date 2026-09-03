@@ -148,7 +148,7 @@ PeerConnectionWrapper::CreateAnswerAndSetAsLocal(
 
 std::unique_ptr<SessionDescriptionInterface>
 PeerConnectionWrapper::CreateRollback() {
-  return CreateSessionDescription(SdpType::kRollback, "");
+  return CreateRollbackSessionDescription();
 }
 
 std::unique_ptr<SessionDescriptionInterface> PeerConnectionWrapper::CreateSdp(

@@ -251,6 +251,11 @@ void GnomeDisplayConfig::Relayout(const LayoutInfo& layout_info) {
   NormalizeMonitorOffsets();
 }
 
+void GnomeDisplayConfig::RemoveInvalidMonitors() {
+  std::erase_if(monitors,
+                [](const auto& kv) { return !kv.second.GetCurrentMode(); });
+}
+
 GnomeDisplayConfig::LayoutInfo GnomeDisplayConfig::GetLayoutInfo() const {
   LayoutDirection direction = GetLayoutDirection();
   return {layout_mode, direction, GetLayoutAlignment(direction)};
@@ -278,6 +283,9 @@ GnomeDisplayConfig::LayoutDirection GnomeDisplayConfig::GetLayoutDirection()
 
 GnomeDisplayConfig::LayoutAlignment GnomeDisplayConfig::GetLayoutAlignment(
     LayoutDirection direction) const {
+  if (monitors.empty()) {
+    return LayoutAlignment::kUnknown;
+  }
   if (direction == LayoutDirection::kHorizontal) {
     const_cast<GnomeDisplayConfig*>(this)->Transpose();
   }

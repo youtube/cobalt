@@ -941,6 +941,9 @@ VideoEncoder::EncoderInfo LibaomAv1Encoder::GetEncoderInfo() const {
           : VideoEncoder::ScalingSettings(kLowQindex, kHighQindex);
   info.preferred_pixel_formats = {VideoFrameBuffer::Type::kI420,
                                   VideoFrameBuffer::Type::kNV12};
+  if (inited_) {
+    info.mapped_resolution = VideoEncoder::Resolution(cfg_.g_w, cfg_.g_h);
+  }
   if (SvcEnabled()) {
     for (int sid = 0; sid < svc_params_->number_spatial_layers; ++sid) {
       info.fps_allocation[sid].resize(svc_params_->number_temporal_layers);

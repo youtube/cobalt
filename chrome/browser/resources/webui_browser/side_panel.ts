@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CrLitElement, nothing} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {BrowserProxy} from './browser_proxy.js';
+import {getCss} from './side_panel.css.js';
+import {getHtml} from './side_panel.html.js';
 import {WebviewElement} from './webview.js';
 
 export class SidePanel extends CrLitElement {
@@ -11,22 +14,40 @@ export class SidePanel extends CrLitElement {
     return 'side-panel';
   }
 
-  private webView_?: WebviewElement;
-  private showing_: boolean = false;
-
-  override render() {
-    if (!this.showing_) {
-      return nothing;
-    }
-
-    return this.webView_;
+  static override get styles() {
+    return getCss();
   }
 
-  show(guestContentsId: number) {
-    this.webView_ = new WebviewElement();
-    this.webView_.guestId = guestContentsId;
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
+    return {
+      showing_: {state: true, type: Boolean},
+      title_: {state: true, type: String},
+      webView: {state: true, type: Object},
+    };
+  }
+
+  accessor webView: WebviewElement|null = null;
+  protected accessor title_: string = '';
+  protected accessor showing_: boolean = false;
+
+  show(guestContentsId: number, title: string) {
+    this.webView = new WebviewElement();
+    this.webView.guestId = guestContentsId;
+    this.title_ = title;
     this.showing_ = true;
     this.requestUpdate();
+  }
+
+  async close() {
+    this.showing_ = false;
+    this.webView = null;
+    this.dispatchEvent(new Event('side-panel-closed', {bubbles: true}));
+    await this.updateComplete;
+    BrowserProxy.getPageHandler().onSidePanelClosed();
   }
 
   hide() {

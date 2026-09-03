@@ -965,6 +965,14 @@ VideoEncoder::EncoderInfo SimulcastEncoderAdapter::GetEncoderInfo() const {
     if (!stream_contexts_[i].is_paused()) {
       encoder_names.push_back(encoder_impl_info.implementation_name);
     }
+
+    if (encoder_impl_info.mapped_resolution.has_value() &&
+        (!encoder_info.mapped_resolution.has_value() ||
+         encoder_info.mapped_resolution->width <
+             encoder_impl_info.mapped_resolution->width)) {
+      encoder_info.mapped_resolution = encoder_impl_info.mapped_resolution;
+    }
+
     if (i == 0) {
       encoder_info.supports_native_handle =
           encoder_impl_info.supports_native_handle;

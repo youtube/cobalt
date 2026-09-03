@@ -161,7 +161,6 @@ class RecordReplayContext : public GpuControl {
         discardable_manager_(gpu::GpuPreferences()),
         passthrough_discardable_manager_(gpu::GpuPreferences()),
         translator_cache_(gpu_preferences_) {
-    bool bind_generates_resource = false;
     if (base::CommandLine::ForCurrentProcess()->HasSwitch("use-stub")) {
       surface_ = new gl::GLSurfaceStub;
       scoped_refptr<gl::GLContextStub> context_stub =
@@ -182,26 +181,23 @@ class RecordReplayContext : public GpuControl {
     context_->MakeCurrent(surface_.get());
 
     scoped_refptr<gles2::FeatureInfo> feature_info = new gles2::FeatureInfo();
-    scoped_refptr<gles2::ContextGroup> context_group = new gles2::ContextGroup(
+    auto context_group = base::MakeRefCounted<gles2::ContextGroup>(
         gpu_preferences_, /*memory_tracker=*/nullptr, &translator_cache_,
-        &completeness_cache_, feature_info, bind_generates_resource,
+        &completeness_cache_, feature_info,
         /*progress_reporter=*/nullptr, GpuFeatureInfo(), &discardable_manager_,
         &passthrough_discardable_manager_, &shared_image_manager_);
     command_buffer_ = std::make_unique<RecordReplayCommandBuffer>();
 
-    decoder_.reset(gles2::GLES2Decoder::Create(
-        command_buffer_.get(), command_buffer_->service(), &outputter_,
-        context_group.get()));
+    decoder_ = gles2::GLES2Decoder::Create(command_buffer_.get(),
+                                           command_buffer_->service(),
+                                           &outputter_, context_group.get());
     command_buffer_->set_handler(decoder_.get());
 
     decoder_->GetLogger()->set_log_synthesized_gl_errors(false);
 
-    ContextCreationAttribs attrib_helper;
-    attrib_helper.context_type = CONTEXT_TYPE_OPENGLES3;
-
-    ContextResult result =
-        decoder_->Initialize(surface_.get(), context_.get(), true,
-                             gles2::DisallowedFeatures(), attrib_helper);
+    ContextResult result = decoder_->Initialize(
+        surface_.get(), context_.get(), /*offscreen=*/true,
+        CONTEXT_TYPE_OPENGLES3, /*lose_context_when_out_of_memory=*/false);
     DCHECK_EQ(result, ContextResult::kSuccess);
     capabilities_ = decoder_->GetCapabilities();
     gl_capabilities_ = decoder_->GetGLCapabilities();
@@ -219,7 +215,7 @@ class RecordReplayContext : public GpuControl {
     const bool lose_context_when_out_of_memory = false;
     gles2_implementation_ = std::make_unique<gles2::GLES2Implementation>(
         gles2_helper_.get(), nullptr, transfer_buffer_.get(),
-        bind_generates_resource, lose_context_when_out_of_memory, this);
+        lose_context_when_out_of_memory, this);
 
     result = gles2_implementation_->Initialize(limits);
     DCHECK_EQ(result, ContextResult::kSuccess);

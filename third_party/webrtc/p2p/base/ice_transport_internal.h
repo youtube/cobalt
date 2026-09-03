@@ -123,11 +123,11 @@ RTCError VerifyCandidates(const Candidates& candidates);
 // Information about ICE configuration.
 // TODO(bugs.webrtc.org/15609): Define a public API for this.
 struct RTC_EXPORT IceConfig {
-  // The ICE connection receiving timeout value in milliseconds.
-  std::optional<int> receiving_timeout;
-  // Time interval in milliseconds to ping a backup connection when the ICE
-  // channel is strongly connected.
-  std::optional<int> backup_connection_ping_interval;
+  // The ICE connection receiving timeout value.
+  std::optional<TimeDelta> receiving_timeout;
+  // Time interval to ping a backup connection when the ICE channel is strongly
+  // connected.
+  std::optional<TimeDelta> backup_connection_ping_interval;
 
   ContinualGatheringPolicy continual_gathering_policy = GATHER_ONCE;
 
@@ -140,7 +140,7 @@ struct RTC_EXPORT IceConfig {
   bool prioritize_most_likely_candidate_pairs = false;
 
   // Writable connections are pinged at a slower rate once stablized.
-  std::optional<int> stable_writable_connection_ping_interval;
+  std::optional<TimeDelta> stable_writable_connection_ping_interval;
 
   // If set to true, this means the ICE transport should presume TURN-to-TURN
   // candidate pairs will succeed, even before a binding response is received.
@@ -155,56 +155,55 @@ struct RTC_EXPORT IceConfig {
 
   // Interval to check on all networks and to perform ICE regathering on any
   // active network having no connection on it.
-  std::optional<int> regather_on_failed_networks_interval;
+  std::optional<TimeDelta> regather_on_failed_networks_interval;
 
   // The time period in which we will not switch the selected connection
   // when a new connection becomes receiving but the selected connection is not
   // in case that the selected connection may become receiving soon.
-  std::optional<int> receiving_switching_delay;
+  std::optional<TimeDelta> receiving_switching_delay;
 
   // TODO(honghaiz): Change the default to regular nomination.
   // Default nomination mode if the remote does not support renomination.
   NominationMode default_nomination_mode = NominationMode::SEMI_AGGRESSIVE;
 
-  // The interval in milliseconds at which ICE checks (STUN pings) will be sent
-  // for a candidate pair when it is both writable and receiving (strong
-  // connectivity). This parameter overrides the default value given by
-  // `STRONG_PING_INTERVAL` in p2ptransport.h if set.
-  std::optional<int> ice_check_interval_strong_connectivity;
-  // The interval in milliseconds at which ICE checks (STUN pings) will be sent
-  // for a candidate pair when it is either not writable or not receiving (weak
-  // connectivity). This parameter overrides the default value given by
-  // `WEAK_PING_INTERVAL` in p2ptransport.h if set.
-  std::optional<int> ice_check_interval_weak_connectivity;
+  // The interval at which ICE checks (STUN pings) will be sent for a candidate
+  // pair when it is both writable and receiving (strong connectivity). This
+  // parameter overrides the default value given by `kStrongPingInterval` in
+  // p2ptransport.h if set.
+  std::optional<TimeDelta> ice_check_interval_strong_connectivity;
+  // The interval \at which ICE checks (STUN pings) will be sent for a candidate
+  // pair when it is either not writable or not receiving (weak connectivity).
+  // This parameter overrides the default value given by `kWeakPingInterval` in
+  // p2ptransport.h if set.
+  std::optional<TimeDelta> ice_check_interval_weak_connectivity;
   // ICE checks (STUN pings) will not be sent at higher rate (lower interval)
   // than this, no matter what other settings there are.
-  // Measure in milliseconds.
   //
   // Note that this parameter overrides both the above check intervals for
   // candidate pairs with strong or weak connectivity, if either of the above
   // interval is shorter than the min interval.
-  std::optional<int> ice_check_min_interval;
+  std::optional<TimeDelta> ice_check_min_interval;
   // The min time period for which a candidate pair must wait for response to
   // connectivity checks before it becomes unwritable. This parameter
-  // overrides the default value given by `CONNECTION_WRITE_CONNECT_TIMEOUT`
+  // overrides the default value given by `kConnectionWriteConnectTimeout`
   // in port.h if set, when determining the writability of a candidate pair.
-  std::optional<int> ice_unwritable_timeout;
+  std::optional<TimeDelta> ice_unwritable_timeout;
 
   // The min number of connectivity checks that a candidate pair must sent
   // without receiving response before it becomes unwritable. This parameter
-  // overrides the default value given by `CONNECTION_WRITE_CONNECT_FAILURES` in
+  // overrides the default value given by `kConnectionWriteConnectTimeout` in
   // port.h if set, when determining the writability of a candidate pair.
   std::optional<int> ice_unwritable_min_checks;
 
   // The min time period for which a candidate pair must wait for response to
   // connectivity checks it becomes inactive. This parameter overrides the
-  // default value given by `CONNECTION_WRITE_TIMEOUT` in port.h if set, when
+  // default value given by `kConnectionWriteTimeout` in port.h if set, when
   // determining the writability of a candidate pair.
-  std::optional<int> ice_inactive_timeout;
+  std::optional<TimeDelta> ice_inactive_timeout;
 
-  // The interval in milliseconds at which STUN candidates will resend STUN
-  // binding requests to keep NAT bindings open.
-  std::optional<int> stun_keepalive_interval;
+  // The interval at which STUN candidates will resend STUN binding requests to
+  // keep NAT bindings open.
+  std::optional<TimeDelta> stun_keepalive_interval;
 
   std::optional<AdapterType> network_preference;
 
@@ -214,14 +213,14 @@ struct RTC_EXPORT IceConfig {
   bool dtls_handshake_in_stun = false;
 
   IceConfig();
-  IceConfig(int receiving_timeout_ms,
-            int backup_connection_ping_interval,
+  IceConfig(TimeDelta receiving_timeout,
+            TimeDelta backup_connection_ping_interval,
             ContinualGatheringPolicy gathering_policy,
             bool prioritize_most_likely_candidate_pairs,
-            int stable_writable_connection_ping_interval_ms,
+            TimeDelta stable_writable_connection_ping_interval,
             bool presume_writable_when_fully_relayed,
-            int regather_on_failed_networks_interval_ms,
-            int receiving_switching_delay_ms);
+            TimeDelta regather_on_failed_networks_interval,
+            TimeDelta receiving_switching_delay);
   // Construct an IceConfig object from an RTCConfiguration object.
   // This will check the `config` settings and set the associated IceConfig
   // member properties.
@@ -234,18 +233,18 @@ struct RTC_EXPORT IceConfig {
   // Helper getters for parameters with implementation-specific default value.
   // By convention, parameters with default value are represented by
   // std::optional and setting a parameter to null restores its default value.
-  int receiving_timeout_or_default() const;
-  int backup_connection_ping_interval_or_default() const;
-  int stable_writable_connection_ping_interval_or_default() const;
-  int regather_on_failed_networks_interval_or_default() const;
-  int receiving_switching_delay_or_default() const;
-  int ice_check_interval_strong_connectivity_or_default() const;
-  int ice_check_interval_weak_connectivity_or_default() const;
-  int ice_check_min_interval_or_default() const;
-  int ice_unwritable_timeout_or_default() const;
+  TimeDelta receiving_timeout_or_default() const;
+  TimeDelta backup_connection_ping_interval_or_default() const;
+  TimeDelta stable_writable_connection_ping_interval_or_default() const;
+  TimeDelta regather_on_failed_networks_interval_or_default() const;
+  TimeDelta receiving_switching_delay_or_default() const;
+  TimeDelta ice_check_interval_strong_connectivity_or_default() const;
+  TimeDelta ice_check_interval_weak_connectivity_or_default() const;
+  TimeDelta ice_check_min_interval_or_default() const;
+  TimeDelta ice_unwritable_timeout_or_default() const;
   int ice_unwritable_min_checks_or_default() const;
-  int ice_inactive_timeout_or_default() const;
-  int stun_keepalive_interval_or_default() const;
+  TimeDelta ice_inactive_timeout_or_default() const;
+  TimeDelta stun_keepalive_interval_or_default() const;
 };
 
 // IceTransportInternal is an internal abstract class that does ICE.
@@ -361,9 +360,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   }
   void SubscribeCandidateGathered(
       absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
-          callback) {
-    candidate_gathered_trampoline_.Subscribe(std::move(callback));
-  }
+          callback);
 
   void SetCandidateErrorCallback(
       absl::AnyInvocable<void(IceTransportInternal*,
@@ -400,9 +397,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
     SignalRoleConflict(transport);
   }
   void SubscribeRoleConflict(
-      absl::AnyInvocable<void(IceTransportInternal*)> callback) {
-    role_conflict_trampoline_.Subscribe(std::move(callback));
-  }
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Emitted whenever the new standards-compliant transport state changed.
   sigslot::signal1<IceTransportInternal*> SignalIceTransportStateChanged;
@@ -410,9 +405,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
     SignalIceTransportStateChanged(transport);
   }
   void SubscribeIceTransportStateChanged(
-      absl::AnyInvocable<void(IceTransportInternal*)> callback) {
-    ice_transport_state_changed_trampoline_.Subscribe(std::move(callback));
-  }
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Invoked when the transport is being destroyed.
   sigslot::signal1<IceTransportInternal*> SignalDestroyed;
@@ -420,9 +413,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
     SignalDestroyed(transport);
   }
   void SubscribeDestroyed(
-      absl::AnyInvocable<void(IceTransportInternal*)> callback) {
-    destroyed_trampoline_.Subscribe(std::move(callback));
-  }
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Invoked when remote dictionary has been updated,
   // i.e. modifications to attributes from remote ice agent has

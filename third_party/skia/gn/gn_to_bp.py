@@ -536,12 +536,11 @@ def generate_args(target_os, enable_gpu, renderengine = False):
     # files.
     'target_cpu':                           '"none"',
 
-    'skia_use_libheif':                     'false',
-
     # Use the custom FontMgr, as the framework will handle fonts.
     'skia_enable_fontmgr_custom_directory': 'false',
     'skia_enable_fontmgr_custom_embedded':  'false',
     'skia_enable_fontmgr_android':          'false',
+    'skia_enable_fontmgr_android_ndk':      'false',
     'skia_enable_fontmgr_win':              'false',
     'skia_enable_fontmgr_win_gdi':          'false',
     'skia_use_fonthost_mac':                'false',

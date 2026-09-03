@@ -31,7 +31,7 @@ namespace webrtc {
 // tests are refactored not to rely on it.
 struct CreateTestEnvironmentOptions {
   std::variant<absl::string_view,
-               FieldTrialsView * absl_nonnull,
+               const FieldTrialsView * absl_nullable,
                absl_nonnull std::unique_ptr<FieldTrialsView>,
                FieldTrials>
       field_trials;

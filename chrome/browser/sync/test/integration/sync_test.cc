@@ -67,7 +67,6 @@
 #include "components/gcm_driver/instance_id/instance_id_profile_service.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/os_crypt/sync/os_crypt_mocker.h"
-#include "components/password_manager/core/browser/password_manager_buildflags.h"
 #include "components/plus_addresses/core/common/features.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/signin/public/base/consent_level.h"
@@ -88,6 +87,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/buildflags/buildflags.h"
+#include "google_apis/gaia/fake_oauth2_token_response.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "net/base/port_util.h"
 #include "net/dns/mock_host_resolver.h"
@@ -112,7 +112,6 @@
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/password_manager/android/password_manager_util_bridge.h"
 #include "chrome/browser/sync/test/integration/sync_test_utils_android.h"
 #else  // BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/browser.h"
@@ -972,14 +971,8 @@ void SyncTest::WaitForDataModels(Profile* profile) {
 }
 
 void SyncTest::SetupMockGaiaResponses() {
-  test_url_loader_factory_.AddResponse(
-      GaiaUrls::GetInstance()->oauth2_token_url().spec(),
-      R"({
-            "refresh_token": "rt1",
-            "access_token": "at1",
-            "expires_in": 3600,
-            "token_type": "Bearer"
-         })");
+  gaia::FakeOAuth2TokenResponse::Success("at1").AddToTestURLLoaderFactory(
+      test_url_loader_factory_);
   test_url_loader_factory_.AddResponse(
       GaiaUrls::GetInstance()->oauth_user_info_url().spec(),
       "{ \"id\": \"12345\" }");
@@ -987,21 +980,9 @@ void SyncTest::SetupMockGaiaResponses() {
       GaiaUrls::GetInstance()->oauth2_revoke_url().spec(), "");
 }
 
-void SyncTest::SetOAuth2TokenResponse(const std::string& response_data,
-                                      net::HttpStatusCode status_code,
-                                      net::Error net_error) {
-  network::URLLoaderCompletionStatus completion_status(net_error);
-  completion_status.decoded_body_length = response_data.size();
-
-  std::string response = base::StringPrintf("HTTP/1.1 %d %s\r\n", status_code,
-                                            GetHttpReasonPhrase(status_code));
-  mojo::StructPtr<network::mojom::URLResponseHead> response_head =
-      network::mojom::URLResponseHead::New();
-  response_head->headers =
-      base::MakeRefCounted<net::HttpResponseHeaders>(response);
-  test_url_loader_factory_.AddResponse(
-      GaiaUrls::GetInstance()->oauth2_token_url(), std::move(response_head),
-      response_data, completion_status);
+void SyncTest::SetOAuth2TokenResponse(
+    const gaia::FakeOAuth2TokenResponse& response) {
+  response.AddToTestURLLoaderFactory(test_url_loader_factory_);
   base::RunLoop().RunUntilIdle();
 }
 
@@ -1129,20 +1110,29 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
                                        syncer::SHARING_MESSAGE,
                                        syncer::USER_CONSENTS};
   allowed_types.PutAll(syncer::ControlTypes());
+  allowed_types.Put(syncer::CONTACT_INFO);
+  allowed_types.Put(syncer::PASSWORDS);
 
 #if BUILDFLAG(IS_CHROMEOS)
   // OS sync types run in transport mode.
-  allowed_types.PutAll({syncer::APP_LIST, syncer::ARC_PACKAGE,
+  allowed_types.PutAll({syncer::APP_LIST, syncer::ARC_PACKAGE, syncer::WEB_APPS,
                         syncer::OS_PREFERENCES,
                         syncer::OS_PRIORITY_PREFERENCES});
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  allowed_types.Put(syncer::CONTACT_INFO);
-
   if (base::FeatureList::IsEnabled(
           switches::kEnablePreferencesAccountStorage)) {
-    allowed_types.Put(syncer::PREFERENCES);
     allowed_types.Put(syncer::PRIORITY_PREFERENCES);
+#if BUILDFLAG(IS_ANDROID)
+    allowed_types.Put(syncer::PREFERENCES);
+#else
+    // On desktop, support for transport mode for preferences is implemented
+    // alongside that of search engines.
+    if (base::FeatureList::IsEnabled(
+            syncer::kSeparateLocalAndAccountSearchEngines)) {
+      allowed_types.Put(syncer::PREFERENCES);
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
   }
   if (base::FeatureList::IsEnabled(
           switches::kSyncEnableBookmarksInTransportMode)) {
@@ -1191,16 +1181,6 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
     allowed_types.Put(syncer::AUTOFILL_VALUABLE);
   }
 
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_LOGIN_DATABASE_AS_BACKEND)
-  // On Android, PASSWORDS require that Google Play Services is present.
-  password_manager_android_util::PasswordManagerUtilBridge util_bridge;
-  if (util_bridge.IsInternalBackendPresent()) {
-    allowed_types.Put(syncer::PASSWORDS);
-  }
-#else   // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_LOGIN_DATABASE_AS_BACKEND)
-  allowed_types.Put(syncer::PASSWORDS);
-#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_LOGIN_DATABASE_AS_BACKEND)
-
 #if BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(syncer::kWebApkBackupAndRestoreBackend)) {
     allowed_types.Put(syncer::WEB_APKS);
@@ -1211,7 +1191,11 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
   }
 
   if (base::FeatureList::IsEnabled(
-          syncer::kSeparateLocalAndAccountSearchEngines)) {
+          syncer::kSeparateLocalAndAccountSearchEngines) &&
+      // Support for transport mode for search engines is implemented alongside
+      // that of preferences.
+      base::FeatureList::IsEnabled(
+          switches::kEnablePreferencesAccountStorage)) {
     allowed_types.Put(syncer::SEARCH_ENGINES);
   }
 

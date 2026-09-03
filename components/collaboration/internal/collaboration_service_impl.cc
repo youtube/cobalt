@@ -389,6 +389,8 @@ SyncStatus CollaborationServiceImpl::GetSyncStatus() {
   }
 #endif
 
+  // TODO(crbug.com/40066949): Simplify this code once all users are migrated
+  // away from Sync-the-feature.
   if (sync_service_->IsSyncFeatureEnabled()) {
     // Sync-the-feature is enabled, but the required data types are not.
     // The user needs to enable them in settings.
@@ -397,7 +399,9 @@ SyncStatus CollaborationServiceImpl::GetSyncStatus() {
     if (base::FeatureList::IsEnabled(
             syncer::kReplaceSyncPromosWithSignInPromos)) {
       // Sync-the-feature is not required, but the user needs to enable
-      // the required data types in settings.
+      // the required data types in settings. Note that this also includes cases
+      // where the user is not signed in at all - that is covered by
+      // GetSigninStatus().
       return SyncStatus::kSyncWithoutTabGroup;
     } else {
       // The user needs to enable Sync-the-feature.
@@ -462,9 +466,15 @@ CollaborationStatus CollaborationServiceImpl::GetCollaborationStatus() {
   if (policy_mode == BrowserSigninMode::kDisabled) {
     return CollaborationStatus::kDisabledForPolicy;
   }
-#else
+#elif BUILDFLAG(IS_ANDROID)
   if (!profile_prefs_->GetBoolean(::prefs::kSigninAllowed) &&
       profile_prefs_->IsManagedPreference(::prefs::kSigninAllowed)) {
+    return CollaborationStatus::kDisabledForPolicy;
+  }
+#else
+  if (!profile_prefs_->GetBoolean(::prefs::kSigninAllowedOnNextStartup) &&
+      profile_prefs_->IsManagedPreference(
+          ::prefs::kSigninAllowedOnNextStartup)) {
     return CollaborationStatus::kDisabledForPolicy;
   }
 #endif

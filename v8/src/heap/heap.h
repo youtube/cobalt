@@ -440,11 +440,6 @@ class Heap final {
       OldGenerationExpansionNotificationOrigin =
           OldGenerationExpansionNotificationOrigin::kFromSameHeap);
 
-  inline Address* NewSpaceAllocationTopAddress();
-  inline Address* NewSpaceAllocationLimitAddress();
-  inline Address* OldSpaceAllocationTopAddress();
-  inline Address* OldSpaceAllocationLimitAddress();
-
   size_t NewSpaceSize();
   size_t NewSpaceCapacity() const;
   size_t NewSpaceTargetCapacity() const;
@@ -1080,6 +1075,8 @@ class Heap final {
   void ClearRecordedSlotRange(Address start, Address end);
   static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
                                              size_t slot_offset);
+
+  static void VerifySkippedWriteBarrier(Address object, Address value);
 
 #ifdef DEBUG
   void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);
@@ -2577,38 +2574,52 @@ class Heap final {
 RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
 #undef DECL_RIGHT_TRIM
 
+// When changing any of these fields please also update cs/crash::ReadHeapStats.
+class CodeCageStats {
+ public:
+  size_t start = 0;
+  size_t size = 0;
+  size_t free_size = 0;
+  size_t largest_free_region = 0;
+  size_t last_allocation_status = 0;
+};
+
+// When changing any of these fields please also update cs/crash::ReadHeapStats.
 class HeapStats {
  public:
   static const int kStartMarker = 0xDECADE00;
   static const int kEndMarker = 0xDECADE01;
 
-  intptr_t start_marker = 0;                                     //  0
-  size_t ro_space_size = 0;                                      //  1
-  size_t ro_space_capacity = 0;                                  //  2
-  size_t new_space_size = 0;                                     //  3
-  size_t new_space_capacity = 0;                                 //  4
-  size_t old_space_size = 0;                                     //  5
-  size_t old_space_capacity = 0;                                 //  6
-  size_t code_space_size = 0;                                    //  7
-  size_t code_space_capacity = 0;                                //  8
-  size_t map_space_size = 0;                                     //  9
-  size_t map_space_capacity = 0;                                 // 10
-  size_t lo_space_size = 0;                                      // 11
-  size_t code_lo_space_size = 0;                                 // 12
-  size_t global_handle_count = 0;                                // 13
-  size_t weak_global_handle_count = 0;                           // 14
-  size_t pending_global_handle_count = 0;                        // 15
-  size_t near_death_global_handle_count = 0;                     // 16
-  size_t free_global_handle_count = 0;                           // 17
-  size_t memory_allocator_size = 0;                              // 18
-  size_t memory_allocator_capacity = 0;                          // 19
-  size_t malloced_memory = 0;                                    // 20
-  size_t malloced_peak_memory = 0;                               // 21
-  size_t objects_per_type = 0;                                   // 22
-  size_t size_per_type = 0;                                      // 23
-  int os_error = 0;                                              // 24
-  char last_few_messages[Heap::kTraceRingBufferSize + 1] = {0};  // 25
-  intptr_t end_marker = 0;                                       // 27
+  intptr_t start_marker = 0;
+  size_t ro_space_size = 0;
+  size_t ro_space_capacity = 0;
+  size_t new_space_size = 0;
+  size_t new_space_capacity = 0;
+  size_t old_space_size = 0;
+  size_t old_space_capacity = 0;
+  size_t code_space_size = 0;
+  size_t code_space_capacity = 0;
+  size_t map_space_size = 0;
+  size_t map_space_capacity = 0;
+  size_t lo_space_size = 0;
+  size_t code_lo_space_size = 0;
+  size_t global_handle_count = 0;
+  size_t weak_global_handle_count = 0;
+  size_t pending_global_handle_count = 0;
+  size_t near_death_global_handle_count = 0;
+  size_t free_global_handle_count = 0;
+  size_t memory_allocator_size = 0;
+  size_t memory_allocator_capacity = 0;
+  size_t malloced_memory = 0;
+  size_t malloced_peak_memory = 0;
+  size_t objects_per_type = 0;
+  size_t size_per_type = 0;
+  CodeCageStats main_cage;
+  CodeCageStats trusted_cage;
+  CodeCageStats code_cage;
+  int os_error = 0;
+  char last_few_messages[Heap::kTraceRingBufferSize + 1] = {0};
+  intptr_t end_marker = 0;
 };
 
 // Disables GC for all allocations. It should not be used

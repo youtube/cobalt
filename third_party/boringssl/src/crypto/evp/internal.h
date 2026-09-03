@@ -15,7 +15,9 @@
 #ifndef OPENSSL_HEADER_CRYPTO_EVP_INTERNAL_H
 #define OPENSSL_HEADER_CRYPTO_EVP_INTERNAL_H
 
-#include <openssl/base.h>
+#include <openssl/evp.h>
+
+#include <array>
 
 #include <openssl/span.h>
 
@@ -298,5 +300,24 @@ void evp_pkey_set0(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method,
 #if defined(__cplusplus)
 }  // extern C
 #endif
+
+BSSL_NAMESPACE_BEGIN
+inline auto GetDefaultEVPAlgorithms() {
+  // A set of algorithms to use by default in |EVP_parse_public_key| and
+  // |EVP_parse_private_key|.
+  return std::array{
+      EVP_pkey_ec_p224(),
+      EVP_pkey_ec_p256(),
+      EVP_pkey_ec_p384(),
+      EVP_pkey_ec_p521(),
+      EVP_pkey_ed25519(),
+      EVP_pkey_rsa(),
+      EVP_pkey_x25519(),
+      // TODO(crbug.com/438761503): Remove DSA from this set, after callers that
+      // need DSA pass in |EVP_pkey_dsa| explicitly.
+      EVP_pkey_dsa(),
+  };
+}
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_EVP_INTERNAL_H

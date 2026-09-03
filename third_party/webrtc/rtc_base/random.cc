@@ -11,12 +11,20 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <numbers>
 
+#include "absl/random/random.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 
 namespace webrtc {
+
+Random::Random() {
+  absl::BitGen gen;
+  state_ =
+      absl::Uniform<uint64_t>(gen, 1, std::numeric_limits<uint64_t>::max());
+}
 
 Random::Random(uint64_t seed) {
   RTC_DCHECK(seed != 0x0ull);

@@ -11,12 +11,13 @@
 #ifndef RTC_BASE_ASYNC_TCP_SOCKET_H_
 #define RTC_BASE_ASYNC_TCP_SOCKET_H_
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 
+#include "absl/base/nullability.h"
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/socket.h"
@@ -29,7 +30,8 @@ namespace webrtc {
 // buffer them in user space.
 class AsyncTCPSocketBase : public AsyncPacketSocket {
  public:
-  AsyncTCPSocketBase(Socket* socket, size_t max_packet_size);
+  AsyncTCPSocketBase(absl_nonnull std::unique_ptr<Socket> socket,
+                     size_t max_packet_size);
   ~AsyncTCPSocketBase() override;
 
   AsyncTCPSocketBase(const AsyncTCPSocketBase&) = delete;
@@ -57,12 +59,6 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   void SetError(int error) override;
 
  protected:
-  // Binds and connects `socket` and creates AsyncTCPSocket for
-  // it. Takes ownership of `socket`. Returns null if bind() or
-  // connect() fail (`socket` is destroyed in that case).
-  static Socket* ConnectSocket(Socket* socket,
-                               const SocketAddress& bind_address,
-                               const SocketAddress& remote_address);
   int FlushOutBuffer();
   // Add data to `outbuf_`.
   void AppendToOutBuffer(const void* pv, size_t cb);
@@ -78,7 +74,7 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   void OnWriteEvent(Socket* socket);
   void OnCloseEvent(Socket* socket, int error);
 
-  std::unique_ptr<Socket> socket_;
+  absl_nonnull std::unique_ptr<Socket> socket_;
   Buffer inbuf_;
   Buffer outbuf_;
   size_t max_insize_;
@@ -87,12 +83,10 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
 
 class AsyncTCPSocket : public AsyncTCPSocketBase {
  public:
-  // Binds and connects `socket` and creates AsyncTCPSocket for
-  // it. Takes ownership of `socket`. Returns null if bind() or
-  // connect() fail (`socket` is destroyed in that case).
-  static AsyncTCPSocket* Create(Socket* socket,
-                                const SocketAddress& bind_address,
-                                const SocketAddress& remote_address);
+  AsyncTCPSocket(const Environment& env,
+                 absl_nonnull std::unique_ptr<Socket> socket);
+  // TODO: bugs.webrtc.org/42223992 - Delete or deprecate constructor below when
+  // WebRTC is updated to use constructor that provides Environment.
   explicit AsyncTCPSocket(Socket* socket);
   ~AsyncTCPSocket() override {}
 

@@ -12,6 +12,7 @@
 #include "src/base/division-by-constant.h"
 #include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/numbers/conversions.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"
 
@@ -366,8 +367,9 @@ template <typename NodeT>
 void MaglevReducer<BaseT>::AttachEagerDeoptInfo(NodeT* node) {
   if constexpr (NodeT::kProperties.can_eager_deopt()) {
     static_assert(ReducerBaseWithEagerDeopt<BaseT>);
-    node->SetEagerDeoptInfo(zone(), base_->GetDeoptFrameForEagerDeopt(),
-                            current_speculation_feedback_);
+    DeoptFrame* top_frame = base_->GetDeoptFrameForEagerDeopt();
+    graph_->AddEagerTopFrame(top_frame);
+    node->SetEagerDeoptInfo(zone(), top_frame, current_speculation_feedback_);
   }
 }
 
@@ -376,10 +378,11 @@ template <typename NodeT>
 void MaglevReducer<BaseT>::AttachLazyDeoptInfo(NodeT* node) {
   if constexpr (NodeT::kProperties.can_lazy_deopt()) {
     static_assert(ReducerBaseWithLazyDeopt<BaseT>);
-    auto [deopt_frame, result_location, result_size] =
+    auto [top_frame, result_location, result_size] =
         base_->GetDeoptFrameForLazyDeopt();
+    graph_->AddLazyTopFrame(top_frame, result_location, result_size);
     new (node->lazy_deopt_info())
-        LazyDeoptInfo(zone(), deopt_frame, result_location, result_size,
+        LazyDeoptInfo(zone(), top_frame, result_location, result_size,
                       current_speculation_feedback_);
   }
 }
@@ -628,6 +631,14 @@ template <typename BaseT>
 std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
     ValueNode* value) {
   switch (value->opcode()) {
+    case Opcode::kConstant: {
+      compiler::ObjectRef object = value->Cast<Constant>()->object();
+      if (object.IsHeapNumber() &&
+          IsInt32Double(object.AsHeapNumber().value())) {
+        return static_cast<int32_t>(object.AsHeapNumber().value());
+      }
+      return {};
+    }
     case Opcode::kInt32Constant:
       return value->Cast<Int32Constant>()->value();
     case Opcode::kUint32Constant: {

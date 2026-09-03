@@ -326,6 +326,7 @@ class TurnPort : public Port {
   AttemptedServerSet attempted_server_addresses_;
 
   AsyncPacketSocket* socket_;
+  std::unique_ptr<AsyncPacketSocket> owned_socket_;
   SocketOptionsMap socket_options_;
   std::unique_ptr<AsyncDnsResolverInterface> resolver_;
   int error_;

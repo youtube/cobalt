@@ -153,7 +153,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
         nat_server_(CreateNatServer(nat_server_address, webrtc::NAT_OPEN_CONE)),
         done_(false),
         error_(false),
-        stun_keepalive_delay_(1) {
+        stun_keepalive_delay_(TimeDelta::Millis(1)) {
     network_ = MakeNetwork(address);
     RTC_CHECK(address.family() == nat_server_address.family());
     for (const auto& addr : stun_server_addresses) {
@@ -211,9 +211,10 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     if (stun_keepalive_lifetime_.has_value()) {
       stun_port_->set_stun_keepalive_lifetime(*stun_keepalive_lifetime_);
     }
-    stun_port_->SignalPortComplete.connect(this,
-                                           &StunPortTestBase::OnPortComplete);
-    stun_port_->SignalPortError.connect(this, &StunPortTestBase::OnPortError);
+    stun_port_->SubscribePortComplete(
+        [this](Port* port) { OnPortComplete(port); });
+    stun_port_->SubscribePortError([this](Port* port) { OnPortError(port); });
+
     stun_port_->SubscribeCandidateError(
         [this](Port* port, const IceCandidateErrorEvent& event) {
           OnCandidateError(port, event);
@@ -249,9 +250,9 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     stun_port_->set_server_addresses(stun_servers);
     ASSERT_TRUE(stun_port_ != nullptr);
     stun_port_->SetIceTiebreaker(kTiebreakerDefault);
-    stun_port_->SignalPortComplete.connect(this,
-                                           &StunPortTestBase::OnPortComplete);
-    stun_port_->SignalPortError.connect(this, &StunPortTestBase::OnPortError);
+    stun_port_->SubscribePortComplete(
+        [this](Port* port) { OnPortComplete(port); });
+    stun_port_->SubscribePortError([this](Port* port) { OnPortError(port); });
   }
 
   void PrepareAddress() { stun_port_->PrepareAddress(); }
@@ -286,7 +287,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
                         const webrtc::IceCandidateErrorEvent& event) {
     error_event_ = event;
   }
-  void SetKeepaliveDelay(int delay) { stun_keepalive_delay_ = delay; }
+  void SetKeepaliveDelay(TimeDelta delay) { stun_keepalive_delay_ = delay; }
 
   void SetKeepaliveLifetime(TimeDelta lifetime) {
     stun_keepalive_lifetime_ = lifetime;
@@ -319,7 +320,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
   std::unique_ptr<webrtc::NATServer> nat_server_;
   bool done_;
   bool error_;
-  int stun_keepalive_delay_;
+  TimeDelta stun_keepalive_delay_;
   std::optional<TimeDelta> stun_keepalive_lifetime_;
 
  protected:
@@ -499,7 +500,7 @@ TEST_F(StunPortTestWithRealClock, TestPrepareAddressHostnameFail) {
 // This test verifies keepalive response messages don't result in
 // additional candidate generation.
 TEST_F(StunPortTest, TestKeepAliveResponse) {
-  SetKeepaliveDelay(500);  // 500ms of keepalive delay.
+  SetKeepaliveDelay(TimeDelta::Millis(500));
   CreateStunPort(kStunServerAddr1);
   PrepareAddress();
   EXPECT_THAT(
@@ -682,7 +683,7 @@ TEST_F(StunPortTest, TestUdpPortGetStunKeepaliveLifetime) {
 // Test that STUN binding requests will be stopped shortly if the keep-alive
 // lifetime is short.
 TEST_F(StunPortTest, TestStunBindingRequestShortLifetime) {
-  SetKeepaliveDelay(101);
+  SetKeepaliveDelay(TimeDelta::Millis(101));
   SetKeepaliveLifetime(TimeDelta::Millis(100));
   CreateStunPort(kStunServerAddr1);
   PrepareAddress();
@@ -700,7 +701,7 @@ TEST_F(StunPortTest, TestStunBindingRequestShortLifetime) {
 
 // Test that by default, the STUN binding requests will last for a long time.
 TEST_F(StunPortTest, TestStunBindingRequestLongLifetime) {
-  SetKeepaliveDelay(101);
+  SetKeepaliveDelay(TimeDelta::Millis(101));
   CreateStunPort(kStunServerAddr1);
   PrepareAddress();
   EXPECT_THAT(

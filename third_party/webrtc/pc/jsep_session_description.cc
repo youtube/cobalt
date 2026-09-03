@@ -44,6 +44,14 @@ namespace {
 constexpr char kDummyAddress[] = "0.0.0.0";
 constexpr int kDummyPort = 9;
 
+// Remove this method when the deprecated constructor that calls it has been
+// removed.
+SdpType SdpTypeFromStringOrDie(const std::string& type) {
+  auto sdp_type = SdpTypeFromString(type);
+  RTC_CHECK(sdp_type.has_value());
+  return sdp_type.value();
+}
+
 // Update the connection address for the MediaContentDescription based on the
 // candidates.
 void UpdateConnectionAddress(
@@ -105,21 +113,6 @@ void UpdateConnectionAddress(
 }
 }  // namespace
 
-// TODO(steveanton): Remove this default implementation once Chromium has been
-// updated.
-SdpType SessionDescriptionInterface::GetType() const {
-  std::optional<SdpType> maybe_type = SdpTypeFromString(type());
-  if (maybe_type) {
-    return *maybe_type;
-  } else {
-    RTC_LOG(LS_WARNING) << "Default implementation of "
-                           "SessionDescriptionInterface::GetType does not "
-                           "recognize the result from type(), returning "
-                           "kOffer.";
-    return SdpType::kOffer;
-  }
-}
-
 SessionDescriptionInterface* CreateSessionDescription(const std::string& type,
                                                       const std::string& sdp,
                                                       SdpParseError* error) {
@@ -141,13 +134,10 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     SdpType type,
     const std::string& sdp,
     SdpParseError* error_out) {
-  auto jsep_desc = std::make_unique<JsepSessionDescription>(type);
-  if (type != SdpType::kRollback) {
-    if (!SdpDeserialize(sdp, jsep_desc.get(), error_out)) {
-      return nullptr;
-    }
+  if (type == SdpType::kRollback) {
+    return CreateRollbackSessionDescription();
   }
-  return std::move(jsep_desc);
+  return SdpDeserialize(type, sdp, error_out);
 }
 
 std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
@@ -155,26 +145,23 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     const std::string& session_id,
     const std::string& session_version,
     std::unique_ptr<SessionDescription> description) {
-  auto jsep_description = std::make_unique<JsepSessionDescription>(type);
-  bool initialize_success = jsep_description->Initialize(
-      std::move(description), session_id, session_version);
-  RTC_DCHECK(initialize_success);
-  return std::move(jsep_description);
+  if (!description && type != SdpType::kRollback)
+    return nullptr;
+  return std::make_unique<JsepSessionDescription>(type, std::move(description),
+                                                  session_id, session_version);
+}
+
+std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
+    absl::string_view session_id,
+    absl::string_view session_version) {
+  return std::make_unique<JsepSessionDescription>(
+      SdpType::kRollback, /*description=*/nullptr, session_id, session_version);
 }
 
 JsepSessionDescription::JsepSessionDescription(SdpType type) : type_(type) {}
 
-JsepSessionDescription::JsepSessionDescription(const std::string& type) {
-  std::optional<SdpType> maybe_type = SdpTypeFromString(type);
-  if (maybe_type) {
-    type_ = *maybe_type;
-  } else {
-    RTC_LOG(LS_WARNING)
-        << "JsepSessionDescription constructed with invalid type string: "
-        << type << ". Assuming it is an offer.";
-    type_ = SdpType::kOffer;
-  }
-}
+JsepSessionDescription::JsepSessionDescription(const std::string& type)
+    : JsepSessionDescription(SdpTypeFromStringOrDie(type)) {}
 
 JsepSessionDescription::JsepSessionDescription(
     SdpType type,
@@ -185,7 +172,7 @@ JsepSessionDescription::JsepSessionDescription(
       session_id_(session_id),
       session_version_(session_version),
       type_(type) {
-  RTC_DCHECK(description_);
+  RTC_DCHECK(description_ || type == SdpType::kRollback);
   candidate_collection_.resize(number_of_mediasections());
 }
 
@@ -207,14 +194,15 @@ bool JsepSessionDescription::Initialize(
 
 std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
     const {
-  auto new_description = std::make_unique<JsepSessionDescription>(type_);
-  new_description->session_id_ = session_id_;
-  new_description->session_version_ = session_version_;
-  if (description_) {
-    new_description->description_ = description_->Clone();
-  }
-  for (const auto& collection : candidate_collection_) {
-    new_description->candidate_collection_.push_back(collection.Clone());
+  auto new_description = std::make_unique<JsepSessionDescription>(
+      GetType(), description_.get() ? description_->Clone() : nullptr,
+      session_id_, session_version_);
+  RTC_DCHECK_EQ(new_description->candidate_collection_.size(),
+                candidate_collection_.size());
+  for (size_t i = 0; i < candidate_collection_.size(); ++i) {
+    RTC_DCHECK(new_description->candidate_collection_[i].empty());
+    new_description->candidate_collection_[i].Append(
+        candidate_collection_[i].Clone());
   }
   return new_description;
 }

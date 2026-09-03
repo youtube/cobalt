@@ -1779,9 +1779,9 @@ TEST_P(QuicPacketCreatorTest, FlushWithExternalBuffer) {
       /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame));
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([&external_buffer](SerializedPacket serialized_packet) {
+      .WillOnce([&external_buffer](SerializedPacket serialized_packet) {
         EXPECT_EQ(external_buffer.buffer, serialized_packet.encrypted_buffer);
-      }));
+      });
   creator_.FlushCurrentPacket();
 }
 
@@ -1798,7 +1798,7 @@ TEST_P(QuicPacketCreatorTest, IetfAckGapErrorRegression) {
   SerializeAllFrames(frames_);
 }
 
-TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
+TEST_P(QuicPacketCreatorTest, AddDatagramFrame) {
   if (client_framer_.version().UsesTls()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
@@ -1808,23 +1808,23 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorTest::ClearSerializedPacketForTests));
   // Verify that there is enough room for the largest message payload.
-  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
-      creator_.GetCurrentLargestMessagePayload()));
-  std::string large_message(creator_.GetCurrentLargestMessagePayload(), 'a');
-  QuicMessageFrame* message_frame =
-      new QuicMessageFrame(1, MemSliceFromString(large_message));
+  EXPECT_TRUE(creator_.HasRoomForDatagramFrame(
+      creator_.GetCurrentLargestDatagramPayload()));
+  std::string large_message(creator_.GetCurrentLargestDatagramPayload(), 'a');
+  QuicDatagramFrame* message_frame =
+      new QuicDatagramFrame(1, MemSliceFromString(large_message));
   EXPECT_TRUE(creator_.AddFrame(QuicFrame(message_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   creator_.FlushCurrentPacket();
 
-  QuicMessageFrame* frame2 =
-      new QuicMessageFrame(2, MemSliceFromString("message"));
+  QuicDatagramFrame* frame2 =
+      new QuicDatagramFrame(2, MemSliceFromString("message"));
   EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame2), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   // Verify if a new frame is added, 1 byte message length will be added.
   EXPECT_EQ(1u, creator_.ExpansionOnNewFrame());
-  QuicMessageFrame* frame3 =
-      new QuicMessageFrame(3, MemSliceFromString("message2"));
+  QuicDatagramFrame* frame3 =
+      new QuicDatagramFrame(3, MemSliceFromString("message2"));
   EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame3), NOT_RETRANSMISSION));
   EXPECT_EQ(1u, creator_.ExpansionOnNewFrame());
   creator_.FlushCurrentPacket();
@@ -1835,20 +1835,20 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
   const std::string data("test");
   EXPECT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
       stream_id, data, 0u, false, false, NOT_RETRANSMISSION, &frame));
-  QuicMessageFrame* frame4 =
-      new QuicMessageFrame(4, MemSliceFromString("message"));
+  QuicDatagramFrame* frame4 =
+      new QuicDatagramFrame(4, MemSliceFromString("message"));
   EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame4), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   // Verify there is not enough room for largest payload.
-  EXPECT_FALSE(creator_.HasRoomForMessageFrame(
-      creator_.GetCurrentLargestMessagePayload()));
+  EXPECT_FALSE(creator_.HasRoomForDatagramFrame(
+      creator_.GetCurrentLargestDatagramPayload()));
   // Add largest message will causes the flush of the stream frame.
-  QuicMessageFrame frame5(5, MemSliceFromString(large_message));
+  QuicDatagramFrame frame5(5, MemSliceFromString(large_message));
   EXPECT_FALSE(creator_.AddFrame(QuicFrame(&frame5), NOT_RETRANSMISSION));
   EXPECT_FALSE(creator_.HasPendingFrames());
 }
 
-TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
+TEST_P(QuicPacketCreatorTest, DatagramFrameConsumption) {
   if (client_framer_.version().UsesTls()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
@@ -1859,11 +1859,11 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
     creator_.set_encryption_level(level);
     // Test all possible sizes of message frames.
     for (size_t message_size = 0;
-         message_size <= creator_.GetCurrentLargestMessagePayload();
+         message_size <= creator_.GetCurrentLargestDatagramPayload();
          ++message_size) {
-      QuicMessageFrame* frame =
-          new QuicMessageFrame(0, MemSliceFromString(absl::string_view(
-                                      message_data.data(), message_size)));
+      QuicDatagramFrame* frame =
+          new QuicDatagramFrame(0, MemSliceFromString(absl::string_view(
+                                       message_data.data(), message_size)));
       EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame), NOT_RETRANSMISSION));
       EXPECT_TRUE(creator_.HasPendingFrames());
 
@@ -1872,14 +1872,14 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
       // Verify BytesFree returns bytes available for the next frame, which
       // should subtract the message length.
       size_t expected_bytes_free =
-          creator_.GetCurrentLargestMessagePayload() - message_size <
+          creator_.GetCurrentLargestDatagramPayload() - message_size <
                   expansion_bytes
               ? 0
-              : creator_.GetCurrentLargestMessagePayload() - expansion_bytes -
+              : creator_.GetCurrentLargestDatagramPayload() - expansion_bytes -
                     message_size;
       EXPECT_EQ(expected_bytes_free, creator_.BytesFree());
-      EXPECT_LE(creator_.GetGuaranteedLargestMessagePayload(),
-                creator_.GetCurrentLargestMessagePayload());
+      EXPECT_LE(creator_.GetGuaranteedLargestDatagramPayload(),
+                creator_.GetCurrentLargestDatagramPayload());
       EXPECT_CALL(delegate_, OnSerializedPacket(_))
           .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
       creator_.FlushCurrentPacket();
@@ -1889,7 +1889,7 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
   }
 }
 
-TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestMessagePayload) {
+TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestDatagramPayload) {
   ParsedQuicVersion version = GetParam().version;
   if (version.UsesTls()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
@@ -1902,42 +1902,42 @@ TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestMessagePayload) {
     expected_largest_payload -= 1;
   }
   EXPECT_EQ(expected_largest_payload,
-            creator_.GetGuaranteedLargestMessagePayload());
-  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
-      creator_.GetGuaranteedLargestMessagePayload()));
+            creator_.GetGuaranteedLargestDatagramPayload());
+  EXPECT_TRUE(creator_.HasRoomForDatagramFrame(
+      creator_.GetGuaranteedLargestDatagramPayload()));
 
   // Now test whether SetMaxDatagramFrameSize works.
   creator_.SetMaxDatagramFrameSize(expected_largest_payload + 1 +
                                    kQuicFrameTypeSize);
   EXPECT_EQ(expected_largest_payload,
-            creator_.GetGuaranteedLargestMessagePayload());
-  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
-      creator_.GetGuaranteedLargestMessagePayload()));
+            creator_.GetGuaranteedLargestDatagramPayload());
+  EXPECT_TRUE(creator_.HasRoomForDatagramFrame(
+      creator_.GetGuaranteedLargestDatagramPayload()));
 
   creator_.SetMaxDatagramFrameSize(expected_largest_payload +
                                    kQuicFrameTypeSize);
   EXPECT_EQ(expected_largest_payload,
-            creator_.GetGuaranteedLargestMessagePayload());
-  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
-      creator_.GetGuaranteedLargestMessagePayload()));
+            creator_.GetGuaranteedLargestDatagramPayload());
+  EXPECT_TRUE(creator_.HasRoomForDatagramFrame(
+      creator_.GetGuaranteedLargestDatagramPayload()));
 
   creator_.SetMaxDatagramFrameSize(expected_largest_payload - 1 +
                                    kQuicFrameTypeSize);
   EXPECT_EQ(expected_largest_payload - 1,
-            creator_.GetGuaranteedLargestMessagePayload());
-  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
-      creator_.GetGuaranteedLargestMessagePayload()));
+            creator_.GetGuaranteedLargestDatagramPayload());
+  EXPECT_TRUE(creator_.HasRoomForDatagramFrame(
+      creator_.GetGuaranteedLargestDatagramPayload()));
 
   constexpr QuicPacketLength kFrameSizeLimit = 1000;
   constexpr QuicPacketLength kPayloadSizeLimit =
       kFrameSizeLimit - kQuicFrameTypeSize;
   creator_.SetMaxDatagramFrameSize(kFrameSizeLimit);
-  EXPECT_EQ(creator_.GetGuaranteedLargestMessagePayload(), kPayloadSizeLimit);
-  EXPECT_TRUE(creator_.HasRoomForMessageFrame(kPayloadSizeLimit));
-  EXPECT_FALSE(creator_.HasRoomForMessageFrame(kPayloadSizeLimit + 1));
+  EXPECT_EQ(creator_.GetGuaranteedLargestDatagramPayload(), kPayloadSizeLimit);
+  EXPECT_TRUE(creator_.HasRoomForDatagramFrame(kPayloadSizeLimit));
+  EXPECT_FALSE(creator_.HasRoomForDatagramFrame(kPayloadSizeLimit + 1));
 }
 
-TEST_P(QuicPacketCreatorTest, GetCurrentLargestMessagePayload) {
+TEST_P(QuicPacketCreatorTest, GetCurrentLargestDatagramPayload) {
   ParsedQuicVersion version = GetParam().version;
   if (version.UsesTls()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
@@ -1953,23 +1953,23 @@ TEST_P(QuicPacketCreatorTest, GetCurrentLargestMessagePayload) {
     expected_largest_payload -= 1;
   }
   EXPECT_EQ(expected_largest_payload,
-            creator_.GetCurrentLargestMessagePayload());
+            creator_.GetCurrentLargestDatagramPayload());
 
   // Now test whether SetMaxDatagramFrameSize works.
   creator_.SetMaxDatagramFrameSize(expected_largest_payload + 1 +
                                    kQuicFrameTypeSize);
   EXPECT_EQ(expected_largest_payload,
-            creator_.GetCurrentLargestMessagePayload());
+            creator_.GetCurrentLargestDatagramPayload());
 
   creator_.SetMaxDatagramFrameSize(expected_largest_payload +
                                    kQuicFrameTypeSize);
   EXPECT_EQ(expected_largest_payload,
-            creator_.GetCurrentLargestMessagePayload());
+            creator_.GetCurrentLargestDatagramPayload());
 
   creator_.SetMaxDatagramFrameSize(expected_largest_payload - 1 +
                                    kQuicFrameTypeSize);
   EXPECT_EQ(expected_largest_payload - 1,
-            creator_.GetCurrentLargestMessagePayload());
+            creator_.GetCurrentLargestDatagramPayload());
 }
 
 TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
@@ -2345,9 +2345,9 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
     if (i < ENCRYPTION_FORWARD_SECURE) {
       // Save coalesced packet.
       EXPECT_CALL(framer_visitor_, OnCoalescedPacket(_))
-          .WillOnce(Invoke([i, &packets](const QuicEncryptedPacket& packet) {
+          .WillOnce([i, &packets](const QuicEncryptedPacket& packet) {
             packets[i + 1] = packet.Clone();
-          }));
+          });
     }
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
     EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
@@ -2408,12 +2408,12 @@ TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
   if (client_framer_.version().UsesTls()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
-  // Verify GetCurrentLargestMessagePayload is based on the actual
+  // Verify GetCurrentLargestDatagramPayload is based on the actual
   // max_packet_length.
-  EXPECT_LT(1u, creator_.GetCurrentLargestMessagePayload());
+  EXPECT_LT(1u, creator_.GetCurrentLargestDatagramPayload());
   EXPECT_EQ(overhead, creator_.max_packet_length());
-  ASSERT_TRUE(creator_.HasRoomForMessageFrame(
-      creator_.GetCurrentLargestMessagePayload()));
+  ASSERT_TRUE(creator_.HasRoomForDatagramFrame(
+      creator_.GetCurrentLargestDatagramPayload()));
   EXPECT_EQ(previous_max_packet_length, creator_.max_packet_length());
 
   // Verify creator can consume crypto data because max_packet_length_ gets
@@ -2641,10 +2641,10 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
       frames.push_back(QuicFrame(&ack_frame_));
     }
     EXPECT_CALL(*delegate_, MaybeBundleOpportunistically(_))
-        .WillOnce(Invoke([this, frames = std::move(frames)] {
+        .WillOnce([this, frames = std::move(frames)] {
           FlushAckFrame(frames);
           return QuicFrames();
-        }));
+        });
     return QuicPacketCreator::ConsumeRetransmittableControlFrame(frame);
   }
 
@@ -2670,14 +2670,14 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
     return QuicPacketCreator::ConsumeData(id, data.length(), offset, state);
   }
 
-  MessageStatus AddMessageFrame(QuicMessageId message_id,
-                                quiche::QuicheMemSlice message) {
+  DatagramStatus AddDatagramFrame(QuicDatagramId datagram_id,
+                                  quiche::QuicheMemSlice message) {
     if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                                       NOT_HANDSHAKE)) {
       EXPECT_CALL(*delegate_, MaybeBundleOpportunistically(_)).Times(1);
     }
-    return QuicPacketCreator::AddMessageFrame(message_id,
-                                              absl::MakeSpan(&message, 1));
+    return QuicPacketCreator::AddDatagramFrame(datagram_id,
+                                               absl::MakeSpan(&message, 1));
   }
 
   size_t ConsumeCryptoData(EncryptionLevel level, absl::string_view data,
@@ -4241,7 +4241,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   }
 }
 
-TEST_F(QuicPacketCreatorMultiplePacketsTest, AddMessageFrame) {
+TEST_F(QuicPacketCreatorMultiplePacketsTest, AddDatagramFrame) {
   if (framer_.version().UsesTls()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
@@ -4253,23 +4253,24 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, AddMessageFrame) {
   creator_.ConsumeData(QuicUtils::GetFirstBidirectionalStreamId(
                            framer_.transport_version(), Perspective::IS_CLIENT),
                        "foo", 0, FIN);
-  EXPECT_EQ(MESSAGE_STATUS_SUCCESS,
-            creator_.AddMessageFrame(1, MemSliceFromString("message")));
+  EXPECT_EQ(DATAGRAM_STATUS_SUCCESS,
+            creator_.AddDatagramFrame(1, MemSliceFromString("message")));
   EXPECT_TRUE(creator_.HasPendingFrames());
   EXPECT_TRUE(creator_.HasPendingRetransmittableFrames());
 
   // Add a message which causes the flush of current packet.
-  EXPECT_EQ(MESSAGE_STATUS_SUCCESS,
-            creator_.AddMessageFrame(
+  EXPECT_EQ(DATAGRAM_STATUS_SUCCESS,
+            creator_.AddDatagramFrame(
                 2, MemSliceFromString(std::string(
-                       creator_.GetCurrentLargestMessagePayload(), 'a'))));
+                       creator_.GetCurrentLargestDatagramPayload(), 'a'))));
   EXPECT_TRUE(creator_.HasPendingRetransmittableFrames());
 
   // Failed to send messages which cannot fit into one packet.
-  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
-            creator_.AddMessageFrame(
-                3, MemSliceFromString(std::string(
-                       creator_.GetCurrentLargestMessagePayload() + 10, 'a'))));
+  EXPECT_EQ(
+      DATAGRAM_STATUS_TOO_LARGE,
+      creator_.AddDatagramFrame(
+          3, MemSliceFromString(std::string(
+                 creator_.GetCurrentLargestDatagramPayload() + 10, 'a'))));
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ConnectionId) {
@@ -4343,12 +4344,12 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   // After exiting the scope, the last queued frame should be flushed.
   EXPECT_TRUE(creator_.HasPendingFrames());
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      .WillOnce([=](SerializedPacket packet) {
         EXPECT_EQ(peer_addr, packet.peer_address);
         ASSERT_EQ(2u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.back().type);
-      }));
+      });
   creator_.FlushCurrentPacket();
 }
 
@@ -4368,16 +4369,16 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   QuicSocketAddress peer_addr1(QuicIpAddress::Any4(), 12346);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      .WillOnce([=](SerializedPacket packet) {
         EXPECT_EQ(peer_addr, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
-      }))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      })
+      .WillOnce([=](SerializedPacket packet) {
         EXPECT_EQ(peer_addr1, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
-      }));
+      });
   EXPECT_TRUE(creator_.HasPendingFrames());
   {
     QuicConnectionId client_connection_id = TestConnectionId(1);
@@ -4425,7 +4426,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   QuicSocketAddress peer_addr1(QuicIpAddress::Any4(), 12346);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([=, this](SerializedPacket packet) {
+      .WillOnce([=, this](SerializedPacket packet) {
         EXPECT_EQ(peer_addr, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
@@ -4450,12 +4451,12 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
         // This should trigger another OnSerializedPacket() with the 2nd
         // address.
         creator_.FlushCurrentPacket();
-      }))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      })
+      .WillOnce([=](SerializedPacket packet) {
         EXPECT_EQ(peer_addr1, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
-      }));
+      });
   creator_.FlushCurrentPacket();
 }
 

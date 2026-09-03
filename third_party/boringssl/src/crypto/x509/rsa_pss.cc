@@ -19,10 +19,12 @@
 
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
+#include <openssl/bytestring.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/obj.h>
+#include <openssl/rsa.h>
 
 #include "../rsa/internal.h"
 #include "internal.h"

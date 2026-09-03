@@ -91,9 +91,9 @@ class JsepSessionDescriptionTest : public ::testing::Test {
     candidate_ = candidate;
     const std::string session_id = absl::StrCat(CreateRandomId64());
     const std::string session_version = absl::StrCat(CreateRandomId());
-    jsep_desc_ = std::make_unique<JsepSessionDescription>(SdpType::kOffer);
-    ASSERT_TRUE(jsep_desc_->Initialize(CreateCricketSessionDescription(),
-                                       session_id, session_version));
+    jsep_desc_ =
+        CreateSessionDescription(SdpType::kOffer, session_id, session_version,
+                                 CreateCricketSessionDescription());
   }
 
   std::string Serialize(const SessionDescriptionInterface* desc) {
@@ -105,13 +105,14 @@ class JsepSessionDescriptionTest : public ::testing::Test {
 
   std::unique_ptr<SessionDescriptionInterface> DeSerialize(
       const std::string& sdp) {
-    auto jsep_desc = std::make_unique<JsepSessionDescription>(SdpType::kOffer);
-    EXPECT_TRUE(SdpDeserialize(sdp, jsep_desc.get(), nullptr));
-    return std::move(jsep_desc);
+    std::unique_ptr<SessionDescriptionInterface> jsep_desc =
+        SdpDeserialize(SdpType::kOffer, sdp);
+    EXPECT_THAT(jsep_desc, NotNull());
+    return jsep_desc;
   }
 
   Candidate candidate_;
-  std::unique_ptr<JsepSessionDescription> jsep_desc_;
+  std::unique_ptr<SessionDescriptionInterface> jsep_desc_;
 };
 
 TEST_F(JsepSessionDescriptionTest, CloneDefault) {
@@ -127,9 +128,13 @@ TEST_F(JsepSessionDescriptionTest, CloneDefault) {
 }
 
 TEST_F(JsepSessionDescriptionTest, CloneRollback) {
-  auto jsep_desc = std::make_unique<JsepSessionDescription>(SdpType::kRollback);
+  auto jsep_desc = CreateRollbackSessionDescription(
+      absl::StrCat(CreateRandomId64()), absl::StrCat(CreateRandomId64()));
+  EXPECT_EQ(jsep_desc->GetType(), SdpType::kRollback);
   auto new_desc = jsep_desc->Clone();
   EXPECT_EQ(jsep_desc->type(), new_desc->type());
+  EXPECT_EQ(jsep_desc->session_id(), new_desc->session_id());
+  EXPECT_EQ(jsep_desc->session_version(), new_desc->session_version());
 }
 
 TEST_F(JsepSessionDescriptionTest, CloneWithCandidates) {
@@ -152,6 +157,18 @@ TEST_F(JsepSessionDescriptionTest, CloneWithCandidates) {
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v6_video));
   auto new_desc = jsep_desc_->Clone();
   EXPECT_EQ(jsep_desc_->type(), new_desc->type());
+  ASSERT_EQ(jsep_desc_->number_of_mediasections(),
+            new_desc->number_of_mediasections());
+  for (size_t i = 0; i < jsep_desc_->number_of_mediasections(); ++i) {
+    const IceCandidateCollection* old_collection = jsep_desc_->candidates(i);
+    const IceCandidateCollection* new_collection = new_desc->candidates(i);
+    ASSERT_EQ(old_collection->count(), new_collection->count());
+    for (size_t j = 0; j < old_collection->count(); ++j) {
+      const IceCandidate* old_candidate = old_collection->at(j);
+      const IceCandidate* new_candidate = new_collection->at(j);
+      EXPECT_EQ(old_candidate->ToString(), new_candidate->ToString());
+    }
+  }
   std::string old_desc_string;
   std::string new_desc_string;
   EXPECT_TRUE(jsep_desc_->ToString(&old_desc_string));

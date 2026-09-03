@@ -59,6 +59,10 @@ namespace signin {
 class IdentityManager;
 }
 
+namespace strike_database {
+class StrikeDatabase;
+}
+
 namespace syncer {
 class SyncService;
 }
@@ -135,32 +139,32 @@ class AutofillClient {
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
   enum class AddressPromptUserDecision {
-    kUndefined,
+    kUndefined = 0,
     // No prompt is shown and no decision is needed to proceed with the process.
-    kUserNotAsked,
+    kUserNotAsked = 1,
     // The user accepted the save/update/migration flow from the initial prompt.
-    kAccepted,
+    kAccepted = 2,
     // The user declined the save/update/migration flow from the initial prompt.
-    kDeclined,
+    kDeclined = 3,
     // The user accepted the save/update/migration flow from the edit dialog.
-    kEditAccepted,
+    kEditAccepted = 4,
     // The user declined the save/update/migration flow from the edit dialog.
-    kEditDeclined,
+    kEditDeclined = 5,
     // The user selected to never migrate a `kLocalOrSyncable` profile to the
     // account storage. Currently unused for new profile and update prompts, but
     // is triggered by explicitly declining a migration prompt.
-    kNever,
+    kNever = 6,
     // The user ignored the prompt.
-    kIgnored,
+    kIgnored = 7,
     // The save/update/migration message timed out before the user interacted.
     // This is only relevant on mobile.
-    kMessageTimeout,
+    kMessageTimeout = 8,
     // The user swipes away the save/update/migration message. This is only
     // relevant on mobile.
-    kMessageDeclined,
+    kMessageDeclined = 9,
     // The prompt is suppressed most likely because there is already another
     // prompt shown on the same tab.
-    kAutoDeclined,
+    kAutoDeclined = 10,
     kMaxValue = kAutoDeclined,
   };
 
@@ -241,6 +245,19 @@ class AutofillClient {
   enum class AutofillAiPromptTypes {
     kSave,
     kUpdate,
+  };
+
+  // Specifies the type of the address save prompt.
+  enum class SaveAddressBubbleType {
+    // The standard "Save address" bubble.
+    kSave = 0,
+    // An altered save bubble, that offers migrating a profile to the Google
+    // Account.
+    kMigrateToAccount = 1,
+    // A bubble offering to merge the `kAccountNameEmail` and
+    // `kAccountHome/kAccountName` profiles into a single profile.
+    kHomeWorkNameEmailMerge = 2,
+    kMaxValue = kHomeWorkNameEmailMerge
   };
 
   // Callback to run when the user makes a decision on whether to save the
@@ -435,7 +452,7 @@ class AutofillClient {
   // returned so check before use.
   // TODO(crbug.com/40926442): Make sure all strike database usages check for
   // the nullptr.
-  virtual StrikeDatabase* GetStrikeDatabase() = 0;
+  virtual strike_database::StrikeDatabase* GetStrikeDatabase() = 0;
 
   // Gets the UKM service associated with this client (for metrics).
   virtual ukm::UkmRecorder* GetUkmRecorder() = 0;
@@ -478,12 +495,12 @@ class AutofillClient {
   // renders an update prompt where `original_profile` is the address profile
   // that will be updated if the user accepts the update prompt. Runs `callback`
   // once the user makes a decision with respect to the offer-to-save prompt.
-  // `is_migration_to_account` differentiates saving `profile` in browser or
+  // `save_address_bubble_type` differentiates saving `profile` in browser or
   // in user's Google account.
   virtual void ConfirmSaveAddressProfile(
       const AutofillProfile& profile,
       const AutofillProfile* original_profile,
-      bool is_migration_to_account,
+      SaveAddressBubbleType save_address_bubble_type,
       AddressProfileSavePromptCallback callback) = 0;
 
   // A unique identifier for suggestions UI (i.e. the keyboard accessory on

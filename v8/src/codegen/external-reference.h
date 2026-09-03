@@ -45,13 +45,7 @@ enum class IsolateFieldId : uint8_t;
   V(heap_is_minor_marking_flag_address, "heap_is_minor_marking_flag_address")  \
   V(is_shared_space_isolate_flag_address,                                      \
     "is_shared_space_isolate_flag_address")                                    \
-  V(new_space_allocation_top_address, "Heap::NewSpaceAllocationTopAddress()")  \
-  V(new_space_allocation_limit_address,                                        \
-    "Heap::NewSpaceAllocationLimitAddress()")                                  \
-  V(old_space_allocation_top_address, "Heap::OldSpaceAllocationTopAddress")    \
   V(last_young_allocation_address, "last_young_allocation_address")            \
-  V(old_space_allocation_limit_address,                                        \
-    "Heap::OldSpaceAllocationLimitAddress")                                    \
   V(array_buffer_max_allocation_address,                                       \
     "Heap::ArrayBufferMaxAllocationAddress")                                   \
   V(handle_scope_level_address, "HandleScope::level")                          \
@@ -259,9 +253,11 @@ enum class IsolateFieldId : uint8_t;
     "simple_name_dictionary_lookup_forwarded_string")                          \
   V(simple_name_dictionary_find_insertion_entry_forwarded_string,              \
     "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
+  V(verify_skipped_write_barrier, "Heap::VerifySkippedWriteBarrier")           \
   IF_WASM(V, wasm_start_stack, "wasm_start_stack")                             \
   IF_WASM(V, wasm_suspend_stack, "wasm_suspend_stack")                         \
-  IF_WASM(V, wasm_resume_stack, "wasm_resume_stack")                           \
+  IF_WASM(V, wasm_resume_jspi_stack, "wasm_resume_jspi_stack")                 \
+  IF_WASM(V, wasm_resume_wasmfx_stack, "wasm_resume_wasmfx_stack")             \
   IF_WASM(V, wasm_return_stack, "wasm_return_stack")                           \
   IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
           "wasm::switch_to_the_central_stack")                                 \

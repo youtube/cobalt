@@ -18,6 +18,8 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
@@ -33,6 +35,7 @@
 #include "media/audio/audio_features.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/fake_audio_input_stream.h"
+#include "media/base/audio_latency.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
 #include "media/base/localized_strings.h"
@@ -84,6 +87,13 @@ constexpr int kDefaultOutputBufferSize = 2048;
 // Return this value when getProperty(PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
 // fails.
 constexpr int kDefaultLowLatencyOutputBufferSize = 256;
+
+constexpr char kPreferredOutputFramesPerBufferMetricsName[] =
+    "Media.Audio.Android.PreferredOutputFramesPerBuffer";
+constexpr char kRequestedOutputFramesPerBufferMetricsName[] =
+    "Media.Audio.Android.RequestedOutputFramesPerBuffer";
+constexpr char kRequestedInputFramesPerBufferMetricsName[] =
+    "Media.Audio.Android.RequestedInputFramesPerBuffer";
 
 class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
  public:
@@ -711,6 +721,12 @@ AudioOutputStream* AudioManagerAndroid::MakeAudioOutputStream(
       params, device_id, AudioManager::LogCallback());
   if (stream) {
     output_streams_.insert(static_cast<MuteableAudioOutputStream*>(stream));
+    base::UmaHistogramSparse(kRequestedOutputFramesPerBufferMetricsName,
+                             params.frames_per_buffer());
+    base::UmaHistogramSparse(
+        base::StrCat({kRequestedOutputFramesPerBufferMetricsName, ".",
+                      media::AudioLatency::ToString(params.latency_tag())}),
+        params.frames_per_buffer());
   }
   return stream;
 }
@@ -760,6 +776,14 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
+  if (stream) {
+    base::UmaHistogramSparse(kRequestedInputFramesPerBufferMetricsName,
+                             params.frames_per_buffer());
+    base::UmaHistogramSparse(
+        base::StrCat({kRequestedInputFramesPerBufferMetricsName, ".",
+                      media::AudioLatency::ToString(params.latency_tag())}),
+        params.frames_per_buffer());
+  }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // For Cobalt, we always bypass the automatic "Communication Mode" switch.
@@ -1131,7 +1155,19 @@ AudioParameters AudioManagerAndroid::GetPreferredOutputStreamParameters(
       frames_per_buffer = GetOptimalOutputFramesPerBuffer(
           sample_rate, channel_layout_config.channels());
     }
+    base::UmaHistogramSparse(
+        base::StrCat(
+            {kPreferredOutputFramesPerBufferMetricsName, ".",
+             media::AudioLatency::ToString(input_params.latency_tag())}),
+        frames_per_buffer);
+  } else {
+    base::UmaHistogramSparse(
+        base::StrCat({kPreferredOutputFramesPerBufferMetricsName,
+                      ".InvalidInputParams"}),
+        frames_per_buffer);
   }
+  base::UmaHistogramSparse(kPreferredOutputFramesPerBufferMetricsName,
+                           frames_per_buffer);
 
   if (base::FeatureList::IsEnabled(kUseAudioManagerMaxChannelLayout)) {
     // Since channel count never changes over the lifetime of an output stream,

@@ -230,6 +230,30 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 template <typename T>
 class OutOfLineFloatMin final : public OutOfLineCode {
  public:
@@ -515,10 +539,6 @@ void CodeGenerator::AssemblePrepareTailCall() {
 
 namespace {
 
-bool HasImmediateInput(Instruction* instr, size_t index) {
-  return instr->InputAt(index)->IsImmediate();
-}
-
 void FlushPendingPushRegisters(MacroAssembler* masm,
                                FrameAccessState* frame_access_state,
                                ZoneVector<Register>* pending_pushes) {
@@ -691,8 +711,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
         DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
@@ -701,9 +720,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
         __ CallWasmCodePointer(i.InputRegister(0));
       } else {
-        // TODO(thibaudm): Use a WasmCodePointer for
-        // kArchResumeWasmContinuation. Can this be merged with
-        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
@@ -759,37 +775,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
+      Register func = i.InputRegister(0);
+      if (v8_flags.debug_code) {
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        // Check the function's context matches the context argument.
+        __ ldr(scratch, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ cmp(cp, scratch);
+        __ Assert(eq, AbortReason::kWrongFunctionContext);
+      }
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      if (HasImmediateInput(instr, 0)) {
-        Constant constant = i.ToConstant(instr->InputAt(0));
-        Handle<JSFunction> function = Cast<JSFunction>(constant.ToHeapObject());
-        __ Move(kJavaScriptCallTargetRegister, function);
-        if (function->shared()->HasBuiltinId()) {
-          Builtin builtin = function->shared()->builtin_id();
-          SBXCHECK_EQ(num_arguments,
-                      Builtins::GetFormalParameterCount(builtin));
-          __ CallBuiltin(builtin);
-        } else {
-          JSDispatchHandle dispatch_handle = function->dispatch_handle();
-          size_t expected =
-              IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-                  dispatch_handle);
-          SBXCHECK_GE(num_arguments, expected);
-          __ CallJSDispatchEntry(dispatch_handle, expected);
-        }
-      } else {
-        Register func = i.InputRegister(0);
-        if (v8_flags.debug_code) {
-          UseScratchRegisterScope temps(masm());
-          Register scratch = temps.Acquire();
-          // Check the function's context matches the context argument.
-          __ ldr(scratch, FieldMemOperand(func, JSFunction::kContextOffset));
-          __ cmp(cp, scratch);
-          __ Assert(eq, AbortReason::kWrongFunctionContext);
-        }
-        __ CallJSFunction(func, num_arguments);
-      }
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       frame_access_state()->ClearSPDelta();
@@ -1039,7 +1036,52 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall through.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      Operand offset(0);
+
+      if (arch_opcode == kArchAtomicStoreSkippedWriteBarrier) {
+        __ dmb(ISH);
+      }
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      if (addressing_mode == kMode_Offset_RI) {
+        int32_t immediate = i.InputInt32(1);
+        offset = Operand(immediate);
+        __ str(value, MemOperand(object, immediate));
+      } else {
+        DCHECK_EQ(kMode_Offset_RR, addressing_mode);
+        Register reg = i.InputRegister(1);
+        offset = Operand(reg);
+        __ str(value, MemOperand(object, reg));
+      }
+      if (arch_opcode == kArchAtomicStoreSkippedWriteBarrier &&
+          AtomicMemoryOrderField::decode(instr->opcode()) ==
+              AtomicMemoryOrder::kSeqCst) {
+        __ dmb(ISH);
+      }
+      break;
+    }
     case kArchStoreIndirectWithWriteBarrier:
+    case kArchStoreIndirectSkippedWriteBarrier:
       UNREACHABLE();
     case kArchStackSlot: {
       FrameOffset offset =

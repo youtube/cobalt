@@ -5,47 +5,80 @@
 #ifndef CHROME_BROWSER_GLIC_SERVICE_GLIC_INSTANCE_H_
 #define CHROME_BROWSER_GLIC_SERVICE_GLIC_INSTANCE_H_
 
-#include <memory>
-
+#include "base/callback_list.h"
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
-#include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
-#include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
-#include "chrome/browser/glic/host/glic_ui_embedder.h"
 #include "chrome/browser/glic/host/host.h"
-#include "chrome/browser/glic/service/panel_delegate.h"
+#include "chrome/browser/glic/service/glic_conversation_helper.h"
+#include "chrome/browser/glic/service/glic_instance_delegate.h"
 
 class BrowserWindowInterface;
+class Profile;
+
+namespace tabs {
+class TabInterface;
+}
 
 namespace glic {
 
-// A Panel owns a single host keeping any state that must exist for the lifetime
-// of the host. When a host is showing the Panel creates a PanelEmbedderDelegate
-// to display the webcontents in. A panel (and host) exist even if it has no
-// PanelEmbedderDelegate showing the panel. A host could have many different
-// PanelEmbedderDelegates during its lifetime.
-class GlicInstance : public PanelDelegate {
+class GlicUiEmbedder;
+
+// A GlicInstance owns a single host keeping any state that must exist for the
+// lifetime of the host. When a host is showing, the GlicInstance creates a
+// GlicUiEmbedder to display the webcontents in. An instance (and host) exist
+// even if it has no GlicUiEmbedder showing the UI. A host could have many
+// different GlicUiEmbedders during its lifetime.
+class GlicInstance : public GlicInstanceDelegate {
  public:
+  enum class EmbedderType {
+    kSidePanel,
+    kFloating,
+  };
+
   class AttachmentDelegate {
    public:
     virtual ~AttachmentDelegate() = default;
     virtual void AttachInstance(GlicInstance* instance) = 0;
     virtual void DetachInstance(GlicInstance* instance) = 0;
+    virtual void OnInstanceOrphaned(GlicInstance* instance) = 0;
   };
 
-  explicit GlicInstance(base::WeakPtr<AttachmentDelegate> attachment_delegate);
+  GlicInstance(Profile* profile,
+               std::unique_ptr<Host> host,
+               ConversationId conversation_id,
+               base::WeakPtr<AttachmentDelegate> attachment_delegate);
   ~GlicInstance() override;
 
   GlicInstance(const GlicInstance&) = delete;
   GlicInstance& operator=(const GlicInstance&) = delete;
 
-  void AttachPanel() override;
-  void DetachPanel() override;
-  bool IsShowing() const;
+  Profile* profile() { return profile_; }
+  Host& host() { return *host_; }
+  GlicUiEmbedder& embedder();
 
-  // PanelDelegate:
-  void ClosePanelAndShutdown() override;
+  void DisassociateWindow();
+
+  void AttachInstance() override;
+  void DetachInstance() override;
+  bool IsShowing() const;
+  BrowserWindowInterface* associated_bwi() const { return associated_bwi_; }
+  const ConversationId& conversation_id() const { return conversation_id_; }
+
+  // These methods should only be called by the GlicInstanceCoordinator.
+  EmbedderType GetEmbedderType();
+  void SetEmbedderType(EmbedderType type);
+  void Show(tabs::TabInterface* tab);
+  void Close();
+  void Toggle();
+
+  // Manages the association of this conversation with a tab.
+  void AssociateWithTab(tabs::TabInterface* tab);
+  void DisassociateFromTab(tabs::TabInterface* tab);
+  bool IsOrphaned() const;
+
+  // InstanceDelegate:
+  void CloseInstanceAndShutdown() override;
   void CreateTab() override;
   void CreateTask() override;
   void PerformActions() override;
@@ -56,23 +89,26 @@ class GlicInstance : public PanelDelegate {
   void GetZeroStateSuggestionsForFocusedTab() override;
 
  private:
-  // Objects that currently live in GlicService moved to here.
-  std::unique_ptr<glic::Host> host_;
-  std::unique_ptr<GlicScreenshotCapturer> screenshot_capturer_;
-  std::unique_ptr<GlicSharingManagerImpl> sharing_manager_;
-  std::unique_ptr<GlicZeroStateSuggestionsManager>
-      zero_state_suggestions_manager_;
+  void MaybeShowHostUi(GlicUiEmbedder* embedder);
+  void OnAssociatedTabDestroyed(tabs::TabInterface* tab,
+                                const ConversationId& conversation_id);
+
+  raw_ptr<Profile> profile_;
 
   // Replaces GlicWindowController on existing GlicKeyedService.
   std::unique_ptr<GlicUiEmbedder> embedder_;
-  // bool is_chat_mode = true;
-  // Probably initiated from a default setting but can be changed independently
-  // per a Panel.
-  // bool is_following_active_tab_ = true;
+  EmbedderType embedder_type_ = EmbedderType::kSidePanel;
 
-  // The attached browser if currently showing in the side panel of a window.
-  raw_ptr<BrowserWindowInterface> attached_bwi_ = nullptr;
+  // The browser window this instance is associated with. This persists even
+  // when detached.
+  raw_ptr<BrowserWindowInterface> associated_bwi_ = nullptr;
   base::WeakPtr<AttachmentDelegate> attachment_delegate_;
+  const ConversationId conversation_id_;
+
+  base::flat_map<tabs::TabInterface*, base::CallbackListSubscription>
+      associated_tab_subscriptions_;
+  std::unique_ptr<Host> host_;
+  base::WeakPtrFactory<GlicInstance> weak_ptr_factory_{this};
 };
 
 }  // namespace glic

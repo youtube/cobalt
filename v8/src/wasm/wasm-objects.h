@@ -502,10 +502,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
   DECL_PROTECTED_POINTER_ACCESSORS(managed_native_module,
                                    TrustedManaged<wasm::NativeModule>)
-  DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(new_allocation_top_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(old_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
@@ -551,10 +547,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
   /* Continue with system pointer size fields to maintain alignment. */   \
-  V(kNewAllocationLimitAddressOffset, kSystemPointerSize)                 \
-  V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
-  V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
-  V(kOldAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
   V(kStressDeoptCounterOffset, kSystemPointerSize)                        \
@@ -1010,8 +1002,7 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
-      int func_index, wasm::CanonicalTypeIndex sig_id,
-      const wasm::CanonicalSig* sig, wasm::Promise promise);
+      int func_index, const wasm::CanonicalSig* sig, wasm::Promise promise);
 
   static void MarkAsReceiverIsFirstParam(
       Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
@@ -1020,7 +1011,6 @@ class WasmExportedFunction : public JSFunction {
   // a freshly-compiled wrapper.
   static DirectHandle<Code> GetWrapper(Isolate* isolate,
                                        const wasm::CanonicalSig* sig,
-                                       wasm::CanonicalTypeIndex sig_id,
                                        bool receiver_is_first_param,
                                        const wasm::WasmModule* module);
 
@@ -1053,7 +1043,6 @@ class WasmCapiFunction : public JSFunction {
   static DirectHandle<WasmCapiFunction> New(Isolate* isolate,
                                             Address call_target,
                                             DirectHandle<Foreign> embedder_data,
-                                            wasm::CanonicalTypeIndex sig_index,
                                             const wasm::CanonicalSig* sig);
 
   const wasm::CanonicalSig* sig() const;
@@ -1110,11 +1099,6 @@ class WasmExportedFunctionData
  public:
   DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
-
-  DECL_PRIMITIVE_ACCESSORS(sig, const wasm::CanonicalSig*)
-  // Prefer to use this convenience wrapper of the Torque-generated
-  // {canonical_type_index()}.
-  inline wasm::CanonicalTypeIndex sig_index() const;
 
   inline bool is_promising() const;
 
@@ -1264,10 +1248,6 @@ class WasmCapiFunctionData
     : public TorqueGeneratedWasmCapiFunctionData<WasmCapiFunctionData,
                                                  WasmFunctionData> {
  public:
-  // Prefer to use this convenience wrapper of the Torque-generated
-  // {canonical_sig_index()}.
-  inline wasm::CanonicalTypeIndex sig_index() const;
-
   DECL_PRINTER(WasmCapiFunctionData)
 
   using BodyDescriptor =

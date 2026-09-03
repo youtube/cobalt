@@ -85,7 +85,7 @@ class URLRequestContext;
 namespace network {
 
 class DnsConfigChangeManager;
-class HttpAuthCacheCopier;
+class HttpAuthCacheProxyCopier;
 class NetLogProxySink;
 class NetworkContext;
 class NetworkService;
@@ -317,8 +317,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   net::HostResolver::Factory* host_resolver_factory() {
     return host_resolver_factory_.get();
   }
-  HttpAuthCacheCopier* http_auth_cache_copier() {
-    return http_auth_cache_copier_.get();
+  HttpAuthCacheProxyCopier* http_auth_cache_proxy_copier() {
+    return http_auth_cache_proxy_copier_.get();
   }
 
   FirstPartySetsManager* first_party_sets_manager() const {
@@ -480,7 +480,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 
   std::unique_ptr<net::HostResolverManager> host_resolver_manager_;
   std::unique_ptr<net::HostResolver::Factory> host_resolver_factory_;
-  std::unique_ptr<HttpAuthCacheCopier> http_auth_cache_copier_;
+  std::unique_ptr<HttpAuthCacheProxyCopier> http_auth_cache_proxy_copier_;
 
   // Members that would store the http auth network_service related params.
   // These Params are later used by NetworkContext to create

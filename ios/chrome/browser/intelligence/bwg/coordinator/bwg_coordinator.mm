@@ -6,11 +6,13 @@
 
 #import "base/barrier_closure.h"
 #import "base/functional/bind.h"
+#import "base/memory/weak_ptr.h"
 #import "base/metrics/histogram_functions.h"
 #import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/tracker.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_mediator.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_mediator_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h"
@@ -19,11 +21,13 @@
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_fre_wrapper_view_controller.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/profile/profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
@@ -119,10 +123,16 @@ const CGFloat kPromoMaxImpressionCount = 3;
   BOOL showPromo = [self shouldShowBWGPromo];
 
   if (showPromo) {
-    _prefService->SetInteger(
-        prefs::kIOSBWGPromoImpressionCount,
-        _prefService->GetInteger(prefs::kIOSBWGPromoImpressionCount) + 1);
-    [_mediator logAIHubNewBadgeExpirationTime];
+    int impressionCount =
+        _prefService->GetInteger(prefs::kIOSBWGPromoImpressionCount) + 1;
+    _prefService->SetInteger(prefs::kIOSBWGPromoImpressionCount,
+                             impressionCount);
+
+    if (impressionCount == 1) {
+      feature_engagement::TrackerFactory::GetForProfile(self.profile)
+          ->NotifyEvent(
+              feature_engagement::events::kIOSGeminiPromoFirstCompletion);
+    }
   }
 
   _FREWrapperViewController = [[BWGFREWrapperViewController alloc]
@@ -201,6 +211,8 @@ const CGFloat kPromoMaxImpressionCount = 3;
       self.browser->GetCommandDispatcher(), ApplicationCommands);
 
   _mediator.delegate = self;
+
+  [self prepareAIHubIPH];
   [_mediator presentBWGFlow];
 
   [super start];
@@ -254,11 +266,23 @@ const CGFloat kPromoMaxImpressionCount = 3;
 // Dismisses BWG from all other windows and executes the completion block.
 - (void)dismissBWGFromOtherWindowsWithCompletion:(ProceduralBlock)completion {
   base::OnceCallback closure = base::BindOnce(completion);
-  std::set<Browser*> browser_list =
-      BrowserListFactory::GetForProfile(self.profile)
-          ->BrowsersOfType(BrowserList::BrowserType::kRegular);
 
-  if (browser_list.size() == 1) {
+  // Collect all browsers (excluding the current one) for all profiles.
+  std::vector<base::WeakPtr<Browser>> otherBrowsers;
+  for (ProfileIOS* profile :
+       GetApplicationContext()->GetProfileManager()->GetLoadedProfiles()) {
+    const std::set<Browser*>& browserList =
+        BrowserListFactory::GetForProfile(profile)->BrowsersOfType(
+            BrowserList::BrowserType::kRegular);
+    for (Browser* browser : browserList) {
+      if (browser == self.browser) {
+        continue;
+      }
+      otherBrowsers.push_back(browser->AsWeakPtr());
+    }
+  }
+
+  if (otherBrowsers.empty()) {
     std::move(closure).Run();
     return;
   }
@@ -266,19 +290,30 @@ const CGFloat kPromoMaxImpressionCount = 3;
   // Gate the completion behind this barrier closure which executes it when all
   // other browsers have dismissed their BWG sessions.
   base::RepeatingClosure barrier =
-      base::BarrierClosure(browser_list.size() - 1, std::move(closure));
+      base::BarrierClosure(otherBrowsers.size(), std::move(closure));
 
-  // Dismiss BWG in all browsers other than the current one.
-  for (Browser* browser : browser_list) {
-    if (browser == self.browser) {
-      continue;
-    }
-
+  // Dismiss BWG in all the other browsers for all profiles.
+  for (base::WeakPtr<Browser> browser : otherBrowsers) {
     id<BWGCommands> BWGCommandsHandler =
         HandlerForProtocol(browser->GetCommandDispatcher(), BWGCommands);
     [BWGCommandsHandler dismissBWGFlowWithCompletion:^() {
       barrier.Run();
     }];
+  }
+}
+
+// Prepares UI for AI Hub In-Product Help (IPH) bubble.
+- (void)prepareAIHubIPH {
+  BOOL wouldTriggerIPH =
+      feature_engagement::TrackerFactory::GetForProfile(self.profile)
+          ->WouldTriggerHelpUI(feature_engagement::kIPHIOSPageActionMenu);
+
+  if (_entryPoint != bwg::EntryPoint::AIHub && [self shouldShowBWGPromo] &&
+      wouldTriggerIPH) {
+    // Ensures toolbar is expanded. If the toolbar is not fully expanded, the AI
+    // Hub In-Product Help (IPH) bubble will be misaligned from using anchor
+    // points relative to a partially expanded toolbar.
+    FullscreenController::FromBrowser(self.browser)->ExitFullscreen();
   }
 }
 

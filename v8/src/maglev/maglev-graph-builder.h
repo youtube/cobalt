@@ -101,7 +101,7 @@ class MaglevGraphBuilder {
                               Graph* graph,
                               MaglevCallerDetails* caller_details = nullptr);
 
-  void Build();
+  bool Build();
 
   ReduceResult BuildInlineFunction(SourcePosition call_site_position,
                                    ValueNode* context, ValueNode* function,
@@ -216,6 +216,8 @@ class MaglevGraphBuilder {
 
   bool is_turbolev() const { return is_turbolev_; }
 
+  bool should_abort_compilation() const { return should_abort_compilation_; }
+
   bool is_non_eager_inlining_enabled() const {
     if (is_turbolev()) {
       return v8_flags.turbolev_non_eager_inlining;
@@ -256,7 +258,7 @@ class MaglevGraphBuilder {
   }
   int max_inlined_bytecode_size_cumulative() {
     if (is_turbolev()) {
-      return v8_flags.max_inlined_bytecode_size_cumulative;
+      return v8_flags.max_turbolev_inlined_bytecode_size_cumulative;
     } else {
       return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
     }
@@ -329,6 +331,7 @@ class MaglevGraphBuilder {
    public:
     class Variable;
     class Label;
+    class LabelForTrackingInterpreterFrameState;
     class LoopLabel;
 
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
@@ -361,9 +364,13 @@ class MaglevGraphBuilder {
     void TakeKnownNodeAspectsAndVOsFromParent();
     void MoveKnownNodeAspectsAndVOsToParent();
 
+    MaglevCompilationUnit* compilation_unit() const {
+      return builder_->compilation_unit();
+    }
+
     MaglevGraphBuilder* builder_;
-    MaglevCompilationUnit* compilation_unit_;
-    InterpreterFrameState pseudo_frame_;
+    MaglevCompilationUnit* variable_compilation_unit_;
+    InterpreterFrameState variable_frame_;
   };
 
   // TODO(olivf): Currently identifying dead code relies on the fact that loops
@@ -879,6 +886,9 @@ class MaglevGraphBuilder {
                                           ExternalArrayType type,
                                           Function&& getValue);
 
+  // Returns kDoneWithoutValue if checks passed successfully.
+  MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
+      compiler::JSFunctionRef target, CallArguments& args);
   MaybeReduceResult TryReduceDatePrototypeGetField(
       compiler::JSFunctionRef target, CallArguments& args,
       JSDate::FieldIndex field);
@@ -919,6 +929,7 @@ class MaglevGraphBuilder {
   V(DatePrototypeGetHours)                     \
   V(DatePrototypeGetMinutes)                   \
   V(DatePrototypeGetSeconds)                   \
+  V(DatePrototypeGetTime)                      \
   V(FunctionPrototypeApply)                    \
   V(FunctionPrototypeCall)                     \
   V(FunctionPrototypeHasInstance)              \
@@ -1188,7 +1199,8 @@ class MaglevGraphBuilder {
       ValueNode* heap_object, ValueNode* object_map,
       base::Vector<const compiler::MapRef> maps,
       MaglevSubGraphBuilder* sub_graph,
-      std::optional<MaglevSubGraphBuilder::Label>& if_not_matched);
+      std::optional<MaglevSubGraphBuilder::Label>& if_not_matched,
+      std::optional<int> future_bind_offset = std::nullopt);
   ReduceResult BuildTransitionElementsKindAndCompareMaps(
       ValueNode* heap_object, ValueNode* object_map,
       const ZoneVector<compiler::MapRef>& transition_sources,
@@ -1406,6 +1418,8 @@ class MaglevGraphBuilder {
   };
   std::optional<ContinuationOffsets>
   FindContinuationForPolymorphicPropertyLoad();
+  std::optional<ContinuationOffsets>
+  FindContinuationForPolymorphicPropertyLoadImpl();
   ReduceResult BuildContinuationForPolymorphicPropertyLoad(
       const ContinuationOffsets& offsets);
   void AdvanceThroughContinuationForPolymorphicPropertyLoad(
@@ -1889,7 +1903,12 @@ class MaglevGraphBuilder {
     DCHECK_IMPLIES(merge_states_[offset],
                    merge_states_[offset]->predecessor_count() ==
                        predecessor_count_[offset] + diff);
-    predecessor_count_[offset] += diff;
+    uint32_t updated_pred_count = predecessor_count_[offset] + diff;
+    if (updated_pred_count > NodeBase::kMaxInputs) {
+      should_abort_compilation_ = true;
+      return;
+    }
+    predecessor_count_[offset] = updated_pred_count;
   }
   uint32_t predecessor_count(uint32_t offset) {
     DCHECK_LE(offset, bytecode().length());
@@ -1965,6 +1984,7 @@ class MaglevGraphBuilder {
   ValueNode* inlined_new_target_ = nullptr;
 
   bool is_turbolev_ = false;
+  bool should_abort_compilation_ = false;
 
   // Bytecode offset at which compilation should start.
   int entrypoint_;

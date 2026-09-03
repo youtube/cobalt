@@ -81,6 +81,13 @@ class IceControllerInterface {
         : connection(conn ? std::optional<const Connection*>(conn)
                           : std::nullopt),
           recheck_delay_ms(_recheck_delay_ms) {}
+    PingResult(const Connection* conn, TimeDelta recheck_delay)
+        : connection(conn ? std::optional(conn) : std::nullopt),
+          recheck_delay_ms(recheck_delay.ms()) {}
+
+    TimeDelta recheck_delay() const {
+      return TimeDelta::Millis(recheck_delay_ms);
+    }
 
     // Connection that we should (optionally) ping.
     const std::optional<const Connection*> connection;

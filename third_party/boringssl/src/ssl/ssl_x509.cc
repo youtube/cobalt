@@ -26,6 +26,7 @@
 #include <openssl/x509.h>
 
 #include "../crypto/internal.h"
+#include "../crypto/bytestring/internal.h"
 #include "internal.h"
 
 
@@ -820,27 +821,11 @@ int i2d_SSL_SESSION_bio(BIO *bio, const SSL_SESSION *session) {
 
 IMPLEMENT_PEM_rw(SSL_SESSION, SSL_SESSION, PEM_STRING_SSL_SESSION, SSL_SESSION)
 
-SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const uint8_t **pp, long length) {
-  if (length < 0) {
-    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
-    return NULL;
-  }
-
-  CBS cbs;
-  CBS_init(&cbs, *pp, length);
-
-  UniquePtr<SSL_SESSION> ret = SSL_SESSION_parse(&cbs, &ssl_crypto_x509_method,
-                                                 NULL /* no buffer pool */);
-  if (!ret) {
-    return NULL;
-  }
-
-  if (a) {
-    SSL_SESSION_free(*a);
-    *a = ret.get();
-  }
-  *pp = CBS_data(&cbs);
-  return ret.release();
+SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **out, const uint8_t **inp, long len) {
+  return bssl::D2IFromCBS(out, inp, len, [](CBS *cbs) {
+    return SSL_SESSION_parse(cbs, &ssl_crypto_x509_method,
+                             nullptr /* no buffer pool */);
+  });
 }
 
 STACK_OF(X509_NAME) *SSL_dup_CA_list(STACK_OF(X509_NAME) *list) {

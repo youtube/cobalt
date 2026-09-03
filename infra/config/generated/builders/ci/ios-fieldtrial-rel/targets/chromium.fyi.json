@@ -12,13 +12,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_bookmarks_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_bookmarks_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_bookmarks_eg2tests_module iPad Air (6th generation) 18.2",
         "resultdb": {
@@ -44,7 +44,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -66,13 +66,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_bookmarks_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_bookmarks_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_bookmarks_eg2tests_module iPhone 15 18.2",
         "resultdb": {
@@ -98,7 +98,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -122,13 +122,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_integration_eg2tests_module iPad Air (6th generation) 18.2",
         "resultdb": {
@@ -154,7 +154,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -178,13 +178,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_integration_eg2tests_module iPhone 15 18.2",
         "resultdb": {
@@ -210,7 +210,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -234,13 +234,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_settings_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_settings_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_settings_eg2tests_module iPad Air (6th generation) 18.2",
         "resultdb": {
@@ -266,7 +266,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -290,13 +290,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_settings_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_settings_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_settings_eg2tests_module iPhone 15 18.2",
         "resultdb": {
@@ -322,7 +322,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -344,13 +344,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_signin_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_signin_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_signin_eg2tests_module iPad Air (6th generation) 18.2",
         "resultdb": {
@@ -376,7 +376,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -398,13 +398,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_signin_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_signin_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_signin_eg2tests_module iPhone 15 18.2",
         "resultdb": {
@@ -430,7 +430,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -452,13 +452,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_smoke_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_smoke_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_smoke_eg2tests_module iPad Air (6th generation) 18.2",
         "resultdb": {
@@ -484,7 +484,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -505,13 +505,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_smoke_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_smoke_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_smoke_eg2tests_module iPhone 15 18.2",
         "resultdb": {
@@ -537,7 +537,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -560,13 +560,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_ui_eg2tests_module iPad Air (6th generation) 18.2",
         "resultdb": {
@@ -592,7 +592,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -616,13 +616,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_ui_eg2tests_module iPhone 15 18.2",
         "resultdb": {
@@ -648,7 +648,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -670,13 +670,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_web_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_web_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_web_eg2tests_module iPad Air (6th generation) 18.2",
         "resultdb": {
@@ -702,7 +702,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -724,13 +724,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_web_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_web_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_web_eg2tests_module iPhone 15 18.2",
         "resultdb": {
@@ -756,7 +756,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -778,13 +778,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/web/shell/test:ios_web_shell_eg2tests_module/",
+        "module_name": "//ios/web/shell/test:ios_web_shell_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_web_shell_eg2tests_module iPad Air (6th generation) 18.2",
         "resultdb": {
@@ -810,7 +810,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -831,13 +831,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/web/shell/test:ios_web_shell_eg2tests_module/",
+        "module_name": "//ios/web/shell/test:ios_web_shell_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_web_shell_eg2tests_module iPhone 15 18.2",
         "resultdb": {
@@ -863,7 +863,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],

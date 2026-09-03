@@ -58,6 +58,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
@@ -817,14 +818,10 @@ void MediaSource::CompleteAttachingToMediaElement(
 
     if (attachment_tracer_) {
       // Use of a tracer means we must be using same-thread attachment.
-      TRACE_EVENT_NESTABLE_ASYNC_END0(
-          "media", "MediaSource::StartAttachingToMediaElement",
-          TRACE_ID_LOCAL(this));
+      TRACE_EVENT_END("media", perfetto::Track::FromPointer(this));
     } else {
       // Otherwise, we must be using a cross-thread MSE-in-Workers attachment.
-      TRACE_EVENT_NESTABLE_ASYNC_END0(
-          "media", "MediaSource::StartWorkerAttachingToMainThreadMediaElement",
-          TRACE_ID_LOCAL(this));
+      TRACE_EVENT_END("media", perfetto::Track::FromPointer(this));
     }
     DCHECK(web_media_source);
     DCHECK(!web_media_source_);
@@ -1452,9 +1449,8 @@ MediaSourceTracer* MediaSource::StartAttachingToMediaElement(
   DCHECK(!context_already_destroyed_);
   DCHECK(IsClosed());
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("media",
-                                    "MediaSource::StartAttachingToMediaElement",
-                                    TRACE_ID_LOCAL(this));
+  TRACE_EVENT_BEGIN("media", "MediaSource::StartAttachingToMediaElement",
+                    perfetto::Track::FromPointer(this));
   media_source_attachment_ = attachment;
   attachment_tracer_ =
       MakeGarbageCollected<SameThreadMediaSourceTracer>(element, this);
@@ -1479,9 +1475,9 @@ bool MediaSource::StartWorkerAttachingToMainThreadMediaElement(
   }
 
   DCHECK(IsClosed());
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-      "media", "MediaSource::StartWorkerAttachingToMainThreadMediaElement",
-      TRACE_ID_LOCAL(this));
+  TRACE_EVENT_BEGIN("media",
+                    "MediaSource::StartWorkerAttachingToMainThreadMediaElement",
+                    perfetto::Track::FromPointer(this));
   media_source_attachment_ = attachment;
   return true;
 }

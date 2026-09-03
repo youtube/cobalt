@@ -72,25 +72,20 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateContextProvider(
     viz::command_buffer_metrics::ContextType type) {
   constexpr bool kAutomaticFlushes = false;
 
-  gpu::ContextCreationAttribs attributes;
-  attributes.lose_context_when_out_of_memory = true;
-  attributes.enable_gles2_interface = false;
-  attributes.enable_raster_interface = true;
-  attributes.enable_gpu_rasterization = supports_gpu_rasterization;
-
   gpu::SharedMemoryLimits memory_limits =
 #if BUILDFLAG(IS_STARBOARD)
       gpu::SharedMemoryLimits::ForDisplayCompositor(
-          display::Screen::GetScreen()->GetPrimaryDisplay().size());
+          display::Screen::Get()->GetPrimaryDisplay().size());
 #else
       gpu::SharedMemoryLimits::ForDisplayCompositor();
 #endif
 
   GURL url("chrome://gpu/VizProcessTransportFactory::CreateContextProvider");
-  return base::MakeRefCounted<viz::ContextProviderCommandBuffer>(
+  return viz::ContextProviderCommandBuffer::CreateForRaster(
       std::move(gpu_channel_host), kGpuStreamIdDefault, kGpuStreamPriorityUI,
-      std::move(url), kAutomaticFlushes, supports_locking, memory_limits,
-      attributes, type);
+      std::move(url), kAutomaticFlushes, supports_locking, memory_limits, type,
+      /*enable_gpu_rasterization=*/supports_gpu_rasterization,
+      /*lose_context_when_out_of_memory=*/true);
 }
 
 bool IsContextLost(viz::RasterContextProvider* context_provider) {
@@ -536,7 +531,7 @@ VizProcessTransportFactory::TryCreateContextsForGpuCompositing(
     // rasterized on the GPU.
     auto worker_context_provider = CreateContextProvider(
         gpu_channel_host, /*supports_locking=*/true, enable_gpu_rasterization,
-        viz::command_buffer_metrics::ContextType::BROWSER_WORKER);
+        viz::command_buffer_metrics::ContextType::BROWSER_RASTER_WORKER);
 
     // Don't observer context loss on |worker_context_provider_| here,
     // that is already observed by LayerTreeFrameSink. The lost context will

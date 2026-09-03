@@ -148,8 +148,9 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(
   CHECK(IsValidHeapObject(heap_, heap_object));
 #if V8_STATIC_ROOTS_BOOL
   // In static roots builds, holes are unmapped in RO space -- skip verifying
-  // them.
-  if (HeapLayout::InReadOnlySpace(heap_object) && IsAnyHole(heap_object)) {
+  // them beyond the RO space check.
+  if (SafeIsAnyHole(heap_object)) {
+    CHECK(HeapLayout::InReadOnlySpace(heap_object));
     return;
   }
 #endif
@@ -436,7 +437,8 @@ void HeapVerification::VerifyPageDone(const MemoryChunkMetadata* chunk) {
 }
 
 void HeapVerification::VerifyObject(Tagged<HeapObject> object) {
-  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(object), *current_chunk_);
+  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(isolate(), object),
+           *current_chunk_);
 
   // Verify object map.
   VerifyObjectMap(object);
@@ -755,7 +757,8 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     return;
   }
 
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(object);
+  MutablePageMetadata* chunk =
+      MutablePageMetadata::FromHeapObject(isolate(), object);
 
   Address start = object.address();
   Address end = start + object->Size(cage_base_);

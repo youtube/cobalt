@@ -20,6 +20,7 @@
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
 #include "api/data_channel_interface.h"
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
@@ -55,6 +56,7 @@ class PeerConnectionTestWrapper
                                PeerConnectionTestWrapper* callee);
 
   PeerConnectionTestWrapper(const std::string& name,
+                            const webrtc::Environment& env,
                             webrtc::SocketServer* socket_server,
                             webrtc::Thread* network_thread,
                             webrtc::Thread* worker_thread);
@@ -164,6 +166,7 @@ class PeerConnectionTestWrapper
                             const std::string& candidate);
 
   std::string name_;
+  const webrtc::Environment env_;
   webrtc::SocketServer* const socket_server_;
   webrtc::Thread* const network_thread_;
   webrtc::Thread* const worker_thread_;

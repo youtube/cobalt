@@ -238,7 +238,7 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (IsAnyHole(Tagged(*this))) {
+  if (SafeIsAnyHole(Tagged(*this))) {
     Cast<Hole>(*this)->HolePrint(os);
     return;
   }
@@ -3007,10 +3007,6 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
-  PRINT_WASM_INSTANCE_FIELD(new_allocation_limit_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(new_allocation_top_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(old_allocation_limit_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(old_allocation_top_address, to_void_ptr);
 #if V8_ENABLE_DRUMBRAKE
   PRINT_WASM_INSTANCE_FIELD(imported_function_indices, Brief);
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -3065,9 +3061,9 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   os << "\n - instance_data: " << Brief(instance_data());
   os << "\n - function_index: " << function_index();
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
-  os << "\n - canonical_type_index: " << canonical_type_index();
   os << "\n - receiver_is_first_param: " << receiver_is_first_param();
-  os << "\n - signature: " << reinterpret_cast<const void*>(sig());
+  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
+     << sig()->return_count() << " returns)";
   os << "\n";
 }
 
@@ -3127,9 +3123,9 @@ void WasmFuncRef::WasmFuncRefPrint(std::ostream& os) {
 void WasmCapiFunctionData::WasmCapiFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmCapiFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - canonical_sig_index: " << canonical_sig_index();
   os << "\n - embedder_data: " << Brief(embedder_data());
-  os << "\n - sig: " << sig();
+  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
+     << sig()->return_count() << " returns)";
   os << "\n";
 }
 
@@ -4649,8 +4645,8 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_TransitionTree(
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Object_MarkBit(
     void* object) {
 #ifdef OBJECT_PRINT
-  const auto mark_bit =
-      v8::internal::MarkBit::From(reinterpret_cast<i::Address>(object));
+  const auto mark_bit = v8::internal::MarkBit::From(
+      i::Isolate::Current(), reinterpret_cast<i::Address>(object));
   i::StdoutStream os;
   os << "Object " << object << " is "
      << (mark_bit.Get() ? "marked" : "unmarked") << std::endl;

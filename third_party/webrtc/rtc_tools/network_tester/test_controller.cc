@@ -16,6 +16,7 @@
 #include <optional>
 #include <string>
 
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/units/timestamp.h"
@@ -33,11 +34,13 @@
 
 namespace webrtc {
 
-TestController::TestController(int min_port,
+TestController::TestController(const Environment& env,
+                               int min_port,
                                int max_port,
                                const std::string& config_file_path,
                                const std::string& log_file_path)
-    : socket_server_(CreateDefaultSocketServer()),
+    : env_(env),
+      socket_server_(CreateDefaultSocketServer()),
       packet_sender_thread_(std::make_unique<Thread>(socket_server_.get())),
       socket_factory_(socket_server_.get()),
       config_file_path_(config_file_path),
@@ -133,9 +136,9 @@ void TestController::OnReadPacket(AsyncPacketSocket* socket,
       start_packet.set_type(NetworkTesterPacket::TEST_START);
       remote_address_ = received_packet.source_address();
       SendData(start_packet, std::nullopt);
-      packet_sender_.reset(new PacketSender(this, packet_sender_thread_.get(),
-                                            task_safety_flag_,
-                                            config_file_path_));
+      packet_sender_.reset(
+          new PacketSender(env_, this, packet_sender_thread_.get(),
+                           task_safety_flag_, config_file_path_));
       packet_sender_->StartSending();
       MutexLock scoped_lock(&test_done_lock_);
       local_test_done_ = false;
@@ -143,9 +146,9 @@ void TestController::OnReadPacket(AsyncPacketSocket* socket,
       break;
     }
     case NetworkTesterPacket::TEST_START: {
-      packet_sender_.reset(new PacketSender(this, packet_sender_thread_.get(),
-                                            task_safety_flag_,
-                                            config_file_path_));
+      packet_sender_.reset(
+          new PacketSender(env_, this, packet_sender_thread_.get(),
+                           task_safety_flag_, config_file_path_));
       packet_sender_->StartSending();
       MutexLock scoped_lock(&test_done_lock_);
       local_test_done_ = false;

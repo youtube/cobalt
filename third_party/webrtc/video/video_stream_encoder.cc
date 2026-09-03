@@ -79,6 +79,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/trace_event.h"
@@ -119,6 +120,8 @@ const size_t kDefaultPayloadSize = 1440;
 const int64_t kParameterUpdateIntervalMs = 1000;
 
 constexpr int kDefaultMinScreenSharebps = 1200000;
+
+constexpr int kMaxFramesInPreparation = 10;
 
 int GetNumSpatialLayers(const VideoCodec& codec) {
   if (codec.codecType == kVideoCodecVP9) {
@@ -600,6 +603,23 @@ std::optional<int> ParseEncoderThreadLimit(const FieldTrialsView& trials) {
 
 }  //  namespace
 
+VideoStreamEncoder::PreparedFramesProcessor::PreparedFramesProcessor(
+    VideoStreamEncoder* parent)
+    : parent_(parent) {}
+
+void VideoStreamEncoder::PreparedFramesProcessor::StopCallbacks() {
+  MutexLock lock(&lock_);
+  parent_ = nullptr;
+}
+
+void VideoStreamEncoder::PreparedFramesProcessor::OnFramePrepared(
+    size_t frame_identifier) {
+  MutexLock lock(&lock_);
+  if (parent_) {
+    parent_->OnFramePrepared(frame_identifier);
+  }
+}
+
 VideoStreamEncoder::EncoderRateSettings::EncoderRateSettings()
     : rate_control(), encoder_target(DataRate::Zero()) {}
 
@@ -736,7 +756,9 @@ VideoStreamEncoder::VideoStreamEncoder(
           ParseVp9LowTierCoreCountThreshold(env_.field_trials())),
       experimental_encoder_thread_limit_(
           ParseEncoderThreadLimit(env_.field_trials())),
-      encoder_queue_(std::move(encoder_queue)) {
+      encoder_queue_(std::move(encoder_queue)),
+      prepared_frames_processor_(
+          make_ref_counted<PreparedFramesProcessor>(this)) {
   TRACE_EVENT0("webrtc", "VideoStreamEncoder::VideoStreamEncoder");
   RTC_DCHECK_RUN_ON(worker_queue_);
   RTC_DCHECK(encoder_stats_observer);
@@ -773,6 +795,10 @@ VideoStreamEncoder::~VideoStreamEncoder() {
   RTC_DCHECK(!video_source_sink_controller_.HasSource())
       << "Must call ::Stop() before destruction.";
 
+  // `StopCallbacks` must be called before the queue is destroyed, because
+  // ongoing notifications of prepared frames may post tasks or run on
+  // `encoder_queue_`.
+  prepared_frames_processor_->StopCallbacks();
   // The queue must be destroyed before its pointer is invalidated to avoid race
   // between destructor and running task that check if function is called on the
   // encoder_queue_.
@@ -1561,6 +1587,7 @@ void VideoStreamEncoder::OnFrame(Timestamp post_time,
                                  bool queue_overload,
                                  const VideoFrame& video_frame) {
   RTC_DCHECK_RUN_ON(encoder_queue_.get());
+
   VideoFrame incoming_frame = video_frame;
 
   // In some cases, e.g., when the frame from decoder is fed to encoder,
@@ -1617,7 +1644,7 @@ void VideoStreamEncoder::OnFrame(Timestamp post_time,
       cwnd_frame_drop_interval_ &&
       (cwnd_frame_counter_++ % cwnd_frame_drop_interval_.value() == 0);
   if (!queue_overload && !cwnd_frame_drop) {
-    MaybeEncodeVideoFrame(incoming_frame, post_time.us());
+    MaybePrepareVideoFrame(incoming_frame, post_time.us());
   } else {
     if (cwnd_frame_drop) {
       // Frame drop by congestion window pushback. Do not encode this
@@ -1801,6 +1828,62 @@ void VideoStreamEncoder::SetEncoderRates(
         UpdateAllocationFromEncoderInfo(
             rate_settings.rate_control.target_bitrate,
             encoder_->GetEncoderInfo()));
+  }
+}
+
+void VideoStreamEncoder::MaybePrepareVideoFrame(const VideoFrame& video_frame,
+                                                int64_t time_when_posted_us) {
+  RTC_DCHECK_RUN_ON(encoder_queue_.get());
+  if (pending_mapped_frames_.size() > kMaxFramesInPreparation) {
+    RTC_LOG(LS_ERROR) << "To many frames are being prepared.";
+    ProcessDroppedFrame(video_frame,
+                        VideoStreamEncoderObserver::DropReason::kEncoderQueue);
+    return;
+  }
+
+  std::optional<VideoEncoder::Resolution> mapped_resolution;
+  if (encoder_) {
+    mapped_resolution = encoder_->GetEncoderInfo().mapped_resolution;
+  }
+
+  pending_mapped_frames_.push_back(
+      PreparingFrame{.frame = std::move(video_frame),
+                     .can_send = false,
+                     .frame_id = frame_counter_++,
+                     .time_when_posted_us = time_when_posted_us});
+
+  const PreparingFrame& last_frame = pending_mapped_frames_.back();
+  if (mapped_resolution.has_value()) {
+    if (mapped_resolution->width > video_frame.width() ||
+        mapped_resolution->height > video_frame.height()) {
+      mapped_resolution->width = video_frame.width();
+      mapped_resolution->height = video_frame.height();
+    }
+    last_frame.frame.video_frame_buffer()->PrepareMappedBufferAsync(
+        mapped_resolution->width, mapped_resolution->height,
+        prepared_frames_processor_, last_frame.frame_id);
+  } else {
+    OnFramePrepared(last_frame.frame_id);
+  }
+}
+
+void VideoStreamEncoder::OnFramePrepared(size_t frame_id) {
+  if (!encoder_queue_->IsCurrent()) {
+    encoder_queue_->PostTask([this, frame_id]() { OnFramePrepared(frame_id); });
+    return;
+  }
+
+  for (auto& frame : pending_mapped_frames_) {
+    if (frame.frame_id == frame_id) {
+      frame.can_send = true;
+      break;
+    }
+  }
+  while (!pending_mapped_frames_.empty() &&
+         pending_mapped_frames_.front().can_send) {
+    auto& front = pending_mapped_frames_.front();
+    MaybeEncodeVideoFrame(front.frame, front.time_when_posted_us);
+    pending_mapped_frames_.pop_front();
   }
 }
 

@@ -518,6 +518,9 @@ FUNCTION_REFERENCE(shared_barrier_from_code_function,
 FUNCTION_REFERENCE(insert_remembered_set_function,
                    Heap::InsertIntoRememberedSetFromCode)
 
+FUNCTION_REFERENCE(verify_skipped_write_barrier,
+                   Heap::VerifySkippedWriteBarrier)
+
 namespace {
 
 intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
@@ -612,7 +615,8 @@ FUNCTION_REFERENCE(ensure_valid_return_address,
 #ifdef V8_ENABLE_WEBASSEMBLY
 FUNCTION_REFERENCE(wasm_start_stack, wasm::start_stack)
 FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
-FUNCTION_REFERENCE(wasm_resume_stack, wasm::resume_stack)
+FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
+FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)
@@ -823,26 +827,6 @@ ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->isolate_data()->is_shared_space_isolate_flag_address());
-}
-
-ExternalReference ExternalReference::new_space_allocation_top_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceAllocationTopAddress());
-}
-
-ExternalReference ExternalReference::new_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceAllocationLimitAddress());
-}
-
-ExternalReference ExternalReference::old_space_allocation_top_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationTopAddress());
-}
-
-ExternalReference ExternalReference::old_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationLimitAddress());
 }
 
 ExternalReference ExternalReference::last_young_allocation_address(
@@ -1947,9 +1931,9 @@ size_t hash_value(ExternalReference reference) {
 namespace {
 static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
   switch (id) {
-#define CASE(id, name, camel)    \
-  case IsolateFieldId::k##camel: \
-    return name;
+#define CASE(CamelName, name)        \
+  case IsolateFieldId::k##CamelName: \
+    return #name;
     EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(CASE)
 #undef CASE
 #define CASE(camel, size, name)  \

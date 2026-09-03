@@ -67,7 +67,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/socket_server.h"
-#include "rtc_base/time_utils.h"
+#include "system_wrappers/include/clock.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -154,10 +154,12 @@ void PeerConnectionTestWrapper::AwaitNegotiation(
 
 PeerConnectionTestWrapper::PeerConnectionTestWrapper(
     const std::string& name,
+    const webrtc::Environment& env,
     webrtc::SocketServer* socket_server,
     webrtc::Thread* network_thread,
     webrtc::Thread* worker_thread)
     : name_(name),
+      env_(env),
       socket_server_(socket_server),
       network_thread_(network_thread),
       worker_thread_(worker_thread),
@@ -186,8 +188,11 @@ bool PeerConnectionTestWrapper::CreatePc(
     std::unique_ptr<webrtc::VideoEncoderFactory> video_encoder_factory,
     std::unique_ptr<webrtc::VideoDecoderFactory> video_decoder_factory,
     std::unique_ptr<webrtc::FieldTrialsView> field_trials) {
+  webrtc::EnvironmentFactory env_factory(env_);
+  env_factory.Set(field_trials.get());
+  Environment env = env_factory.Create();
   auto port_allocator = std::make_unique<webrtc::FakePortAllocator>(
-      CreateEnvironment(field_trials.get()), socket_server_, network_thread_);
+      env, socket_server_, network_thread_);
 
   RTC_DCHECK_RUN_ON(&pc_thread_checker_);
 
@@ -554,7 +559,7 @@ PeerConnectionTestWrapper::GetUserMedia(
     // Set max frame rate to 10fps to reduce the risk of the tests to be flaky.
     webrtc::FakePeriodicVideoSource::Config config;
     config.frame_interval_ms = 100;
-    config.timestamp_offset_ms = webrtc::TimeMillis();
+    config.timestamp_offset_ms = env_.clock().TimeInMilliseconds();
     config.width = resolution.width;
     config.height = resolution.height;
 

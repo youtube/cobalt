@@ -730,6 +730,58 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="AdPageLoadCustomSampling3" singular="True">
+  <owner>yaoxia@chromium.org</owner>
+  <owner>johnidel@chromium.org</owner>
+  <owner>jkarlin@chromium.org</owner>
+  <summary>
+    Recorded when the page is being destroyed/navigated away or when the app
+    enters the background on mobile. This is separate from the `AdPageLoad`
+    event to allow it to be recorded on all pages (i.e. not only pages that have
+    loaded non-zero ad byte), and to allow a potentially different sampling.
+    Both iframe and img ads are covered.
+  </summary>
+  <metric name="AverageViewportAdDensity">
+    <summary>
+      The estimated average viewport ad density. Each density value is
+      calculated as the area of (iframe and img) ads within the viewport * 100 /
+      viewport area, where each overlapping area is counted once. And this
+      returns the average of the densities accumulated over the page load time
+      rounded to the nearest integer.
+    </summary>
+  </metric>
+  <metric name="KurtosisViewportAdDensity">
+    <summary>
+      The estimated kurtosis of the viewport ad density. Each density value is
+      calculated as the area of (iframe and img) ads within the viewport * 100 /
+      viewport area, where each overlapping area is counted once. And this
+      returns the kurtosis of the densities accumulated over the page load time
+      rounded to the nearest exponential bucket integer with bucket spacing 1.3.
+      For negative values, the bucketing will be taken on its magnitude part.
+    </summary>
+  </metric>
+  <metric name="SkewnessViewportAdDensity">
+    <summary>
+      The estimated skewness of the viewport ad density. Each density value is
+      calculated as the area of (iframe and img) ads within the viewport * 100 /
+      viewport area, where each overlapping area is counted once. And this
+      returns the skewness of the densities accumulated over the page load time
+      rounded to the nearest exponential bucket integer with bucket spacing 1.3.
+      For negative values, the bucketing will be taken on its magnitude part.
+    </summary>
+  </metric>
+  <metric name="VarianceViewportAdDensity">
+    <summary>
+      The estimated variance of the viewport ad density. Each density value is
+      calculated as the area of (iframe and img) ads within the viewport * 100 /
+      viewport area, where each overlapping area is counted once. And this
+      returns the variance of the densities accumulated over the page load time
+      rounded to the nearest exponential bucket integer with bucket spacing 1.3.
+      For negative values, the bucketing will be taken on its magnitude part.
+    </summary>
+  </metric>
+</event>
+
 <event name="AdPageLoadCustomSampling4" singular="True">
   <owner>yaoxia@chromium.org</owner>
   <owner>johnidel@chromium.org</owner>
@@ -2401,6 +2453,13 @@ be describing additional metrics about the same event.
     <summary>
       Only ever set to true, thus serving as a counter.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
 </event>
 
@@ -2414,6 +2473,13 @@ be describing additional metrics about the same event.
     <summary>
       Only ever set to true, thus serving as a counter.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
 </event>
 
@@ -2525,36 +2591,6 @@ be describing additional metrics about the same event.
       Missing shared-autofill feature prevented a cross-origin credit-card field
       from being filled. Shared-autofill is a policy-controlled feature by which
       a frame can allow a child-frame to be autofilled across origin.
-    </summary>
-  </metric>
-</event>
-
-<event name="Autofill.DeveloperEngagement">
-  <owner>osaul@google.com</owner>
-  <summary>
-    Recorded when we parse a form to log whether developer has used autocomplete
-    markup or UPI-VPA hints. The value is a bitmask of
-    |DeveloperEngagementMetric|.
-  </summary>
-  <metric name="DeveloperEngagement"/>
-  <metric name="FormSignature">
-    <summary>
-      The signature of the form (mod 1021). This is the hash identifier used to
-      denote this form for query and voting purposes. See
-      components/autofill/core/common/signatures.cc for more details.
-    </summary>
-  </metric>
-  <metric name="FormTypes">
-    <summary>
-      Type of form. Stored as bitvector. A set ith bit implies enum
-      FormTypeNameForLogging's ith type was detected. Multiple types are
-      possible.
-    </summary>
-  </metric>
-  <metric name="IsForCreditCard">
-    <summary>
-      True for credit card forms, false for address/profile forms. See
-      |FormStructure::IsCompleteCreditCardForm()|.
     </summary>
   </metric>
 </event>
@@ -3735,6 +3771,56 @@ be describing additional metrics about the same event.
     <summary>
       Has value 1 if the user is opted in into Autofill AI suggestions and
       filling and 0 otherwise.
+    </summary>
+  </metric>
+  <metric name="PerfectFilling">
+    <summary>
+      Has value 1 if the user didn't edit any field manually at submission time
+      and 0 otherwise.
+    </summary>
+  </metric>
+</event>
+
+<event name="AutofillAi.UserPromptMetrics">
+  <owner>jihadghanna@google.com</owner>
+  <owner>jkeitel@google.com</owner>
+  <owner>brunobraga@google.com</owner>
+  <summary>
+    Records when an AutofillAi prompt is shown to the user, such as saving or
+    updating entities.
+  </summary>
+  <metric name="EntityType">
+    <summary>
+      The type of entity for which the current metric record is being logged
+      (E.g. Passport, Driver's License, etc.).
+    </summary>
+  </metric>
+  <metric name="FormSessionIdentifier">
+    <summary>
+      A random variable assigned to a specific instance of a HTML form in a
+      specific renderer. This should be globally unique and suitable for
+      counting distinct forms. Two different users would have different values.
+      A single user loading the same form in two different tabs would have two
+      different values. This is used to link the fields to a form in
+      AutofillAi.KeyMetrics.
+    </summary>
+  </metric>
+  <metric name="PromptType">
+    <summary>
+      Describes the type of prompt shown to the user. This could be for example
+      a save or update entity prompt.
+    </summary>
+  </metric>
+  <metric name="Result">
+    <summary>
+      The decision made by the user after being shown a prompt. This could be
+      for example, accepted, declined or ignored.
+    </summary>
+  </metric>
+  <metric name="StorageType">
+    <summary>
+      Describes to which storage the data will be saved if the user accepts the
+      prompt, such locally or in the wallet server.
     </summary>
   </metric>
 </event>
@@ -21705,6 +21791,22 @@ be describing additional metrics about the same event.
         </statistics>
       </history>
     </aggregation>
+  </metric>
+</event>
+
+<event name="SafetyHub.AbusiveNotificationPermissionRevocation.Interactions">
+  <owner>skrakowi@chromium.org</owner>
+  <owner>chrome-counter-abuse-core@google.com</owner>
+  <summary>
+    Recorded when the user takes a Safety Hub action after an abusive
+    notification is auto-revoked.
+  </summary>
+  <metric name="InteractionType"
+      enum="SafetyCheckUnusedSitePermissionsModuleInteractions">
+    <summary>
+      The type of action that the user has taken after being shown an abusive
+      notification auto-revocation in Safety Hub.
+    </summary>
   </metric>
 </event>
 

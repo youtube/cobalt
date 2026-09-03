@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "base/time/time.h"
 
@@ -37,6 +38,8 @@ struct EndpointIdStruct {
 // Used to send a `payload` between two messaging endpoints.
 struct SimpleMessageStruct {
   SimpleMessageStruct();
+  SimpleMessageStruct(const SimpleMessageStruct&);
+  SimpleMessageStruct& operator=(const SimpleMessageStruct&);
   ~SimpleMessageStruct();
 
   // A sender-side generated id for this payload.
@@ -65,7 +68,7 @@ struct SimpleMessageStruct {
 // Request sent to `SendHostMessage`.
 struct SendHostMessageRequestStruct {
   // The endpoint to send the message to.
-  EndpointIdStruct endpoint_id;
+  EndpointIdStruct destination_id;
 
   // The message to send.
   SimpleMessageStruct simple_message;
@@ -84,14 +87,9 @@ struct ReceiveClientMessagesResponseStruct {
   ReceiveClientMessagesResponseStruct();
   ~ReceiveClientMessagesResponseStruct();
 
-  union {
-    // Sent when the channel is opened.
-    ChannelOpenStruct channel_open;
-    // Sent over a specific interval to indicate that the channel is active.
-    ChannelActiveStruct channel_active;
-    // The message payload being delivered.
-    SimpleMessageStruct simple_message;
-  };
+  // Each streaming response will contain one of the following messages.
+  std::variant<ChannelOpenStruct, ChannelActiveStruct, SimpleMessageStruct>
+      message;
 };
 
 }  // namespace remoting::internal

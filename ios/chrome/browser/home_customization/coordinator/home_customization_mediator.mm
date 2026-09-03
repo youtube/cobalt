@@ -31,6 +31,7 @@
 #import "ios/chrome/browser/home_customization/utils/home_customization_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/ui_bundled/theme_utils.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "skia/ext/skia_utils_ios.h"
@@ -94,7 +95,7 @@
   [self.mainPageConsumer populateToggles:toggleMap];
 
   if (IsNTPBackgroundCustomizationEnabled() &&
-      _prefService->GetBoolean(prefs::kNTPCustomBackgroundEnabledByPolicy)) {
+      !_backgroundService->IsCustomizationDisabledOrColorManagedByPolicy()) {
     BackgroundCollectionConfiguration* collectionConfiguration =
         [[BackgroundCollectionConfiguration alloc] init];
 
@@ -106,24 +107,45 @@
     [collectionConfiguration.configurationOrder
         addObject:defaultConfig.configurationID];
 
+    // Figure out the current background. This may not be element 1 in the
+    // recently used backgrounds list if the current background is the default.
+    // Or after a section toggle has been activated, as that refreshes all of
+    // the data.
+    std::optional<HomeCustomBackground> customBackground =
+        _backgroundService->GetCurrentCustomBackground();
+    std::optional<sync_pb::UserColorTheme> colorTheme =
+        _backgroundService->GetCurrentColorTheme();
+    std::optional<RecentlyUsedBackground> current = std::nullopt;
+    if (customBackground) {
+      current = customBackground.value();
+    } else if (colorTheme) {
+      current = colorTheme.value();
+    }
+
+    NSString* selectedBackgroundID;
+    if (!current.has_value()) {
+      selectedBackgroundID = defaultConfig.configurationID;
+    }
+
     for (RecentlyUsedBackground background :
          _backgroundService->GetRecentlyUsedBackgrounds()) {
       BackgroundCustomizationConfigurationItem* config =
           [self generateConfigurationItemForRecentBackground:background];
-      if (config) {
-        collectionConfiguration.configurations[config.configurationID] = config;
-        [collectionConfiguration.configurationOrder
-            addObject:config.configurationID];
+      if (!config) {
+        continue;
+      }
+      collectionConfiguration.configurations[config.configurationID] = config;
+      [collectionConfiguration.configurationOrder
+          addObject:config.configurationID];
+
+      if (background == current) {
+        selectedBackgroundID = config.configurationID;
       }
     }
 
-    // TODO(crbug.com/408243803): fetch background customization
-    // configurations and fill the `backgroundCustomizationConfigurationMap` and
-    // `selectedBackgroundId`.
     [self.mainPageConsumer
         populateBackgroundCollectionConfiguration:collectionConfiguration
-                             selectedBackgroundId:defaultConfig
-                                                      .configurationID];
+                             selectedBackgroundId:selectedBackgroundID];
   }
 }
 
@@ -435,6 +457,10 @@
       break;
     case CustomizationLinkType::kLearnMore:
       URL = GURL(kDiscoverLearnMoreURL);
+      break;
+    case CustomizationLinkType::kEnterpriseLearnMore:
+      URL = GURL(kManagementLearnMoreURL);
+      break;
   }
   [self.navigationDelegate navigateToURL:URL];
 }

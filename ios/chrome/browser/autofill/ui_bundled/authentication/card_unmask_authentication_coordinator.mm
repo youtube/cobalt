@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/autofill/ui_bundled/authentication/card_unmask_authentication_coordinator.h"
 
+#import "components/autofill/core/browser/ui/payments/card_unmask_prompt_controller.h"
 #import "ios/chrome/browser/autofill/model/autofill_tab_helper.h"
 #import "ios/chrome/browser/autofill/ui_bundled/authentication/card_unmask_authentication_selection_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/authentication/otp_input_dialog_coordinator.h"
@@ -58,22 +59,17 @@
 // TODO(crbug.com/333925306): Create a CVC input coordinator/mediator out of the
 // legacy CardUnmaskPromptViewBridge and move this function there.
 - (void)continueWithCvcAuth {
-  // TODO(crbug.com/40714201): Use AutofillClientIOS::FromWebState() so that
-  // tests can easily inject their AutofillClient.
-  autofill::ChromeAutofillClientIOS* client =
-      AutofillTabHelper::FromWebState(
-          self.browser->GetWebStateList()->GetActiveWebState())
-          ->autofill_client();
+  auto* client = autofill::AutofillClientIOS::FromWebState(
+      self.browser->GetWebStateList()->GetActiveWebState());
   CHECK(client);
-  autofill::payments::IOSChromePaymentsAutofillClient* paymentsClient =
-      client->GetPaymentsAutofillClient();
+  auto* paymentsClient = client->GetPaymentsAutofillClient();
   CHECK(paymentsClient);
 
   id<BrowserCoordinatorCommands> browserCoordinatorCommandsHandler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(),
                          BrowserCoordinatorCommands);
 
-  autofill::CardUnmaskPromptControllerImpl* cvcInputModelController =
+  autofill::CardUnmaskPromptController* cvcInputModelController =
       paymentsClient->GetCardUnmaskPromptModel();
   _cvcInputViewBridge = std::make_unique<autofill::CardUnmaskPromptViewBridge>(
       cvcInputModelController, _navigationController,

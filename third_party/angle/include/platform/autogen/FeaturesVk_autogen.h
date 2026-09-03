@@ -1532,6 +1532,12 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo supportsUnifiedImageLayouts = {
+        "supportsUnifiedImageLayouts",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
     FeatureInfo supportsGlobalPriority = {
         "supportsGlobalPriority",
         FeatureCategory::VulkanFeatures,
@@ -1540,6 +1546,12 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo supportsGlobalPriorityQuery = {
         "supportsGlobalPriorityQuery",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo supportsBufferDeviceAddress = {
+        "supportsBufferDeviceAddress",
         FeatureCategory::VulkanFeatures,
         &members,
     };

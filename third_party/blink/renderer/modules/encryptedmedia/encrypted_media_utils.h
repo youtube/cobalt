@@ -69,7 +69,7 @@ class EncryptedMediaUtils {
   static String ConvertFromInitDataType(media::EmeInitDataType init_data_type);
 
   static WebEncryptedMediaSessionType ConvertToSessionType(
-      const String& session_type);
+      StringView session_type);
   static String ConvertFromSessionType(WebEncryptedMediaSessionType);
 
   static V8MediaKeyStatus ConvertKeyStatusToEnum(

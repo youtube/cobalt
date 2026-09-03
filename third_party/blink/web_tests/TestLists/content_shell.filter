@@ -612,11 +612,11 @@ external/wpt/html/semantics/forms/the-input-element/focus-dynamic-type-change.ht
 external/wpt/html/semantics/forms/the-input-element/focus-dynamic-type-change-on-blur.html
 external/wpt/html/semantics/forms/the-input-element/range-intrinsic-size.html
 external/wpt/html/semantics/forms/the-option-element/dynamic-content-change-rendering.html
-external/wpt/html/semantics/forms/the-select-element/customizable-select/appearance-base-select-other-elements.tentative.html
-external/wpt/html/semantics/forms/the-select-element/customizable-select/select-events.tentative.html
+external/wpt/html/semantics/forms/the-select-element/customizable-select/appearance-base-select-other-elements.html
+external/wpt/html/semantics/forms/the-select-element/customizable-select/select-events.optional.html
 external/wpt/html/semantics/forms/the-select-element/customizable-select/select-home-end-pagedown-pageup-detailed.optional.html
-external/wpt/html/semantics/forms/the-select-element/customizable-select/select-home-end-pagedown-pageup.tentative.html
-external/wpt/html/semantics/forms/the-select-element/customizable-select/switch-picker-appearance.tentative.html
+external/wpt/html/semantics/forms/the-select-element/customizable-select/select-home-end-pagedown-pageup.optional.html
+external/wpt/html/semantics/forms/the-select-element/customizable-select/switch-picker-appearance.html
 external/wpt/html/semantics/forms/the-select-element/select-pseudo-light-dismiss-invalidation.tentative.html
 external/wpt/html/semantics/forms/the-select-element/select-tabindex-order.tentative.html
 external/wpt/html/semantics/forms/the-select-element/reset-algorithm-rendering.html
@@ -892,9 +892,9 @@ virtual/html-anchor-attribute-disabled/external/wpt/html/semantics/popovers/popo
 
 # These are flaky on Mac. Judging by the other focus-related test in this list, I'm assuming
 # there is some kind of headless focus problem.
-external/wpt/html/semantics/the-button-element/interest-for/interestfor-popover-focus.tentative.html
-external/wpt/html/semantics/the-button-element/interest-for/interestfor-invoker-descendants.tentative.html
-external/wpt/html/semantics/the-button-element/interest-for/interestfor-partial-interest.tentative.html
+external/wpt/html/semantics/interestfor/interestfor-popover-focus.tentative.html
+external/wpt/html/semantics/interestfor/interestfor-invoker-descendants.tentative.html
+external/wpt/html/semantics/interestfor/interestfor-partial-interest.tentative.html
 
 virtual/backface-visibility-interop/external/wpt/css/css-transforms/backface-visibility-001.html
 virtual/backface-visibility-interop/external/wpt/css/css-transforms/backface-visibility-hidden-animated-002.html
@@ -943,12 +943,11 @@ virtual/no-auto-wpt-origin-isolation/external/wpt/html/semantics/embedded-conten
 virtual/no-auto-wpt-origin-isolation/external/wpt/html/semantics/embedded-content/the-iframe-element/iframe_sandbox_window_open_download_allow_downloads.tentative.html
 virtual/no-forced-frame-updates/external/wpt/html/browsers/browsing-the-web/history-traversal/pagereveal/order-in-bfcache-restore-iframe.html
 virtual/no-forced-frame-updates/external/wpt/html/dom/render-blocking/element-render-blocking-036.html
-virtual/pna-navigations-warning/external/wpt/fetch/private-network-access/iframe.tentative.https.window.html?include=from-treat-as-public
 virtual/produce-compile-hints/external/wpt/html/semantics/scripting-1/the-script-element/module/dynamic-import/delay-load-event.html
 virtual/produce-compile-hints/external/wpt/html/semantics/scripting-1/the-script-element/module/dynamic-import/microtasks/basic.any.html
 virtual/produce-compile-hints/external/wpt/html/semantics/scripting-1/the-script-element/moving-between-documents/after-prepare-*
 virtual/produce-compile-hints/external/wpt/html/semantics/scripting-1/the-script-element/moving-between-documents/ordering/*
-virtual/produce-compile-hints/external/wpt/fetch/fetch-later/new-window.tentative.https.window.html
+virtual/produce-compile-hints/external/wpt/fetch/fetch-later/new-window.https.window.html
 virtual/produce-compile-hints/external/wpt/fetch/stale-while-revalidate/stale-*
 virtual/scalefactor200/external/wpt/css/filter-effects/backdrop-filter*
 virtual/scalefactor200/external/wpt/css/filter-effects/css-filters-animation-opacity.html

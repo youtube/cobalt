@@ -632,6 +632,7 @@
 <translation id="4042941173059740150">Συνέχεια σε <ph name="SITE_ETLD_PLUS_ONE" /> με <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4044708993631234325">Φύλλο κάτω μέρους</translation>
 <translation id="4045441967987592849">Εκ νέου άνοιγμα</translation>
+<translation id="4049920046559074950">Περισσότερες επιλογές για <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> τυπική καρτέλα με νέα δραστηριότητα σε ομάδες κοινόχρηστων καρτελών}other{<ph name="TABS_COUNT_MANY" /> τυπικές καρτέλες με νέα δραστηριότητα σε ομάδες κοινόχρηστων καρτελών}}</translation>
 <translation id="405365679581583349">Ενημέρωση των υπηρεσιών Google Play</translation>
 <translation id="405399507749852140">Λάβετε ειδοποιήσεις σε περίπτωση πτώσης τιμής σε οποιονδήποτε ιστότοπο</translation>
@@ -1830,6 +1831,7 @@
 <translation id="930124987204876019">Διαγραφή ιστορικού, cookie, δεδομένων ιστοτόπου, κρυφής μνήμης…</translation>
 <translation id="938850635132480979">Σφάλμα: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Εισαγωγή φράσης πρόσβασης</translation>
+<translation id="945522503751344254">Αποστολή σχολίων</translation>
 <translation id="95817756606698420">Το Chrome μπορεί να χρησιμοποιήσει το <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> για την αναζήτηση στην Κίνα. Μπορείτε να αλλάξετε αυτή την επιλογή στις <ph name="BEGIN_LINK" />Ρυθμίσεις<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Διαγραφή δεδομένων περιήγησης</translation>
 <translation id="963246339335003378">Άνοιγμα Διαχείρισης Εργασιών</translation>

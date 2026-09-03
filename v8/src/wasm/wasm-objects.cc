@@ -689,9 +689,6 @@ void WasmTableObject::UpdateDispatchTable(
       capi_function->shared()->wasm_capi_function_data(), isolate);
   const wasm::CanonicalSig* sig = func_data->sig();
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
-  wasm::CanonicalTypeIndex sig_index = func_data->sig_index();
-  // TODO(clemensb): Drop `WasmCapiFunctionData::sig_index`.
-  DCHECK_EQ(sig_index, sig->index());
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   auto kind = wasm::ImportCallKind::kWasmToCapi;
@@ -704,9 +701,9 @@ void WasmTableObject::UpdateDispatchTable(
       TrustedCast<WasmImportData>(func_data->internal()->implicit_arg());
   Tagged<WasmDispatchTable> dispatch_table =
       table->trusted_dispatch_table(isolate);
-  SBXCHECK(FunctionSigMatchesTable(sig_index, dispatch_table->table_type()));
+  SBXCHECK(FunctionSigMatchesTable(sig->index(), dispatch_table->table_type()));
   dispatch_table->SetForWrapper(entry_index, implicit_arg, wrapper_handle,
-                                sig_index,
+                                sig->index(),
 #if V8_ENABLE_DRUMBRAKE
                                 WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1777,14 +1774,6 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_data_segment_sizes(*data_segment_sizes);
     trusted_data->set_element_segments(empty_fixed_array);
     trusted_data->set_managed_native_module(*trusted_managed_native_module);
-    trusted_data->set_new_allocation_limit_address(
-        isolate->heap()->NewSpaceAllocationLimitAddress());
-    trusted_data->set_new_allocation_top_address(
-        isolate->heap()->NewSpaceAllocationTopAddress());
-    trusted_data->set_old_allocation_limit_address(
-        isolate->heap()->OldSpaceAllocationLimitAddress());
-    trusted_data->set_old_allocation_top_address(
-        isolate->heap()->OldSpaceAllocationTopAddress());
     trusted_data->set_globals_start(empty_backing_store_buffer);
 #if V8_ENABLE_DRUMBRAKE
     trusted_data->set_imported_function_indices(*imported_function_indices);
@@ -2006,12 +1995,11 @@ V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
   // we'll have to reset any existing compiled wrapper.
   bool receiver_is_first_param = false;
   DirectHandle<Code> wrapper_code = WasmExportedFunction::GetWrapper(
-      isolate, canon_sig, canon_sig_id, receiver_is_first_param, module);
+      isolate, canon_sig, receiver_is_first_param, module);
   int arity = static_cast<int>(canon_sig->parameter_count());
   DirectHandle<WasmExportedFunction> external = WasmExportedFunction::New(
       isolate, trusted_instance_data, func_ref, internal_function, arity,
-      wrapper_code, module, function_index, canon_sig_id, canon_sig,
-      wasm::kNoPromise);
+      wrapper_code, module, function_index, canon_sig, wasm::kNoPromise);
   internal_function->set_external(*external);
   return external;
 }
@@ -2118,8 +2106,7 @@ DirectHandle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
 // static
 DirectHandle<Code> WasmExportedFunction::GetWrapper(
     Isolate* isolate, const wasm::CanonicalSig* sig,
-    wasm::CanonicalTypeIndex sig_id, bool receiver_is_first_param,
-    const WasmModule* module) {
+    bool receiver_is_first_param, const WasmModule* module) {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     return isolate->builtins()->code_handle(
@@ -2127,7 +2114,7 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
   }
 #endif  // V8_ENABLE_DRUMBRAKE
   Tagged<CodeWrapper> entry = wasm::WasmExportWrapperCache::Get(
-      isolate, sig_id, receiver_is_first_param);
+      isolate, sig->index(), receiver_is_first_param);
   if (!entry.is_null()) {
     return direct_handle(entry->code(isolate), isolate);
   }
@@ -2140,10 +2127,11 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
   // Otherwise compile a wrapper.
   DirectHandle<Code> compiled =
       wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-          isolate, sig, sig_id, receiver_is_first_param);
+          isolate, sig, receiver_is_first_param);
   // This should have added an entry in the per-isolate cache.
-  DCHECK_EQ(compiled->wrapper(), wasm::WasmExportWrapperCache::Get(
-                                     isolate, sig_id, receiver_is_first_param));
+  DCHECK_EQ(compiled->wrapper(),
+            wasm::WasmExportWrapperCache::Get(isolate, sig->index(),
+                                              receiver_is_first_param));
   return compiled;
 }
 
@@ -2158,8 +2146,7 @@ void WasmExportedFunction::MarkAsReceiverIsFirstParam(
   // Reset the wrapper code. If that's a compiled wrapper, it baked in the
   // bit we just flipped.
   DirectHandle<Code> wrapper =
-      GetWrapper(isolate, data->sig(), data->sig_index(), true,
-                 data->instance_data()->module());
+      GetWrapper(isolate, data->sig(), true, data->instance_data()->module());
   data = {};  // Might be stale due to GC.
   data_handle->set_wrapper_code(*wrapper);
   exported_function->UpdateCode(isolate, *wrapper);
@@ -2768,7 +2755,7 @@ bool WasmCapiFunction::MatchesSignature(
 #endif
   // TODO(14034): Check for subtyping instead if C API functions can define
   // signature supertype.
-  return shared()->wasm_capi_function_data()->sig_index() ==
+  return shared()->wasm_capi_function_data()->sig()->index() ==
          other_canonical_sig_index;
 }
 
@@ -2957,7 +2944,7 @@ bool WasmCapiFunction::IsWasmCapiFunction(Tagged<Object> object) {
 
 DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
     Isolate* isolate, Address call_target, DirectHandle<Foreign> embedder_data,
-    wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig) {
+    const wasm::CanonicalSig* sig) {
   // TODO(jkummerow): Install a JavaScript wrapper. For now, calling
   // these functions directly is unsupported; they can only be called
   // from Wasm code.
@@ -2969,8 +2956,7 @@ DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
   DirectHandle<Map> rtt = isolate->factory()->wasm_func_ref_map();
   DirectHandle<WasmCapiFunctionData> fun_data =
       isolate->factory()->NewWasmCapiFunctionData(
-          call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt,
-          sig_index, sig);
+          call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt, sig);
   DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   DirectHandle<JSFunction> result =
@@ -3005,7 +2991,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
   return New(isolate, instance_data, func_ref, internal_function, arity,
-             export_wrapper, module, func_index, sig_id, sig, promise);
+             export_wrapper, module, func_index, sig, promise);
 }
 
 DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
@@ -3013,13 +2999,12 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
-    int func_index, wasm::CanonicalTypeIndex sig_id,
-    const wasm::CanonicalSig* sig, wasm::Promise promise) {
+    int func_index, const wasm::CanonicalSig* sig, wasm::Promise promise) {
   Factory* factory = isolate->factory();
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
           export_wrapper, instance_data, func_ref, internal_function, sig,
-          sig_id, v8_flags.wasm_wrapper_tiering_budget, promise);
+          v8_flags.wasm_wrapper_tiering_budget, promise);
 
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
@@ -3086,7 +3071,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
 bool WasmExportedFunctionData::MatchesSignature(
     wasm::CanonicalTypeIndex other_canonical_type_index) {
   return wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
-      sig_index(), other_canonical_type_index);
+      sig()->index(), other_canonical_type_index);
 }
 
 // static
@@ -3289,9 +3274,9 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
           : isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
 
   DirectHandle<WasmJSFunctionData> function_data =
-      factory->NewWasmJSFunctionData(sig_id, callable, js_to_js_wrapper_code,
-                                     rtt, suspend, wasm::kNoPromise,
-                                     wrapper_handle);
+      factory->NewWasmJSFunctionData(canonical_sig, callable,
+                                     js_to_js_wrapper_code, rtt, suspend,
+                                     wasm::kNoPromise, wrapper_handle);
   DirectHandle<WasmInternalFunction> internal_function{
       function_data->internal(), isolate};
 
@@ -3618,7 +3603,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
         Tagged<WasmExportedFunction> function =
             Cast<WasmExportedFunction>(*value);
         CanonicalTypeIndex real_type_index =
-            function->shared()->wasm_exported_function_data()->sig_index();
+            function->shared()->wasm_exported_function_data()->sig()->index();
         if (!type_canonicalizer->IsCanonicalSubtype(real_type_index,
                                                     canonical_index)) {
           *error_message =

@@ -137,6 +137,7 @@ constexpr size_t kMaxFourDigitCombinationMatches = 5;
 // Constants to be passed to GetWebString<kConstant>().
 constexpr std::string_view kAnchor = "a";
 constexpr std::string_view kAutocomplete = "autocomplete";
+constexpr std::string_view kAriaDescription = "aria-description";
 constexpr std::string_view kAriaDescribedBy = "aria-describedby";
 constexpr std::string_view kAriaLabel = "aria-label";
 constexpr std::string_view kAriaLabelledBy = "aria-labelledby";
@@ -664,31 +665,34 @@ std::u16string CoalesceTextByIdList(const WebDocument& document,
 }
 
 // Returns the ARIA label text of the elements denoted by the aria-labelledby
-// attribute of |element| or the value of the aria-label attribute of
-// |element|, with priority given to the aria-labelledby attribute.
+// attribute of `element` or the value of the aria-label attribute of
+// `element`, with priority given to the aria-labelledby attribute.
 std::u16string GetAriaLabel(const WebDocument& document,
                             const WebElement& element) {
   if (HasAttribute<kAriaLabelledBy>(element)) {
-    WebString aria_label_attribute = GetAttribute<kAriaLabelledBy>(element);
-    std::u16string text = CoalesceTextByIdList(document, aria_label_attribute);
+    std::u16string text =
+        CoalesceTextByIdList(document, GetAttribute<kAriaLabelledBy>(element));
     if (!text.empty()) {
       return text;
     }
   }
-
-  if (HasAttribute<kAriaLabel>(element)) {
-    return GetAttribute<kAriaLabel>(element).Utf16();
-  }
-
-  return std::u16string();
+  return GetAttribute<kAriaLabel>(element).Utf16();
 }
 
-// Returns the ARIA label text of the elements denoted by the aria-describedby
-// attribute of |element|.
+// Returns the ARIA description text of the elements denoted by the
+// aria-describedby attribute of `element` or the value of the aria-description
+// attribute of `element`, with priority given to the aria-describedby
+// attribute.
 std::u16string GetAriaDescription(const WebDocument& document,
                                   const WebElement& element) {
-  return CoalesceTextByIdList(document,
-                              GetAttribute<kAriaDescribedBy>(element));
+  if (HasAttribute<kAriaDescribedBy>(element)) {
+    std::u16string text =
+        CoalesceTextByIdList(document, GetAttribute<kAriaDescribedBy>(element));
+    if (!text.empty()) {
+      return text;
+    }
+  }
+  return GetAttribute<kAriaDescription>(element).Utf16();
 }
 
 // Helper for |InferLabelForElement()| that infers a label, if possible, from
@@ -1889,15 +1893,14 @@ std::vector<WebFormControlElement> GetOwnedFormControls(
   return form_controls;
 }
 
-// Fills out a FormField object from a given autofillable WebFormControlElement.
-// |extract_options|: See the enum ExtractOption above for details. Field
-// properties will be copied from |field_data_manager|, if the argument is not
-// null and has entry for |element| (see properties in FieldPropertiesFlags).
+// Populates out a FormField object from a given autofillable
+// WebFormControlElement. Field properties are copied from |field_data_manager|,
+// if the argument is not null and has entry for |element| (see properties in
+// FieldPropertiesFlags).
 void WebFormControlElementToFormField(
     const WebFormElement& form_element,
     const WebFormControlElement& element,
     const FieldDataManager* field_data_manager,
-    DenseSet<ExtractOption> extract_options,
     FormFieldData* field,
     ShadowFieldData* shadow_data) {
   DCHECK(field);
@@ -2013,16 +2016,11 @@ void WebFormControlElementToFormField(
   if (auto input_element = element.DynamicTo<WebInputElement>()) {
     SetCheckStatus(field, IsCheckableElement(input_element),
                    input_element.IsChecked());
-    if (extract_options.contains(ExtractOption::kDatalist) ||
-        base::FeatureList::IsEnabled(
-            features::kAutofillOptimizeFormExtraction)) {
-      // TODO(crbug.com/316143236): Remove this metric once debugging is
-      // complete.
-      base::UmaHistogramEnumeration(
-          "Autofill.DataList.Events",
-          AutofillDataListEvents::kDataListOptionsParsed);
-      field->set_datalist_options(GetDataListOptions(input_element));
-    }
+    // TODO(crbug.com/316143236): Remove this metric once debugging is complete.
+    base::UmaHistogramEnumeration(
+        "Autofill.DataList.Events",
+        AutofillDataListEvents::kDataListOptionsParsed);
+    field->set_datalist_options(GetDataListOptions(input_element));
   } else if (IsTextAreaElement(element)) {
     // Nothing more to do in this case.
   } else {
@@ -2030,14 +2028,11 @@ void WebFormControlElementToFormField(
     DCHECK(IsSelectElement(element));
     field->set_options(GetSelectOptions(element.To<WebSelectElement>()));
   }
-  if (extract_options.contains(ExtractOption::kBounds) ||
-      base::FeatureList::IsEnabled(features::kAutofillOptimizeFormExtraction)) {
-    if (auto* local_frame = element.GetDocument().GetFrame()) {
-      if (auto* render_frame =
-              content::RenderFrame::FromWebFrame(local_frame)) {
-        field->set_bounds(gfx::RectF(
-            render_frame->ConvertViewportToWindow(element.BoundsInWidget())));
-      }
+
+  if (auto* local_frame = element.GetDocument().GetFrame()) {
+    if (auto* render_frame = content::RenderFrame::FromWebFrame(local_frame)) {
+      field->set_bounds(gfx::RectF(
+          render_frame->ConvertViewportToWindow(element.BoundsInWidget())));
     }
   }
 
@@ -2073,8 +2068,7 @@ std::optional<FormData> ExtractFormDataWithFieldsAndFrames(
     const WebDocument& document,
     const WebFormElement& form_element,
     const FieldDataManager& field_data_manager,
-    ButtonTitlesCache* button_titles_cache,
-    DenseSet<ExtractOption> extract_options) {
+    ButtonTitlesCache* button_titles_cache) {
   CHECK(!form_element || form_element.GetDocument() == document,
         base::NotFatalUntil::M142);
 
@@ -2088,25 +2082,22 @@ std::optional<FormData> ExtractFormDataWithFieldsAndFrames(
 
   std::vector<WebFormControlElement> control_elements =
       GetOwnedAutofillableFormControls(document, form_element);
-  if (base::FeatureList::IsEnabled(features::kAutofillOptimizeFormExtraction) &&
-      control_elements.size() > kMaxExtractableFields) {
+  if (control_elements.size() > kMaxExtractableFields) {
     return std::nullopt;
   }
   std::vector<WebElement> iframe_elements =
       GetIframeElements(document, form_element);
 
-  if (base::FeatureList::IsEnabled(features::kAutofillOptimizeFormExtraction)) {
-    std::erase_if(iframe_elements, [](const WebElement& iframe_element) {
-      WebFrame* iframe = WebFrame::FromFrameOwnerElement(iframe_element);
-      return !iframe ||
-             (!iframe->IsWebLocalFrame() && !iframe->IsWebRemoteFrame());
-    });
-    if (iframe_elements.size() > kMaxExtractableChildFrames) {
-      iframe_elements.clear();
-    }
-    if (control_elements.empty() && iframe_elements.empty()) {
-      return std::nullopt;
-    }
+  std::erase_if(iframe_elements, [](const WebElement& iframe_element) {
+    WebFrame* iframe = WebFrame::FromFrameOwnerElement(iframe_element);
+    return !iframe ||
+           (!iframe->IsWebLocalFrame() && !iframe->IsWebRemoteFrame());
+  });
+  if (iframe_elements.size() > kMaxExtractableChildFrames) {
+    iframe_elements.clear();
+  }
+  if (control_elements.empty() && iframe_elements.empty()) {
+    return std::nullopt;
   }
 
   // Extracts fields from `control_elements` into `fields` and sets
@@ -2135,8 +2126,8 @@ std::optional<FormData> ExtractFormDataWithFieldsAndFrames(
     fields.emplace_back();
     shadow_fields.emplace_back();
     WebFormControlElementToFormField(form_element, control_element,
-                                     &field_data_manager, extract_options,
-                                     &fields.back(), &shadow_fields.back());
+                                     &field_data_manager, &fields.back(),
+                                     &shadow_fields.back());
 
     // Finds the last frame that precedes |control_element|.
     while (next_iframe < iframe_elements.size() &&
@@ -2178,24 +2169,8 @@ std::optional<FormData> ExtractFormDataWithFieldsAndFrames(
     } else if (iframe && iframe->IsWebRemoteFrame()) {
       child_frame.token = RemoteFrameToken(
           iframe->ToWebRemoteFrame()->GetRemoteFrameToken().value());
-    } else if (base::FeatureList::IsEnabled(
-                   features::kAutofillOptimizeFormExtraction)) {
+    } else {
       NOTREACHED();
-    }
-  }
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillOptimizeFormExtraction)) {
-    std::erase_if(child_frames, [](const auto& child_frame) {
-      return std::visit([](const auto& token) { return token.is_empty(); },
-                        child_frame.token);
-    });
-    if (child_frames.size() > kMaxExtractableChildFrames) {
-      child_frames.clear();
-    }
-    const bool success = (!fields.empty() || !child_frames.empty()) &&
-                         fields.size() <= kMaxExtractableFields;
-    if (!success) {
-      return std::nullopt;
     }
   }
 
@@ -2273,12 +2248,10 @@ std::optional<FormData> ExtractFormData(
     const WebFormElement& form_element,
     const FieldDataManager& field_data_manager,
     const CallTimerState& timer_state,
-    ButtonTitlesCache* button_titles_cache,
-    DenseSet<ExtractOption> extract_options) {
+    ButtonTitlesCache* button_titles_cache) {
   ScopedCallTimer timer("ExtractFormData", timer_state);
   return ExtractFormDataWithFieldsAndFrames(
-      document, form_element, field_data_manager, button_titles_cache,
-      extract_options);
+      document, form_element, field_data_manager, button_titles_cache);
 }
 
 GURL GetCanonicalActionForForm(const WebFormElement& form) {
@@ -2446,7 +2419,6 @@ FindFormAndFieldForFormControlElement(
     const FieldDataManager& field_data_manager,
     const CallTimerState& timer_state,
     form_util::ButtonTitlesCache* button_titles_cache,
-    DenseSet<ExtractOption> extract_options,
     const SynchronousFormCache& form_cache) {
   DCHECK(element);
 
@@ -2456,17 +2428,16 @@ FindFormAndFieldForFormControlElement(
 
   WebDocument document = element.GetDocument();
   WebFormElement owning_form = element.GetOwningFormForAutofill();
-  std::optional<FormData> form = form_cache.GetOrExtractForm(
-      document, owning_form, field_data_manager, timer_state,
-      button_titles_cache, extract_options);
+  std::optional<FormData> form =
+      form_cache.GetOrExtractForm(document, owning_form, field_data_manager,
+                                  timer_state, button_titles_cache);
   const bool extract_form_data_succeeded = form.has_value();
 
   if (!form) {
     // If we couldn't extract the form, ignore the fields other than `element`.
     // This gives Autocomplete and other handlers the chance to handle it.
     FormFieldData field;
-    WebFormControlElementToFormField(owning_form, element, nullptr,
-                                     extract_options, &field,
+    WebFormControlElementToFormField(owning_form, element, nullptr, &field,
                                      /*shadow_data=*/nullptr);
     form.emplace();
     form->set_fields({std::move(field)});
@@ -3102,10 +3073,9 @@ void WebFormControlElementToFormFieldForTesting(  // IN-TEST
     const WebFormElement& form_element,
     const WebFormControlElement& element,
     const FieldDataManager* field_data_manager,
-    DenseSet<ExtractOption> extract_options,
     FormFieldData* field) {
   WebFormControlElementToFormField(form_element, element, field_data_manager,
-                                   extract_options, field,
+                                   field,
                                    /*shadow_data=*/nullptr);
 }
 

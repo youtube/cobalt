@@ -693,6 +693,7 @@ TEST(ASN1Test, ASN1Type) {
       {0x05, 0x01, 0xff},        // NULL { `ff` }
       {0x01, 0x00},              // BOOLEAN {}
       {0x01, 0x02, 0x00, 0x00},  // BOOLEAN { `0000` }
+      {0x01, 0x01, 0x42},        // BOOLEAN { `42` }
   };
   for (const auto &t : kInvalidTests) {
     SCOPED_TRACE(Bytes(t));

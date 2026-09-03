@@ -21,7 +21,7 @@
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/audio_options.h"
 #include "api/data_channel_interface.h"
-#include "api/field_trials.h"
+#include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
@@ -44,6 +44,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -62,16 +63,17 @@ constexpr int64_t kGetStatsTimeoutMs = 10000;
 class RTCStatsIntegrationTest : public ::testing::Test {
  public:
   RTCStatsIntegrationTest()
-      : network_thread_(new Thread(&virtual_socket_server_)),
+      : env_(CreateTestEnvironment()),
+        network_thread_(new Thread(&virtual_socket_server_)),
         worker_thread_(Thread::Create()) {
     RTC_CHECK(network_thread_->Start());
     RTC_CHECK(worker_thread_->Start());
 
     caller_ = make_ref_counted<PeerConnectionTestWrapper>(
-        "caller", &virtual_socket_server_, network_thread_.get(),
+        "caller", env_, &virtual_socket_server_, network_thread_.get(),
         worker_thread_.get());
     callee_ = make_ref_counted<PeerConnectionTestWrapper>(
-        "callee", &virtual_socket_server_, network_thread_.get(),
+        "callee", env_, &virtual_socket_server_, network_thread_.get(),
         worker_thread_.get());
   }
 
@@ -159,6 +161,7 @@ class RTCStatsIntegrationTest : public ::testing::Test {
 
   // `network_thread_` uses `virtual_socket_server_` so they must be
   // constructed/destructed in the correct order.
+  const Environment env_;
   VirtualSocketServer virtual_socket_server_;
   std::unique_ptr<Thread> network_thread_;
   std::unique_ptr<Thread> worker_thread_;

@@ -114,12 +114,14 @@ class PeerConnectionHeaderExtensionTest
   std::vector<RtpHeaderExtensionCapability> extensions_;
 };
 
-TEST_P(PeerConnectionHeaderExtensionTest, TransceiverOffersHeaderExtensions) {
+class PeerConnectionHeaderExtensionUnifiedPlanTest
+    : public PeerConnectionHeaderExtensionTest {};
+
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       TransceiverOffersHeaderExtensions) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> wrapper =
       CreatePeerConnection(media_type, semantics);
   auto transceiver = wrapper->AddTransceiver(media_type);
@@ -147,12 +149,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
                 .header_extensions);
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest, OffersUnstoppedDefaultExtensions) {
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       OffersUnstoppedDefaultExtensions) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> wrapper =
       CreatePeerConnection(media_type, semantics);
   auto transceiver = wrapper->AddTransceiver(media_type);
@@ -166,12 +167,11 @@ TEST_P(PeerConnectionHeaderExtensionTest, OffersUnstoppedDefaultExtensions) {
                           Field(&RtpExtension::uri, "uri4")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest, OffersUnstoppedModifiedExtensions) {
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       OffersUnstoppedModifiedExtensions) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> wrapper =
       CreatePeerConnection(media_type, semantics);
   auto transceiver = wrapper->AddTransceiver(media_type);
@@ -190,12 +190,11 @@ TEST_P(PeerConnectionHeaderExtensionTest, OffersUnstoppedModifiedExtensions) {
                           Field(&RtpExtension::uri, "uri3")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest, AnswersUnstoppedModifiedExtensions) {
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       AnswersUnstoppedModifiedExtensions) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc1 =
       CreatePeerConnection(media_type, semantics);
   std::unique_ptr<PeerConnectionWrapper> pc2 =
@@ -225,12 +224,11 @@ TEST_P(PeerConnectionHeaderExtensionTest, AnswersUnstoppedModifiedExtensions) {
                           Field(&RtpExtension::uri, "uri3")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest, NegotiatedExtensionsAreAccessible) {
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       NegotiatedExtensionsAreAccessible) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc1 =
       CreatePeerConnection(media_type, semantics);
   auto transceiver1 = pc1->AddTransceiver(media_type);
@@ -263,12 +261,11 @@ TEST_P(PeerConnectionHeaderExtensionTest, NegotiatedExtensionsAreAccessible) {
                                 RtpTransceiverDirection::kStopped)));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest, OfferedExtensionsArePerTransceiver) {
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       OfferedExtensionsArePerTransceiver) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc1 =
       CreatePeerConnection(media_type, semantics);
   auto transceiver1 = pc1->AddTransceiver(media_type);
@@ -293,12 +290,11 @@ TEST_P(PeerConnectionHeaderExtensionTest, OfferedExtensionsArePerTransceiver) {
                           Field(&RtpExtension::uri, "uri4")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest, RemovalAfterRenegotiation) {
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       RemovalAfterRenegotiation) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc1 =
       CreatePeerConnection(media_type, semantics);
   std::unique_ptr<PeerConnectionWrapper> pc2 =
@@ -326,13 +322,11 @@ TEST_P(PeerConnectionHeaderExtensionTest, RemovalAfterRenegotiation) {
                           Field(&RtpExtension::uri, "uri3")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        StoppedByDefaultExtensionCanBeActivatedByRemoteSdp) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc1 =
       CreatePeerConnection(media_type, semantics);
   std::unique_ptr<PeerConnectionWrapper> pc2 =
@@ -363,13 +357,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
                                 RtpTransceiverDirection::kSendRecv)));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        UnknownExtensionInRemoteOfferDoesNotShowUp) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc =
       CreatePeerConnection(media_type, semantics);
   std::string sdp =
@@ -418,13 +410,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
 // These tests are regression tests for behavior that the API
 // enables in a proper way. It conflicts with the behavior
 // of the API to only offer non-stopped extensions.
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        SdpMungingAnswerWithoutApiUsageEnablesExtensions) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
       media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Disabled/");
   std::string sdp =
@@ -475,13 +465,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
                           Field(&RtpExtension::uri, "uri3"),
                           Field(&RtpExtension::uri, "uri4")));
 }
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        SdpMungingAnswerWithoutApiUsageEnablesExtensionsWithMemory) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
       media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
   std::string sdp =
@@ -532,13 +520,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
               ElementsAre(Field(&RtpExtension::uri, "uri1")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        SdpMungingOfferWithoutApiUsageEnablesExtensions) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc =
       CreatePeerConnection(media_type, semantics);
   pc->AddTransceiver(media_type);
@@ -563,13 +549,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
                           Field(&RtpExtension::uri, "uri1")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        EnablingExtensionsAfterRemoteOfferWithoutHeaderExtensionMemory) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
       media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Disabled/");
   std::string sdp =
@@ -624,13 +608,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
   EXPECT_EQ(extensions[0].id, 5);
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        EnablingExtensionsAfterRemoteOfferWithHeaderExtensionMemory) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan)
-    return;
   std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
       media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
   std::string sdp =
@@ -682,13 +664,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
   EXPECT_EQ(extensions[0].id, 5);
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest, SenderParametersReflectNegotiation) {
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       SenderParametersReflectNegotiation) {
   SdpSemantics semantics;
   MediaType media_type;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan) {
-    GTEST_SKIP() << "This test only works with Unified Plan";
-  }
   std::unique_ptr<PeerConnectionWrapper> pc1 =
       CreatePeerConnection(media_type, semantics);
   std::unique_ptr<PeerConnectionWrapper> pc2 =
@@ -718,14 +698,11 @@ TEST_P(PeerConnectionHeaderExtensionTest, SenderParametersReflectNegotiation) {
   }
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        TransceiversAddedAfterFirstDoNotCopy) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan) {
-    GTEST_SKIP() << "This test only works with Unified Plan";
-  }
   std::unique_ptr<PeerConnectionWrapper> pc1 = CreatePeerConnection(
       media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Disabled/");
 
@@ -751,14 +728,11 @@ TEST_P(PeerConnectionHeaderExtensionTest,
                           Field(&RtpExtension::uri, "uri4")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest,
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
        TransceiversAddedAfterFirstTransceiverCopyExtensions) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  if (semantics != SdpSemantics::kUnifiedPlan) {
-    GTEST_SKIP() << "This test only works with Unified Plan";
-  }
   std::unique_ptr<PeerConnectionWrapper> pc1 = CreatePeerConnection(
       media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
   auto transceiver1 = pc1->AddTransceiver(media_type);
@@ -790,6 +764,24 @@ INSTANTIATE_TEST_SUITE_P(
             Values(MediaType::AUDIO, MediaType::VIDEO)),
     [](const testing::TestParamInfo<
         PeerConnectionHeaderExtensionTest::ParamType>& info) {
+      MediaType media_type;
+      SdpSemantics semantics;
+      std::tie(media_type, semantics) = info.param;
+      return (StringBuilder("With")
+              << (semantics == SdpSemantics::kPlanB_DEPRECATED ? "PlanB"
+                                                               : "UnifiedPlan")
+              << "And" << (media_type == MediaType::AUDIO ? "Voice" : "Video")
+              << "Engine")
+          .str();
+    });
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    PeerConnectionHeaderExtensionUnifiedPlanTest,
+    Combine(Values(MediaType::AUDIO, MediaType::VIDEO),
+            Values(SdpSemantics::kUnifiedPlan)),
+    [](const testing::TestParamInfo<
+        PeerConnectionHeaderExtensionUnifiedPlanTest::ParamType>& info) {
       MediaType media_type;
       SdpSemantics semantics;
       std::tie(media_type, semantics) = info.param;

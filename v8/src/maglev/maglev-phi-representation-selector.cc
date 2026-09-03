@@ -17,16 +17,18 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-reducer.h"
+#include "src/numbers/conversions.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
 
-#define TRACE_UNTAGGING(...)                                \
-  do {                                                      \
-    if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging)) { \
-      StdoutStream{} << __VA_ARGS__ << std::endl;           \
-    }                                                       \
+#define TRACE_UNTAGGING(...)                               \
+  do {                                                     \
+    if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging && \
+                    graph_->is_tracing_enabled())) {       \
+      StdoutStream{} << __VA_ARGS__ << std::endl;          \
+    }                                                      \
   } while (false)
 
 MaglevPhiRepresentationSelector::MaglevPhiRepresentationSelector(Graph* graph)
@@ -117,7 +119,12 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       input_reprs.Add(ValueRepresentation::kInt32);
     } else if (Constant* constant = input->TryCast<Constant>()) {
       if (constant->object().IsHeapNumber()) {
-        input_reprs.Add(ValueRepresentation::kFloat64);
+        double value = constant->object().AsHeapNumber().value();
+        if (IsInt32Double(value)) {
+          input_reprs.Add(ValueRepresentation::kInt32);
+        } else {
+          input_reprs.Add(ValueRepresentation::kFloat64);
+        }
       } else {
         // Not a Constant that we can untag.
         // TODO(leszeks): Consider treating 'undefined' as a potential
@@ -125,7 +132,8 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
         input_reprs.RemoveAll();
         break;
       }
-    } else if (input->properties().is_conversion()) {
+    } else if (input->properties().is_conversion() ||
+               input->Is<ReturnedValue>()) {
       DCHECK_EQ(input->input_count(), 1);
       // The graph builder tags all Phi inputs, so this conversion should
       // produce a tagged value.
@@ -498,15 +506,25 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
           UNREACHABLE();
       }
     } else if (Constant* constant = input->TryCast<Constant>()) {
-      TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                      << ": Making Float64 instead of Constant");
       DCHECK(constant->object().IsHeapNumber());
-      DCHECK(repr == ValueRepresentation::kFloat64 ||
-             repr == ValueRepresentation::kHoleyFloat64);
-      phi->change_input(input_index,
-                        graph_->GetFloat64Constant(
-                            constant->object().AsHeapNumber().value()));
-    } else if (input->properties().is_conversion()) {
+      if (repr == ValueRepresentation::kFloat64 ||
+          repr == ValueRepresentation::kHoleyFloat64) {
+        TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                        << ": Making Float64 instead of Constant");
+        phi->change_input(input_index,
+                          graph_->GetFloat64Constant(
+                              constant->object().AsHeapNumber().value()));
+      } else {
+        TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                        << ": Making Int32 instead of Constant");
+        DCHECK_EQ(repr, ValueRepresentation::kInt32);
+        double value = constant->object().AsHeapNumber().value();
+        DCHECK(IsInt32Double(value));
+        phi->change_input(input_index,
+                          graph_->GetInt32Constant(static_cast<int>(value)));
+      }
+    } else if (input->properties().is_conversion() ||
+               input->Is<ReturnedValue>()) {
       // Unwrapping the conversion.
       DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
       // Needs to insert a new conversion.
@@ -955,7 +973,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 // for {node}.
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     NodeBase* node, Phi* phi, int input_index, const ProcessingState* state) {
-  if (node->properties().is_conversion()) {
+  if (node->properties().is_conversion() || node->Is<ReturnedValue>()) {
     // {node} can't be an Untagging if we reached this point (because
     // UpdateNodePhiInput is not called on untagging nodes).
     DCHECK(!IsUntagging(node->opcode()));

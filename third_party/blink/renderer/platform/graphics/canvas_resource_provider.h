@@ -226,7 +226,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // WebGraphicsContext3DProvider::DestructionObserver implementation.
   void OnContextDestroyed() override;
 
-  MemoryManagedPaintCanvas& Canvas(bool needs_will_draw = false);
+  MemoryManagedPaintCanvas& Canvas();
   // FlushCanvas and preserve recording only if IsPrinting or
   // FlushReason indicates printing in progress.
   std::optional<cc::PaintRecord> FlushCanvas(FlushReason);
@@ -327,8 +327,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // are modified externally from the provider's SkSurface.
   virtual void NotifyTexParamsModified(const CanvasResource* resource) {}
 
-  FlushReason printing_fallback_reason() { return printing_fallback_reason_; }
-
   void RestoreBackBuffer(const cc::PaintImage&);
 
   ResourceProviderType GetType() const { return type_; }
@@ -372,6 +370,15 @@ class PLATFORM_EXPORT CanvasResourceProvider
       const gpu::SyncToken& ready_sync_token,
       gpu::SyncToken& completion_sync_token) {
     return false;
+  }
+
+  // ExternalCanvasDrawHelper() is used by clients that require the invocation
+  // of WillDrawIfNeeded() before obtaining a canvas and drawing on it. All
+  // meaningful ExternalCanvasDrawHelper() implementations should call
+  // WillDrawIfNeeded() first, and then invoke `draw_ballback`.
+  virtual void ExternalCanvasDrawHelper(
+      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback) {
+    NOTREACHED();
   }
 
   virtual bool HasUnusedResourcesForTesting() const { return false; }
@@ -419,10 +426,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   CanvasImageProvider* GetOrCreateCanvasImageProvider();
   void TearDownSkSurface();
-
-  // Will only notify a will draw if its needed. This is initially done for the
-  // CanvasResourceProviderSharedImage use case.
-  virtual void WillDrawIfNeeded() {}
 
   ResourceProviderType type_;
   mutable sk_sp<SkSurface> surface_;  // mutable for lazy init
@@ -498,7 +501,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   bool clear_frame_ = true;
   FlushReason last_flush_reason_ = FlushReason::kNone;
-  FlushReason printing_fallback_reason_ = FlushReason::kNone;
   std::optional<cc::PaintRecord> last_recording_;
 
   base::WeakPtrFactory<CanvasResourceProvider> weak_ptr_factory_{this};

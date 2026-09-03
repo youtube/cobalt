@@ -129,6 +129,30 @@ static inline bool HasRegisterInput(Instruction* instr, size_t index) {
 
 namespace {
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(
@@ -674,10 +698,6 @@ void CodeGenerator::AssemblePrepareTailCall() {
 
 namespace {
 
-bool HasImmediateInput(Instruction* instr, size_t index) {
-  return instr->InputAt(index)->IsImmediate();
-}
-
 void FlushPendingPushRegisters(MacroAssembler* masm,
                                FrameAccessState* frame_access_state,
                                ZoneVector<Register>* pending_pushes) {
@@ -823,8 +843,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       if (instr->InputAt(0)->IsImmediate()) {
@@ -835,9 +854,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else if (opcode == kArchCallWasmFunctionIndirect) {
         __ CallWasmCodePointer(i.InputRegister(0));
       } else {
-        // TODO(thibaudm): Use a WasmCodePointer for
-        // kArchResumeWasmContinuation. Can this be merged with
-        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
@@ -897,40 +913,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallJSFunction: {
       v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
           masm());
+      Register func = i.InputRegister(0);
+      if (v8_flags.debug_code) {
+        // Check the function's context matches the context argument.
+        __ LoadTaggedField(
+            kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset), r0);
+        __ CmpS64(cp, kScratchReg);
+        __ Assert(eq, AbortReason::kWrongFunctionContext);
+      }
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      if (HasImmediateInput(instr, 0)) {
-        Constant constant = i.ToConstant(instr->InputAt(0));
-        Handle<JSFunction> function = Cast<JSFunction>(constant.ToHeapObject());
-        __ Move(kJavaScriptCallTargetRegister, function);
-        if (function->shared()->HasBuiltinId()) {
-          Builtin builtin = function->shared()->builtin_id();
-          SBXCHECK_EQ(num_arguments,
-                      Builtins::GetFormalParameterCount(builtin));
-          __ CallBuiltin(builtin);
-        } else {
-          JSDispatchHandle dispatch_handle = function->dispatch_handle();
-          size_t expected =
-              IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-                  dispatch_handle);
-          SBXCHECK_GE(num_arguments, expected);
-          __ CallJSDispatchEntry(dispatch_handle, expected);
-        }
-      } else {
-        Register func = i.InputRegister(0);
-        if (v8_flags.debug_code) {
-          Register func = i.InputRegister(0);
-          if (v8_flags.debug_code) {
-            // Check the function's context matches the context argument.
-            __ LoadTaggedField(
-                kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset),
-                r0);
-            __ CmpS64(cp, kScratchReg);
-            __ Assert(eq, AbortReason::kWrongFunctionContext);
-          }
-        }
-        __ CallJSFunction(func, num_arguments);
-      }
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
@@ -1199,6 +1192,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall through.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      size_t index = 0;
+      AddressingMode mode = kMode_None;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      CHECK_EQ(index, 2);
+      Register object = i.InputRegister(0);
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmpi(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
+      if (v8_flags.verify_write_barriers) {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
+
+      __ StoreTaggedField(value, operand, r0);
+      break;
+    }
+    case kArchStoreIndirectSkippedWriteBarrier:
     case kArchStoreIndirectWithWriteBarrier: {
       UNREACHABLE();
     }

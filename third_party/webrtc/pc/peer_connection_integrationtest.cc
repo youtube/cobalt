@@ -75,7 +75,6 @@
 #include "pc/test/fake_periodic_video_source.h"
 #include "pc/test/integration_test_helpers.h"
 #include "pc/test/mock_peer_connection_observers.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/fake_mdns_responder.h"
 #include "rtc_base/fake_network.h"
@@ -90,7 +89,6 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/test_certificate_verifier.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
@@ -380,7 +378,7 @@ TEST_P(PeerConnectionIntegrationTest,
   FakePeriodicVideoSource::Config config;
   config.width = 1280;
   config.height = 720;
-  config.timestamp_offset_ms = TimeMillis();
+  config.timestamp_offset_ms = env_.clock().TimeInMilliseconds();
   caller()->AddTrack(caller()->CreateLocalVideoTrackWithConfig(config));
   callee()->AddTrack(callee()->CreateLocalVideoTrackWithConfig(config));
 
@@ -2524,7 +2522,7 @@ TEST_P(PeerConnectionIntegrationTestWithFakeClock,
   // For explanation of these values, see comment above.
   static constexpr int required_media_hops = 9;
   static constexpr int required_signaling_trips = 2;
-  // For internal delays (such as posting an event asychronously).
+  // For internal delays (such as posting an event asynchronously).
   static constexpr int allowed_internal_delay_ms = 20;
   static constexpr int total_connection_time_ms =
       media_hop_delay_ms * required_media_hops +
@@ -2986,7 +2984,7 @@ TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetSourcesVideo) {
 // Similar to the above test, except instead of waiting until GetSources() is
 // non-empty we wait until media is flowing and then assert that GetSources()
 // is not empty. This provides test coverage for https://crbug.com/webrtc/14817
-// where a race due to the re-creationg of the unsignaled ssrc stream would
+// where a race due to the re-creation of the unsignaled ssrc stream would
 // clear the GetSources() history. This test not flaking confirms the bug fix.
 // TODO(crbug.com/webrtc/441652589): Figure out why this is flaking and
 // re-enable the test.
@@ -3632,12 +3630,12 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
     }
     current_size = caller()->pc()->GetTransceivers().size();
     RTC_LOG(LS_INFO) << "Renegotiating with " << current_size << " tracks";
-    auto start_time_ms = TimeMillis();
+    auto start_time_ms = env_.clock().TimeInMilliseconds();
     caller()->CreateAndSetAndSignalOffer();
     // We want to stop when the time exceeds one second.
     ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
                 IsRtcOk());
-    auto elapsed_time_ms = TimeMillis() - start_time_ms;
+    auto elapsed_time_ms = env_.clock().TimeInMilliseconds() - start_time_ms;
     RTC_LOG(LS_INFO) << "Renegotiating took " << elapsed_time_ms << " ms";
     ASSERT_GT(1000, elapsed_time_ms)
         << "Audio transceivers: Negotiation took too long after "
@@ -3670,12 +3668,12 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
     }
     current_size = caller()->pc()->GetTransceivers().size();
     RTC_LOG(LS_INFO) << "Renegotiating with " << current_size << " tracks";
-    auto start_time_ms = TimeMillis();
+    auto start_time_ms = env_.clock().TimeInMilliseconds();
     caller()->CreateAndSetAndSignalOffer();
     // We want to stop when the time exceeds one second.
     ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
                 IsRtcOk());
-    auto elapsed_time_ms = TimeMillis() - start_time_ms;
+    auto elapsed_time_ms = env_.clock().TimeInMilliseconds() - start_time_ms;
     RTC_LOG(LS_INFO) << "Renegotiating took " << elapsed_time_ms << " ms";
     ASSERT_GT(1000, elapsed_time_ms)
         << "Video transceivers: Negotiation took too long after "
@@ -3714,12 +3712,12 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
     }
     current_size = caller()->pc()->GetTransceivers().size();
     RTC_LOG(LS_INFO) << "Renegotiating with " << current_size << " tracks";
-    auto start_time_ms = TimeMillis();
+    auto start_time_ms = env_.clock().TimeInMilliseconds();
     caller()->CreateAndSetAndSignalOffer();
     // We want to stop when the time exceeds one second.
     ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
                 IsRtcOk());
-    auto elapsed_time_ms = TimeMillis() - start_time_ms;
+    auto elapsed_time_ms = env_.clock().TimeInMilliseconds() - start_time_ms;
     RTC_LOG(LS_INFO) << "Renegotiating took " << elapsed_time_ms << " ms";
     // This is a guard against the test using excessive amounts of time.
     ASSERT_GT(5000, elapsed_time_ms)

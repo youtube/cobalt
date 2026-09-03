@@ -40,6 +40,8 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
@@ -47,8 +49,8 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/frame/browser_native_widget_factory.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/native_browser_frame_factory.h"
 #include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller_interactive_test_mixin.h"
@@ -103,7 +105,7 @@
 #endif
 
 #if defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ui/views/frame/desktop_browser_frame_aura.h"
+#include "chrome/browser/ui/views/frame/browser_native_widget_aura.h"
 #include "ui/views/widget/desktop_aura/desktop_native_widget_aura.h"
 #endif
 
@@ -131,11 +133,11 @@
 #endif
 
 #if BUILDFLAG(IS_LINUX)
-#include "chrome/browser/ui/views/frame/desktop_browser_frame_aura_linux.h"
+#include "chrome/browser/ui/views/frame/browser_native_widget_aura_linux.h"
 #include "ui/ozone/public/ozone_platform.h"
-#define DESKTOP_BROWSER_FRAME_AURA DesktopBrowserFrameAuraLinux
+#define DESKTOP_BROWSER_FRAME_AURA BrowserNativeWidgetAuraLinux
 #else
-#define DESKTOP_BROWSER_FRAME_AURA DesktopBrowserFrameAura
+#define DESKTOP_BROWSER_FRAME_AURA BrowserNativeWidgetAura
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -687,16 +689,17 @@ class TestDesktopBrowserFrameAura : public DESKTOP_BROWSER_FRAME_AURA {
 };
 
 // Factory for creating a TestDesktopBrowserFrameAura.
-class TestNativeBrowserFrameFactory : public NativeBrowserFrameFactory {
+class TestBrowserNativeWidgetFactory : public BrowserNativeWidgetFactory {
  public:
-  TestNativeBrowserFrameFactory() = default;
-  TestNativeBrowserFrameFactory(const TestNativeBrowserFrameFactory&) = delete;
-  TestNativeBrowserFrameFactory& operator=(
-      const TestNativeBrowserFrameFactory&) = delete;
-  ~TestNativeBrowserFrameFactory() override = default;
+  TestBrowserNativeWidgetFactory() = default;
+  TestBrowserNativeWidgetFactory(const TestBrowserNativeWidgetFactory&) =
+      delete;
+  TestBrowserNativeWidgetFactory& operator=(
+      const TestBrowserNativeWidgetFactory&) = delete;
+  ~TestBrowserNativeWidgetFactory() override = default;
 
-  NativeBrowserFrame* Create(BrowserFrame* browser_frame,
-                             BrowserView* browser_view) override {
+  BrowserNativeWidget* Create(BrowserFrame* browser_frame,
+                              BrowserView* browser_view) override {
     return new TestDesktopBrowserFrameAura(browser_frame, browser_view);
   }
 };
@@ -704,7 +707,7 @@ class TestNativeBrowserFrameFactory : public NativeBrowserFrameFactory {
 class TabDragCaptureLostTest : public TabDragControllerTest {
  public:
   TabDragCaptureLostTest() {
-    NativeBrowserFrameFactory::Set(new TestNativeBrowserFrameFactory);
+    BrowserNativeWidgetFactory::Set(new TestBrowserNativeWidgetFactory);
   }
   TabDragCaptureLostTest(const TabDragCaptureLostTest&) = delete;
   TabDragCaptureLostTest& operator=(const TabDragCaptureLostTest&) = delete;
@@ -4396,9 +4399,10 @@ void CancelOnNewTabWhenDraggingStep2(DetachToBrowserTabDragControllerTest* test,
   CHECK(new_browser);
   ui_test_utils::WaitForBrowserSetLastActive(new_browser);
 
-  *contents_out =
-      chrome::AddAndReturnTabAt(test->browser_list()->GetLastActive(),
-                                GURL(url::kAboutBlankURL), 0, false);
+  *contents_out = chrome::AddAndReturnTabAt(
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile()
+          ->GetBrowserForMigrationOnly(),
+      GURL(url::kAboutBlankURL), 0, false);
   std::move(quit_closure).Run();
 }
 

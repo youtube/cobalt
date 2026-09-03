@@ -61,9 +61,9 @@ const char kHistogramGWSNavigationStartToOnComplete[] =
 const char kHistogramGWSFirstFetchStartToFirstRequestStart[] =
     HISTOGRAM_PREFIX "NavigationTiming.FirstFetchStartToFirstRequestStart";
 const char kHistogramGWSCreateStreamDelay[] =
-    HISTOGRAM_PREFIX "NavigationTiming.CreateStreamDelay";
+    HISTOGRAM_PREFIX "NavigationTiming.CreateStreamDelay2";
 const char kHistogramGWSConnectedCallbackDelay[] =
-    HISTOGRAM_PREFIX "NavigationTiming.ConnectedCallbackDelay";
+    HISTOGRAM_PREFIX "NavigationTiming.ConnectedCallbackDelay2";
 const char kHistogramGWSInitializeStreamDelay[] =
     HISTOGRAM_PREFIX "NavigationTiming.InitializeStreamDelay";
 
@@ -82,10 +82,10 @@ const char kHistogramGWSConnectTimingFinalRequestSslDelay[] =
 
 const char kHistogramGWSAFTEnd[] = HISTOGRAM_PREFIX "PaintTiming.AFTEnd2";
 const char kHistogramGWSAFTStart[] = HISTOGRAM_PREFIX "PaintTiming.AFTStart2";
-const char kHistogramGWSHeaderChunkStart[] =
-    HISTOGRAM_PREFIX "PaintTiming.HeaderChunkStart2";
-const char kHistogramGWSHeaderChunkEnd[] =
-    HISTOGRAM_PREFIX "PaintTiming.HeaderChunkEnd2";
+const char kHistogramGWSHeadChunkStart[] =
+    HISTOGRAM_PREFIX "PaintTiming.HeadChunkStart";
+const char kHistogramGWSHeadChunkEnd[] =
+    HISTOGRAM_PREFIX "PaintTiming.HeadChunkEnd";
 const char kHistogramGWSBodyChunkStart[] =
     HISTOGRAM_PREFIX "PaintTiming.BodyChunkStart2";
 const char kHistogramGWSBodyChunkEnd[] =
@@ -106,10 +106,10 @@ const char kHistogramGWSDomainLookupStart[] =
 const char kHistogramGWSDomainLookupEnd[] =
     HISTOGRAM_PREFIX "DomainLookupTiming.NavigationToDomainLookupEnd2";
 
-const char kHistogramGWSHST[] = HISTOGRAM_PREFIX "CSI.HeadChunkStartTime";
-const char kHistogramGWSHCT[] = HISTOGRAM_PREFIX "CSI.HeadChunkContentTime";
-const char kHistogramGWSSCT[] = HISTOGRAM_PREFIX "CSI.SearchContentTime";
-const char kHistogramGWSSRT[] = HISTOGRAM_PREFIX "CSI.ServerResponseTime";
+const char kHistogramGWSHST[] = HISTOGRAM_PREFIX "CSI.HST";
+const char kHistogramGWSHCT[] = HISTOGRAM_PREFIX "CSI.HCT";
+const char kHistogramGWSSCT[] = HISTOGRAM_PREFIX "CSI.SCT";
+const char kHistogramGWSSRT[] = HISTOGRAM_PREFIX "CSI.SRT";
 const char kHistogramGWSTimeBetweenHCTAndSCT[] =
     HISTOGRAM_PREFIX "CSI.TimeBetweenHCTAndSCT";
 
@@ -129,6 +129,8 @@ const char kHistogramGWSConnectionReuseStatus[] =
     HISTOGRAM_PREFIX "ConnectionReuseStatus";
 const char kHistogramIncognitoSuffix[] = ".Incognito";
 const char kHistogramSyntheticResponseSuffix[] = ".SyntheticResponse";
+
+const char kHistogramGWSSessionSource[] = HISTOGRAM_PREFIX "SessionSource";
 
 // Prerender related histograms.
 const char kHistogramPrerenderHostReused[] =
@@ -257,6 +259,7 @@ GWSPageLoadMetricsObserver::OnCommit(
   }
   navigation_handle_timing_ = navigation_handle->GetNavigationHandleTiming();
   was_cached_ = navigation_handle->WasResponseCached();
+  network_accessed_ = navigation_handle->NetworkAccessed();
   http_connection_info_ =
       net::HttpConnectionInfoToCoarse(navigation_handle->GetConnectionInfo());
   if (!is_prerendered_) {
@@ -362,7 +365,12 @@ void GWSPageLoadMetricsObserver::OnFirstContentfulPaintInPage(
   }
   PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSFirstContentfulPaint,
                       timing.paint_timing->first_contentful_paint.value());
-  return;
+  if (is_header_from_synthetic_response_) {
+    PAGE_LOAD_HISTOGRAM(
+        base::StrCat({internal::kHistogramGWSFirstContentfulPaint,
+                      internal::kHistogramSyntheticResponseSuffix}),
+        timing.paint_timing->first_contentful_paint.value());
+  }
 }
 
 void GWSPageLoadMetricsObserver::OnDomContentLoadedEventStart(
@@ -412,10 +420,14 @@ void GWSPageLoadMetricsObserver::OnParseStart(
   if (page_load_metrics::IsServiceWorkerControlled(GetDelegate())) {
     PAGE_LOAD_HISTOGRAM(internal::kHistogramServiceWorkerParseStartSearch,
                         timing.parse_timing->parse_start.value());
-    is_header_from_synthetic_response_ =
-        (GetDelegate().GetMainFrameMetadata().behavior_flags &
-         blink::LoadingBehaviorFlag::
-             kLoadingBehaviorServiceWorkerSyntheticResponse) != 0;
+  }
+  if (page_load_metrics::IsServiceWorkerSyntheticResponseEnabled(
+          GetDelegate())) {
+    is_header_from_synthetic_response_ = true;
+    PAGE_LOAD_HISTOGRAM(
+        base::StrCat({internal::kHistogramGWSParseStart,
+                      internal::kHistogramSyntheticResponseSuffix}),
+        timing.parse_timing->parse_start.value());
   }
 }
 
@@ -496,12 +508,12 @@ void GWSPageLoadMetricsObserver::OnCustomUserTimingMarkObserved(
     } else if (mark->mark_name == internal::kGwsAFTEndMarkName) {
       record_histogram(internal::kHistogramGWSAFTEnd, timing);
       aft_end_time_ = mark->start_time;
-    } else if (mark->mark_name == internal::kGwsHeaderChunkStartMarkName) {
-      record_histogram(internal::kHistogramGWSHeaderChunkStart, timing);
-      header_chunk_start_time_ = mark->start_time;
-    } else if (mark->mark_name == internal::kGwsHeaderChunkEndMarkName) {
-      record_histogram(internal::kHistogramGWSHeaderChunkEnd, timing);
-      header_chunk_end_time_ = mark->start_time;
+    } else if (mark->mark_name == internal::kGwsHeadChunkStartMarkName) {
+      record_histogram(internal::kHistogramGWSHeadChunkStart, timing);
+      head_chunk_start_time_ = mark->start_time;
+    } else if (mark->mark_name == internal::kGwsHeadChunkEndMarkName) {
+      record_histogram(internal::kHistogramGWSHeadChunkEnd, timing);
+      head_chunk_end_time_ = mark->start_time;
     } else if (mark->mark_name == internal::kGwsBodyChunkStartMarkName) {
       record_histogram(internal::kHistogramGWSBodyChunkStart, timing);
       body_chunk_start_time_ = mark->start_time;
@@ -657,6 +669,19 @@ void GWSPageLoadMetricsObserver::RecordNavigationTimingHistograms() {
   PAGE_LOAD_SHORT_HISTOGRAM(internal::kHistogramGWSInitializeStreamDelay,
                             timing.initialize_stream_delay);
 
+  if (network_accessed_ &&
+      (http_connection_info_ == net::HttpConnectionInfoCoarse::kHTTP2 ||
+       http_connection_info_ == net::HttpConnectionInfoCoarse::kQUIC)) {
+    if (timing.session_source.has_value()) {
+      base::UmaHistogramEnumeration(
+          base::StrCat({internal::kHistogramGWSSessionSource, protocol}),
+          *timing.session_source);
+    } else {
+      // Collect a DumpWithoutCrashing report.
+      base::debug::DumpWithoutCrashing();
+    }
+  }
+
   // Record latency trace events.
   RecordLatencyHistograms(timing.non_redirect_response_start_time);
 
@@ -776,16 +801,17 @@ void GWSPageLoadMetricsObserver::RecordLatencyHistograms(
   const auto track = perfetto::NamedTrack("GWSLatencyEvent", navigation_id_);
   // TODO(crbug.com/364278026): SRT starts from the time when the user submits
   // a query. Using the navigation start time may not perfect to measure SRT.
+  base::TimeDelta srt =
+      response_start_time - GetDelegate().GetNavigationStart();
   TRACE_EVENT_BEGIN("navigation", "GWSLatency:SRT", track,
                     GetDelegate().GetNavigationStart());
   TRACE_EVENT_END("navigation", /* GWSLatency:SRT */
                   track, response_start_time);
-  PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSSRT,
-                      response_start_time - GetDelegate().GetNavigationStart());
+  PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSSRT, srt);
 
   // Log some important CSI metrics only when related submetrics are recorded.
-  std::optional<base::TimeDelta> hct_time;
-  std::optional<base::TimeDelta> sct_time;
+  std::optional<base::TimeDelta> hct;
+  std::optional<base::TimeDelta> sct;
 
   if (aft_end_time_.has_value()) {
     // Currently `aft_start_time_` has the value of the server response time,
@@ -804,35 +830,40 @@ void GWSPageLoadMetricsObserver::RecordLatencyHistograms(
         "navigation", /* GWSLatency:SCT */
         track,
         GetDelegate().GetNavigationStart() + body_chunk_start_time_.value());
-    sct_time = GetDelegate().GetNavigationStart() +
-               body_chunk_start_time_.value() - response_start_time;
-    PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSSCT, sct_time.value());
+    // `body_chunk_start_time_` is `base::TimeDelta` from the navigation start
+    // time. On the other hand, `response_start_time` is `base::TimeTicks`.
+    // SCT is the delta from 1) received the response header to 2) started
+    // executing body chunk, this calculates the new delta between them for SCT.
+    sct = body_chunk_start_time_.value() - srt;
+    PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSSCT, sct.value());
   }
-  if (header_chunk_end_time_.has_value()) {
+  if (head_chunk_end_time_.has_value()) {
     TRACE_EVENT_BEGIN("navigation", "GWSLatency:HCT", track,
                       response_start_time);
     TRACE_EVENT_END(
         "navigation", /* GWSLatency:HCT */
         track,
-        GetDelegate().GetNavigationStart() + header_chunk_end_time_.value());
-    hct_time = GetDelegate().GetNavigationStart() +
-               header_chunk_end_time_.value() - response_start_time;
-    PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSHCT, hct_time.value());
+        GetDelegate().GetNavigationStart() + head_chunk_end_time_.value());
+    // HCT is the delta from 1) received the response header to 2) the end of
+    // the head chunk. This calculates the new delta between them for HCT.
+    hct = head_chunk_end_time_.value() - srt;
+    PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSHCT, hct.value());
   }
-  if (header_chunk_start_time_.has_value()) {
+  if (head_chunk_start_time_.has_value()) {
     TRACE_EVENT_BEGIN("navigation", "GWSLatency:HST", track,
                       response_start_time);
     TRACE_EVENT_END(
         "navigation", /* GWSLatency:HST */
         track,
-        GetDelegate().GetNavigationStart() + header_chunk_start_time_.value());
+        GetDelegate().GetNavigationStart() + head_chunk_start_time_.value());
+    // HST is the delta from 1) received the response header to 2) the start
+    // time of processing head chunk. This calculates the new delta between
+    // them for HST.
     PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSHST,
-                        GetDelegate().GetNavigationStart() +
-                            header_chunk_start_time_.value() -
-                            response_start_time);
+                        head_chunk_start_time_.value() - srt);
   }
-  if (sct_time.has_value() && hct_time.has_value()) {
+  if (sct.has_value() && hct.has_value()) {
     PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSTimeBetweenHCTAndSCT,
-                        sct_time.value() - hct_time.value());
+                        sct.value() - hct.value());
   }
 }

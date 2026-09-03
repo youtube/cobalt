@@ -191,6 +191,18 @@ void TestAutofillManagerWaiter::OnAfterSelectControlSelectionChanged(
   OnAfter(Event::kSelectControlSelectionChanged);
 }
 
+void TestAutofillManagerWaiter::OnBeforeSelectFieldOptionsDidChange(
+    AutofillManager& manager,
+    FormGlobalId form) {
+  OnBefore(Event::kSelectFieldOptionsDidChange);
+}
+
+void TestAutofillManagerWaiter::OnAfterSelectFieldOptionsDidChange(
+    AutofillManager& manager,
+    FormGlobalId form) {
+  OnAfter(Event::kSelectFieldOptionsDidChange);
+}
+
 void TestAutofillManagerWaiter::OnBeforeAskForValuesToFill(
     AutofillManager& manager,
     FormGlobalId form,
@@ -246,9 +258,13 @@ void TestAutofillManagerWaiter::OnAfterJavaScriptChangedAutofilledValue(
   OnAfter(Event::kJavaScriptChangedAutofilledValue);
 }
 
-void TestAutofillManagerWaiter::OnFormSubmitted(AutofillManager& manager,
-                                                const FormData& form) {
+void TestAutofillManagerWaiter::OnBeforeFormSubmitted(AutofillManager& manager,
+                                                      const FormData& form) {
   OnBefore(Event::kFormSubmitted);
+}
+
+void TestAutofillManagerWaiter::OnAfterFormSubmitted(AutofillManager& manager,
+                                                     const FormData& form) {
   OnAfter(Event::kFormSubmitted);
 }
 

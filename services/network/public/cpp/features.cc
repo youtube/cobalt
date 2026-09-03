@@ -166,6 +166,16 @@ BASE_FEATURE(kOffloadAcceptCHFrameCheck,
              "OffloadAcceptCHFrameCheck",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, the network service will consider not-allowed but persisted
+// client hints as "enabled" for the purpose of the Accept-CH frame offload
+// check.
+// See crbug.com/406407746 for details.
+BASE_FEATURE_PARAM(bool,
+                   kAcceptCHFrameOffloadNotAllowedHints,
+                   &kOffloadAcceptCHFrameCheck,
+                   "AcceptCHFrameOffloadNotAllowedHints",
+                   false);
+
 // Enable offloading the network layer to check enabled client hints even when
 // cross origin redirect happens.
 // See crbug.com/406407746 for details.
@@ -228,12 +238,6 @@ BASE_FEATURE_PARAM(int,
                    /*name=*/"MaxAcceptLanguage",
                    /*default_value=*/10);
 
-// Reduce PNA preflight response waiting time to 200ms.
-// See: https://wicg.github.io/private-network-access/#cors-preflight
-BASE_FEATURE(kPrivateNetworkAccessPreflightShortTimeout,
-             "PrivateNetworkAccessPreflightShortTimeout",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables Local Network Access checks.
 // Blocks local network requests without user permission to prevent exploitation
 // of vulnerable local devices.
@@ -244,14 +248,14 @@ BASE_FEATURE(kPrivateNetworkAccessPreflightShortTimeout,
 // Spec: https://wicg.github.io/local-network-access/
 BASE_FEATURE(kLocalNetworkAccessChecks,
              "LocalNetworkAccessChecks",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If true, local network access checks will only be warnings.
 BASE_FEATURE_PARAM(bool,
                    kLocalNetworkAccessChecksWarn,
                    &kLocalNetworkAccessChecks,
                    /*name=*/"LocalNetworkAccessChecksWarn",
-                   /*default_value=*/true);
+                   /*default_value=*/false);
 
 // Enables Local Network Access checks for WebRTC.
 // Blocks local network requests without user permission to prevent exploitation
@@ -260,6 +264,15 @@ BASE_FEATURE_PARAM(bool,
 // Spec: https://wicg.github.io/local-network-access/
 BASE_FEATURE(kLocalNetworkAccessChecksWebRTC,
              "LocalNetworkAccessChecksWebRTC",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables Local Network Access checks for WebSockets.
+// Blocks local network requests without user permission to prevent exploitation
+// of vulnerable local devices.
+//
+// Spec: https://wicg.github.io/local-network-access/
+BASE_FEATURE(kLocalNetworkAccessChecksWebSockets,
+             "LocalNetworkAccessChecksWebSockets",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, then the network service will parse the Cookie-Indices header.
@@ -316,10 +329,6 @@ BASE_FEATURE(kPreloadedDictionaryConditionalUse,
 BASE_FEATURE(kIntegrityPolicyScript,
              "IntegrityPolicyScript",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kVisibilityAwareResourceScheduler,
-             "VisibilityAwareResourceScheduler",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This feature will reduce TransferSizeUpdated IPC from the network service.
 // When enabled, the network service will send the IPC only when DevTools is
@@ -633,7 +642,7 @@ BASE_FEATURE(kCSPScriptSrcV2, "ScriptSrcV2", base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCSPScriptSrcHashesInV1,
              "ScriptSrcHashesV1",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCacheSharingForPervasiveScripts,
              "CacheSharingForPervasiveScripts",

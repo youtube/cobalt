@@ -192,11 +192,17 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
                                                    : ICEROLE_CONTROLLED);
       }
       if (client) {
-        ep.ice->SignalCandidateGathered.connect(
-            this, &DtlsIceIntegrationTest::CandidateC2S);
+        ep.ice->SubscribeCandidateGathered(
+            [this](IceTransportInternal* transport,
+                   const Candidate& candidate) {
+              CandidateC2S(transport, candidate);
+            });
       } else {
-        ep.ice->SignalCandidateGathered.connect(
-            this, &DtlsIceIntegrationTest::CandidateS2C);
+        ep.ice->SubscribeCandidateGathered(
+            [this](IceTransportInternal* transport,
+                   const Candidate& candidate) {
+              CandidateS2C(transport, candidate);
+            });
       }
 
       // Setup DTLS.

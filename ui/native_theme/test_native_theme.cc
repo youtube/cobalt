@@ -6,7 +6,7 @@
 
 namespace ui {
 
-TestNativeTheme::TestNativeTheme() : NativeTheme(false) {}
+TestNativeTheme::TestNativeTheme() = default;
 TestNativeTheme::~TestNativeTheme() = default;
 
 gfx::Size TestNativeTheme::GetPartSize(Part part,
@@ -37,17 +37,13 @@ gfx::Rect TestNativeTheme::GetNinePatchAperture(Part part) const {
   return gfx::Rect();
 }
 
-bool TestNativeTheme::UserHasContrastPreference() const {
-  return contrast_preference_;
-}
-
 bool TestNativeTheme::ShouldUseDarkColors() const {
   return dark_mode_;
 }
 
-NativeTheme::PreferredColorScheme TestNativeTheme::GetPreferredColorScheme()
-    const {
-  return CalculatePreferredColorScheme();
+void TestNativeTheme::SetDarkMode(bool dark_mode) {
+  dark_mode_ = dark_mode;
+  set_preferred_color_scheme(CalculatePreferredColorScheme());
 }
 
 void TestNativeTheme::AddColorSchemeNativeThemeObserver(

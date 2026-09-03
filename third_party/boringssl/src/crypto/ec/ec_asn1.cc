@@ -432,52 +432,20 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **out, const uint8_t **inp, long len) {
     group = EC_KEY_get0_group(*out);
   }
 
-  if (len < 0) {
-    OPENSSL_PUT_ERROR(EC, EC_R_DECODE_ERROR);
-    return NULL;
-  }
-  CBS cbs;
-  CBS_init(&cbs, *inp, (size_t)len);
-  EC_KEY *ret = EC_KEY_parse_private_key(&cbs, group);
-  if (ret == NULL) {
-    return NULL;
-  }
-  if (out != NULL) {
-    EC_KEY_free(*out);
-    *out = ret;
-  }
-  *inp = CBS_data(&cbs);
-  return ret;
+  return bssl::D2IFromCBS(out, inp, len, [&](CBS *cbs) {
+    return EC_KEY_parse_private_key(cbs, group);
+  });
 }
 
 int i2d_ECPrivateKey(const EC_KEY *key, uint8_t **outp) {
-  CBB cbb;
-  if (!CBB_init(&cbb, 0) ||
-      !EC_KEY_marshal_private_key(&cbb, key, EC_KEY_get_enc_flags(key))) {
-    CBB_cleanup(&cbb);
-    return -1;
-  }
-  return CBB_finish_i2d(&cbb, outp);
+  return bssl::I2DFromCBB(
+      /*initial_capacity=*/64, outp, [&](CBB *cbb) -> bool {
+        return EC_KEY_marshal_private_key(cbb, key, EC_KEY_get_enc_flags(key));
+      });
 }
 
 EC_GROUP *d2i_ECPKParameters(EC_GROUP **out, const uint8_t **inp, long len) {
-  if (len < 0) {
-    return NULL;
-  }
-
-  CBS cbs;
-  CBS_init(&cbs, *inp, (size_t)len);
-  EC_GROUP *ret = EC_KEY_parse_parameters(&cbs);
-  if (ret == NULL) {
-    return NULL;
-  }
-
-  if (out != NULL) {
-    EC_GROUP_free(*out);
-    *out = ret;
-  }
-  *inp = CBS_data(&cbs);
-  return ret;
+  return bssl::D2IFromCBS(out, inp, len, EC_KEY_parse_parameters);
 }
 
 int i2d_ECPKParameters(const EC_GROUP *group, uint8_t **outp) {
@@ -485,40 +453,24 @@ int i2d_ECPKParameters(const EC_GROUP *group, uint8_t **outp) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return -1;
   }
-
-  CBB cbb;
-  if (!CBB_init(&cbb, 0) ||  //
-      !EC_KEY_marshal_curve_name(&cbb, group)) {
-    CBB_cleanup(&cbb);
-    return -1;
-  }
-  return CBB_finish_i2d(&cbb, outp);
+  return bssl::I2DFromCBB(
+      /*initial_capacity=*/16, outp,
+      [&](CBB *cbb) -> bool { return EC_KEY_marshal_curve_name(cbb, group); });
 }
 
 EC_KEY *d2i_ECParameters(EC_KEY **out_key, const uint8_t **inp, long len) {
-  if (len < 0) {
-    return NULL;
-  }
-
-  CBS cbs;
-  CBS_init(&cbs, *inp, (size_t)len);
-  const EC_GROUP *group = EC_KEY_parse_parameters(&cbs);
-  if (group == NULL) {
-    return NULL;
-  }
-
-  EC_KEY *ret = EC_KEY_new();
-  if (ret == NULL || !EC_KEY_set_group(ret, group)) {
-    EC_KEY_free(ret);
-    return NULL;
-  }
-
-  if (out_key != NULL) {
-    EC_KEY_free(*out_key);
-    *out_key = ret;
-  }
-  *inp = CBS_data(&cbs);
-  return ret;
+  return bssl::D2IFromCBS(
+      out_key, inp, len, [](CBS *cbs) -> bssl::UniquePtr<EC_KEY> {
+        const EC_GROUP *group = EC_KEY_parse_parameters(cbs);
+        if (group == nullptr) {
+          return nullptr;
+        }
+        bssl::UniquePtr<EC_KEY> ret(EC_KEY_new());
+        if (ret == nullptr || !EC_KEY_set_group(ret.get(), group)) {
+          return nullptr;
+        }
+        return ret;
+      });
 }
 
 int i2d_ECParameters(const EC_KEY *key, uint8_t **outp) {
@@ -526,14 +478,10 @@ int i2d_ECParameters(const EC_KEY *key, uint8_t **outp) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return -1;
   }
-
-  CBB cbb;
-  if (!CBB_init(&cbb, 0) ||  //
-      !EC_KEY_marshal_curve_name(&cbb, key->group)) {
-    CBB_cleanup(&cbb);
-    return -1;
-  }
-  return CBB_finish_i2d(&cbb, outp);
+  return bssl::I2DFromCBB(
+      /*initial_capacity=*/16, outp, [&](CBB *cbb) -> bool {
+        return EC_KEY_marshal_curve_name(cbb, key->group);
+      });
 }
 
 EC_KEY *o2i_ECPublicKey(EC_KEY **keyp, const uint8_t **inp, long len) {
@@ -563,14 +511,13 @@ int i2o_ECPublicKey(const EC_KEY *key, uint8_t **outp) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
-  CBB cbb;
-  if (!CBB_init(&cbb, 0) ||  //
-      !EC_POINT_point2cbb(&cbb, key->group, key->pub_key, key->conv_form,
-                          NULL)) {
-    CBB_cleanup(&cbb);
-    return -1;
-  }
-  int ret = CBB_finish_i2d(&cbb, outp);
+  // No initial capacity because |EC_POINT_point2cbb| will internally reserve
+  // the right size in one shot, so it's best to leave this at zero.
+  int ret = bssl::I2DFromCBB(
+      /*initial_capacity=*/0, outp, [&](CBB *cbb) -> bool {
+        return EC_POINT_point2cbb(cbb, key->group, key->pub_key, key->conv_form,
+                                  nullptr);
+      });
   // Historically, this function used the wrong return value on error.
   return ret > 0 ? ret : 0;
 }

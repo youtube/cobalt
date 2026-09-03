@@ -76,18 +76,18 @@ class BasicIceController : public IceControllerInterface {
     return !selected_connection_ || selected_connection_->weak();
   }
 
-  int weak_ping_interval() const {
+  TimeDelta weak_ping_interval() const {
     return std::max(config_.ice_check_interval_weak_connectivity_or_default(),
                     config_.ice_check_min_interval_or_default());
   }
 
-  int strong_ping_interval() const {
+  TimeDelta strong_ping_interval() const {
     return std::max(config_.ice_check_interval_strong_connectivity_or_default(),
                     config_.ice_check_min_interval_or_default());
   }
 
-  int check_receiving_interval() const {
-    return std::max(MIN_CHECK_RECEIVING_INTERVAL,
+  TimeDelta check_receiving_interval() const {
+    return std::max(kMinCheckReceivingInterval,
                     config_.receiving_timeout_or_default() / 10);
   }
 
@@ -110,8 +110,8 @@ class BasicIceController : public IceControllerInterface {
   // pinged again.
   bool WritableConnectionPastPingInterval(const Connection* conn,
                                           int64_t now) const;
-  int CalculateActiveWritablePingInterval(const Connection* conn,
-                                          int64_t now) const;
+  TimeDelta CalculateActiveWritablePingInterval(const Connection* conn,
+                                                int64_t now) const;
 
   std::map<const Network*, const Connection*> GetBestConnectionByNetwork()
       const;

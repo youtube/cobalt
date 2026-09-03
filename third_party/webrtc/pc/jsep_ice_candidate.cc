@@ -68,6 +68,7 @@ std::unique_ptr<IceCandidate> IceCandidate::Create(absl::string_view mid,
 
 IceCandidateCollection IceCandidateCollection::Clone() const {
   IceCandidateCollection new_collection;
+  new_collection.candidates_.reserve(candidates_.size());
   for (const auto& candidate : candidates_) {
     new_collection.candidates_.push_back(std::make_unique<IceCandidate>(
         candidate->sdp_mid(), candidate->sdp_mline_index(),

@@ -692,9 +692,8 @@ TEST_F(PeerConnectionUsageHistogramTest,
   ASSERT_TRUE(cur_offer);
   std::string sdp_with_candidates_str;
   cur_offer->ToString(&sdp_with_candidates_str);
-  auto offer = std::make_unique<JsepSessionDescription>(SdpType::kOffer);
-  ASSERT_TRUE(SdpDeserialize(sdp_with_candidates_str, offer.get(),
-                             nullptr /* error */));
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      SdpDeserialize(SdpType::kOffer, sdp_with_candidates_str);
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
   // By default, the Answer created does not contain ICE candidates.

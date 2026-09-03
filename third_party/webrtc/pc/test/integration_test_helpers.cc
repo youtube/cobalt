@@ -21,8 +21,6 @@
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
-#include "api/environment/environment_factory.h"
-#include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
@@ -223,7 +221,6 @@ bool PeerConnectionIntegrationWrapper::Init(
     SocketServer* socket_server,
     Thread* network_thread,
     Thread* worker_thread,
-    std::unique_ptr<FieldTrialsView> field_trials,
     std::unique_ptr<FakeRtcEventLogFactory> event_log_factory,
     bool reset_encoder_factory,
     bool reset_decoder_factory,
@@ -250,7 +247,7 @@ bool PeerConnectionIntegrationWrapper::Init(
   pc_factory_dependencies.signaling_thread = signaling_thread;
   pc_factory_dependencies.socket_factory = socket_server;
   pc_factory_dependencies.network_manager = std::move(network_manager);
-  pc_factory_dependencies.env = CreateEnvironment(std::move(field_trials));
+  pc_factory_dependencies.env = env_;
   pc_factory_dependencies.decode_metronome =
       std::make_unique<TaskQueueMetronome>(TimeDelta::Millis(8));
 

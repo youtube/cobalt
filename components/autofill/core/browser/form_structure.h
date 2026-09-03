@@ -44,7 +44,6 @@ namespace autofill {
 
 class LogBuffer;
 class LogManager;
-struct ParsingContext;
 
 // The structure of forms and fields, represented by their signatures, on a
 // page. These are sequence containers to reflect their order in the DOM.
@@ -65,12 +64,6 @@ class FormStructure {
   FormStructure& operator=(const FormStructure&) = delete;
 
   virtual ~FormStructure();
-
-  // Runs several heuristics against the form fields to determine their possible
-  // types.
-  void DetermineHeuristicTypes(const GeoIpCountryCode& client_country,
-                               const LanguageCode& current_page_language,
-                               LogManager* log_manager);
 
   // Runs rationalization and sectioning. This is to be run after the field
   // types change.
@@ -98,10 +91,6 @@ class FormStructure {
   // Return the form signature as string.
   std::string FormSignatureAsStr() const;
 
-  // Runs a quick heuristic to rule out forms that are obviously not
-  // auto-fillable, like google/yahoo/msn search, etc.
-  bool IsAutofillable() const;
-
   // This enum defines two different states of completeness for a credit card
   // form, each used for a distinct purpose to check if the required credit card
   // fields exist.
@@ -120,39 +109,6 @@ class FormStructure {
   // defined by the given CreditCardFormCompleteness level.
   bool IsCompleteCreditCardForm(
       CreditCardFormCompleteness credit_card_form_completeness) const;
-
-  // Returns true if this form matches the structural requirements for Autofill.
-  [[nodiscard]] bool ShouldBeParsed(LogManager* log_manager = nullptr) const {
-    return ShouldBeParsed({}, log_manager);
-  }
-
-  // Returns true if heuristic autofill type detection should be attempted for
-  // this form.
-  bool ShouldRunHeuristics() const;
-
-  // Returns true if autofill's heuristic field type detection should be
-  // attempted for this form given that |kMinRequiredFieldsForHeuristics| is not
-  // met.
-  bool ShouldRunHeuristicsForSingleFields() const;
-
-  // Returns true if we should query the crowd-sourcing server to determine this
-  // form's field types. If the form includes author-specified types, this will
-  // return false unless there are password fields in the form. If there are no
-  // password fields the assumption is that the author has expressed their
-  // intent and crowdsourced data should not be used to override this. Password
-  // fields are different because there is no way to specify password generation
-  // directly.
-  bool ShouldBeQueried() const;
-
-  // Returns true if we should upload Autofill votes for this form to the
-  // crowd-sourcing server. It is not applied for Password Manager votes.
-  bool ShouldBeUploaded() const;
-
-  // Returns whether the form is considered parseable and meets a couple of
-  // other requirements which makes uploading UKM data worthwhile. E.g. the
-  // form should not be a search form, the forms should have at least one
-  // focusable input field with a type from heuristics or the server.
-  bool ShouldUploadUkm(bool require_classified_field) const;
 
   // This enum defines the behavior of RetrieveFromCache, which needs to adapt
   // to the reason for retrieving data from the cache.
@@ -334,14 +290,6 @@ class FormStructure {
     submission_source_ = submission_source;
   }
 
-  // Logs the DeveloperEngagementMetric UKM metric and updates
-  // `developer_engagement_metrics_`.
-  void LogDeveloperEngagementMetric();
-
-  int developer_engagement_metrics() const {
-    return developer_engagement_metrics_;
-  }
-
   FormGlobalId global_id() const { return {host_frame_, renderer_id_}; }
 
   FormVersion version() const { return version_; }
@@ -367,36 +315,12 @@ class FormStructure {
   // Sets the rank of each field in the form.
   void DetermineFieldRanks();
 
-  // Classifies each field using the regular expressions. The classifications
-  // are returned, but not assigned to the `fields_` yet. Use
-  // `AssignBestFieldTypes()` to do so.
-  [[nodiscard]] FieldCandidatesMap ParseFieldTypesWithPatterns(
-      ParsingContext& context) const;
-
-  // Assigns the best heuristic types from the `field_type_map` to the heuristic
-  // types of the corresponding fields for the `pattern_source`.
-  void AssignBestFieldTypes(const FieldCandidatesMap& field_type_map,
-                            HeuristicSource heuristic_source);
-
   // Sets each field's `html_type` and `html_mode` based on the field's
   // `parsed_autocomplete` member.
   void SetFieldTypesFromAutocompleteAttribute();
 
-  // Production code only uses the default parameters.
-  // Unit tests also test other parameters.
-  struct ShouldBeParsedParams {
-    size_t min_required_fields =
-        std::min({kMinRequiredFieldsForHeuristics, kMinRequiredFieldsForQuery,
-                  kMinRequiredFieldsForUpload});
-    size_t required_fields_for_forms_with_only_password_fields =
-        kRequiredFieldsForFormsWithOnlyPasswordFields;
-  };
-
   FormStructure(FormSignature form_signature,
                 const std::vector<FieldSignature>& field_signatures);
-
-  [[nodiscard]] bool ShouldBeParsed(ShouldBeParsedParams params,
-                                    LogManager* log_manager = nullptr) const;
 
   // Extracts the parseable field name by removing a common affix.
   void ExtractParseableFieldNames();
@@ -468,11 +392,6 @@ class FormStructure {
 
   // The timestamp when this form or one of its fields was last filled.
   std::optional<base::TimeTicks> last_filling_timestamp_;
-
-  // Used to record whether developer has used autocomplete markup or
-  // UPI-VPA hints, This is a bitmask of DeveloperEngagementMetric and set in
-  // DetermineHeuristicTypes().
-  int developer_engagement_metrics_ = 0;
 
   mojom::SubmissionSource submission_source_ = mojom::SubmissionSource::NONE;
 

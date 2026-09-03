@@ -14,6 +14,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -37,6 +38,7 @@
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_bitrate_allocator.h"
 #include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
 #include "api/video/video_frame_type.h"
 #include "api/video/video_source_interface.h"
 #include "api/video/video_stream_encoder_settings.h"
@@ -51,6 +53,7 @@
 #include "modules/video_coding/utility/frame_dropper.h"
 #include "modules/video_coding/utility/qp_parser.h"
 #include "rtc_base/experiments/rate_control_settings.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "video/adaptation/overuse_frame_detector.h"
 #include "video/adaptation/video_stream_encoder_resource_manager.h"
@@ -139,6 +142,8 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   DataRate UpdateTargetBitrate(DataRate target_bitrate,
                                double cwnd_reduce_ratio);
 
+  void OnFramePrepared(size_t frame_identifier);
+
  protected:
   friend class VideoStreamEncoderFrameCadenceRestrictionTest;
 
@@ -214,6 +219,20 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
     DataRate encoder_target;
   };
 
+  class PreparedFramesProcessor
+      : public VideoFrameBuffer::PreparedFrameHandler {
+   public:
+    explicit PreparedFramesProcessor(VideoStreamEncoder* parent);
+
+    void StopCallbacks();
+
+    void OnFramePrepared(size_t frame_identifier) override;
+
+   private:
+    VideoStreamEncoder* parent_ RTC_GUARDED_BY(lock_);
+    Mutex lock_;
+  };
+
   class DegradationPreferenceManager;
 
   void ReconfigureEncoder() RTC_RUN_ON(encoder_queue_);
@@ -224,11 +243,15 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   void OnDiscardedFrame();
   void RequestRefreshFrame();
 
+  void MaybePrepareVideoFrame(const VideoFrame& frame,
+                              int64_t time_when_posted_in_ms);
+
   void MaybeEncodeVideoFrame(const VideoFrame& frame,
                              int64_t time_when_posted_in_ms);
 
   void EncodeVideoFrame(const VideoFrame& frame,
                         int64_t time_when_posted_in_ms);
+
   // Indicates whether frame should be dropped because the pixel count is too
   // large for the current bitrate configuration.
   bool DropDueToSize(uint32_t pixel_count) const RTC_RUN_ON(encoder_queue_);
@@ -459,6 +482,19 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   //  Required for automatic corruption detection.
   std::unique_ptr<FrameInstrumentationGenerator>
       frame_instrumentation_generator_;
+
+  scoped_refptr<PreparedFramesProcessor> prepared_frames_processor_;
+
+  size_t frame_counter_ = 0;
+
+  struct PreparingFrame {
+    const VideoFrame frame;
+    bool can_send;
+    size_t frame_id;
+    int64_t time_when_posted_us;
+  };
+
+  std::deque<PreparingFrame> pending_mapped_frames_;
 };
 
 }  // namespace webrtc

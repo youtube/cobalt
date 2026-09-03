@@ -615,7 +615,15 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 }
 
 // Tests that the browsing data summary is updated when the time range changes.
-- (void)testSummaryUpdatesWhenTimeRangeChanges {
+// TODO(crbug.com/443704367): Test disabled on simulator.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testSummaryUpdatesWhenTimeRangeChanges \
+  DISABLED_testSummaryUpdatesWhenTimeRangeChanges
+#else
+#define MAYBE_testSummaryUpdatesWhenTimeRangeChanges \
+  testSummaryUpdatesWhenTimeRangeChanges
+#endif
+- (void)MAYBE_testSummaryUpdatesWhenTimeRangeChanges {
   // Set pref to the last hour.
   [ChromeEarlGrey
       setIntegerValue:static_cast<int>(browsing_data::TimePeriod::LAST_HOUR)
@@ -725,8 +733,15 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // row when browsing history is selected as a data type to be deleted and when
 // the user syncs history. It also tests that the history entries get deleted
 // when the deletion of browsing data is selected.
-// TODO(crbug.com/433322022): Re-enable this test once flakiness is fixed.
-- (void)DISABLED_testBrowsingHistoryForDeletionWithHistorySync {
+// TODO(crbug.com/433322022): Re-enable test on device.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testBrowsingHistoryForDeletionWithHistorySync \
+  testBrowsingHistoryForDeletionWithHistorySync
+#else
+#define MAYBE_testBrowsingHistoryForDeletionWithHistorySync \
+  DISABLED_testBrowsingHistoryForDeletionWithHistorySync
+#endif
+- (void)MAYBE_testBrowsingHistoryForDeletionWithHistorySync {
   // Sign in and enable history sync.
   [self signInAndEnableHistorySync];
 
@@ -1571,7 +1586,15 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 
 // Tests the footer search history link is opened correctly and metrics are
 // recorded in the corrresponding histogram bucket.
-- (void)testOpenSearchHistoryMyActivityFooterLink {
+// TODO(crbug.com/443704367): Test disabled on simulator.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testOpenSearchHistoryMyActivityFooterLink \
+  DISABLED_testOpenSearchHistoryMyActivityFooterLink
+#else
+#define MAYBE_testOpenSearchHistoryMyActivityFooterLink \
+  testOpenSearchHistoryMyActivityFooterLink
+#endif
+- (void)MAYBE_testOpenSearchHistoryMyActivityFooterLink {
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
   // Sign in is required to show the footer.
   [self signIn];
@@ -1687,7 +1710,15 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 
 // Tests that a user in the `ConsentLevel::kSignin` state will remain signed in
 // after clearing their browsing history.
-- (void)testUserSignedInWhenClearingBrowsingData {
+// TODO(crbug.com/443704367): Test disabled on simulator.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testUserSignedInWhenClearingBrowsingData \
+  DISABLED_testUserSignedInWhenClearingBrowsingData
+#else
+#define MAYBE_testUserSignedInWhenClearingBrowsingData \
+  testUserSignedInWhenClearingBrowsingData
+#endif
+- (void)MAYBE_testUserSignedInWhenClearingBrowsingData {
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
   [SigninEarlGreyUI signinWithFakeIdentity:fakeIdentity];
 

@@ -235,19 +235,20 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
   if (op == wasm::kGCPrefix || op == wasm::kExprRefAsNonNull ||
       op == wasm::kExprCallRef || op == wasm::kExprReturnCallRef ||
       // Calling imported string function with null can trigger a signal.
-      op == wasm::kExprCallFunction || op == wasm::kExprReturnCall ||
-      // shared-everything atomic instructions.
-      (op == wasm::kAtomicPrefix && wire_bytes.at(pos + 1) >= 0x4F)) {
+      op == wasm::kExprCallFunction || op == wasm::kExprReturnCall) {
     message = MessageTemplate::kWasmTrapNullDereference;
-#if DEBUG
-  } else {
-    if (wasm::WasmOpcodes::IsPrefixOpcode(op)) {
-      op = wasm::Decoder{wire_bytes}
-               .read_prefixed_opcode<wasm::Decoder::NoValidationTag>(
-                   &wire_bytes.begin()[pos])
-               .first;
+  } else if (op == wasm::kAtomicPrefix) {
+    op = wasm::Decoder{wire_bytes}
+             .read_prefixed_opcode<wasm::Decoder::NoValidationTag>(
+                 &wire_bytes.begin()[pos])
+             .first;
+    // shared-everything atomic instructions.
+    if (op >= 0xFE4F) {
+      message = MessageTemplate::kWasmTrapNullDereference;
     }
-#endif  // DEBUG
+#define CASE(name, ...) || op == wasm::kExpr##name
+    DCHECK_EQ(op >= 0xFE4F, false FOREACH_ATOMIC_GC_OPCODE(CASE));
+#undef CASE
   }
   return ThrowWasmError(isolate, message);
 }
@@ -539,7 +540,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
                                                               isolate};
     DirectHandle<Code> new_wrapper_code =
         wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate, sig, sig_id, receiver_is_first_param);
+            isolate, sig, receiver_is_first_param);
 
     // Compilation must have installed the wrapper into the cache.
     DCHECK_EQ(new_wrapper_code->wrapper(),
@@ -617,19 +618,20 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
+#ifdef DEBUG
   DirectHandle<WasmDispatchTable> dispatch_table =
       CheckedCast<WasmDispatchTable>(origin);
   int table_slot = import_data->table_slot();
-  wasm::CanonicalTypeIndex sig_index = dispatch_table->sig(table_slot);
-  DCHECK_EQ(sig,
-            wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index));
+#endif  // DEBUG
+  // Check consistency of the signature index stored in the dispatch table.
+  DCHECK_EQ(sig->index(), dispatch_table->sig(table_slot));
 
   // Compile a wrapper for the target callable.
   DirectHandle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
                                     isolate);
   wasm::Suspend suspend = import_data->suspend();
 
-  wasm::ResolvedWasmImport resolved({}, -1, callable, sig, sig_index,
+  wasm::ResolvedWasmImport resolved({}, -1, callable, sig,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
@@ -641,10 +643,14 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
                          ->internal_formal_parameter_count_without_receiver();
   }
 
+  // Lookup or compile a wrapper.
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
       cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
 
+  // Check consistency of the dispatch table's target code pointer. The code
+  // pointer is owned by the import wrapper cache and was updated when compiling
+  // the wrapper.
   DCHECK_EQ(dispatch_table->target(table_slot), wrapper_handle->code_pointer());
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1251,6 +1257,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   target_stack->jmpbuf()->sp = target_stack->base();
   target_stack->jmpbuf()->fp = kNullAddress;
   target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  target_stack->jmpbuf()->is_on_central_stack = false;
   isolate->isolate_data()->set_active_stack(target_stack.get());
 
   // Update the suspender state.

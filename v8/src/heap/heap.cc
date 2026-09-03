@@ -1289,64 +1289,6 @@ void Heap::CollectAllGarbage(GCFlags gc_flags,
 
 namespace {
 
-intptr_t CompareWords(int size, Tagged<HeapObject> a, Tagged<HeapObject> b) {
-  int slots = size / kTaggedSize;
-  DCHECK_EQ(a->Size(), size);
-  DCHECK_EQ(b->Size(), size);
-  Tagged_t* slot_a = reinterpret_cast<Tagged_t*>(a.address());
-  Tagged_t* slot_b = reinterpret_cast<Tagged_t*>(b.address());
-  for (int i = 0; i < slots; i++) {
-    if (*slot_a != *slot_b) {
-      return *slot_a - *slot_b;
-    }
-    slot_a++;
-    slot_b++;
-  }
-  return 0;
-}
-
-void ReportDuplicates(int size, std::vector<Tagged<HeapObject>>* objects) {
-  if (objects->empty()) return;
-
-  sort(objects->begin(), objects->end(),
-       [size](Tagged<HeapObject> a, Tagged<HeapObject> b) {
-         intptr_t c = CompareWords(size, a, b);
-         if (c != 0) return c < 0;
-         return a < b;
-       });
-
-  std::vector<std::pair<int, Tagged<HeapObject>>> duplicates;
-  Tagged<HeapObject> current = (*objects)[0];
-  int count = 1;
-  for (size_t i = 1; i < objects->size(); i++) {
-    if (CompareWords(size, current, (*objects)[i]) == 0) {
-      count++;
-    } else {
-      if (count > 1) {
-        duplicates.push_back(std::make_pair(count - 1, current));
-      }
-      count = 1;
-      current = (*objects)[i];
-    }
-  }
-  if (count > 1) {
-    duplicates.push_back(std::make_pair(count - 1, current));
-  }
-
-  int threshold = v8_flags.trace_duplicate_threshold_kb * KB;
-
-  sort(duplicates.begin(), duplicates.end());
-  for (auto it = duplicates.rbegin(); it != duplicates.rend(); ++it) {
-    int duplicate_bytes = it->first * size;
-    if (duplicate_bytes < threshold) break;
-    PrintF("%d duplicates of size %d each (%dKB)\n", it->first, size,
-           duplicate_bytes / KB);
-    PrintF("Sample object: ");
-    Print(it->second);
-    PrintF("============================\n");
-  }
-}
-
 // Frees caches when under memory pressure. The method assumes that callsites
 // are close to crashing and will very aggressively free memory.
 void FreeCachesOnMemoryPressure(Isolate* isolate) {
@@ -1403,15 +1345,11 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     gc_flags |= GCFlag::kForced;
   }
 
-  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
-                                            : PerformHeapLimitCheck::kYes;
-
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags,
-                   perform_heap_limit_check);
+                   PerformHeapLimitCheck::kNo);
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 
     // As long as we are at or above the heap limit, we need another GC to
@@ -1429,30 +1367,6 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   CheckHeapLimitReached();
 
   EagerlyFreeExternalMemoryAndWasmCode();
-
-  if (v8_flags.trace_duplicate_threshold_kb) {
-    std::map<int, std::vector<Tagged<HeapObject>>> objects_by_size;
-    PagedSpaceIterator spaces(this);
-    for (PagedSpace* space = spaces.Next(); space != nullptr;
-         space = spaces.Next()) {
-      PagedSpaceObjectIterator it(this, space);
-      for (Tagged<HeapObject> obj = it.Next(); !obj.is_null();
-           obj = it.Next()) {
-        objects_by_size[obj->Size()].push_back(obj);
-      }
-    }
-    {
-      LargeObjectSpaceObjectIterator it(lo_space());
-      for (Tagged<HeapObject> obj = it.Next(); !obj.is_null();
-           obj = it.Next()) {
-        objects_by_size[obj->Size()].push_back(obj);
-      }
-    }
-    for (auto it = objects_by_size.rbegin(); it != objects_by_size.rend();
-         ++it) {
-      ReportDuplicates(it->first, &it->second);
-    }
-  }
 
   if (gc_reason == GarbageCollectionReason::kLastResort &&
       v8_flags.heap_snapshot_on_oom) {
@@ -2216,16 +2130,12 @@ bool Heap::CollectionRequested() {
 void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    const GCCallbackFlags gc_callback_flags) {
-  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
-                                            : PerformHeapLimitCheck::kYes;
-
   if (space == NEW_SPACE) {
     DCHECK_EQ(GCFlags(), gc_flags);
 
     for (int i = 0; i < 2; i++) {
       CollectGarbage(NEW_SPACE, gc_reason, gc_callback_flags,
-                     perform_heap_limit_check);
+                     PerformHeapLimitCheck::kNo);
 
       if (!ReachedHeapLimit()) {
         return;
@@ -2236,7 +2146,7 @@ void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
   for (int i = 0; i < 2; i++) {
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
-                   perform_heap_limit_check);
+                   PerformHeapLimitCheck::kNo);
     DCHECK_EQ(GCFlags(), current_gc_flags_);
 
     if (!ReachedHeapLimit()) {
@@ -2911,7 +2821,8 @@ void Heap::ExternalStringTable::VerifyYoung() {
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
   for (size_t i = 0; i < young_strings_.size(); ++i) {
     Tagged<String> obj = Cast<String>(Tagged<Object>(young_strings_[i]));
-    MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
+    MutablePageMetadata* mc =
+        MutablePageMetadata::FromHeapObject(heap_->isolate(), obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    mc->Chunk()->InYoungGeneration());
     DCHECK(HeapLayout::InYoungGeneration(obj));
@@ -2936,7 +2847,8 @@ void Heap::ExternalStringTable::Verify() {
   VerifyYoung();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<String> obj = Cast<String>(Tagged<Object>(old_strings_[i]));
-    MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
+    MutablePageMetadata* mc =
+        MutablePageMetadata::FromHeapObject(heap_->isolate(), obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    !mc->Chunk()->InYoungGeneration());
     DCHECK(!HeapLayout::InYoungGeneration(obj));
@@ -3442,7 +3354,7 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
 
   // Concurrent sweeper does not support moving object starts. It assumes that
   // markbits (black regions) and object starts are matching up.
-  if (!MutablePageMetadata::FromHeapObject(object)->SweepingDone()) {
+  if (!MutablePageMetadata::FromHeapObject(isolate(), object)->SweepingDone()) {
     return false;
   }
 
@@ -4162,7 +4074,7 @@ void Heap::NotifyObjectLayoutChange(
   if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes) {
     const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
     MutablePageMetadata* const page =
-        MutablePageMetadata::FromHeapObject(object);
+        MutablePageMetadata::FromHeapObject(isolate(), object);
     // Do not remove the recorded slot in the map word as this one can never be
     // invalidated.
     const Address clear_range_start = object.address() + kTaggedSize;
@@ -4173,7 +4085,7 @@ void Heap::NotifyObjectLayoutChange(
     const Address clear_range_end = object.address() + new_size;
 
     if (incremental_marking()->IsMarking()) {
-      ObjectLock::Lock(object);
+      ObjectLock::Lock(isolate(), object);
       DCHECK_EQ(pending_layout_change_object_address, kNullAddress);
       pending_layout_change_object_address = object.address();
       if (may_contain_recorded_slots && incremental_marking()->IsCompacting()) {
@@ -4237,7 +4149,7 @@ void Heap::NotifyObjectLayoutChange(
 void Heap::NotifyObjectLayoutChangeDone(Tagged<HeapObject> object) {
   if (pending_layout_change_object_address != kNullAddress) {
     DCHECK_EQ(pending_layout_change_object_address, object.address());
-    ObjectLock::Unlock(object);
+    ObjectLock::Unlock(Isolate::Current(), object);
     pending_layout_change_object_address = kNullAddress;
   }
 }
@@ -4506,26 +4418,49 @@ void Heap::ReportCodeStatistics(const char* title) {
 #endif  // DEBUG
 
 bool Heap::Contains(Tagged<HeapObject> value) const {
-  if (ReadOnlyHeap::Contains(value)) {
+  if (HeapLayout::InReadOnlySpace(value)) {
     return false;
   }
-  if (memory_allocator()->IsOutsideAllocatedSpace(value.address())) {
+  if (HeapLayout::InWritableSharedSpace(value) &&
+      !isolate()->is_shared_space_isolate()) {
     return false;
   }
 
-  if (!HasBeenSetUp()) return false;
+  CHECK(HasBeenSetUp());
+  // Must be somewhere on the heap.
+  CHECK(!memory_allocator()->IsOutsideAllocatedSpace(value.address()));
 
-  return (new_space_ && new_space_->Contains(value)) ||
-         old_space_->Contains(value) || code_space_->Contains(value) ||
-         (shared_space_ && shared_space_->Contains(value)) ||
-         (shared_trusted_space_ && shared_trusted_space_->Contains(value)) ||
-         lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
-         (new_lo_space_ && new_lo_space_->Contains(value)) ||
-         trusted_space_->Contains(value) ||
-         trusted_lo_space_->Contains(value) ||
-         (shared_lo_space_ && shared_lo_space_->Contains(value)) ||
-         (shared_trusted_lo_space_ &&
-          shared_trusted_lo_space_->Contains(value));
+  const auto space =
+      MemoryChunk::FromHeapObject(value)->Metadata(isolate())->owner_identity();
+  switch (space) {
+    case NEW_SPACE:
+      return new_space_->Contains(value);
+    case OLD_SPACE:
+      return old_space_->Contains(value);
+    case CODE_SPACE:
+      return code_space_->Contains(value);
+    case SHARED_SPACE:
+      return shared_space_->Contains(value);
+    case TRUSTED_SPACE:
+      return trusted_space_->Contains(value);
+    case SHARED_TRUSTED_SPACE:
+      return shared_trusted_space_->Contains(value);
+    case LO_SPACE:
+      return lo_space_->Contains(value);
+    case CODE_LO_SPACE:
+      return code_lo_space_->Contains(value);
+    case NEW_LO_SPACE:
+      return new_lo_space_->Contains(value);
+    case SHARED_LO_SPACE:
+      return shared_lo_space_->Contains(value);
+    case SHARED_TRUSTED_LO_SPACE:
+      return shared_trusted_lo_space_->Contains(value);
+    case TRUSTED_LO_SPACE:
+      return trusted_lo_space_->Contains(value);
+    case RO_SPACE:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
 }
 
 bool Heap::ContainsCode(Tagged<HeapObject> value) const {
@@ -5383,6 +5318,21 @@ void Heap::ConfigureHeapDefault() {
   ConfigureHeap(constraints, nullptr);
 }
 
+namespace {
+
+void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
+  stats->start = cage->base();
+  stats->size = cage->size();
+  base::BoundedPageAllocator::Stats allocator_stats =
+      cage->page_allocator()->RecordStats();
+  stats->free_size = allocator_stats.free_size;
+  stats->largest_free_region = allocator_stats.largest_free_region;
+  stats->last_allocation_status =
+      static_cast<size_t>(allocator_stats.allocation_status);
+}
+
+}  // anonymous namespace
+
 void Heap::RecordStats(HeapStats* stats) {
   stats->start_marker = HeapStats::kStartMarker;
   stats->end_marker = HeapStats::kEndMarker;
@@ -5405,6 +5355,16 @@ void Heap::RecordStats(HeapStats* stats) {
   stats->os_error = base::OS::GetLastError();
   stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage() +
                            isolate_->string_table()->GetCurrentMemoryUsage();
+#if V8_COMPRESS_POINTERS
+  RecordStatsForCage(isolate_->isolate_group()->GetPtrComprCage(),
+                     &stats->main_cage);
+  RecordStatsForCage(isolate_->isolate_group()->GetTrustedPtrComprCage(),
+                     &stats->trusted_cage);
+#endif
+  if (CodeRange* code_cage = isolate_->isolate_group()->GetCodeRange()) {
+    RecordStatsForCage(code_cage, &stats->code_cage);
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   stats->malloced_memory +=
       i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage();
@@ -6729,6 +6689,25 @@ void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
 }
 #endif
 
+// static
+void Heap::VerifySkippedWriteBarrier(Address object, Address value) {
+#if V8_VERIFY_WRITE_BARRIERS
+  DCHECK(v8_flags.verify_write_barriers);
+  Tagged<Object> tagged(object);
+  Tagged<HeapObject> heap_object;
+  HeapObjectReferenceType reference_type;
+
+  if (tagged.GetHeapObject(&heap_object, &reference_type)) {
+    CHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
+    CHECK(!WriteBarrier::IsRequired(heap_object, Tagged<Object>(value)));
+  } else {
+    CHECK(tagged.IsSmi());
+  }
+#else
+  UNREACHABLE();
+#endif  // V8_VERIFY_WRITE_BARRIERS
+}
+
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);
@@ -6784,7 +6763,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     DCHECK(!IsFreeSpaceOrFiller(object));
     // If the bucket corresponding to the object's chunk does not exist, or the
     // object is not found in the bucket, return true.
-    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
+    MemoryChunkMetadata* chunk =
+        MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object);
     if (reachable_.count(chunk) == 0) return true;
     return reachable_[chunk]->count(object) == 0;
   }
@@ -6795,7 +6775,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   bool MarkAsReachable(Tagged<HeapObject> object) {
     // If the bucket corresponding to the object's chunk does not exist, then
     // create an empty bucket.
-    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
+    MemoryChunkMetadata* chunk =
+        MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object);
     if (reachable_.count(chunk) == 0) {
       reachable_[chunk] = std::make_unique<BucketType>();
     }
@@ -7329,7 +7310,8 @@ bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,
     return false;
   }
   InstanceType type = map->instance_type();
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(object);
+  MutablePageMetadata* chunk =
+      MutablePageMetadata::FromHeapObject(isolate(), object);
   AllocationSpace src = chunk->owner_identity();
   switch (src) {
     case NEW_SPACE:

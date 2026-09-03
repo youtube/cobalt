@@ -154,6 +154,9 @@ class IceCandidateCollection final {
   [[deprecated("Use unique_ptr version")]]
   void add(IceCandidate* candidate);
 
+  // Appends a collection of candidates.
+  void Append(IceCandidateCollection collection);
+
   // Removes the candidate that has a matching address and protocol.
   //
   // Returns the number of candidates that were removed.
@@ -222,10 +225,7 @@ class RTC_EXPORT SessionDescriptionInterface {
 
   // Create a new SessionDescriptionInterface object
   // with the same values as the old object.
-  // TODO(bugs.webrtc.org:12215): Remove default implementation
-  virtual std::unique_ptr<SessionDescriptionInterface> Clone() const {
-    return nullptr;
-  }
+  virtual std::unique_ptr<SessionDescriptionInterface> Clone() const = 0;
 
   // Only for use internally.
   virtual SessionDescription* description() = 0;
@@ -238,9 +238,7 @@ class RTC_EXPORT SessionDescriptionInterface {
 
   // Returns the type of this session description as an SdpType. Descriptions of
   // the various types are found in the SdpType documentation.
-  // TODO(steveanton): Remove default implementation once Chromium has been
-  // updated.
-  virtual SdpType GetType() const;
+  virtual SdpType GetType() const = 0;
 
   // kOffer/kPrAnswer/kAnswer
   // TODO(steveanton): Remove this in favor of `GetType` that returns SdpType.
@@ -318,6 +316,11 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     const std::string& session_id,
     const std::string& session_version,
     std::unique_ptr<SessionDescription> description);
+
+// Creates a rollback session description object (SdpType::kRollback).
+std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
+    absl::string_view session_id = "",
+    absl::string_view session_version = "");
 
 // CreateOffer and CreateAnswer callback interface.
 class RTC_EXPORT CreateSessionDescriptionObserver : public RefCountInterface {

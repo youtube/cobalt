@@ -24,11 +24,14 @@ IGNORED_MODULES = [
     '_stddef',
 ]
 
-# When any of the following directory names are in the path, it's treated as a toolchain directory.
+# When any of the following directory names are in the path, it's treated as a
+# sysroot directory.
 SYSROOT_DIRS = {
     'android_toolchain',
     'debian_bullseye_amd64-sysroot',
     'debian_bullseye_arm64-sysroot',
+    'debian_bullseye_armhf-sysroot',
+    'debian_bullseye_i386-sysroot',
     'fuchsia-sdk',
     'MacOSX.platform',
     'win_toolchain',
@@ -45,7 +48,8 @@ SYSROOT_PRECOMPILED_HEADERS = [
 ]
 
 
-def fix_graph(graph: dict[str, Header], compiler: 'Compiler'):
+def fix_graph(graph: dict[str, Header],
+              compiler: 'Compiler') -> dict[pathlib.Path, str]:
   """Applies manual augmentation of the header graph."""
 
   def add_dep(frm, to, check=True):
@@ -120,12 +124,24 @@ def fix_graph(graph: dict[str, Header], compiler: 'Compiler'):
     graph['android/legacy_unistd_inlines.h'].textual = True
     graph['bits/threads_inlines.h'].textual = True
 
+    graph['asm-generic/posix_types.h'].textual = True
+    graph['asm/posix_types.h'].textual = True
+
   elif compiler.os == Os.Linux:
     # See https://codebrowser.dev/glibc/glibc/sysdeps/unix/sysv/linux/bits/local_lim.h.html#56
     # if linux/limits.h is non-textual, then limits.h undefs the limits.h defined in the linux/limits.h module.
     # Thus, limits.h exports an undef.
     # if it's textual, limits.h undefs something it defined itself.
     graph['linux/limits.h'].textual = True
+
+  # Windows has multiple include directories contained with the sysroot.
+  if compiler.os == Os.Win:
+    return {
+        graph['corecrt.h'].abs.parent.parent: '$windows_kits',
+        graph['eh.h'].abs.parent: '$msvc',
+    }
+  else:
+    return {sysroot: '$sysroot'}
 
 
 def should_compile(target: Target) -> bool:

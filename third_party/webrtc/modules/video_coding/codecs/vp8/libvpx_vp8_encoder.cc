@@ -1421,6 +1421,9 @@ VideoEncoder::EncoderInfo LibvpxVp8Encoder::GetEncoderInfo() const {
       }
     }
 
+    info.mapped_resolution =
+        VideoEncoder::Resolution(raw_images_[0].d_w, raw_images_[0].d_h);
+
     if (codec_.mode == VideoCodecMode::kScreensharing) {
       info.min_qp = kScreenshareMinQp;
     }

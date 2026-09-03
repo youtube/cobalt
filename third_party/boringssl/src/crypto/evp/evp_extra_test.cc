@@ -28,6 +28,8 @@
 #include <openssl/crypto.h>
 #include <openssl/dh.h>
 #include <openssl/digest.h>
+#include <openssl/ec.h>
+#include <openssl/ec_key.h>
 #include <openssl/err.h>
 #include <openssl/pkcs8.h>
 #include <openssl/rsa.h>

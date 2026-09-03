@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <type_traits>
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
 #include <valgrind/memcheck.h>
@@ -532,8 +533,6 @@ OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
 
 using CRYPTO_atomic_u32 = std::atomic<uint32_t>;
 
-static_assert(sizeof(CRYPTO_atomic_u32) == sizeof(uint32_t));
-
 inline uint32_t CRYPTO_atomic_load_u32(const CRYPTO_atomic_u32 *val) {
   return val->load(std::memory_order_seq_cst);
 }
@@ -571,12 +570,6 @@ inline void CRYPTO_atomic_store_u32(CRYPTO_atomic_u32 *val, uint32_t desired) {
 }
 
 #endif
-
-// See the comment in the |__cplusplus| section above.
-static_assert(sizeof(CRYPTO_atomic_u32) == sizeof(uint32_t),
-              "CRYPTO_atomic_u32 does not match uint32_t size");
-static_assert(alignof(CRYPTO_atomic_u32) == alignof(uint32_t),
-              "CRYPTO_atomic_u32 does not match uint32_t alignment");
 
 
 // Reference counting.
@@ -1605,6 +1598,30 @@ static inline uint64_t CRYPTO_subc_u64(uint64_t x, uint64_t y, uint64_t borrow,
 #define CRYPTO_addc_w CRYPTO_addc_u32
 #define CRYPTO_subc_w CRYPTO_subc_u32
 #endif
+
+
+BSSL_NAMESPACE_BEGIN
+// Cleanup implements a custom scope guard, when the cleanup logic does not fit
+// in a destructor. Usage:
+//
+//     bssl::Cleanup cleanup = [&] { SomeCleanupWork(local_var); };
+template <typename F>
+class Cleanup {
+ public:
+  static_assert(std::is_invocable_v<F>);
+  static_assert(std::is_same_v<std::invoke_result_t<F>, void>);
+
+  Cleanup(F func) : func_(func) {}
+  Cleanup(const Cleanup &) = delete;
+  Cleanup &operator=(const Cleanup &) = delete;
+  ~Cleanup() { func_(); }
+
+ private:
+  F func_;
+};
+template <typename F>
+Cleanup(F func) -> Cleanup<F>;
+BSSL_NAMESPACE_END
 
 
 #endif  // OPENSSL_HEADER_CRYPTO_INTERNAL_H

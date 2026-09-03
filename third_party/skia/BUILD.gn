@@ -329,6 +329,9 @@ optional("fontmgr_android_ndk") {
     ":typeface_proxy",
   ]
   libs = [ "android" ]
+  if (defined(ndk_api) && ndk_api >= 31) {
+    libs += [ "icu" ]
+  }
   public_defines = [ "SK_FONTMGR_ANDROID_NDK_AVAILABLE" ]
   public = skia_ports_fontmgr_android_ndk_public
   sources = skia_ports_fontmgr_android_ndk_sources
@@ -1071,21 +1074,6 @@ optional("vello") {
   public_deps = [ "//third_party/vello" ]
 }
 
-optional("heif") {
-  enabled = skia_use_libheif
-  public_defines = [ "SK_HAS_HEIF_LIBRARY" ]
-
-  # This HEIF decoding functionality is a part of the Android Framework.
-  # https://android.googlesource.com/platform/frameworks/av/+/master/media/libheif/include/HeifDecoderAPI.h
-  # There isn't a way to compile that library outside of it, so we just link against
-  # the library. This feature is not supported on other platforms (and we haven't
-  # yet tried something like https://github.com/strukturag/libheif/tree/master/libheif).
-  # The dependency for Android is set in gn_to_bp.py.
-  deps = []
-
-  sources = [ "src/codec/SkHeifCodec.cpp" ]
-}
-
 optional("avif") {
   enabled = skia_use_libavif
   public_defines = [ "SK_CODEC_DECODES_AVIF" ]
@@ -1691,7 +1679,6 @@ skia_component("skia") {
     ":android_utils",
     ":avif",
     ":crabbyavif",
-    ":heif",
     ":hsw",
     ":jpeg_decode",
     ":jpegxl_decode",
@@ -2682,8 +2669,10 @@ if (skia_enable_tools) {
     }
 
     if (!skia_enable_optimize_size && !skia_use_fontations &&
+        !skia_use_rust_png_decode && !skia_use_rust_png_encode &&
         !skia_enable_vello_shaders) {
       # optional separate library to dlopen when running CanvasStateTests.
+      # currently does not link in the presence of rust
       skia_shared_library("canvas_state_lib") {
         sources = [
           "tests/CanvasStateHelpers.cpp",

@@ -39,7 +39,7 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
 // Returns an empty optional when settings value contains an unsupported type.
 std::optional<base::Value::Dict> ParseSettingsToDictionary(
     const HeapVector<
-        std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
+        std::pair<String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
         settings);
 }  // namespace blink
 

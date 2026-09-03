@@ -20,8 +20,10 @@
 #ifndef PC_WEBRTC_SDP_H_
 #define PC_WEBRTC_SDP_H_
 
+#include <memory>
 #include <string>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
@@ -34,12 +36,12 @@ namespace webrtc {
 class JsepSessionDescription;
 struct SdpParseError;
 
-// Serializes the passed in JsepSessionDescription.
+// Serializes the passed in SessionDescriptionInterface.
 // Serialize SessionDescription including candidates if
-// JsepSessionDescription has candidates.
-// jdesc - The JsepSessionDescription object to be serialized.
+// SessionDescriptionInterface has candidates.
+// jdesc - The SessionDescriptionInterface object to be serialized.
 // return - SDP string serialized from the arguments.
-std::string SdpSerialize(const JsepSessionDescription& jdesc);
+std::string SdpSerialize(const SessionDescriptionInterface& jdesc);
 
 // Serializes the passed in IceCandidate to a SDP string.
 // candidate - The candidate to be serialized.
@@ -54,9 +56,22 @@ RTC_EXPORT std::string SdpSerializeCandidate(const Candidate& candidate);
 // jdesc - The JsepSessionDescription deserialized from the SDP string.
 // error - The detail error information when parsing fails.
 // return - true on success, false on failure.
+[[deprecated(
+    "Instead, use the SdpDeserialize() method that requires an SdpType and "
+    "returns std::unique_ptr<SessionDescriptionInterface>.")]]
 bool SdpDeserialize(absl::string_view message,
                     JsepSessionDescription* jdesc,
                     SdpParseError* error);
+
+// Deserializes the `sdp` to construct a SessionDescriptionInterface object.
+// sdp_type - The type of session description object that should be constructed.
+// sdp - The SDP string to be Deserialized.
+// error - Optional detail error information when parsing fails.
+// return - A new session description object if successful, otherwise nullptr.
+absl_nullable std::unique_ptr<SessionDescriptionInterface> SdpDeserialize(
+    SdpType sdp_type,
+    absl::string_view sdp,
+    SdpParseError* absl_nullable error = nullptr);
 
 // Deserializes the passed in SDP string to a cricket Candidate.
 // The first line must be a=candidate line and only the first line will be

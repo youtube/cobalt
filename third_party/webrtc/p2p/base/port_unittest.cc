@@ -294,7 +294,7 @@ class TestChannel : public sigslot::has_slots<> {
  public:
   // Takes ownership of `p1` (but not `p2`).
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
-    port_->SignalPortComplete.connect(this, &TestChannel::OnPortComplete);
+    port_->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
     port_->SignalUnknownAddress.connect(this, &TestChannel::OnUnknownAddress);
     port_->SubscribePortDestroyed(
         [this](PortInterface* port) { OnSrcPortDestroyed(port); });
@@ -1444,10 +1444,10 @@ TEST_F(PortTest, TestSslTcpToSslTcpRelay) {
 */
 
 // Test that a connection will be dead and deleted if
-// i) it has never received anything for MIN_CONNECTION_LIFETIME milliseconds
-//    since it was created, or
-// ii) it has not received anything for DEAD_CONNECTION_RECEIVE_TIMEOUT
-//     milliseconds since last receiving.
+// i) it has never received anything for kMinConnectionLifetime since
+//     it was created, or
+// ii) it has not received anything for kDeadConnectionReceiveTimeout since
+//     last receiving.
 TEST_F(PortTest, TestConnectionDead) {
   TestChannel ch1(CreateUdpPort(kLocalAddr1));
   TestChannel ch2(CreateUdpPort(kLocalAddr2));
@@ -1467,17 +1467,17 @@ TEST_F(PortTest, TestConnectionDead) {
   int64_t after_created = TimeMillis();
   Connection* conn = ch1.conn();
   ASSERT_NE(conn, nullptr);
-  // It is not dead if it is after MIN_CONNECTION_LIFETIME but not pruned.
-  conn->UpdateState(after_created + MIN_CONNECTION_LIFETIME + 1);
+  // It is not dead if it is after kMinConnectionLifetime but not pruned.
+  conn->UpdateState(after_created + kMinConnectionLifetime.ms() + 1);
   Thread::Current()->ProcessMessages(0);
   EXPECT_TRUE(ch1.conn() != nullptr);
-  // It is not dead if it is before MIN_CONNECTION_LIFETIME and pruned.
-  conn->UpdateState(before_created + MIN_CONNECTION_LIFETIME - 1);
+  // It is not dead if it is before kMinConnectionLifetime and pruned.
+  conn->UpdateState(before_created + kMinConnectionLifetime.ms() - 1);
   conn->Prune();
   Thread::Current()->ProcessMessages(0);
   EXPECT_TRUE(ch1.conn() != nullptr);
-  // It will be dead after MIN_CONNECTION_LIFETIME and pruned.
-  conn->UpdateState(after_created + MIN_CONNECTION_LIFETIME + 1);
+  // It will be dead after kMinConnectionLifetime and pruned.
+  conn->UpdateState(after_created + kMinConnectionLifetime.ms() + 1);
   EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -1490,12 +1490,13 @@ TEST_F(PortTest, TestConnectionDead) {
   int64_t before_last_receiving = TimeMillis();
   conn->ReceivedPing();
   int64_t after_last_receiving = TimeMillis();
-  // The connection will be dead after DEAD_CONNECTION_RECEIVE_TIMEOUT
-  conn->UpdateState(before_last_receiving + DEAD_CONNECTION_RECEIVE_TIMEOUT -
+  // The connection will be dead after kDeadConnectionReceiveTimeout
+  conn->UpdateState(before_last_receiving + kDeadConnectionReceiveTimeout.ms() -
                     1);
   Thread::Current()->ProcessMessages(100);
   EXPECT_TRUE(ch1.conn() != nullptr);
-  conn->UpdateState(after_last_receiving + DEAD_CONNECTION_RECEIVE_TIMEOUT + 1);
+  conn->UpdateState(after_last_receiving + kDeadConnectionReceiveTimeout.ms() +
+                    1);
   EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -1575,10 +1576,12 @@ TEST_F(PortTest, TestConnectionDeadOutstandingPing) {
   conn->Ping(send_ping_timestamp);
 
   // The connection will be dead 30s after the ping was sent.
-  conn->UpdateState(send_ping_timestamp + DEAD_CONNECTION_RECEIVE_TIMEOUT - 1);
+  conn->UpdateState(send_ping_timestamp + kDeadConnectionReceiveTimeout.ms() -
+                    1);
   Thread::Current()->ProcessMessages(100);
   EXPECT_TRUE(ch1.conn() != nullptr);
-  conn->UpdateState(send_ping_timestamp + DEAD_CONNECTION_RECEIVE_TIMEOUT + 1);
+  conn->UpdateState(send_ping_timestamp + kDeadConnectionReceiveTimeout.ms() +
+                    1);
   EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -1808,7 +1811,7 @@ TEST_F(PortTest, TestDisableInterfaceOfTcpPort) {
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   ASSERT_NE(lconn, nullptr);
-  socket->SignalConnect(socket);
+  socket->NotifyConnect(socket);
   lconn->Ping(0);
 
   // Now disconnect the client socket...
@@ -3140,11 +3143,11 @@ TEST_F(PortTest, TestWritableState) {
   // Ask the connection to update state as if enough time has passed to lose
   // full writability and 5 pings went unresponded to. We'll accomplish the
   // latter by sending pings but not pumping messages.
-  for (uint32_t i = 1; i <= CONNECTION_WRITE_CONNECT_FAILURES; ++i) {
+  for (uint32_t i = 1; i <= kConnectionWriteConnectFailures; ++i) {
     ch1.Ping(i);
   }
   int unreliable_timeout_delay =
-      CONNECTION_WRITE_CONNECT_TIMEOUT + kMaxExpectedSimulatedRtt;
+      kConnectionWriteConnectTimeout.ms() + kMaxExpectedSimulatedRtt;
   ch1.conn()->UpdateState(unreliable_timeout_delay);
   EXPECT_EQ(Connection::STATE_WRITE_UNRELIABLE, ch1.conn()->write_state());
 
@@ -3160,10 +3163,11 @@ TEST_F(PortTest, TestWritableState) {
               IsRtcOk());
   // Wait long enough for a full timeout (past however long we've already
   // waited).
-  for (uint32_t i = 1; i <= CONNECTION_WRITE_CONNECT_FAILURES; ++i) {
+  for (uint32_t i = 1; i <= kConnectionWriteConnectFailures; ++i) {
     ch1.Ping(unreliable_timeout_delay + i);
   }
-  ch1.conn()->UpdateState(unreliable_timeout_delay + CONNECTION_WRITE_TIMEOUT +
+  ch1.conn()->UpdateState(unreliable_timeout_delay +
+                          kConnectionWriteTimeout.ms() +
                           kMaxExpectedSimulatedRtt);
   EXPECT_EQ(Connection::STATE_WRITE_TIMEOUT, ch1.conn()->write_state());
 
@@ -3176,8 +3180,8 @@ TEST_F(PortTest, TestWritableState) {
 }
 
 // Test writability states using the configured threshold value to replace
-// the default value given by `CONNECTION_WRITE_CONNECT_TIMEOUT` and
-// `CONNECTION_WRITE_CONNECT_FAILURES`.
+// the default value given by `kConnectionWriteConnectTimeout` and
+// `kConnectionWriteConnectFailures`.
 TEST_F(PortTest, TestWritableStateWithConfiguredThreshold) {
   ScopedFakeClock clock;
   auto port1 = CreateUdpPort(kLocalAddr1);
@@ -3261,10 +3265,11 @@ TEST_F(PortTest, TestTimeoutForNeverWritable) {
   EXPECT_EQ(Connection::STATE_WRITE_INIT, ch1.conn()->write_state());
 
   // Attempt to go directly to write timeout.
-  for (uint32_t i = 1; i <= CONNECTION_WRITE_CONNECT_FAILURES; ++i) {
+  for (uint32_t i = 1; i <= kConnectionWriteConnectFailures; ++i) {
     ch1.Ping(i);
   }
-  ch1.conn()->UpdateState(CONNECTION_WRITE_TIMEOUT + kMaxExpectedSimulatedRtt);
+  ch1.conn()->UpdateState(kConnectionWriteTimeout.ms() +
+                          kMaxExpectedSimulatedRtt);
   EXPECT_EQ(Connection::STATE_WRITE_TIMEOUT, ch1.conn()->write_state());
 }
 

@@ -43,13 +43,13 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_apply_task.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_manager.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_test_update_server.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/key_distribution/test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/policy_test_utils.h"
+#include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_apply_task.h"
 #include "chrome/browser/web_applications/test/web_app_test_observers.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/profile_waiter.h"
@@ -1145,19 +1145,12 @@ IN_PROC_BROWSER_TEST_F(IwaCacheKioskTest,
   WaitNetworkScreen();
 
   network_state_.SimulateOnline();
-  AddNewIwaToServer(
-      IwaServerConfig{kWebBundleId, GetBaseVersion(), kPublicKeyPair});
-
   ASSERT_TRUE(WaitKioskLaunched());
 }
 
-// This test times out on ASan / LSan:
-// https://ci.chromium.org/ui/p/chromium/builders/ci/Linux%20Chromium%20OS%20ASan%20LSan%20Tests%20(1)/65295/overview
-// and on a (less exotic) Linux CQ bot:
-// https://ci.chromium.org/ui/p/chromium/builders/ci/linux-chromeos-dbg/41086/overview
 // Cache is not available, the network dialog should be shown.
 IN_PROC_BROWSER_TEST_F(IwaCacheKioskTest,
-                       DISABLED_ShowNetworkDialogWhenLaunchFromCacheFailed) {
+                       ShowNetworkDialogWhenLaunchFromCacheFailed) {
   CheckPathDoesNotExist(GetCachedBundlePath(kWebBundleId, GetBaseVersion()));
   network_state_.SimulateOffline();
   RemoveAllBundlesFromUpdateServer();
@@ -1165,9 +1158,9 @@ IN_PROC_BROWSER_TEST_F(IwaCacheKioskTest,
 
   WaitNetworkScreen();
 
-  network_state_.SimulateOnline();
   AddNewIwaToServer(
       IwaServerConfig{kWebBundleId, GetBaseVersion(), kPublicKeyPair});
+  network_state_.SimulateOnline();
   ASSERT_TRUE(WaitKioskLaunched());
 }
 

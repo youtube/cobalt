@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/socket_factory.h"
+#include "system_wrappers/include/clock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -28,6 +29,7 @@ class SocketTest : public ::testing::Test {
   explicit SocketTest(SocketFactory* socket_factory)
       : kIPv4Loopback(INADDR_LOOPBACK),
         kIPv6Loopback(in6addr_loopback),
+        clock_(*Clock::GetRealTimeClock()),
         socket_factory_(socket_factory) {}
   void TestConnectIPv4();
   void TestConnectIPv6();
@@ -77,6 +79,7 @@ class SocketTest : public ::testing::Test {
   void TcpInternal(const IPAddress& loopback,
                    size_t data_size,
                    ptrdiff_t max_send_size);
+  Clock& clock_;
 
  private:
   void ConnectInternal(const IPAddress& loopback);

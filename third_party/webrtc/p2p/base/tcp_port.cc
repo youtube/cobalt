@@ -73,7 +73,6 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
@@ -299,9 +298,9 @@ void TCPPort::OnNewConnection(AsyncListenSocket* socket,
 }
 
 void TCPPort::TryCreateServerSocket() {
-  listen_socket_ = absl::WrapUnique(socket_factory()->CreateServerTcpSocket(
-      SocketAddress(Network()->GetBestIP(), 0), min_port(), max_port(),
-      false /* ssl */));
+  listen_socket_ = socket_factory()->CreateServerTcpSocket(
+      env(), SocketAddress(Network()->GetBestIP(), 0), min_port(), max_port(),
+      /*opts=*/0);
   if (!listen_socket_) {
     RTC_LOG(LS_WARNING)
         << ToString()
@@ -340,7 +339,7 @@ void TCPPort::OnReadyToSend(AsyncPacketSocket* socket) {
   Port::OnReadyToSend();
 }
 
-// TODO(qingsi): `CONNECTION_WRITE_CONNECT_TIMEOUT` is overriden by
+// TODO(qingsi): `kConnectionWriteConnectTimeout` is overriden by
 // `ice_unwritable_timeout` in IceConfig when determining the writability state.
 // Replace this constant with the config parameter assuming the default value if
 // we decide it is also applicable here.
@@ -354,7 +353,7 @@ TCPConnection::TCPConnection(const Environment& env,
       outgoing_(socket == nullptr),
       connection_pending_(false),
       pretending_to_be_writable_(false),
-      reconnection_timeout_(CONNECTION_WRITE_CONNECT_TIMEOUT) {
+      reconnection_timeout_(kConnectionWriteConnectTimeout.ms()) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK_EQ(port()->GetProtocol(),
                 PROTO_TCP);  // Needs to be TCPPort.
@@ -599,9 +598,9 @@ void TCPConnection::CreateOutgoingTcpSocket() {
 
   PacketSocketTcpOptions tcp_opts;
   tcp_opts.opts = opts;
-  socket_.reset(port()->socket_factory()->CreateClientTcpSocket(
-      SocketAddress(port()->Network()->GetBestIP(), 0),
-      remote_candidate().address(), tcp_opts));
+  socket_ = port()->socket_factory()->CreateClientTcpSocket(
+      env(), SocketAddress(port()->Network()->GetBestIP(), 0),
+      remote_candidate().address(), tcp_opts);
   if (socket_) {
     RTC_LOG(LS_VERBOSE) << ToString() << ": Connecting from "
                         << socket_->GetLocalAddress().ToSensitiveString()
@@ -627,7 +626,8 @@ void TCPConnection::ConnectSocketSignals(AsyncPacketSocket* socket) {
   // Incoming connections register SignalSentPacket and SignalReadyToSend
   // directly on the port in TCPPort::OnNewConnection.
   if (outgoing_) {
-    socket->SignalConnect.connect(this, &TCPConnection::OnConnect);
+    socket->SubscribeConnect(
+        this, [this](AsyncPacketSocket* socket) { OnConnect(socket); });
     socket->SignalSentPacket.connect(this, &TCPConnection::OnSentPacket);
     socket->SignalReadyToSend.connect(this, &TCPConnection::OnReadyToSend);
   }
@@ -648,7 +648,7 @@ void TCPConnection::ConnectSocketSignals(AsyncPacketSocket* socket) {
 void TCPConnection::DisconnectSocketSignals(AsyncPacketSocket* socket) {
   if (outgoing_) {
     // Incoming connections do not register these signals in TCPConnection.
-    socket->SignalConnect.disconnect(this);
+    socket->UnsubscribeConnect(this);
     socket->SignalReadyToSend.disconnect(this);
     socket->SignalSentPacket.disconnect(this);
   }

@@ -251,6 +251,7 @@ rtc_library("random") {
   deps = [
     ":checks",
     ":safe_conversions",
+    "//third_party/abseil-cpp/absl/random",
   ]
 }
 
@@ -1032,7 +1033,11 @@ rtc_library("threading") {
 
 rtc_source_set("socket_factory") {
   sources = [ "socket_factory.h" ]
-  deps = [ ":socket" ]
+  deps = [
+    ":socket",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/memory",
+  ]
 }
 
 rtc_library("async_socket") {
@@ -1307,9 +1312,12 @@ rtc_library("async_tcp_socket") {
     ":socket_address",
     ":timeutils",
     "../api:array_view",
+    "../api/environment",
     "../api/units:timestamp",
     "network:received_packet",
     "network:sent_packet",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/memory",
   ]
 }
 
@@ -1330,11 +1338,13 @@ rtc_library("async_udp_socket") {
     ":socket_factory",
     ":timeutils",
     "../api:sequence_checker",
+    "../api/environment",
     "../api/units:time_delta",
     "../api/units:timestamp",
     "network:received_packet",
     "network:sent_packet",
     "system:no_unique_address",
+    "//third_party/abseil-cpp/absl/base:nullability",
   ]
 }
 
@@ -1349,6 +1359,7 @@ rtc_library("async_packet_socket") {
     ":checks",
     ":dscp",
     ":macromagic",
+    ":sigslot_trampoline",
     ":socket",
     ":socket_address",
     ":timeutils",
@@ -1387,6 +1398,7 @@ if (rtc_include_tests) {
       ":rtc_base_tests_utils",
       ":socket",
       ":socket_address",
+      "../test:create_test_environment",
       "../test:test_support",
       "network:received_packet",
       "third_party/sigslot",
@@ -1722,6 +1734,7 @@ rtc_library("testclient") {
     ":timeutils",
     "../api/units:time_delta",
     "../api/units:timestamp",
+    "../test:wait_until",
     "network:received_packet",
     "synchronization:mutex",
     "third_party/sigslot",
@@ -2312,6 +2325,7 @@ if (rtc_include_tests) {
         "../api/units:time_delta",
         "../api/units:timestamp",
         "../system_wrappers",
+        "../test:create_test_environment",
         "../test:create_test_field_trials",
         "../test:fileutils",
         "../test:rtc_expect_death",

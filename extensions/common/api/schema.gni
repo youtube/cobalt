@@ -11,10 +11,11 @@ import("//extensions/buildflags/buildflags.gni")
 extensions_api_schema_files_ = [
   "alarms.webidl",
   "declarative_net_request.idl",
-  "dns.idl",
+  "dns.webidl",
   "events.json",
   "extension_types.json",
   "file_handlers.idl",
+  "icon_variants.idl",
   "i18n.json",
   "idle.json",
   "management.json",
@@ -63,14 +64,13 @@ if (enable_extensions) {
     "bluetooth_private.idl",
     "bluetooth_socket.idl",
     "bluetooth.webidl",
-    "cec_private.idl",
+    "cec_private.webidl",
     "clipboard.idl",
-    "extension_options_internal.idl",
+    "extension_options_internal.webidl",
     "feedback_private.idl",
     "file_system.idl",
     "guest_view_internal.json",
     "hid.idl",
-    "icon_variants.idl",
     "mime_handler_private.idl",
     "mime_handler_view_guest_internal.json",
     "mojo_private.idl",
@@ -87,15 +87,15 @@ if (enable_extensions) {
     "system_storage.idl",
     "usb.idl",
     "virtual_keyboard_private.json",
-    "virtual_keyboard.idl",
+    "virtual_keyboard.webidl",
     "web_view_internal.json",
   ]
 
   if (is_chromeos) {
     extensions_api_schema_files_ += [
-      "diagnostics.idl",
+      "diagnostics.webidl",
       "media_perception_private.idl",
-      "webcam_private.idl",
+      "webcam_private.webidl",
     ]
   }
 }
@@ -107,12 +107,11 @@ if (enable_extensions) {
 if (enable_desktop_android_extensions) {
   extensions_types_only_schema_files_ += [
     "clipboard.idl",
-    "icon_variants.idl",
     "scripts_internal.idl",
     "system_display.idl",
     "usb.idl",
     "virtual_keyboard_private.json",
-    "virtual_keyboard.idl",
+    "virtual_keyboard.webidl",
   ]
 }
 

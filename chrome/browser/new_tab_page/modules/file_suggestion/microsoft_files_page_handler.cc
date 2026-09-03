@@ -11,6 +11,7 @@
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service_factory.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/file_suggestion.mojom.h"
 #include "chrome/browser/new_tab_page/modules/microsoft_modules_helper.h"
+#include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/grit/generated_resources.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
@@ -164,7 +165,7 @@ const char kNonInsightsRequestBody[] =
     "id": "shared",
     "method": "GET",
     "url": "/me/drive/sharedWithMe?$select=id,name,webUrl,file,)"
-    R"(lastModifiedDateTime,remoteItem&$orderBy=lastModifiedDateTime+desc"
+    R"(remoteItem&$orderBy=lastModifiedDateTime+desc"
   }]})";
 
 const char kNonInsightsFakeData[] =
@@ -311,6 +312,10 @@ const char kCombinedRequestBody[] =
 
 std::string GetTimeNowAsString() {
   return TimeFormatAsIso8601(base::Time::Now());
+}
+
+std::string GetBoolAsString(bool x) {
+  return x ? "true" : "false";
 }
 
 // The number of responses that should be found in the response body of JSON
@@ -540,6 +545,8 @@ std::vector<file_suggestion::mojom::FilePtr>
 MicrosoftFilesPageHandler::GetTrendingFiles(base::Value::Dict result) {
   auto* suggestions = result.FindList("value");
   if (!suggestions) {
+    LogModuleError(ntp_features::kNtpSharepointModule,
+                   "Content Error: Trending Files missing 'value' field");
     request_result_ = MicrosoftFilesRequestResult::kContentError;
     return std::vector<file_suggestion::mojom::FilePtr>();
   }
@@ -565,8 +572,16 @@ MicrosoftFilesPageHandler::GetTrendingFiles(base::Value::Dict result) {
         "resourceVisualization.mediaType");
 
     if (!id || !title || !url || !mime_type) {
-      request_result_ = MicrosoftFilesRequestResult::kContentError;
-      return std::vector<file_suggestion::mojom::FilePtr>();
+      LogModuleError(
+          ntp_features::kNtpSharepointModule,
+          base::StringPrintf(
+              "Content Error: Trending File missing field ('id': %s, "
+              "'resourceVisualization.title': %s, 'resourceReference.webUrl': "
+              "%s, "
+              "'resourceVisualization.mediaType': %s)",
+              GetBoolAsString(!id), GetBoolAsString(!title),
+              GetBoolAsString(!url), GetBoolAsString(!mime_type)));
+      continue;
     }
 
     std::string file_extension =
@@ -636,8 +651,6 @@ MicrosoftFilesPageHandler::GetNonInsightFiles(const base::Value::List* values,
     const std::string* last_opened_time_str =
         suggestion_dict.FindStringByDottedPath(
             "fileSystemInfo.lastAccessedDateTime");
-    const std::string* last_modified_time_str =
-        suggestion_dict.FindString("lastModifiedDateTime");
     const std::string* shared_by = suggestion_dict.FindStringByDottedPath(
         "remoteItem.shared.sharedBy.user.displayName");
     const std::string* shared_time_str = suggestion_dict.FindStringByDottedPath(
@@ -664,11 +677,21 @@ MicrosoftFilesPageHandler::GetNonInsightFiles(const base::Value::List* values,
             : shared_by && shared_time_str &&
                   base::Time::FromUTCString(shared_time_str->c_str(),
                                             &sort_time);
-    if (!id || !title || !item_url || !last_modified_time_str ||
-        !suggestion_has_formatted_time) {
-      request_result_ = MicrosoftFilesRequestResult::kContentError;
-      return std::vector<
-          std::pair<base::Time, file_suggestion::mojom::FilePtr>>();
+    if (!id || !title || !item_url || !suggestion_has_formatted_time) {
+      LogModuleError(
+          ntp_features::kNtpSharepointModule,
+          base::StringPrintf(
+              "Content Error: Recent/Shared File ('response_id': %s) missing "
+              "field "
+              "('id': %s, 'name': %s, 'webUrl': %s,"
+              "'fileSystemInfo.lastAccessedDateTime': %s, "
+              "'remoteItem.shared.sharedBy.user.displayName': %s, "
+              "'remoteItem.shared.sharedDateTime': %s)",
+              response_id, GetBoolAsString(!id), GetBoolAsString(!title),
+              GetBoolAsString(!item_url),
+              GetBoolAsString(!last_opened_time_str),
+              GetBoolAsString(!shared_by), GetBoolAsString(!shared_time_str)));
+      continue;
     }
 
     std::string file_extension =
@@ -729,6 +752,9 @@ MicrosoftFilesPageHandler::GetRecentlyUsedAndSharedFiles(
     base::Value::Dict result) {
   auto* responses = result.FindList("responses");
   if (!responses) {
+    LogModuleError(
+        ntp_features::kNtpSharepointModule,
+        "Content Error: Recent/Shared response body missing 'responses' field");
     request_result_ = MicrosoftFilesRequestResult::kContentError;
     return std::vector<file_suggestion::mojom::FilePtr>();
   }
@@ -736,6 +762,9 @@ MicrosoftFilesPageHandler::GetRecentlyUsedAndSharedFiles(
   // The response body should contain a list that has 2 dictionaries - one for
   // each request, with their own lists containing file data.
   if (responses->size() != kNonInsightsRequiredResponseSize) {
+    LogModuleError(ntp_features::kNtpSharepointModule,
+                   "Content Error: Recent/Shared response body has incorrect "
+                   "'responses' length");
     request_result_ = MicrosoftFilesRequestResult::kContentError;
     return std::vector<file_suggestion::mojom::FilePtr>();
   }
@@ -748,6 +777,9 @@ MicrosoftFilesPageHandler::GetRecentlyUsedAndSharedFiles(
     const std::string* response_id = response_dict.FindString("id");
     auto* suggestions = response_dict.FindListByDottedPath("body.value");
     if (!response_id || !suggestions) {
+      LogModuleError(ntp_features::kNtpSharepointModule,
+                     "Content Error: Recent/Shared response missing 'id' or "
+                     "'body.value' field");
       request_result_ = MicrosoftFilesRequestResult::kContentError;
       return std::vector<file_suggestion::mojom::FilePtr>();
     }
@@ -847,6 +879,9 @@ MicrosoftFilesPageHandler::GetAggregatedFileSuggestions(
     base::Value::Dict result) {
   auto* responses = result.FindList("responses");
   if (!responses) {
+    LogModuleError(
+        ntp_features::kNtpSharepointModule,
+        "Content Error: Aggrefated response body missing 'responses' field");
     request_result_ = MicrosoftFilesRequestResult::kContentError;
     return std::vector<file_suggestion::mojom::FilePtr>();
   }
@@ -854,6 +889,9 @@ MicrosoftFilesPageHandler::GetAggregatedFileSuggestions(
   // The response body should contain a list that has a dictionary for each
   // request, with their own lists containing file data.
   if (responses->size() != kCombinedSuggestionsRequiredResponseSize) {
+    LogModuleError(ntp_features::kNtpSharepointModule,
+                   "Content Error: Aggregated response body 'responses' field "
+                   "incorrect length");
     request_result_ = MicrosoftFilesRequestResult::kContentError;
     return std::vector<file_suggestion::mojom::FilePtr>();
   }
@@ -867,6 +905,8 @@ MicrosoftFilesPageHandler::GetAggregatedFileSuggestions(
     auto response_body = response_dict.FindDict("body")->Clone();
     auto* body_value = response_dict.FindListByDottedPath("body.value");
     if (!response_id) {
+      LogModuleError(ntp_features::kNtpSharepointModule,
+                     "Content Error: Aggregated response missing 'id' field");
       request_result_ = MicrosoftFilesRequestResult::kContentError;
       return std::vector<file_suggestion::mojom::FilePtr>();
     } else if (*response_id == "trending") {

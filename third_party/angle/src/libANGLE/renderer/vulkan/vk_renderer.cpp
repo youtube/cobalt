@@ -483,6 +483,29 @@ constexpr vk::SkippedSyncvalMessage kSkippedSyncvalMessages[] = {
       "VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT(VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT)",
       "prior_access = SYNC_IMAGE_LAYOUT_TRANSITION", "command = vkCmdDrawIndexed",
       "prior_command = vkCmdEndRenderPass"}},
+    // https://anglebug.com/443095908
+    {"SYNC-HAZARD-WRITE-AFTER-READ",
+     false,
+     {"message_type = BufferCopyError", "hazard_type = WRITE_AFTER_READ",
+      "access = "
+      "VK_PIPELINE_STAGE_2_COPY_BIT(VK_ACCESS_2_TRANSFER_WRITE_BIT)",
+      "prior_access = "
+      "VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT)",
+      "command = vkCmdCopyImageToBuffer", "prior_command = vkCmdDraw"}},
+    {"SYNC-HAZARD-WRITE-AFTER-READ",
+     false,
+     {"message_type = BufferCopyError", "hazard_type = WRITE_AFTER_READ",
+      "access = "
+      "VK_PIPELINE_STAGE_2_COPY_BIT(VK_ACCESS_2_TRANSFER_WRITE_BIT)",
+      "prior_access = "
+      "VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT)",
+      "command = vkCmdCopyImageToBuffer", "prior_command = vkCmdDrawIndexed"}},
+    {"SYNC-HAZARD-WRITE-AFTER-READ",
+     false,
+     {"message_type = SubmitTimeError", "hazard_type = WRITE_AFTER_READ",
+      "prior_access = "
+      "VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT)",
+      "read_barriers = 0", "command = vkCmdCopyImageToBuffer", "prior_command = vkCmdDrawIndexed"}},
 };
 
 // Messages that shouldn't be generated if both loadOp=NONE and storeOp=NONE are supported,
@@ -2741,6 +2764,7 @@ angle::Result Renderer::initializeMemoryAllocator(vk::ErrorContext *context)
 // - VK_EXT_device_fault                               deviceFault (feature),
 //                                                     deviceFaultVendorBinary (feature)
 // - VK_EXT_astc_decode_mode                           decodeModeSharedExponent (feature)
+// - VK_KHR_unified_image_layouts                      unifiedImageLayouts (feature)
 // - VK_EXT_global_priority_query                      globalPriorityQuery (feature)
 // - VK_EXT_external_memory_host                       minImportedHostPointerAlignment (property)
 //
@@ -2914,6 +2938,11 @@ void Renderer::appendDeviceExtensionFeaturesNotPromoted(
         vk::AddToPNextChain(deviceFeatures, &mDynamicRenderingLocalReadFeatures);
     }
 
+    if (ExtensionFound(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME, deviceExtensionNames))
+    {
+        vk::AddToPNextChain(deviceFeatures, &mUnifiedImageLayoutsFeatures);
+    }
+
     if (ExtensionFound(VK_EXT_BLEND_OPERATION_ADVANCED_EXTENSION_NAME, deviceExtensionNames))
     {
         vk::AddToPNextChain(deviceFeatures, &mBlendOperationAdvancedFeatures);
@@ -3011,6 +3040,7 @@ void Renderer::appendDeviceExtensionFeaturesPromotedTo11(
 //                                          shaderSignedZeroInfNanPreserveFloat32 (property)
 //                                          shaderSignedZeroInfNanPreserveFloat64 (property)
 // - VK_KHR_uniform_buffer_standard_layout: uniformBufferStandardLayout (feature)
+// - VK_KHR_buffer_device_address:          bufferDeviceAddress (feature)
 //
 // Note that supportedDepthResolveModes is used just to check if the property struct is populated.
 // ANGLE always uses VK_RESOLVE_MODE_SAMPLE_ZERO_BIT for both depth and stencil, and support for
@@ -3069,6 +3099,11 @@ void Renderer::appendDeviceExtensionFeaturesPromotedTo12(
     if (ExtensionFound(VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME, deviceExtensionNames))
     {
         vk::AddToPNextChain(deviceFeatures, &mUniformBufferStandardLayoutFeatures);
+    }
+
+    if (ExtensionFound(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, deviceExtensionNames))
+    {
+        vk::AddToPNextChain(deviceFeatures, &mBufferDeviceAddressFeatures);
     }
 }
 
@@ -3352,6 +3387,10 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mPhysicalDeviceAstcDecodeFeatures.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ASTC_DECODE_FEATURES_EXT;
 
+    mUnifiedImageLayoutsFeatures = {};
+    mUnifiedImageLayoutsFeatures.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR;
+
     mShaderIntegerDotProductFeatures = {};
     mShaderIntegerDotProductFeatures.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES;
@@ -3367,6 +3406,10 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mExternalMemoryHostProperties = {};
     mExternalMemoryHostProperties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT;
+
+    mBufferDeviceAddressFeatures = {};
+    mBufferDeviceAddressFeatures.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
 
 #if defined(ANGLE_PLATFORM_ANDROID)
     mExternalFormatResolveFeatures = {};
@@ -3456,10 +3499,12 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mMaintenance3Properties.pNext                     = nullptr;
     mFaultFeatures.pNext                              = nullptr;
     mPhysicalDeviceAstcDecodeFeatures.pNext           = nullptr;
+    mUnifiedImageLayoutsFeatures.pNext                = nullptr;
     mShaderIntegerDotProductFeatures.pNext            = nullptr;
     mShaderIntegerDotProductProperties.pNext          = nullptr;
     mPhysicalDeviceGlobalPriorityQueryFeatures.pNext  = nullptr;
     mExternalMemoryHostProperties.pNext               = nullptr;
+    mBufferDeviceAddressFeatures.pNext                = nullptr;
 #if defined(ANGLE_PLATFORM_ANDROID)
     mExternalFormatResolveFeatures.pNext   = nullptr;
     mExternalFormatResolveProperties.pNext = nullptr;
@@ -3774,6 +3819,12 @@ void Renderer::enableDeviceExtensionsNotPromoted(const vk::ExtensionNameList &de
         vk::AddToPNextChain(&mEnabledFeatures, &mDynamicRenderingLocalReadFeatures);
     }
 
+    if (getFeatures().supportsUnifiedImageLayouts.enabled)
+    {
+        mEnabledDeviceExtensions.push_back(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
+        vk::AddToPNextChain(&mEnabledFeatures, &mUnifiedImageLayoutsFeatures);
+    }
+
     if (getFeatures().supportsImageCompressionControl.enabled)
     {
         mEnabledDeviceExtensions.push_back(VK_EXT_IMAGE_COMPRESSION_CONTROL_EXTENSION_NAME);
@@ -3877,6 +3928,7 @@ void Renderer::enableDeviceExtensionsPromotedTo11(const vk::ExtensionNameList &d
 // - VK_KHR_spirv_1_4
 // - VK_KHR_sampler_mirror_clamp_to_edge
 // - VK_KHR_depth_stencil_resolve
+// - VK_KHR_buffer_device_address
 //
 void Renderer::enableDeviceExtensionsPromotedTo12(const vk::ExtensionNameList &deviceExtensionNames)
 {
@@ -3954,6 +4006,11 @@ void Renderer::enableDeviceExtensionsPromotedTo12(const vk::ExtensionNameList &d
     {
         mEnabledDeviceExtensions.push_back(VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME);
         vk::AddToPNextChain(&mEnabledFeatures, &mUniformBufferStandardLayoutFeatures);
+    }
+    if (mFeatures.supportsBufferDeviceAddress.enabled)
+    {
+        mEnabledDeviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+        vk::AddToPNextChain(&mEnabledFeatures, &mBufferDeviceAddressFeatures);
     }
 }
 
@@ -4118,6 +4175,10 @@ void Renderer::initDeviceExtensionEntryPoints()
     if (mFeatures.supportsHostImageCopy.enabled)
     {
         InitHostImageCopyFunctions(mDevice);
+    }
+    if (mFeatures.supportsImageCompressionControl.enabled)
+    {
+        InitImageCompressionControlFunctions(mDevice);
     }
     if (mFeatures.supportsVertexInputDynamicState.enabled)
     {
@@ -6317,6 +6378,11 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // currently disabled.
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsClipCullDistanceInGSAndTS, false);
 
+    // http://anglebug.com/442950569
+    // feature is currently experimental (i.e. dont default enable even if device supports it)
+    // keep it as an opt-in override instead
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsBufferDeviceAddress, false);
+
     // Disable memory report feature overrides if extension is not supported.
     if ((mFeatures.logMemoryReportCallbacks.enabled || mFeatures.logMemoryReportStats.enabled) &&
         !mMemoryReportFeatures.deviceMemoryReport)
@@ -6361,9 +6427,17 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
                             mPhysicalDeviceAstcDecodeFeatures.decodeModeSharedExponent == VK_TRUE &&
                                 mFeatures.supportsAstcDecodeMode.enabled);
 
-    ANGLE_FEATURE_CONDITION(
-        &mFeatures, convertLowpAndMediumpFloatUniformsTo16Bits,
-        m16BitStorageFeatures.uniformAndStorageBuffer16BitAccess == VK_TRUE && false);
+    // http://anglebug.com/440941211:
+    // Disable the feature on Windows Intel because some shaders using 16-bit floats crash
+    // http://crbug.com/443182226:
+    // Temporarily disable the feature because webgl_conformance_vulkan_passthrough_tests are
+    // failing.
+    ANGLE_FEATURE_CONDITION(&mFeatures, convertLowpAndMediumpFloatUniformsTo16Bits,
+                            m16BitStorageFeatures.uniformAndStorageBuffer16BitAccess == VK_TRUE &&
+                                !(IsWindows() && isIntel) && false);
+
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsUnifiedImageLayouts,
+                            mUnifiedImageLayoutsFeatures.unifiedImageLayouts == VK_TRUE);
 
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsGlobalPriority,

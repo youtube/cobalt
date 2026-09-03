@@ -117,6 +117,8 @@ if (rtc_include_tests) {
       "../../rtc_base:task_queue_for_test",
       "../../rtc_base:threading",
       "../../rtc_base:timeutils",
+      "../../system_wrappers",
+      "../../test:create_test_environment",
       "../../test:rtc_expect_death",
       "../../test:test_support",
       "../../test/time_controller",

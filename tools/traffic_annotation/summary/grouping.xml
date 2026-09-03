@@ -57,7 +57,6 @@ after discussions on the right group.
       <annotation id="fwupd_firmware_update"/>
       <annotation id="gaia_reauth_token_fetcher"/>
       <annotation id="help_content_provider"/>
-      <annotation id="image_downloader"/>
       <annotation id="ime_url_downloader"/>
       <annotation id="kiosk_app_icon"/>
       <annotation id="launcher_item_suggest"/>
@@ -388,6 +387,8 @@ after discussions on the right group.
       <annotation id="enterprise_logo_fetcher_for_browser"/>
       <annotation id="devtools_gdp_service"/>
       <annotation id="save_to_drive"/>
+      <annotation id="corp_messaging_client_receive_client_messages"/>
+      <annotation id="corp_messaging_client_send_host_message"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">

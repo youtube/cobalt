@@ -31,8 +31,10 @@ import org.chromium.build.annotations.Nullable;
  * ColorStateList is set, only the default color will be used.
  */
 @NullMarked
-public class ChromeBasePreference extends Preference {
+public class ChromeBasePreference extends Preference implements CustomStyledPreference {
     private final @Nullable ColorStateList mIconTint;
+    private final int mBackgroundStyle;
+    private final int mBackgroundColor;
     private @Nullable ManagedPreferenceDelegate mManagedPrefDelegate;
 
     /** Indicates if the preference uses a custom layout. */
@@ -58,6 +60,11 @@ public class ChromeBasePreference extends Preference {
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ChromeBasePreference);
         mIconTint = a.getColorStateList(R.styleable.ChromeBasePreference_iconTint);
         mUserAction = a.getString(R.styleable.ChromeBasePreference_userAction);
+        mBackgroundStyle =
+                a.getInt(
+                        R.styleable.ChromeBasePreference_backgroundStyle, BackgroundStyle.STANDARD);
+        mBackgroundColor =
+                a.getInt(R.styleable.ChromeBasePreference_backgroundColor, DEFAULT_COLOR);
         a.recycle();
 
         mHasCustomLayout = ManagedPreferencesUtils.isCustomLayoutApplied(context, attrs);
@@ -107,5 +114,16 @@ public class ChromeBasePreference extends Preference {
             RecordUserAction.record(mUserAction);
         }
         super.onClick();
+    }
+
+    /** Returns the background style for the preference. */
+    @Override
+    public int getCustomBackgroundStyle() {
+        return mBackgroundStyle;
+    }
+
+    @Override
+    public int getCustomBackgroundColor() {
+        return mBackgroundColor;
     }
 }

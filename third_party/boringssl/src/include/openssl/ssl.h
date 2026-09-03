@@ -5354,12 +5354,12 @@ OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *ssl, int idx, int *psign,
 // Use |SSL_SESSION_to_bytes| instead.
 OPENSSL_EXPORT int i2d_SSL_SESSION(SSL_SESSION *in, uint8_t **pp);
 
-// d2i_SSL_SESSION parses a serialized session from the |length| bytes pointed
-// to by |*pp|, as described in |d2i_SAMPLE|.
+// d2i_SSL_SESSION parses a serialized session from the |len| bytes pointed to
+// by |*inp|, as described in |d2i_SAMPLE|.
 //
 // Use |SSL_SESSION_from_bytes| instead.
-OPENSSL_EXPORT SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const uint8_t **pp,
-                                            long length);
+OPENSSL_EXPORT SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **out,
+                                            const uint8_t **inp, long len);
 
 // i2d_SSL_SESSION_bio serializes |session| and writes the result to |bio|. It
 // returns the number of bytes written on success and <= 0 on error.

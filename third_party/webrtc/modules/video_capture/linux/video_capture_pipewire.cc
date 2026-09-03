@@ -47,6 +47,7 @@
 #include "rtc_base/race_checker.h"
 #include "rtc_base/sanitizer.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 namespace videocapturemodule {
@@ -92,8 +93,9 @@ uint32_t VideoCaptureModulePipeWire::VideoTypeToPipeWireRawFormat(
 }
 
 VideoCaptureModulePipeWire::VideoCaptureModulePipeWire(
+    Clock* clock,
     VideoCaptureOptions* options)
-    : VideoCaptureImpl(),
+    : VideoCaptureImpl(clock),
       session_(options->pipewire_session()),
       initialized_(false),
       started_(false) {}

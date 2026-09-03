@@ -1307,7 +1307,7 @@ func (b *jobBuilder) compile() string {
 					}
 				}
 				if b.extraConfig("SwiftShader") {
-					b.asset("cmake_linux")
+					b.usesCMake()
 				}
 				b.asset("ccache_linux")
 				b.usesCCache()
@@ -1650,7 +1650,11 @@ func (b *taskBuilder) commonTestPerfAssets() {
 	if b.os("Android", "ChromeOS", "iOS") {
 		b.asset("skp", "svg", "skimage")
 	} else if b.extraConfig("OldestSupportedSkpVersion") {
-		b.assetWithVersion("skp", oldestSupportedSkpVersion)
+		b.cipd(&specs.CipdPackage{
+			Name:    "skia/bots/skp",
+			Path:    "skp",
+			Version: fmt.Sprintf("skp_min_version:%d", oldestSupportedSkpVersion),
+		})
 	} else {
 		// for desktop machines
 		b.asset("skimage", "skp", "svg")

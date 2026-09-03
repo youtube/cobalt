@@ -46,6 +46,7 @@
 #include "rtc_base/physical_socket_server.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -83,14 +84,15 @@ class PeerConnectionEndToEndBaseTest : public sigslot::has_slots<>,
       DataChannelList;
 
   explicit PeerConnectionEndToEndBaseTest(SdpSemantics sdp_semantics)
-      : network_thread_(std::make_unique<webrtc::Thread>(&pss_)),
+      : env_(webrtc::CreateTestEnvironment()),
+        network_thread_(std::make_unique<webrtc::Thread>(&pss_)),
         worker_thread_(webrtc::Thread::Create()) {
     RTC_CHECK(network_thread_->Start());
     RTC_CHECK(worker_thread_->Start());
     caller_ = webrtc::make_ref_counted<PeerConnectionTestWrapper>(
-        "caller", &pss_, network_thread_.get(), worker_thread_.get());
+        "caller", env_, &pss_, network_thread_.get(), worker_thread_.get());
     callee_ = webrtc::make_ref_counted<PeerConnectionTestWrapper>(
-        "callee", &pss_, network_thread_.get(), worker_thread_.get());
+        "callee", env_, &pss_, network_thread_.get(), worker_thread_.get());
     webrtc::PeerConnectionInterface::IceServer ice_server;
     ice_server.uri = "stun:stun.l.google.com:19302";
     config_.servers.push_back(ice_server);
@@ -253,6 +255,7 @@ class PeerConnectionEndToEndBaseTest : public sigslot::has_slots<>,
  protected:
   webrtc::AutoThread main_thread_;
   webrtc::PhysicalSocketServer pss_;
+  webrtc::Environment env_;
   std::unique_ptr<webrtc::Thread> network_thread_;
   std::unique_ptr<webrtc::Thread> worker_thread_;
   webrtc::scoped_refptr<PeerConnectionTestWrapper> caller_;

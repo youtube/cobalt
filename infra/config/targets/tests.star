@@ -1308,7 +1308,7 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
-    name = "gpu_memory_buffer_impl_tests",
+    name = "mappable_buffer_tests",
     mixins = [
         "gpu_gtest_common_args",
     ],
@@ -1713,10 +1713,6 @@ targets.tests.gtest_test(
 
 targets.tests.gtest_test(
     name = "leveldb_unittests",
-)
-
-targets.tests.gtest_test(
-    name = "libcups_unittests",
 )
 
 targets.tests.gtest_test(

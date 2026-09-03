@@ -103,6 +103,7 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "url/url_constants.h"
 
 namespace blink {
@@ -1109,10 +1110,9 @@ void ResourceLoader::DidReceiveTransferSizeUpdate(int transfer_size_diff) {
 }
 
 void ResourceLoader::DidFinishLoadingFirstPartInMultipart() {
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      TRACE_DISABLED_BY_DEFAULT("network"), "ResourceLoad",
-      TRACE_ID_WITH_SCOPE("BlinkResourceID",
-                          TRACE_ID_LOCAL(resource_->InspectorId())),
+  TRACE_EVENT_END(
+      TRACE_DISABLED_BY_DEFAULT("network"),
+      perfetto::NamedTrack("BlinkResourceID", resource_->InspectorId()),
       "outcome", RequestOutcomeToString(RequestOutcome::kSuccess));
 
   fetcher_->HandleLoaderFinish(resource_.Get(), base::TimeTicks(),
@@ -1159,10 +1159,9 @@ void ResourceLoader::DidFinishLoading(base::TimeTicks response_end_time,
   deferred_finish_loading_info_ = std::nullopt;
   finished_ = true;
 
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      TRACE_DISABLED_BY_DEFAULT("network"), "ResourceLoad",
-      TRACE_ID_WITH_SCOPE("BlinkResourceID",
-                          TRACE_ID_LOCAL(resource_->InspectorId())),
+  TRACE_EVENT_END(
+      TRACE_DISABLED_BY_DEFAULT("network"),
+      perfetto::NamedTrack("BlinkResourceID", resource_->InspectorId()),
       "outcome", RequestOutcomeToString(RequestOutcome::kSuccess));
 
   fetcher_->HandleLoaderFinish(resource_.Get(), response_end_time,
@@ -1246,10 +1245,9 @@ void ResourceLoader::HandleError(const ResourceError& error) {
   deferred_finish_loading_info_ = std::nullopt;
   finished_ = true;
 
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      TRACE_DISABLED_BY_DEFAULT("network"), "ResourceLoad",
-      TRACE_ID_WITH_SCOPE("BlinkResourceID",
-                          TRACE_ID_LOCAL(resource_->InspectorId())),
+  TRACE_EVENT_END(
+      TRACE_DISABLED_BY_DEFAULT("network"),
+      perfetto::NamedTrack("BlinkResourceID", resource_->InspectorId()),
       "outcome", RequestOutcomeToString(RequestOutcome::kFail));
 
   // Set Now() as the response time, in case a more accurate one wasn't set in
@@ -1404,18 +1402,7 @@ bool ResourceLoader::ShouldBeKeptAliveWhenDetached() const {
   if (base::FeatureList::IsEnabled(
           blink::features::kKeepAliveInBrowserMigration) &&
       resource_->GetResourceRequest().GetKeepalive()) {
-    if (resource_->GetResourceRequest().GetAttributionReportingEligibility() ==
-        network::mojom::AttributionReportingEligibility::kUnset) {
-      // When enabled, non-attribution reporting Fetch keepalive requests should
-      // not be kept alive by renderer.
-      return false;
-    }
-    if (base::FeatureList::IsEnabled(
-            blink::features::kAttributionReportingInBrowserMigration)) {
-      // Attribution reporting keepalive requests with its owned migration
-      // enabled should not be kept alive by renderer.
-      return false;
-    }
+    return false;
   }
 
   return resource_->GetResourceRequest().GetKeepalive() &&

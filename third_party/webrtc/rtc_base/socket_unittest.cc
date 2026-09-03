@@ -36,7 +36,6 @@
 #include "rtc_base/test_utils.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -424,8 +423,8 @@ void SocketTest::ConnectWithDnsLookupFailInternal(const IPAddress& loopback) {
   EXPECT_EQ(0, client->Connect(bogus_dns_addr));
 
   // Wait for connection to fail (EHOSTNOTFOUND).
-  bool dns_lookup_finished = false;
-  WAIT_(client->GetState() == Socket::CS_CLOSED, 5000, dns_lookup_finished);
+  bool dns_lookup_finished =
+      WaitUntil([&] { return client->GetState() == Socket::CS_CLOSED; });
   if (!dns_lookup_finished) {
     RTC_LOG(LS_WARNING) << "Skipping test; DNS resolution took longer than 5 "
                            "seconds.";
@@ -1096,10 +1095,10 @@ void SocketTest::UdpReadyToSend(const IPAddress& loopback) {
   client->SetOption(Socket::OPT_SNDBUF, send_buffer_size);
 
   int error = 0;
-  uint32_t start_ms = Time();
+  uint32_t start_ms = clock_.TimeInMilliseconds();
   int sent_packet_num = 0;
   int expected_error = EWOULDBLOCK;
-  while (start_ms + 5000 > Time()) {
+  while (start_ms + 5000 > clock_.TimeInMilliseconds()) {
     int ret = client->SendTo(test_packet.get(), test_packet_size, test_addr);
     ++sent_packet_num;
     if (ret != test_packet_size) {
@@ -1220,7 +1219,7 @@ void SocketTest::SocketRecvTimestamp(const IPAddress& loopback) {
   SocketAddress address = socket->GetLocalAddress();
   sink.Monitor(socket.get());
 
-  int64_t send_time_1 = TimeMicros();
+  int64_t send_time_1 = clock_.TimeInMicroseconds();
   socket->SendTo("foo", 3, address);
 
   // Wait until data is available.
@@ -1234,7 +1233,7 @@ void SocketTest::SocketRecvTimestamp(const IPAddress& loopback) {
   const int64_t kTimeBetweenPacketsMs = 100;
   Thread::SleepMs(kTimeBetweenPacketsMs);
 
-  int64_t send_time_2 = TimeMicros();
+  int64_t send_time_2 = clock_.TimeInMicroseconds();
   socket->SendTo("bar", 3, address);
   // Wait until data is available.
   EXPECT_THAT(WaitUntil([&] { return sink.Check(socket.get(), SSE_READ); },
@@ -1268,14 +1267,16 @@ void SocketTest::UdpSocketRecvTimestampUseRtcEpoch(const IPAddress& loopback) {
   client2->SendTo("foo", 3, address);
   std::unique_ptr<TestClient::Packet> packet_1 = client1->NextPacket(10000);
   ASSERT_TRUE(packet_1 != nullptr);
-  EXPECT_NEAR(packet_1->packet_time->us(), TimeMicros(), 1000'000);
+  EXPECT_NEAR(packet_1->packet_time->us(), clock_.TimeInMicroseconds(),
+              1000'000);
 
   Thread::SleepMs(100);
   client2->SendTo("bar", 3, address);
   std::unique_ptr<TestClient::Packet> packet_2 = client1->NextPacket(10000);
   ASSERT_TRUE(packet_2 != nullptr);
   EXPECT_GT(packet_2->packet_time->us(), packet_1->packet_time->us());
-  EXPECT_NEAR(packet_2->packet_time->us(), TimeMicros(), 1000'000);
+  EXPECT_NEAR(packet_2->packet_time->us(), clock_.TimeInMicroseconds(),
+              1000'000);
 }
 
 void SocketTest::SocketSendRecvWithEcn(const IPAddress& loopback) {

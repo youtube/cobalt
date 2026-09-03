@@ -1329,7 +1329,7 @@ TEST_F(PeerConnectionSignalingUnifiedPlanTest,
 
   // Upon rolling back to "stable", a new negotiation needed event will be
   // generated that is not suppressed.
-  callee->SetLocalDescription(CreateSessionDescription(SdpType::kRollback, ""));
+  callee->SetLocalDescription(CreateRollbackSessionDescription());
   EXPECT_TRUE(callee->observer()->has_negotiation_needed_event());
   EXPECT_TRUE(callee->pc()->ShouldFireNegotiationNeededEvent(
       callee->observer()->latest_negotiation_needed_event()));

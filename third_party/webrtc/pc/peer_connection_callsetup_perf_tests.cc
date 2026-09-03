@@ -21,6 +21,7 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/data_channel_interface.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/rtc_error.h"
@@ -37,6 +38,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -60,7 +62,8 @@ class PeerConnectionDataChannelOpenTest
                      /*dtls_role=*/ConnectionRole>> {
  public:
   PeerConnectionDataChannelOpenTest()
-      : background_thread_(std::make_unique<Thread>(&vss_)) {
+      : env_(CreateTestEnvironment()),
+        background_thread_(std::make_unique<Thread>(&vss_)) {
     RTC_CHECK(background_thread_->Start());
     // Delay is set to 50ms so we get a 100ms RTT.
     vss_.set_delay_mean(/*delay_mean=*/50);
@@ -70,7 +73,7 @@ class PeerConnectionDataChannelOpenTest
   scoped_refptr<PeerConnectionTestWrapper> CreatePc(
       absl::string_view field_trials = "") {
     auto pc_wrapper = make_ref_counted<PeerConnectionTestWrapper>(
-        "pc", &vss_, background_thread_.get(), background_thread_.get());
+        "pc", env_, &vss_, background_thread_.get(), background_thread_.get());
     pc_wrapper->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
                          CreateBuiltinAudioDecoderFactory(),
                          CreateTestFieldTrialsPtr(field_trials));
@@ -171,6 +174,7 @@ class PeerConnectionDataChannelOpenTest
     return true;
   }
 
+  const Environment env_;
   VirtualSocketServer vss_;
   std::unique_ptr<Thread> background_thread_;
 };

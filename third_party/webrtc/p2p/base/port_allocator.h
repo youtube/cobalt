@@ -15,6 +15,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -249,7 +250,7 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
   // The default value of the interval in implementation is restored if a null
   // optional value is passed.
   virtual void SetStunKeepaliveIntervalForReadyPorts(
-      const std::optional<int>& /* stun_keepalive_interval */) {}
+      const std::optional<TimeDelta>& /* stun_keepalive_interval */) {}
   // Another way of getting the information provided by the signals below.
   //
   // Ports and candidates are not guaranteed to be in the same order as the
@@ -262,24 +263,59 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
   virtual void PruneAllPorts() {}
 
   sigslot::signal2<PortAllocatorSession*, PortInterface*> SignalPortReady;
+  void SubscribePortReady(absl::AnyInvocable<void(PortAllocatorSession*,
+                                                  PortInterface*)> callback) {
+    port_ready_trampoline_.Subscribe(std::move(callback));
+  }
+
   // Fires this signal when the network of the ports failed (either because the
   // interface is down, or because there is no connection on the interface),
   // or when TURN ports are pruned because a higher-priority TURN port becomes
   // ready(pairable).
   sigslot::signal2<PortAllocatorSession*, const std::vector<PortInterface*>&>
       SignalPortsPruned;
+  void SubscribePortsPruned(
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<PortInterface*>&)> callback) {
+    ports_pruned_trampoline_.Subscribe(std::move(callback));
+  }
+
   sigslot::signal2<PortAllocatorSession*, const std::vector<Candidate>&>
       SignalCandidatesReady;
+  void SubscribeCandidatesReady(
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<Candidate>&)> callback) {
+    candidates_ready_trampoline_.Subscribe(std::move(callback));
+  }
   sigslot::signal2<PortAllocatorSession*, const IceCandidateErrorEvent&>
       SignalCandidateError;
+  void SubscribeCandidateError(
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const IceCandidateErrorEvent&)> callback) {
+    candidate_error_trampoline_.Subscribe(std::move(callback));
+  }
   // Candidates should be signaled to be removed when the port that generated
   // the candidates is removed.
   sigslot::signal2<PortAllocatorSession*, const std::vector<Candidate>&>
       SignalCandidatesRemoved;
+  void SubscribeCandidatesRemoved(
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<Candidate>&)> callback) {
+    candidates_removed_trampoline_.Subscribe(std::move(callback));
+  }
   sigslot::signal1<PortAllocatorSession*> SignalCandidatesAllocationDone;
+  void SubscribeCandidatesAllocationDone(
+      absl::AnyInvocable<void(PortAllocatorSession*)> callback) {
+    candidates_allocation_done_trampoline_.Subscribe(std::move(callback));
+  }
 
   sigslot::signal2<PortAllocatorSession*, IceRegatheringReason>
       SignalIceRegathering;
+  void SubscribeIceRegathering(
+      absl::AnyInvocable<void(PortAllocatorSession*, IceRegatheringReason)>
+          callback) {
+    ice_regathering_trampoline_.Subscribe(std::move(callback));
+  }
 
   virtual uint32_t generation();
   virtual void set_generation(uint32_t generation);
@@ -332,6 +368,27 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
   // SetIceParameters is an implementation detail which only PortAllocator
   // should be able to call.
   friend class PortAllocator;
+  SignalTrampoline<PortAllocatorSession, &PortAllocatorSession::SignalPortReady>
+      port_ready_trampoline_;
+  SignalTrampoline<PortAllocatorSession,
+                   &PortAllocatorSession::SignalPortsPruned>
+      ports_pruned_trampoline_;
+  SignalTrampoline<PortAllocatorSession,
+                   &PortAllocatorSession::SignalCandidatesReady>
+      candidates_ready_trampoline_;
+  SignalTrampoline<PortAllocatorSession,
+                   &PortAllocatorSession::SignalCandidateError>
+      candidate_error_trampoline_;
+  SignalTrampoline<PortAllocatorSession,
+                   &PortAllocatorSession::SignalCandidatesRemoved>
+      candidates_removed_trampoline_;
+  SignalTrampoline<PortAllocatorSession,
+                   &PortAllocatorSession::SignalCandidatesAllocationDone>
+      candidates_allocation_done_trampoline_;
+
+  SignalTrampoline<PortAllocatorSession,
+                   &PortAllocatorSession::SignalIceRegathering>
+      ice_regathering_trampoline_;
 };
 
 // Every method of PortAllocator (including the destructor) must be called on
@@ -396,7 +453,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
     return candidate_pool_size_;
   }
 
-  const std::optional<int>& stun_candidate_keepalive_interval() const {
+  const std::optional<TimeDelta>& stun_candidate_keepalive_interval() const {
     CheckRunOnValidThreadIfInitialized();
     return stun_candidate_keepalive_interval_;
   }
@@ -633,7 +690,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // all TurnPort(s) created.
   TurnCustomizer* turn_customizer_ = nullptr;
 
-  std::optional<int> stun_candidate_keepalive_interval_;
+  std::optional<TimeDelta> stun_candidate_keepalive_interval_;
 
   // If true, TakePooledSession() will only return sessions that has same ice
   // credentials as requested.

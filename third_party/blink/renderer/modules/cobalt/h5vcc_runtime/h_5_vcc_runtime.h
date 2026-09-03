@@ -56,7 +56,7 @@ class MODULES_EXPORT H5vccRuntime final
                             const RegisteredEventListener&) override;
 
   // Mojom interface:
-  void NotifyDeepLink(const WTF::String& deep_link) override;
+  void NotifyDeepLink(const String& deep_link) override;
 
   // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {

@@ -156,17 +156,6 @@
       },
     },
 
-    'chromeos_chrome_all_tast_tests': {
-      'chrome_all_tast_tests': {
-        'skylab': {
-          'tast_expr': 'STUB_STRING_TO_RUN_TAST_TESTS',
-          'test_level_retries': 2,
-          'timeout_sec': 14400,
-          'shards': 15,
-        },
-      },
-    },
-
     'chromeos_chrome_all_tast_tests_tfc': {
       'chrome_all_tast_tests': {
         'skylab': {
@@ -266,7 +255,6 @@
       'google_apis_unittests': {},
       'ipc_tests': {},
       'latency_unittests': {},
-      'libcups_unittests': {},
       'media_unittests': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.media_unittests.filter',
@@ -454,7 +442,6 @@
       'google_apis_unittests': {},
       'ipc_tests': {},
       'latency_unittests': {},
-      'libcups_unittests': {},
       'media_unittests': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.betty.media_unittests.filter',
@@ -2457,9 +2444,9 @@
     },
 
     'chromeos_ctp_preuprev_tests': {
-      'chromeos_chrome_all_tast_tests': {
+      'chromeos_chrome_all_tast_tests_tfc': {
         'mixins': [
-          'skylab-shards-30',
+          'skylab-40-tests-per-shard',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',
@@ -2477,10 +2464,34 @@
       },
     },
 
-    'chromeos_ctp_preuprev_tests_slow_boards': {
-      'chromeos_chrome_all_tast_tests': {
+    'chromeos_ctp_preuprev_tests_no_arc': {
+      'chromeos_chrome_all_tast_tests_tfc': {
         'mixins': [
-          'skylab-shards-45',
+          'skylab-40-tests-per-shard',
+        ],
+        'variants': [
+          'CROS_RELEASE_LKGM',
+        ],
+      },
+      'chromeos_device_only_gtests': {
+        'variants': [
+          'CROS_RELEASE_LKGM',
+        ],
+      },
+      'chromeos_integration_tests_suite': {
+        'mixins': [
+          'crosier-no-arc',
+        ],
+        'variants': [
+          'CROS_RELEASE_LKGM',
+        ],
+      },
+    },
+
+    'chromeos_ctp_preuprev_tests_slow_boards': {
+      'chromeos_chrome_all_tast_tests_tfc': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',

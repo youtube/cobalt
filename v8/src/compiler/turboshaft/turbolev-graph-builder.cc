@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"
@@ -64,6 +65,17 @@
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+#ifdef DEBUG
+#define TRACE(x)                                               \
+  do {                                                         \
+    if (V8_UNLIKELY(v8_flags.trace_turbolev_graph_building)) { \
+      StdoutStream() << x << std::endl;                        \
+    }                                                          \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
@@ -579,6 +591,8 @@ class GraphBuildingNodeProcessor {
   void PostProcessBasicBlock(maglev::BasicBlock* maglev_block) {}
   maglev::BlockProcessResult PreProcessBasicBlock(
       maglev::BasicBlock* maglev_block) {
+    TRACE("\nMaglev block: b" << maglev_block->id());
+
     // Note that it's important to call SetMaglevInputBlock before calling Bind,
     // so that BlockOriginTrackingReducer::Bind records the correct predecessor
     // for the current block.
@@ -3015,13 +3029,6 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::LoadDoubleField* node,
-                                const maglev::ProcessingState& state) {
-    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
-        Map(node->object_input()), node->offset());
-    SetMap(node, __ LoadHeapNumberValue(field));
-    return maglev::ProcessResult::kContinue;
-  }
   maglev::ProcessResult Process(maglev::LoadFloat64* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Load(Map(node->object_input()), LoadOp::Kind::TaggedBase(),
@@ -3128,14 +3135,6 @@ class GraphBuildingNodeProcessor {
                  WriteBarrierKind::kFullWriteBarrier, node->offset(), false);
       }
     }
-    return maglev::ProcessResult::kContinue;
-  }
-  maglev::ProcessResult Process(maglev::StoreDoubleField* node,
-                                const maglev::ProcessingState& state) {
-    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
-        Map(node->object_input()), node->offset());
-    __ StoreField(field, AccessBuilder::ForHeapNumberValue(),
-                  Map(node->value_input()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(
@@ -6358,11 +6357,15 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
   template <typename NodeT>
   maglev::ProcessResult Process(NodeT* node,
                                 const maglev::ProcessingState& state) {
+    TRACE("> " << maglev::PrintNodeLabel(node) << " : "
+               << maglev::PrintNode(node));
+
     if (GraphBuildingNodeProcessor::Asm().generating_unreachable_operations()) {
       // It doesn't matter much whether we return kRemove or kContinue here,
       // since we'll be done with the Maglev graph anyway once this phase is
       // over. Maglev currently doesn't support kRemove for control nodes, so we
       // just return kContinue for simplicity.
+      TRACE("skipped (unreachable)");
       return maglev::ProcessResult::kContinue;
     }
 
@@ -6427,13 +6430,13 @@ bool ShouldPrintMaglevGraph(PipelineData* data) {
 // SimplifiedLowering, but is much less powerful (doesn't take truncations into
 // account, doesn't do proper range analysis, doesn't run a fixpoint
 // analysis...).
-void RunMaglevOptimizations(PipelineData* data,
+bool RunMaglevOptimizations(PipelineData* data,
                             maglev::MaglevCompilationInfo* compilation_info,
                             maglev::Graph* maglev_graph) {
   // Non-eager inlining.
   if (v8_flags.turbolev_non_eager_inlining) {
     maglev::MaglevInliner inliner(maglev_graph);
-    inliner.Run();
+    if (!inliner.Run()) return false;
   }
 
   // Truncation pass.
@@ -6487,6 +6490,8 @@ void RunMaglevOptimizations(PipelineData* data,
     PrintMaglevGraph(*data, maglev_graph,
                      "After escape analysis and dead node sweeping");
   }
+
+  return true;
 }
 
 std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
@@ -6525,13 +6530,17 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   maglev::MaglevGraphBuilder maglev_graph_builder(
       local_isolate, compilation_info->toplevel_compilation_unit(),
       maglev_graph);
-  maglev_graph_builder.Build();
+  if (!maglev_graph_builder.Build()) {
+    return BailoutReason::kMaglevGraphBuildingFailed;
+  }
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
     PrintMaglevGraph(*data, maglev_graph, "After graph building");
   }
 
-  RunMaglevOptimizations(data, compilation_info.get(), maglev_graph);
+  if (!RunMaglevOptimizations(data, compilation_info.get(), maglev_graph)) {
+    return BailoutReason::kMaglevGraphBuildingFailed;
+  }
 
   // TODO(nicohartmann): Should we have source positions here?
   data->InitializeGraphComponent(nullptr);

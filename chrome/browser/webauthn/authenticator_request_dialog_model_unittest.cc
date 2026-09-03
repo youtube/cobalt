@@ -922,11 +922,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest, Mechanisms) {
        // create(): Client device hint should jump to the platform
        // authenticator.
        {L, mc, {usb, internal, cable}, {rk, hint_plat}, {add, t(internal)},
-#if BUILDFLAG(IS_MAC)
-         create_pk,
-#else
-         plat_ui,
-#endif
+        kIsMac ? create_pk : plat_ui,
        },
        // But not if there isn't a platform authenticator.
        {L, mc, {usb, cable}, {rk, hint_plat}, {add}, qr},
@@ -934,8 +930,10 @@ TEST_F(AuthenticatorRequestDialogControllerTest, Mechanisms) {
        {L, mc, {cable}, {has_winapi, rk, hint_plat}, {winapi, add},
         plat_ui},
        // Or if there's iCloud Keychain.
+#if BUILDFLAG(IS_MAC)
        {L, mc, {cable}, {has_ickc, create_ickc, rk, hint_plat}, {ickc, add},
         plat_ui},
+#endif // BUILDFLAG(IS_MAC)
 
        // get(): Security key hint should show security key UI.
        {L, ga, {usb, internal, cable}, {rk, hint_sk}, {add, t(usb)},
@@ -1658,6 +1656,51 @@ TEST_F(AuthenticatorRequestDialogControllerTest,
 
     EXPECT_EQ(test_case.expected_final_step, model->step());
     EXPECT_FALSE(power_receiver.was_called());
+  }
+}
+
+// Tests that if the bluetooth adapter needs action, the QR sheet and USB sheet
+// are split.
+TEST_F(AuthenticatorRequestDialogControllerTest,
+       BleAdapterNeedsActionSplitsUsbAndQrSheets) {
+  for (BleStatus ble_status :
+       {BleStatus::kPendingPermissionRequest, BleStatus::kPermissionDenied,
+        BleStatus::kOff, BleStatus::kOn}) {
+    SCOPED_TRACE(testing::Message() << static_cast<int>(ble_status));
+    TransportAvailabilityInfo transports_info;
+    transports_info.request_type = RequestType::kMakeCredential;
+    transports_info.attestation_conveyance_preference =
+        device::AttestationConveyancePreference::kNone;
+    transports_info.available_transports = {
+        AuthenticatorTransport::kUsbHumanInterfaceDevice,
+        AuthenticatorTransport::kHybrid};
+    transports_info.can_power_on_ble_adapter = false;
+    transports_info.ble_status = ble_status;
+    auto model =
+        base::MakeRefCounted<AuthenticatorRequestDialogModel>(main_rfh());
+    AuthenticatorRequestDialogController controller(model.get(), main_rfh());
+    controller.set_cable_transport_info(/*extension_is_v2=*/std::nullopt,
+                                        std::nullopt);
+    UpdateModelBeforeStartFlow(model.get(), transports_info);
+    controller.StartFlow(std::move(transports_info), {});
+    EXPECT_EQ(model->show_security_key_on_qr_sheet,
+              ble_status == BleStatus::kOn);
+    EXPECT_TRUE(
+        std::ranges::any_of(model->mechanisms, [](const auto& m) -> bool {
+          return std::holds_alternative<
+              AuthenticatorRequestDialogModel::Mechanism::AddPhone>(m.type);
+        }));
+    EXPECT_EQ(std::ranges::any_of(
+                  model->mechanisms,
+                  [](const auto& m) -> bool {
+                    const auto* transport = std::get_if<
+                        AuthenticatorRequestDialogModel::Mechanism::Transport>(
+                        &m.type);
+                    return transport &&
+                           transport->value() ==
+                               AuthenticatorTransport::kUsbHumanInterfaceDevice;
+                  }),
+              ble_status != BleStatus::kOn);
   }
 }
 
@@ -2712,6 +2755,8 @@ TEST_F(AuthenticatorRequestDialogControllerTest,
   EXPECT_FALSE(icloud_mechanism_found);
 }
 
+#if BUILDFLAG(IS_MAC)
+
 // Test that when iCloud Keychain is dispatched to automatically because of
 // client hints, cancelling brings the user back to the mechanism selection
 // screen.
@@ -2729,6 +2774,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest,
       kICloudKeychainId, AuthenticatorTransport::kInternal,
       device::AuthenticatorType::kICloudKeychain));
   controller.set_allow_icloud_keychain(true);
+  controller.set_should_create_in_icloud_keychain(true);
   content::AuthenticatorRequestClientDelegate::Hints hints;
   hints.transport = device::FidoTransportProtocol::kInternal;
   controller.SetHints(std::move(hints));
@@ -2762,3 +2808,5 @@ TEST_F(AuthenticatorRequestDialogControllerTest,
   controller.OnUserConsentDenied();
   EXPECT_EQ(model->step(), Step::kNotStarted);
 }
+
+#endif  // BUILDFLAG(IS_MAC)

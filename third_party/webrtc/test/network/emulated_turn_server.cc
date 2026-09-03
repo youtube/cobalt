@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "api/async_dns_resolver.h"
+#include "api/environment/environment.h"
 #include "api/packet_socket_factory.h"
 #include "api/sequence_checker.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
@@ -52,7 +53,7 @@ class PacketSocketFactoryWrapper : public webrtc::PacketSocketFactory {
       const webrtc::SocketAddress& address,
       uint16_t min_port,
       uint16_t max_port) override {
-    return turn_server_->CreatePeerSocket();
+    return turn_server_->CreatePeerSocket().release();
   }
 
   webrtc::AsyncListenSocket* CreateServerTcpSocket(
@@ -131,27 +132,27 @@ class EmulatedTURNServer::AsyncPacketSocketWrapper : public AsyncPacketSocket {
   const SocketAddress local_address_;
 };
 
-EmulatedTURNServer::EmulatedTURNServer(const EmulatedTURNServerConfig& config,
+EmulatedTURNServer::EmulatedTURNServer(const Environment& env,
+                                       const EmulatedTURNServerConfig& config,
                                        std::unique_ptr<Thread> thread,
                                        EmulatedEndpoint* client,
                                        EmulatedEndpoint* peer)
     : thread_(std::move(thread)), client_(client), peer_(peer) {
   ice_config_.username = "keso";
   ice_config_.password = "keso";
-  SendTask(thread_.get(), [this, enable_permission_checks =
-                                     config.enable_permission_checks]() {
+  SendTask(thread_.get(), [&] {
     RTC_DCHECK_RUN_ON(thread_.get());
     turn_server_ = std::make_unique<TurnServer>(thread_.get());
     turn_server_->set_realm(kTestRealm);
     turn_server_->set_realm(kTestSoftware);
     turn_server_->set_auth_hook(this);
-    turn_server_->set_enable_permission_checks(enable_permission_checks);
+    turn_server_->set_enable_permission_checks(config.enable_permission_checks);
 
-    auto client_socket = Wrap(client_);
-    turn_server_->AddInternalSocket(client_socket, PROTO_UDP);
+    std::unique_ptr<AsyncPacketSocket> client_socket = Wrap(client_);
+    client_address_ = client_socket->GetLocalAddress();
+    turn_server_->AddInternalSocket(client_socket.release(), PROTO_UDP);
     turn_server_->SetExternalSocketFactory(new PacketSocketFactoryWrapper(this),
                                            SocketAddress());
-    client_address_ = client_socket->GetLocalAddress();
     char buf[256];
     SimpleStringBuilder str(buf);
     str.AppendFormat("turn:%s?transport=udp",
@@ -174,11 +175,13 @@ EmulatedTURNServer::~EmulatedTURNServer() {
   });
 }
 
-AsyncPacketSocket* EmulatedTURNServer::Wrap(EmulatedEndpoint* endpoint) {
+std::unique_ptr<AsyncPacketSocket> EmulatedTURNServer::Wrap(
+    EmulatedEndpoint* endpoint) {
   RTC_DCHECK_RUN_ON(thread_.get());
   auto port = endpoint->BindReceiver(0, this).value();
-  auto socket = new AsyncPacketSocketWrapper(this, endpoint, port);
-  sockets_[SocketAddress(endpoint->GetPeerLocalAddress(), port)] = socket;
+  auto socket =
+      std::make_unique<AsyncPacketSocketWrapper>(this, endpoint, port);
+  sockets_[SocketAddress(endpoint->GetPeerLocalAddress(), port)] = socket.get();
   return socket;
 }
 

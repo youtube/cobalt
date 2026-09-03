@@ -162,8 +162,12 @@ class ResetCommandLineBetweenTests : public testing::EmptyTestEventListener {
 // to initialize them manually.
 class FeatureListScopedToEachTest : public testing::EmptyTestEventListener {
  public:
-  FeatureListScopedToEachTest() = default;
-  ~FeatureListScopedToEachTest() override = default;
+  FeatureListScopedToEachTest() {
+    instance_ = this;
+  }
+  ~FeatureListScopedToEachTest() override {
+    instance_ = nullptr;
+  }
 
   FeatureListScopedToEachTest(const FeatureListScopedToEachTest&) = delete;
   FeatureListScopedToEachTest& operator=(const FeatureListScopedToEachTest&) =
@@ -185,9 +189,19 @@ class FeatureListScopedToEachTest : public testing::EmptyTestEventListener {
     scoped_feature_list_.Reset();
   }
 
+  static void Reset() {
+    if (instance_) {
+      instance_->scoped_feature_list_.Reset();
+    }
+  }
+
  private:
   test::ScopedFeatureList scoped_feature_list_;
+
+  static FeatureListScopedToEachTest* instance_;
 };
+
+FeatureListScopedToEachTest* FeatureListScopedToEachTest::instance_ = nullptr;
 
 class CheckForLeakedGlobals : public testing::EmptyTestEventListener {
  public:
@@ -446,6 +460,10 @@ void TestSuite::DisableCheckForThreadAndProcessPriority() {
 void TestSuite::DisableCheckForLeakedGlobals() {
   DCHECK(!is_initialized_);
   check_for_leaked_globals_ = false;
+}
+
+void TestSuite::ResetScopedFeatureListInstance() {
+  FeatureListScopedToEachTest::Reset();
 }
 
 void TestSuite::UnitTestAssertHandler(const char* file,

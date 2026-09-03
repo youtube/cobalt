@@ -16,6 +16,8 @@
 #include <memory>
 #include <optional>
 
+#include "absl/base/nullability.h"
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/async_packet_socket.h"
@@ -32,6 +34,15 @@ namespace webrtc {
 // buffered since it is acceptable to drop packets under high load.
 class AsyncUDPSocket : public AsyncPacketSocket {
  public:
+  // Creates a new socket for sending asynchronous UDP packets using an
+  // asynchronous socket from the given factory.
+  static absl_nullable std::unique_ptr<AsyncUDPSocket> Create(
+      const Environment& env,
+      const SocketAddress& bind_address,
+      SocketFactory& factory);
+
+  // TODO: bugs.webrtc.org/42223992 - Delete or deprecate 2 factory functions
+  // below when WebRTC is updated to use factory that provides Environment.
   // Binds `socket` and creates AsyncUDPSocket for it. Takes ownership
   // of `socket`. Returns null if bind() fails (`socket` is destroyed
   // in that case).
@@ -41,6 +52,11 @@ class AsyncUDPSocket : public AsyncPacketSocket {
   // asynchronous socket from the given factory.
   static AsyncUDPSocket* Create(SocketFactory* factory,
                                 const SocketAddress& bind_address);
+
+  AsyncUDPSocket(const Environment& env,
+                 absl_nonnull std::unique_ptr<Socket> socket);
+  // TODO: bugs.webrtc.org/42223992 - Delete or deprecate constructor below when
+  // WebRTC is updated to use constructor that provides Environment.
   explicit AsyncUDPSocket(Socket* socket);
   ~AsyncUDPSocket() = default;
 

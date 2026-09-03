@@ -21,7 +21,7 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
-        "module_name": "//third_party/dawn/src/dawn/tests:dawn_end2end_tests/",
+        "module_name": "//third_party/dawn/src/dawn/tests:dawn_end2end_tests",
         "module_scheme": "gtest",
         "name": "dawn_end2end_implicit_device_sync_tests",
         "resultdb": {
@@ -63,7 +63,7 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
-        "module_name": "//third_party/dawn/src/dawn/tests:dawn_end2end_tests/",
+        "module_name": "//third_party/dawn/src/dawn/tests:dawn_end2end_tests",
         "module_scheme": "gtest",
         "name": "dawn_end2end_tests",
         "resultdb": {
@@ -106,7 +106,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_compat_tests",
         "resultdb": {
           "enable": true,
@@ -148,7 +148,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_dedicated_worker_tests",
         "resultdb": {
           "enable": true,
@@ -190,7 +190,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_service_worker_tests",
         "resultdb": {
           "enable": true,
@@ -231,7 +231,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_tests",
         "resultdb": {
           "enable": true,
@@ -273,7 +273,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_with_validation_tests",
         "resultdb": {
           "enable": true,
@@ -293,6 +293,48 @@
           "io_timeout": 1800,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 36
+        },
+        "test": "telemetry_gpu_integration_test_android_chrome",
+        "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test_android_chrome/"
+      }
+    ]
+  },
+  "Dawn Android arm64 Release (Pixel 10)": {
+    "isolated_scripts": [
+      {
+        "args": [
+          "noop_sleep",
+          "--show-stdout",
+          "--browser=android-chromium",
+          "--passthrough",
+          "-v",
+          "--stable-jobs",
+          "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc",
+          "--enforce-browser-version",
+          "--jobs=1",
+          "--initial-find-device-attempts=3"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
+        "name": "noop_sleep_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "device_os": "BD3A.250721.001",
+            "device_os_type": "userdebug",
+            "device_type": "frankel",
+            "os": "Android",
+            "pool": "chromium.tests.gpu"
+          },
+          "hard_timeout": 1800,
+          "idempotent": false,
+          "io_timeout": 1800,
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
         "test": "telemetry_gpu_integration_test_android_chrome",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test_android_chrome/"
@@ -321,7 +363,7 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
-        "module_name": "//third_party/dawn/src/dawn/tests:dawn_end2end_tests/",
+        "module_name": "//third_party/dawn/src/dawn/tests:dawn_end2end_tests",
         "module_scheme": "gtest",
         "name": "dawn_end2end_implicit_device_sync_tests",
         "resultdb": {
@@ -362,7 +404,7 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
-        "module_name": "//third_party/dawn/src/dawn/tests:dawn_end2end_tests/",
+        "module_name": "//third_party/dawn/src/dawn/tests:dawn_end2end_tests",
         "module_scheme": "gtest",
         "name": "dawn_end2end_tests",
         "resultdb": {
@@ -404,7 +446,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_compat_tests",
         "resultdb": {
           "enable": true,
@@ -445,7 +487,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_dedicated_worker_tests",
         "resultdb": {
           "enable": true,
@@ -486,7 +528,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_service_worker_tests",
         "resultdb": {
           "enable": true,
@@ -526,7 +568,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_tests",
         "resultdb": {
           "enable": true,
@@ -567,7 +609,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "webgpu_cts_with_validation_tests",
         "resultdb": {
           "enable": true,
@@ -612,7 +654,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome/",
+        "module_name": "//chrome/test:telemetry_gpu_integration_test_android_chrome",
         "name": "noop_sleep_tests",
         "resultdb": {
           "enable": true,

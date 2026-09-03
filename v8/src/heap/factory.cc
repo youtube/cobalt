@@ -275,12 +275,19 @@ Tagged<HeapObject> Factory::CodeBuilder::AllocateUninitializedInstructionStream(
         heap->heap()->allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             object_size, AllocationType::kCode, AllocationOrigin::kRuntime);
     CHECK(!result.is_null());
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    CHECK((result.ptr() & kContiguousReadOnlySpaceMask) != 0);
+#endif
     return result;
-  } else {
-    // Return null if we cannot allocate the code object.
-    return heap->AllocateRawWith<HeapAllocator::kLightRetry>(
-        object_size, AllocationType::kCode);
   }
+  // Return null if we cannot allocate the code object.
+  result = heap->AllocateRawWith<HeapAllocator::kLightRetry>(
+      object_size, AllocationType::kCode);
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  CHECK_IMPLIES(!result.is_null(),
+                (result.ptr() & kContiguousReadOnlySpaceMask) != 0);
+#endif
+  return result;
 }
 
 MaybeHandle<Code> Factory::CodeBuilder::TryBuild() {
@@ -444,7 +451,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
   if (!allocation.To(&result)) return MaybeHandle<FixedArray>();
   if ((size > heap->MaxRegularHeapObjectSize(allocation_type)) &&
       v8_flags.use_marking_progress_bar) {
-    LargePageMetadata::FromHeapObject(result)
+    LargePageMetadata::FromHeapObject(isolate(), result)
         ->marking_progress_tracker()
         .Enable(size);
   }
@@ -1857,13 +1864,10 @@ DirectHandle<WasmFuncRef> Factory::NewWasmFuncRef(
 }
 
 DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
-    wasm::CanonicalTypeIndex sig_index, DirectHandle<JSReceiver> callable,
+    const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise,
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle) {
-  // TODO(clemensb): Should this be passed instead of looked up here?
-  const wasm::CanonicalSig* sig =
-      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
@@ -1892,7 +1896,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
-  result->set_canonical_sig_index(sig_index.index);
+  result->set_canonical_sig_index(sig->index().index);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));
   result->set_protected_offheap_data(*offheap_data);
@@ -1955,9 +1959,11 @@ DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject() {
   DirectHandle<WasmContinuationObject> cont(obj, isolate());
   cont->init_stack(IsolateForSandbox(isolate()), nullptr);
   std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
-  stack->jmpbuf()->fp = stack->base();
+  stack->jmpbuf()->fp = kNullAddress;
   stack->jmpbuf()->sp = stack->base();
   stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  stack->jmpbuf()->stack_limit = stack->jslimit();
+  stack->jmpbuf()->is_on_central_stack = false;
   stack->set_index(isolate()->wasm_stacks().size());
   cont->set_stack(isolate(), stack.get());
   isolate()->wasm_stacks().emplace_back(std::move(stack));
@@ -1969,8 +1975,7 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function,
-    const wasm::CanonicalSig* sig, wasm::CanonicalTypeIndex type_index,
-    int wrapper_budget, wasm::Promise promise) {
+    const wasm::CanonicalSig* sig, int wrapper_budget, wasm::Promise promise) {
   int func_index = internal_function->function_index();
   DirectHandle<Cell> wrapper_budget_cell =
       NewCell(Smi::FromInt(wrapper_budget));
@@ -1986,7 +1991,6 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
   result->set_sig(sig);
-  result->set_canonical_type_index(type_index.index);
   result->set_receiver_is_first_param(0);
   result->set_wrapper_budget(*wrapper_budget_cell);
   // We can't skip the write barrier because Code objects are not immovable.
@@ -2002,7 +2006,7 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, DirectHandle<Foreign> embedder_data,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig) {
+    const wasm::CanonicalSig* sig) {
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data =
       NewWasmImportData(undefined_value(), wasm::kNoSuspend,
@@ -2022,7 +2026,6 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
-  result->set_canonical_sig_index(sig_index.index);
   result->set_wrapper_code(*wrapper_code);
   result->set_embedder_data(*embedder_data);
   result->set_sig(sig);

@@ -2555,6 +2555,35 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="Actor.Ui.HandoffButton.GiveControl.Clicked">
+  <owner>chrstne@google.com</owner>
+  <owner>kenok@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Recorded when the user clicks the Handoff Button when in an actuating tab to
+    give control from the client to the actor.
+  </description>
+</action>
+
+<action name="Actor.Ui.HandoffButton.TakeControl.Clicked">
+  <owner>chrstne@google.com</owner>
+  <owner>kenok@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Recorded when the user clicks the Handoff Button when in an actuating tab to
+    take control from the actor to the client.
+  </description>
+</action>
+
+<action name="Actor.Ui.TaskIcon.Click">
+  <owner>chrstne@google.com</owner>
+  <owner>kenok@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Recorded when the user clicks the Task Icon during/after actuation.
+  </description>
+</action>
+
 <action name="AddAddressManually_AddressSaved">
   <owner>sinhasourav@google.com</owner>
   <owner>bling-transactions@google.com</owner>
@@ -4721,6 +4750,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Autofill_PolledCreditCardSuggestions">
+  <obsolete>
+    Deprecated as of 09/2025. All suggestions generators always poll the data
+  </obsolete>
   <owner>battre@chromium.org</owner>
   <description>
     This user action is logged when the user interacts with an autofillable
@@ -4729,6 +4761,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Autofill_PolledLoyaltyCardSuggestions">
+  <obsolete>
+    Deprecated as of 09/2025. All suggestions generators always poll the data
+  </obsolete>
   <owner>vizcay@google.com</owner>
   <description>
     This user action is logged when the user interacts with an autofillable
@@ -4737,6 +4772,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Autofill_PolledProfileSuggestions">
+  <obsolete>
+    Deprecated as of 09/2025. All suggestions generators always poll the data
+  </obsolete>
   <owner>battre@chromium.org</owner>
   <description>
     This user action is logged when the user interacts with an autofillable
@@ -4836,8 +4874,7 @@ should be able to be added at any place in this file.
   <owner>battre@chromium.org</owner>
   <description>
     This user action is logged when the user is shown some credit card
-    suggestions. This should always happen after a
-    Autofill_PolledCreditCardSuggestion.
+    suggestions.
   </description>
 </action>
 
@@ -4863,7 +4900,6 @@ should be able to be added at any place in this file.
   <owner>battre@chromium.org</owner>
   <description>
     This user action is logged when the user is shown some profile suggestions.
-    This should always happen after a Autofill_PolledProfileSuggestion.
   </description>
 </action>
 
@@ -12832,6 +12868,24 @@ should be able to be added at any place in this file.
   <owner>iwells@chromium.org</owner>
   <description>
     Logged if the user enables closed captions in glic settings.
+  </description>
+</action>
+
+<action name="Glic.Settings.DefaultTabContext.Disabled">
+  <owner>birnie@google.com</owner>
+  <owner>harringtond@google.com</owner>
+  <description>
+    Logged when a user disables the default tab context setting on the Glic
+    settings page.
+  </description>
+</action>
+
+<action name="Glic.Settings.DefaultTabContext.Enabled">
+  <owner>birnie@google.com</owner>
+  <owner>harringtond@google.com</owner>
+  <description>
+    Logged when a user enables the default tab context setting on the Glic
+    settings page.
   </description>
 </action>
 
@@ -36720,12 +36774,49 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action
+    name="Settings.AiPage.GlicShortcuts.DefaultTabAccessToggleLearnMoreClicked">
+  <owner>birnie@google.com</owner>
+  <owner>harringtond@google.com</owner>
+  <description>
+    Logged when the user clicks on the 'Learn more' link associated with the
+    Default Tab Access Toggle in chrome://settings/ai/gemini.
+  </description>
+</action>
+
+<action name="Settings.AiPage.GlicShortcuts.LauncherToggleLearnMoreClicked">
+  <owner>birnie@google.com</owner>
+  <owner>harringtond@google.com</owner>
+  <description>
+    Logged when the user clicks on the 'Learn more' link associated with the
+    Glic Shortcuts Launcher Toggle in chrome://settings/ai/gemini.
+  </description>
+</action>
+
 <action name="Settings.AiPage.GlicShortcuts.LearnMoreClicked">
   <owner>sanaakbani@google.com</owner>
   <owner>iwells@chromium.org</owner>
   <description>
     Logged when the user clicks on the 'Learn more about shortcuts' link inside
     the keyboard shortcuts description from chrome://settings.
+  </description>
+</action>
+
+<action name="Settings.AiPage.GlicShortcuts.LocationToggleLearnMoreClicked">
+  <owner>birnie@google.com</owner>
+  <owner>harringtond@google.com</owner>
+  <description>
+    Logged when the user clicks on the 'Learn more' link associated with the
+    Location Toggle in chrome://settings/ai/gemini.
+  </description>
+</action>
+
+<action name="Settings.AiPage.GlicShortcuts.TabAccessToggleLearnMoreClicked">
+  <owner>birnie@google.com</owner>
+  <owner>harringtond@google.com</owner>
+  <description>
+    Logged when the user clicks on the 'Learn more' link associated with the Tab
+    Access Toggle in chrome://settings/ai/gemini.
   </description>
 </action>
 
@@ -50425,6 +50516,8 @@ should be able to be added at any place in this file.
       label="For iOSDockingPromoRemindMeLater feature"/>
   <suffix name="iOSDownloadAutoDeletion"
       label="For iOS Auto-deletion half-sheet IPH."/>
+  <suffix name="iOSEnhancedBrowsingDesktop"
+      label="For iOSEnhancedBrowsingDesktop feature"/>
   <suffix name="iOSFeedSwipeAnimatedFeature"
       label="For iOSFeedSwipeAnimatedFeature feature"/>
   <suffix name="iOSFeedSwipeStaticFeature"
@@ -50441,6 +50534,7 @@ should be able to be added at any place in this file.
       label="For iOSLensOverlayEntrypoint IPH feature"/>
   <suffix name="iOSLensOverlayEscapeHatchTip"
       label="For iOSLensOverlayEscapeHatchTip IPH feature"/>
+  <suffix name="iOSLensPromoDesktop" label="For iOSLensPromoDesktop feature"/>
   <suffix name="iOSOneTimeDefaultBrowserNotification"
       label="For iOSOneTimeDefaultBrowserNotification feature"/>
   <suffix name="iOSOverflowMenuCustomization"
@@ -50491,6 +50585,8 @@ should be able to be added at any place in this file.
   <suffix name="iOSPromoWhatsNew" label="For iOSPromoWhatsNew feature"/>
   <suffix name="iOSPullToRefreshFeature"
       label="For iOSPullToRefreshFeature feature"/>
+  <suffix name="iOSReaderModeOptionsFeature"
+      label="For Reader Mode options IPH."/>
   <suffix name="iOSReminderNotificationsOverflowMenuBubbleFeature"
       label="For iOSReminderNotificationsOverflowMenuBubbleFeature feature"/>
   <suffix name="iOSReminderNotificationsOverflowMenuNewBadgeFeature"
@@ -50711,6 +50807,8 @@ should be able to be added at any place in this file.
       label="For ShoppingListMenuItem feature."/>
   <suffix name="ShoppingListSaveFlow"
       label="For ShoppingListSaveFlow feature."/>
+  <suffix name="SideBySidePinnableFeature"
+      label="For side by side split view pinning feature."/>
   <suffix name="SidePanelGenericPinnableFeature"
       label="For Side Panel Pinning pin feature."/>
   <suffix name="SidePanelLensOverlayPinnableFeature"
@@ -51370,6 +51468,7 @@ should be able to be added at any place in this file.
       label="Pinned clear browsing data button"/>
   <suffix name="PinnedCopyLinkButton" label="Pinned copy link button"/>
   <suffix name="PinnedDevToolsButton" label="Pinned developer tools button"/>
+  <suffix name="PinnedGlicButton" label="Pinned glic button"/>
   <suffix name="PinnedNewIncognitoWindowButton"
       label="Pinned new incognito window button"/>
   <suffix name="PinnedPrintButton" label="Pinned print button"/>

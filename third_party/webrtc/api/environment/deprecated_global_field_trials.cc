@@ -13,15 +13,19 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
-std::string DeprecatedGlobalFieldTrials::GetValue(absl::string_view key) const {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  const char* global_field_trial_string = field_trial::GetFieldTrialString();
-#pragma clang diagnostic pop
+namespace {
 
+constinit const char* global_field_trial_string = nullptr;
+
+}  // namespace
+
+void DeprecatedGlobalFieldTrials::Set(const char* field_trials) {
+  global_field_trial_string = field_trials;
+}
+
+std::string DeprecatedGlobalFieldTrials::GetValue(absl::string_view key) const {
   if (global_field_trial_string == nullptr)
     return std::string();
 

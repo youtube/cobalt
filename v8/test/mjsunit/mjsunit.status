@@ -37,6 +37,7 @@
   'wasm/exceptions-utils': [SKIP],
   'wasm/gc-js-interop-helpers': [SKIP],
   'wasm/gc-js-interop-export': [SKIP],
+  'wasm/prototype-setup-builder': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
   'sandbox/wasm-jspi': [SKIP],
   'compiler/fast-api-helpers': [SKIP],
@@ -88,6 +89,10 @@
 
   # BUG(chromium:1497251): Probably some data race in the interpreter.
   'regress/regress-1497251': [SKIP],
+
+  # https://crbug.com/350694471 Currently too flaky.
+  'shared-memory/async-synchronization-workers-terminated': [SKIP],
+  'shared-memory/condition-async-wait-realm-disposed': [SKIP],
 
   ##############################################################################
   # Tests where variants make no sense.
@@ -185,6 +190,7 @@
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
   'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or verify_predictable', SKIP], ['tsan', SKIP]],
+  'wasm/wasm-interpreter': [PASS, SLOW],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
@@ -451,10 +457,11 @@
   'json': [PASS, SLOW],
   'regress/asm/regress-775710': [PASS, SLOW],
   'regress/regress-crbug-820312': [PASS, SLOW],
+  'regress/regress-524': [PASS, ['tsan', SLOW]],
   'regress/regress-904275': [PASS, SLOW],
-  'wasm/wasm-interpreter': [PASS, SLOW],
 
   # BUG(v8:7880): Slow tests.
+  'regress/regress-390568195': [PASS, ['tsan', SKIP]],
   'regress/regress-707066': [SKIP],
   'regress/regress-446389': [SKIP],
   'regress/regress-458987': [SKIP],
@@ -2042,16 +2049,6 @@
 }],  # variant == stress
 
 ##############################################################################
-['variant == turboshaft', {
-  # TODO(v8:14108): These tests require Liftoff. Enable again when we remove
-  # --no-liftoff from this variant.
-  'wasm/code-flushing-single-isolate': [FAIL],
-  'wasm/enter-and-leave-debug-state': [FAIL],
-  # Slow TF compilation.
-  'wasm/large-struct': [SKIP],
-}],  # variant == turboshaft
-
-##############################################################################
 ['variant == stress and (arch == arm or arch == arm64 or arch == loong64 or arch == mips64el) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'es6/large-classes-properties': [SKIP],
@@ -2066,8 +2063,12 @@
 
   # Other slow tests:
   'compiler/regress-crbug-1520697': [SKIP],
-  'regress/regress-1449567': [SKIP],
   'maglev/regress-432847895': [SKIP],
+  'regress/regress-1449567': [SKIP],
+  'regress/regress-crbug-1209152': [SKIP],
+  'regress/regress-crbug-1191886': [SKIP],
+  'wasm/multi-memory': [SKIP],
+  'wasm/wasm-interpreter': [SKIP],
 }],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
@@ -2906,6 +2907,9 @@
   'regress/regress-12657': [SKIP],
   'regress/regress-678917': [SKIP],
   'maglev/regress-1407606': [SKIP],
+
+  # Slow tests.
+  'ignition/regress-672027': [PASS, SLOW],
 }],  # variant == conservative_stack_scanning
 
 ##############################################################################

@@ -79,7 +79,6 @@ class LoginScreenExtensionsStorageCleaner;
 class LowDiskNotification;
 class AuthEventsRecorder;
 class MagicBoostControllerAsh;
-class MultiCaptureNotifications;
 class NetworkChangeManagerClient;
 class NetworkPrefStateObserver;
 class NetworkThrottlingObserver;
@@ -108,6 +107,10 @@ class DataCollector;
 
 namespace internal {
 class DBusServices;
+}
+
+namespace parent_access {
+class ParentAccessService;
 }
 
 namespace platform_keys {
@@ -214,7 +217,6 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
   std::unique_ptr<LowDiskNotification> low_disk_notification_;
   std::unique_ptr<KioskController> kiosk_controller_;
   std::unique_ptr<AmbientClientImpl> ambient_client_;
-  std::unique_ptr<MultiCaptureNotifications> multi_capture_notifications_;
 
   std::unique_ptr<ShortcutMappingPrefService> shortcut_mapping_pref_service_;
   std::unique_ptr<ChromeKeyboardControllerClient>
@@ -300,6 +302,8 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
   std::unique_ptr<MisconfiguredUserCleaner> misconfigured_user_cleaner_;
 
   std::unique_ptr<ash::MagicBoostControllerAsh> magic_boost_controller_ash_;
+
+  std::unique_ptr<parent_access::ParentAccessService> parent_access_service_;
 
   base::WeakPtrFactory<ChromeBrowserMainPartsAsh> weak_ptr_factory_{this};
 };

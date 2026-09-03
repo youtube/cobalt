@@ -97,7 +97,7 @@ uint32_t GetWeakPingIntervalInFieldTrial(const FieldTrialsView& field_trials) {
   if (weak_ping_interval) {
     return static_cast<int>(weak_ping_interval);
   }
-  return WEAK_PING_INTERVAL;
+  return kWeakPingInterval.ms();
 }
 
 RouteEndpoint CreateRouteEndpointFromCandidate(bool local,
@@ -187,14 +187,14 @@ P2PTransportChannel::P2PTransportChannel(
       ice_role_(ICEROLE_UNKNOWN),
       gathering_state_(kIceGatheringNew),
       weak_ping_interval_(GetWeakPingIntervalInFieldTrial(env_.field_trials())),
-      config_(RECEIVING_TIMEOUT,
-              BACKUP_CONNECTION_PING_INTERVAL,
+      config_(kReceivingTimeout,
+              kBackupConnectionPingInterval,
               GATHER_ONCE /* continual_gathering_policy */,
               false /* prioritize_most_likely_candidate_pairs */,
-              STRONG_AND_STABLE_WRITABLE_CONNECTION_PING_INTERVAL,
+              kStrongAndStableWritableConnectionPingInterval,
               true /* presume_writable_when_fully_relayed */,
-              REGATHER_ON_FAILED_NETWORKS_INTERVAL,
-              RECEIVING_SWITCHING_DELAY) {
+              kRegatherOnFailedNetworksInterval,
+              kReceivingSwitchingDelay) {
   TRACE_EVENT0("webrtc", "P2PTransportChannel::P2PTransportChannel");
   RTC_DCHECK(allocator_ != nullptr);
   RTC_DCHECK(!transport_name_.empty());
@@ -203,7 +203,7 @@ P2PTransportChannel::P2PTransportChannel(
   RTC_DCHECK(config_.IsValid().ok());
   BasicRegatheringController::Config regathering_config;
   regathering_config.regather_on_failed_networks_interval =
-      config_.regather_on_failed_networks_interval_or_default();
+      config_.regather_on_failed_networks_interval_or_default().ms();
   regathering_controller_ = std::make_unique<BasicRegatheringController>(
       regathering_config, this, network_thread_);
   // We populate the change in the candidate filter to the session taken by
@@ -255,16 +255,35 @@ void P2PTransportChannel::AddAllocatorSession(
   RTC_DCHECK_RUN_ON(network_thread_);
 
   session->set_generation(static_cast<uint32_t>(allocator_sessions_.size()));
-  session->SignalPortReady.connect(this, &P2PTransportChannel::OnPortReady);
-  session->SignalPortsPruned.connect(this, &P2PTransportChannel::OnPortsPruned);
-  session->SignalCandidatesReady.connect(
-      this, &P2PTransportChannel::OnCandidatesReady);
-  session->SignalCandidateError.connect(this,
-                                        &P2PTransportChannel::OnCandidateError);
-  session->SignalCandidatesRemoved.connect(
-      this, &P2PTransportChannel::OnCandidatesRemoved);
-  session->SignalCandidatesAllocationDone.connect(
-      this, &P2PTransportChannel::OnCandidatesAllocationDone);
+  session->SubscribePortReady(
+      [this](PortAllocatorSession* session, PortInterface* port) {
+        OnPortReady(session, port);
+      });
+
+  session->SubscribePortsPruned(
+      [this](PortAllocatorSession* session,
+             const std::vector<PortInterface*>& ports) {
+        OnPortsPruned(session, ports);
+      });
+
+  session->SubscribeCandidatesReady(
+      [this](PortAllocatorSession* session,
+             const std::vector<Candidate>& candidate) {
+        OnCandidatesReady(session, candidate);
+      });
+  session->SubscribeCandidateError([this](PortAllocatorSession* session,
+                                          const IceCandidateErrorEvent& event) {
+    OnCandidateError(session, event);
+  });
+  session->SubscribeCandidatesRemoved(
+      [this](PortAllocatorSession* session,
+             const std::vector<Candidate>& candidates) {
+        OnCandidatesRemoved(session, candidates);
+      });
+  session->SubscribeCandidatesAllocationDone(
+      [this](PortAllocatorSession* session) {
+        OnCandidatesAllocationDone(session);
+      });
   if (!allocator_sessions_.empty()) {
     allocator_session()->PruneAllPorts();
   }
@@ -279,10 +298,10 @@ void P2PTransportChannel::AddAllocatorSession(
 
 void P2PTransportChannel::AddConnection(Connection* connection) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  connection->set_receiving_timeout(config_.receiving_timeout);
-  connection->set_unwritable_timeout(config_.ice_unwritable_timeout);
+  connection->SetReceivingTimeout(config_.receiving_timeout);
+  connection->SetUnwritableTimeout(config_.ice_unwritable_timeout);
   connection->set_unwritable_min_checks(config_.ice_unwritable_min_checks);
-  connection->set_inactive_timeout(config_.ice_inactive_timeout);
+  connection->SetInactiveTimeout(config_.ice_inactive_timeout);
   connection->RegisterReceivedPacketCallback(
       [&](Connection* connection, const ReceivedIpPacket& packet) {
         OnReadPacket(connection, packet);
@@ -554,7 +573,7 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
   if (config_.receiving_timeout != config.receiving_timeout) {
     config_.receiving_timeout = config.receiving_timeout;
     for (Connection* connection : connections_) {
-      connection->set_receiving_timeout(config_.receiving_timeout);
+      connection->SetReceivingTimeout(config_.receiving_timeout);
     }
     RTC_LOG(LS_INFO) << "Set ICE receiving timeout to "
                      << config_.receiving_timeout_or_default()
@@ -645,7 +664,7 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
   if (config_.ice_unwritable_timeout != config.ice_unwritable_timeout) {
     config_.ice_unwritable_timeout = config.ice_unwritable_timeout;
     for (Connection* conn : connections_) {
-      conn->set_unwritable_timeout(config_.ice_unwritable_timeout);
+      conn->SetUnwritableTimeout(config_.ice_unwritable_timeout);
     }
     RTC_LOG(LS_INFO) << "Set unwritable timeout to "
                      << config_.ice_unwritable_timeout_or_default();
@@ -663,7 +682,7 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
   if (config_.ice_inactive_timeout != config.ice_inactive_timeout) {
     config_.ice_inactive_timeout = config.ice_inactive_timeout;
     for (Connection* conn : connections_) {
-      conn->set_inactive_timeout(config_.ice_inactive_timeout);
+      conn->SetInactiveTimeout(config_.ice_inactive_timeout);
     }
     RTC_LOG(LS_INFO) << "Set inactive timeout to "
                      << config_.ice_inactive_timeout_or_default();
@@ -692,7 +711,7 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
 
   BasicRegatheringController::Config regathering_config;
   regathering_config.regather_on_failed_networks_interval =
-      config_.regather_on_failed_networks_interval_or_default();
+      config_.regather_on_failed_networks_interval_or_default().ms();
   regathering_controller_->SetConfig(regathering_config);
 
   config_.vpn_preference = config.vpn_preference;
@@ -826,9 +845,9 @@ const Connection* P2PTransportChannel::selected_connection() const {
   return selected_connection_;
 }
 
-int P2PTransportChannel::check_receiving_interval() const {
+TimeDelta P2PTransportChannel::check_receiving_interval() const {
   RTC_DCHECK_RUN_ON(network_thread_);
-  return std::max(MIN_CHECK_RECEIVING_INTERVAL,
+  return std::max(kMinCheckReceivingInterval,
                   config_.receiving_timeout_or_default() / 10);
 }
 
@@ -915,7 +934,7 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* /* session */,
 
   port->SubscribePortDestroyed(
       [this](PortInterface* port) { OnPortDestroyed(port); });
-  port->SubscribeRoleConflict([this]() { NotifyRoleConflict(); });
+  port->SubscribeRoleConflict([this] { NotifyRoleConflictInternal(); });
 
   // Attempt to create a connection from this new port to all of the remote
   // candidates that we were given so far.
@@ -935,7 +954,7 @@ void P2PTransportChannel::OnCandidatesReady(
     const std::vector<Candidate>& candidates) {
   RTC_DCHECK_RUN_ON(network_thread_);
   for (size_t i = 0; i < candidates.size(); ++i) {
-    SignalCandidateGathered(this, candidates[i]);
+    NotifyCandidateGathered(this, candidates[i]);
   }
 }
 
@@ -1122,8 +1141,8 @@ void P2PTransportChannel::OnCandidateFilterChanged(uint32_t prev_filter,
   }
 }
 
-void P2PTransportChannel::NotifyRoleConflict() {
-  SignalRoleConflict(this);  // STUN ping will be sent when SetRole is called
+void P2PTransportChannel::NotifyRoleConflictInternal() {
+  NotifyRoleConflict(this);  // STUN ping will be sent when SetRole is called
                              // from Transport.
 }
 
@@ -1968,8 +1987,8 @@ void P2PTransportChannel::UpdateTransportState() {
     standardized_state_ = current_standardized_state;
     state_ = state;
     // Unconditionally signal change, no matter what changed.
-    // TODO: issues.webrtc.org/42234495 - rmeove nonstandard state_
-    SignalIceTransportStateChanged(this);
+    // TODO: issues.webrtc.org/42234495 - remove nonstandard state_
+    NotifyIceTransportStateChanged(this);
   }
 }
 

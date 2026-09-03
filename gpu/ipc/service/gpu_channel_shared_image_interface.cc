@@ -51,9 +51,7 @@ GpuChannelSharedImageInterface::GpuChannelSharedImageInterface(
           SchedulingPriority::kLow,
           shared_image_stub->channel()->task_runner(),
           CommandBufferNamespace::GPU_CHANNEL_SHARED_IMAGE_INTERFACE,
-          command_buffer_id())) {
-  DETACH_FROM_SEQUENCE(gpu_sequence_checker_);
-}
+          command_buffer_id())) {}
 
 GpuChannelSharedImageInterface::~GpuChannelSharedImageInterface() {
   scheduler_->DestroySequence(sequence_);
@@ -156,6 +154,7 @@ GpuChannelSharedImageInterface::CreateSharedImageForD3D11Video(
 
 SharedImageFactory*
 GpuChannelSharedImageInterface::GetSharedImageFactoryOnGpuThread() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
   if (!shared_image_stub_) {
     return nullptr;
   }
@@ -228,6 +227,7 @@ bool GpuChannelSharedImageInterface::MakeContextCurrentOnGpuThread(
 }
 
 void GpuChannelSharedImageInterface::MarkContextLostOnGpuThread() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
   shared_image_stub_->shared_context_state()->MarkContextLost();
 }
 

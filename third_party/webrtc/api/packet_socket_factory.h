@@ -16,7 +16,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/memory/memory.h"
 #include "api/async_dns_resolver.h"
+#include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
@@ -52,8 +54,42 @@ class RTC_EXPORT PacketSocketFactory {
   };
 
   PacketSocketFactory() = default;
+
+  PacketSocketFactory(const PacketSocketFactory&) = delete;
+  PacketSocketFactory& operator=(const PacketSocketFactory&) = delete;
+
   virtual ~PacketSocketFactory() = default;
 
+  virtual std::unique_ptr<AsyncPacketSocket> CreateUdpSocket(
+      const Environment& /*env*/,
+      const SocketAddress& address,
+      uint16_t min_port,
+      uint16_t max_port) {
+    return absl::WrapUnique(CreateUdpSocket(address, min_port, max_port));
+  }
+
+  virtual std::unique_ptr<AsyncListenSocket> CreateServerTcpSocket(
+      const Environment& /*env*/,
+      const SocketAddress& local_address,
+      uint16_t min_port,
+      uint16_t max_port,
+      int opts) {
+    return absl::WrapUnique(
+        CreateServerTcpSocket(local_address, min_port, max_port, opts));
+  }
+
+  virtual std::unique_ptr<AsyncPacketSocket> CreateClientTcpSocket(
+      const Environment& /*env*/,
+      const SocketAddress& local_address,
+      const SocketAddress& remote_address,
+      const PacketSocketTcpOptions& tcp_options) {
+    return absl::WrapUnique(
+        CreateClientTcpSocket(local_address, remote_address, tcp_options));
+  }
+
+  // TODO: bugs.webrtc.org/42223992 - deprecate all 3 CreateSomeSocket functions
+  // below when WebRTC and downstream users are updated to always provide
+  // Environment to construct a packet socket.
   virtual AsyncPacketSocket* CreateUdpSocket(const SocketAddress& address,
                                              uint16_t min_port,
                                              uint16_t max_port) = 0;
@@ -70,10 +106,6 @@ class RTC_EXPORT PacketSocketFactory {
 
   virtual std::unique_ptr<AsyncDnsResolverInterface>
   CreateAsyncDnsResolver() = 0;
-
- private:
-  PacketSocketFactory(const PacketSocketFactory&) = delete;
-  PacketSocketFactory& operator=(const PacketSocketFactory&) = delete;
 };
 
 }  //  namespace webrtc

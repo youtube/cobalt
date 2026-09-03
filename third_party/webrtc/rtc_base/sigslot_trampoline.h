@@ -71,6 +71,10 @@ class SignalTrampolineBase<sigslot::signal<Args...>>
   void Subscribe(absl::AnyInvocable<void(Args...)> callback) {
     callbacks_.AddReceiver(std::move(callback));
   }
+  void Subscribe(const void* tag, absl::AnyInvocable<void(Args...)> callback) {
+    callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void Unsubscribe(const void* tag) { callbacks_.RemoveReceivers(tag); }
   void Notify(Args... args) { callbacks_.Send(args...); }
 
  private:

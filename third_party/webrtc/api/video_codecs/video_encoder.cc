@@ -189,6 +189,10 @@ std::string VideoEncoder::EncoderInfo::ToString() const {
   if (is_qp_trusted.has_value()) {
     oss << ", is_qp_trusted = " << is_qp_trusted.value();
   }
+  if (mapped_resolution.has_value()) {
+    oss << ", mapped_resolution = " << mapped_resolution->width << " x "
+        << mapped_resolution->height;
+  }
   oss << "}";
   return oss.str();
 }

@@ -422,7 +422,6 @@ test("cobalt_browsertests") {
       "//cobalt/shell/android:cobalt_shell_java_resources",
       "//cobalt/shell/android:cobalt_shell_jni_headers",
       "//content/test:android_test_message_pump_support",
-      "//services/data_decoder/public/cpp/android:safe_json_java",
       "//testing/android/native_test:native_test_support",
       "//ui/android",
       "//ui/touch_selection",

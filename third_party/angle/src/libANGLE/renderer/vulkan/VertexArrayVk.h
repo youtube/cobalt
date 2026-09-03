@@ -169,9 +169,9 @@ class VertexArrayVk : public VertexArrayImpl
         std::array<AttributeRange, gl::MAX_VERTEX_ATTRIBS> &mergeRangesOut,
         std::array<size_t, gl::MAX_VERTEX_ATTRIBS> &mergedIndexesOut) const;
 
-    angle::Result setDefaultPackedInput(ContextVk *contextVk,
-                                        size_t attribIndex,
-                                        angle::FormatID *formatOut);
+    void setDefaultPackedInput(ContextVk *contextVk,
+                               size_t attribIndex,
+                               angle::FormatID *formatOut);
 
     angle::Result convertVertexBufferGPU(ContextVk *contextVk,
                                          BufferVk *srcBuffer,
@@ -185,11 +185,20 @@ class VertexArrayVk : public VertexArrayImpl
                                          const angle::Format &dstFormat,
                                          const VertexCopyFunction vertexLoadFunction);
 
-    angle::Result syncDirtyAttrib(ContextVk *contextVk,
-                                  const gl::VertexAttribute &attrib,
-                                  const gl::VertexBinding &binding,
-                                  size_t attribIndex,
-                                  bool bufferOnly);
+    angle::Result syncDirtyEnabledAttrib(ContextVk *contextVk,
+                                         const gl::VertexAttribute &attrib,
+                                         const gl::VertexBinding &binding,
+                                         size_t attribIndex,
+                                         bool bufferOnly);
+
+    angle::Result syncDirtyDisabledAttrib(ContextVk *contextVk,
+                                          const gl::VertexAttribute &attrib,
+                                          size_t attribIndex);
+
+    angle::Result syncNeedsConversionAttrib(ContextVk *contextVk,
+                                            const gl::VertexAttribute &attrib,
+                                            const gl::VertexBinding &binding,
+                                            size_t attribIndex);
 
     gl::AttribArray<VkBuffer> mCurrentArrayBufferHandles;
     gl::AttribArray<VkDeviceSize> mCurrentArrayBufferOffsets;
@@ -202,7 +211,6 @@ class VertexArrayVk : public VertexArrayImpl
     gl::AttribArray<angle::FormatID> mCurrentArrayBufferFormats;
     gl::AttribArray<GLuint> mCurrentArrayBufferStrides;
     gl::AttribArray<GLuint> mCurrentArrayBufferDivisors;
-    gl::AttributesMask mCurrentArrayBufferCompressed;
     vk::BufferHelper *mCurrentElementArrayBuffer;
 
     // Cached element array buffers for improving performance.
@@ -217,8 +225,13 @@ class VertexArrayVk : public VertexArrayImpl
     Optional<size_t> mLineLoopBufferLastIndex;
     bool mDirtyLineLoopTranslation;
 
+    gl::BufferBindingMask mDivisorExceedMaxSupportedValueBindingMask;
+
+    gl::AttributesMask mCurrentEnabledAttributesMask;
+    gl::AttributesMask mCurrentArrayBufferCompressed;
     // Track client and/or emulated attribs that we have to stream their buffer contents
     gl::AttributesMask mStreamingVertexAttribsMask;
+    gl::AttributesMask mNeedsConversionAttribMask;
 
     // The attrib/binding dirty bits that requires graphics pipeline update
     gl::VertexArray::DirtyBindingBits mBindingDirtyBitsRequiresPipelineUpdate;

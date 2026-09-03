@@ -300,10 +300,6 @@ TurnPort::~TurnPort() {
 
   if (socket_)
     socket_->UnsubscribeCloseEvent(this);
-
-  if (!SharedSocket()) {
-    delete socket_;
-  }
 }
 
 void TurnPort::set_realm(absl::string_view realm) {
@@ -437,8 +433,10 @@ bool TurnPort::CreateTurnClientSocket() {
   RTC_DCHECK(!socket_ || SharedSocket());
 
   if (server_address_.proto == PROTO_UDP && !SharedSocket()) {
-    socket_ = socket_factory()->CreateUdpSocket(
-        SocketAddress(Network()->GetBestIP(), 0), min_port(), max_port());
+    owned_socket_ = socket_factory()->CreateUdpSocket(
+        env(), SocketAddress(Network()->GetBestIP(), 0), min_port(),
+        max_port());
+    socket_ = owned_socket_.get();
   } else if (server_address_.proto == PROTO_TCP ||
              server_address_.proto == PROTO_TLS) {
     RTC_DCHECK(!SharedSocket());
@@ -459,9 +457,10 @@ bool TurnPort::CreateTurnClientSocket() {
     tcp_options.tls_alpn_protocols = tls_alpn_protocols_;
     tcp_options.tls_elliptic_curves = tls_elliptic_curves_;
     tcp_options.tls_cert_verifier = tls_cert_verifier_;
-    socket_ = socket_factory()->CreateClientTcpSocket(
-        SocketAddress(Network()->GetBestIP(), 0), server_address_.address,
-        tcp_options);
+    owned_socket_ = socket_factory()->CreateClientTcpSocket(
+        env(), SocketAddress(Network()->GetBestIP(), 0),
+        server_address_.address, tcp_options);
+    socket_ = owned_socket_.get();
   }
 
   if (!socket_) {
@@ -491,7 +490,8 @@ bool TurnPort::CreateTurnClientSocket() {
   // while UDP port is ready to do so once the socket is created.
   if (server_address_.proto == PROTO_TCP ||
       server_address_.proto == PROTO_TLS) {
-    socket_->SignalConnect.connect(this, &TurnPort::OnSocketConnect);
+    socket_->SubscribeConnect(
+        [this](AsyncPacketSocket* socket) { OnSocketConnect(socket); });
     socket_->SubscribeCloseEvent(
         this, [this](AsyncPacketSocket* s, int err) { OnSocketClose(s, err); });
   } else {
@@ -589,9 +589,8 @@ void TurnPort::OnAllocateMismatch() {
 
   if (SharedSocket()) {
     ResetSharedSocket();
-  } else {
-    delete socket_;
   }
+  owned_socket_ = nullptr;
   socket_ = nullptr;
 
   ResetNonce();
@@ -1017,7 +1016,7 @@ void TurnPort::TryAlternateServer() {
     RTC_DCHECK(server_address().proto == PROTO_TCP ||
                server_address().proto == PROTO_TLS);
     RTC_DCHECK(!SharedSocket());
-    delete socket_;
+    owned_socket_ = nullptr;
     socket_ = nullptr;
     PrepareAddress();
   }

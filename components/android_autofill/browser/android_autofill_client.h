@@ -29,7 +29,6 @@ namespace autofill {
 class AutocompleteHistoryManager;
 class AutofillSuggestionDelegate;
 class PersonalDataManager;
-class StrikeDatabase;
 enum class SuggestionType;
 }  // namespace autofill
 
@@ -37,11 +36,14 @@ namespace content {
 class WebContents;
 }
 
+namespace strike_database {
+class StrikeDatabase;
+}  // namespace strike_database
+
 namespace syncer {
 class SyncService;
 }
 
-class PersonalDataManager;
 class PrefService;
 
 namespace android_autofill {
@@ -101,7 +103,7 @@ class AndroidAutofillClient : public autofill::ContentAutofillClient {
   signin::IdentityManager* GetIdentityManager() final;
   const signin::IdentityManager* GetIdentityManager() const final;
   autofill::FormDataImporter* GetFormDataImporter() final;
-  autofill::StrikeDatabase* GetStrikeDatabase() final;
+  strike_database::StrikeDatabase* GetStrikeDatabase() final;
   ukm::UkmRecorder* GetUkmRecorder() final;
   autofill::AddressNormalizer* GetAddressNormalizer() final;
   const GURL& GetLastCommittedPrimaryMainFrameURL() const final;
@@ -113,7 +115,7 @@ class AndroidAutofillClient : public autofill::ContentAutofillClient {
   void ConfirmSaveAddressProfile(
       const autofill::AutofillProfile& profile,
       const autofill::AutofillProfile* original_profile,
-      bool is_migration_to_account,
+      SaveAddressBubbleType save_address_bubble_type,
       AddressProfileSavePromptCallback callback) final;
   SuggestionUiSessionId ShowAutofillSuggestions(
       const autofill::AutofillClient::PopupOpenArgs& open_args,

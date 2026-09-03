@@ -100,10 +100,20 @@ OPENSSL_EXPORT void X509_free(X509 *x509);
 // Certificate (RFC 5280), as described in |d2i_SAMPLE|.
 OPENSSL_EXPORT X509 *d2i_X509(X509 **out, const uint8_t **inp, long len);
 
-// X509_parse_from_buffer parses an X.509 structure from |buf| and returns a
+// X509_parse_with_algorithms parses an X.509 structure from |buf| and returns a
 // fresh X509 or NULL on error. There must not be any trailing data in |buf|.
-// The returned structure (if any) holds a reference to |buf| rather than
-// copying parts of it as a normal |d2i_X509| call would do.
+// The returned structure (if any) increment's |buf|'s reference count and
+// retains a reference to it.
+//
+// Only the |num_algs| algorithms from |algs| will be considered when parsing
+// the certificate's public key. If the certificate uses a different algorithm,
+// it will still be parsed, but |X509_get0_pubkey| will return NULL.
+OPENSSL_EXPORT X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
+                                                const EVP_PKEY_ALG *const *algs,
+                                                size_t num_algs);
+
+// X509_parse_from_buffer behaves like |X509_parse_with_algorithms| but uses a
+// default algorithm list.
 OPENSSL_EXPORT X509 *X509_parse_from_buffer(CRYPTO_BUFFER *buf);
 
 // i2d_X509 marshals |x509| as a DER-encoded X.509 Certificate (RFC 5280), as
@@ -2586,6 +2596,10 @@ OPENSSL_EXPORT X509_ALGOR *X509_ALGOR_new(void);
 // This function works by serializing the structure, so if |alg| is incomplete,
 // it may fail.
 OPENSSL_EXPORT X509_ALGOR *X509_ALGOR_dup(const X509_ALGOR *alg);
+
+// X509_ALGOR_copy sets |dst| to a copy of the contents of |src|. It returns one
+// on success and zero on error.
+OPENSSL_EXPORT int X509_ALGOR_copy(X509_ALGOR *dst, const X509_ALGOR *src);
 
 // X509_ALGOR_free releases memory associated with |alg|.
 OPENSSL_EXPORT void X509_ALGOR_free(X509_ALGOR *alg);

@@ -129,7 +129,6 @@ using spdy::SpdySettingsIR;
 using ::testing::_;
 using ::testing::Assign;
 using ::testing::HasSubstr;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::UnorderedElementsAreArray;
 
@@ -2519,7 +2518,7 @@ TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
 
   // The 0-RTT handshake should succeed.
   ON_CALL(visitor, OnCryptoFrame(_))
-      .WillByDefault(Invoke([this](const QuicCryptoFrame& frame) {
+      .WillByDefault([this](const QuicCryptoFrame& frame) {
         if (frame.level != ENCRYPTION_HANDSHAKE) {
           return;
         }
@@ -2540,7 +2539,7 @@ TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
         EXPECT_GT(
             client_->SendMessage(headers, "", /*fin*/ true, /*flush*/ false),
             0);
-      }));
+      });
   client_->Connect();
   ASSERT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   client_->WaitForWriteToFlush();
@@ -2594,9 +2593,9 @@ TEST_P(EndToEndTest, RetransmissionAfterZeroRTTRejectBeforeOneRtt) {
   server_writer_ = new PacketDroppingTestWriter();
   StartServer();
 
-  ON_CALL(visitor, OnZeroRttRejected(_)).WillByDefault(Invoke([this]() {
+  ON_CALL(visitor, OnZeroRttRejected(_)).WillByDefault([this]() {
     EXPECT_FALSE(GetClientSession()->IsEncryptionEstablished());
-  }));
+  });
 
   // The 0-RTT handshake should fail.
   client_->Connect();
@@ -5536,7 +5535,7 @@ TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   EXPECT_THAT(client_->stream_error(), IsStreamError(QUIC_STREAM_TTL_EXPIRED));
 }
 
-TEST_P(EndToEndTest, SendMessages) {
+TEST_P(EndToEndTest, SendDatagrams) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicSession* client_session = GetClientSession();
@@ -5546,43 +5545,43 @@ TEST_P(EndToEndTest, SendMessages) {
 
   SetPacketLossPercentage(30);
   ASSERT_GT(kMaxOutgoingPacketSize,
-            client_session->GetCurrentLargestMessagePayload());
-  ASSERT_LT(0, client_session->GetCurrentLargestMessagePayload());
+            client_session->GetCurrentLargestDatagramPayload());
+  ASSERT_LT(0, client_session->GetCurrentLargestDatagramPayload());
 
-  std::string message_string(kMaxOutgoingPacketSize, 'a');
+  std::string datagram_string(kMaxOutgoingPacketSize, 'a');
   QuicRandom* random =
       QuicConnectionPeer::GetHelper(client_connection)->GetRandomGenerator();
   {
     QuicConnection::ScopedPacketFlusher flusher(client_session->connection());
-    // Verify the largest message gets successfully sent.
-    EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
-              client_session->SendMessage(MemSliceFromString(absl::string_view(
-                  message_string.data(),
-                  client_session->GetCurrentLargestMessagePayload()))));
-    // Send more messages with size (0, largest_payload] until connection is
+    // Verify the largest datagram gets successfully sent.
+    EXPECT_EQ(DatagramResult(DATAGRAM_STATUS_SUCCESS, 1),
+              client_session->SendDatagram(MemSliceFromString(absl::string_view(
+                  datagram_string.data(),
+                  client_session->GetCurrentLargestDatagramPayload()))));
+    // Send more datagrams with size (0, largest_payload] until connection is
     // write blocked.
-    const int kTestMaxNumberOfMessages = 100;
-    for (size_t i = 2; i <= kTestMaxNumberOfMessages; ++i) {
-      size_t message_length =
+    const int kTestMaxNumberOfDatagrams = 100;
+    for (size_t i = 2; i <= kTestMaxNumberOfDatagrams; ++i) {
+      size_t datagram_length =
           random->RandUint64() %
-              client_session->GetGuaranteedLargestMessagePayload() +
+              client_session->GetGuaranteedLargestDatagramPayload() +
           1;
-      MessageResult result = client_session->SendMessage(MemSliceFromString(
-          absl::string_view(message_string.data(), message_length)));
-      if (result.status == MESSAGE_STATUS_BLOCKED) {
+      DatagramResult result = client_session->SendDatagram(MemSliceFromString(
+          absl::string_view(datagram_string.data(), datagram_length)));
+      if (result.status == DATAGRAM_STATUS_BLOCKED) {
         // Connection is write blocked.
         break;
       }
-      EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, i), result);
+      EXPECT_EQ(DatagramResult(DATAGRAM_STATUS_SUCCESS, i), result);
     }
   }
 
   client_->WaitForDelayedAcks();
-  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
+  EXPECT_EQ(DATAGRAM_STATUS_TOO_LARGE,
             client_session
-                ->SendMessage(MemSliceFromString(absl::string_view(
-                    message_string.data(),
-                    client_session->GetCurrentLargestMessagePayload() + 1)))
+                ->SendDatagram(MemSliceFromString(absl::string_view(
+                    datagram_string.data(),
+                    client_session->GetCurrentLargestDatagramPayload() + 1)))
                 .status);
   EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
@@ -6767,12 +6766,12 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   connection_debug_visitor_ = &visitor;
   EXPECT_CALL(visitor, OnTransportParametersSent(_))
-      .WillOnce(Invoke([kCustomParameter](
-                           const TransportParameters& transport_parameters) {
+      .WillOnce([kCustomParameter](
+                    const TransportParameters& transport_parameters) {
         auto it = transport_parameters.custom_parameters.find(kCustomParameter);
         ASSERT_NE(it, transport_parameters.custom_parameters.end());
         EXPECT_EQ(it->second, "test");
-      }));
+      });
   EXPECT_CALL(visitor, OnTransportParametersReceived(_)).Times(1);
   ASSERT_TRUE(Initialize());
 
@@ -8440,9 +8439,9 @@ TEST_P(EndToEndTest, DoNotAdvertisePreferredAddressWithoutSPAD) {
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   connection_debug_visitor_ = &visitor;
   EXPECT_CALL(visitor, OnTransportParametersReceived(_))
-      .WillOnce(Invoke([](const TransportParameters& transport_parameters) {
+      .WillOnce([](const TransportParameters& transport_parameters) {
         EXPECT_EQ(nullptr, transport_parameters.preferred_address);
-      }));
+      });
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
 }

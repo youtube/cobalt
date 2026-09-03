@@ -166,14 +166,14 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_AllFieldsPresentButEmpty) {
 }
 
 TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryEmpty) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
+  HeapVector<std::pair<String, Member<V8Union>>> settings;
   auto result = ParseSettingsToDictionary(settings);
   EXPECT_TRUE(result.has_value());
   EXPECT_TRUE(result->empty());
 }
 
 TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryString) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
+  HeapVector<std::pair<String, Member<V8Union>>> settings;
   settings.push_back(
       std::make_pair("key", MakeGarbageCollected<V8Union>(String("value"))));
   auto result = ParseSettingsToDictionary(settings);
@@ -185,7 +185,7 @@ TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryString) {
 }
 
 TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryLong) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
+  HeapVector<std::pair<String, Member<V8Union>>> settings;
   settings.push_back(std::make_pair("key", MakeGarbageCollected<V8Union>(123)));
   auto result = ParseSettingsToDictionary(settings);
   EXPECT_TRUE(result.has_value());
@@ -196,7 +196,7 @@ TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryLong) {
 }
 
 TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryDouble) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
+  HeapVector<std::pair<String, Member<V8Union>>> settings;
   settings.push_back(
       std::make_pair("key", MakeGarbageCollected<V8Union>(123.456)));
   auto result = ParseSettingsToDictionary(settings);
@@ -208,7 +208,7 @@ TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryDouble) {
 }
 
 TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryBoolean) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
+  HeapVector<std::pair<String, Member<V8Union>>> settings;
   settings.push_back(
       std::make_pair("key", MakeGarbageCollected<V8Union>(true)));
   auto result = ParseSettingsToDictionary(settings);
@@ -220,7 +220,7 @@ TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryBoolean) {
 }
 
 TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryMixed) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
+  HeapVector<std::pair<String, Member<V8Union>>> settings;
   settings.push_back(std::make_pair(
       "string_key", MakeGarbageCollected<V8Union>(String("string_value"))));
   settings.push_back(
@@ -304,7 +304,7 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionaryDoubleConversion) {
 }
 
 TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryDoubleConversion) {
-  HeapVector<std::pair<WTF::String, Member<V8Union>>> settings;
+  HeapVector<std::pair<String, Member<V8Union>>> settings;
 
   // A double with a fractional part.
   settings.push_back(std::make_pair("DoubleWithFraction",

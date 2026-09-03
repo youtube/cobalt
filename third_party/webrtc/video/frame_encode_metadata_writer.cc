@@ -18,7 +18,6 @@
 #include <utility>
 
 #include "api/environment/environment.h"
-#include "api/make_ref_counted.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_codec_type.h"
@@ -44,19 +43,6 @@ namespace webrtc {
 namespace {
 const int kMessagesThrottlingThreshold = 2;
 const int kThrottleRatio = 100000;
-
-class EncodedImageBufferWrapper : public EncodedImageBufferInterface {
- public:
-  explicit EncodedImageBufferWrapper(Buffer&& buffer)
-      : buffer_(std::move(buffer)) {}
-
-  const uint8_t* data() const override { return buffer_.data(); }
-  size_t size() const override { return buffer_.size(); }
-
- private:
-  Buffer buffer_;
-};
-
 }  // namespace
 
 FrameEncodeMetadataWriter::TimingFramesLayerInfo::TimingFramesLayerInfo() =
@@ -230,7 +216,7 @@ void FrameEncodeMetadataWriter::UpdateBitstream(
       buffer, encoded_image->ColorSpace());
 
   encoded_image->SetEncodedData(
-      make_ref_counted<EncodedImageBufferWrapper>(std::move(modified_buffer)));
+      EncodedImageBuffer::Create(std::move(modified_buffer)));
 }
 
 void FrameEncodeMetadataWriter::Reset() {

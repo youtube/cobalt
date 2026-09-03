@@ -105,7 +105,6 @@ rtc_library("rtp_interfaces") {
     "rtp_packet_sink_interface.h",
     "rtp_stream_receiver_controller_interface.h",
     "rtp_transport_config.h",
-    "rtp_transport_controller_send_factory_interface.h",
     "rtp_transport_controller_send_interface.h",
   ]
   deps = [
@@ -167,7 +166,6 @@ rtc_library("rtp_sender") {
     "rtp_payload_params.h",
     "rtp_transport_controller_send.cc",
     "rtp_transport_controller_send.h",
-    "rtp_transport_controller_send_factory.h",
     "rtp_video_sender.cc",
     "rtp_video_sender.h",
     "rtp_video_sender_interface.h",

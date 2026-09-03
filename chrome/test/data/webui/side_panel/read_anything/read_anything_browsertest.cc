@@ -120,6 +120,10 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, LineSpacing) {
                    "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, Movement) {
+  RunSidePanelTest("side_panel/read_anything/movement_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, Toolbar) {
   RunSidePanelTest("side_panel/read_anything/toolbar_test.js", "mocha.run()");
 }
@@ -295,6 +299,11 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, SpeechController) {
                    "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, SpeechControllerContent) {
+  RunSidePanelTest("side_panel/read_anything/speech_controller_content_test.js",
+                   "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, SpeechModel) {
   RunSidePanelTest("side_panel/read_anything/speech_model_test.js",
                    "mocha.run()");
@@ -338,5 +347,33 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingReadAloudPhraseHighlightingMochaTest,
 IN_PROC_BROWSER_TEST_F(ReadAnythingReadAloudPhraseHighlightingMochaTest,
                        PhraseHighlighting) {
   RunSidePanelTest("side_panel/read_anything/phrase_highlighting_test.js",
+                   "mocha.run()");
+}
+
+class ReadAnythingReadAloudTsSegmentationMochaTest
+    : public ReadAnythingMochaBrowserTest {
+ protected:
+  ReadAnythingReadAloudTsSegmentationMochaTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {features::kReadAnythingReadAloud,
+         features::kReadAnythingReadAloudTSTextSegmentation},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// NodeStore tests should pass regardless of whether or not the TsSegmentation
+// flag is enabled without any special handling.
+IN_PROC_BROWSER_TEST_F(ReadAnythingReadAloudTsSegmentationMochaTest,
+                       NodeStore) {
+  RunSidePanelTest("side_panel/read_anything/node_store_test.js",
+                   "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingReadAloudTsSegmentationMochaTest,
+                       ReadAloudNodeStore) {
+  RunSidePanelTest("side_panel/read_anything/read_aloud_node_store_test.js",
                    "mocha.run()");
 }

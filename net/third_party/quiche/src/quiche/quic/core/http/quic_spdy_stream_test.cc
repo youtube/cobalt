@@ -474,7 +474,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         session_->perspective() == Perspective::IS_SERVER) {
       // HANDSHAKE_DONE frame.
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&ClearControlFrame));
+          .WillOnce(&ClearControlFrame);
     }
     CryptoHandshakeMessage message;
     session_->GetMutableCryptoStream()->OnHandshakeMessage(message);
@@ -731,18 +731,17 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
 
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM, _, _))
-      .WillOnce(
-          (Invoke([this](QuicErrorCode error, const std::string& error_details,
-                         ConnectionCloseBehavior connection_close_behavior) {
-            connection_->ReallyCloseConnection(error, error_details,
-                                               connection_close_behavior);
-          })));
+      .WillOnce([this](QuicErrorCode error, const std::string& error_details,
+                       ConnectionCloseBehavior connection_close_behavior) {
+        connection_->ReallyCloseConnection(error, error_details,
+                                           connection_close_behavior);
+      });
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(*session_, OnConnectionClosed(_, _))
-      .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
-                              ConnectionCloseSource source) {
+      .WillOnce([this](const QuicConnectionCloseFrame& frame,
+                       ConnectionCloseSource source) {
         session_->ReallyOnConnectionClosed(frame, source);
-      }));
+      });
   EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _)).Times(2);
 
   stream_->OnStreamFrame(frame);
@@ -2291,18 +2290,17 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
                       MatchesRegex("Error decoding headers on stream \\d+: "
                                    "Incomplete header block."),
                       _))
-      .WillOnce(
-          (Invoke([this](QuicErrorCode error, const std::string& error_details,
-                         ConnectionCloseBehavior connection_close_behavior) {
-            connection_->ReallyCloseConnection(error, error_details,
-                                               connection_close_behavior);
-          })));
+      .WillOnce([this](QuicErrorCode error, const std::string& error_details,
+                       ConnectionCloseBehavior connection_close_behavior) {
+        connection_->ReallyCloseConnection(error, error_details,
+                                           connection_close_behavior);
+      });
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(*session_, OnConnectionClosed(_, _))
-      .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
-                              ConnectionCloseSource source) {
+      .WillOnce([this](const QuicConnectionCloseFrame& frame,
+                       ConnectionCloseSource source) {
         session_->ReallyOnConnectionClosed(frame, source);
-      }));
+      });
   EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _)).Times(2);
   stream_->OnStreamFrame(frame);
 }
@@ -2328,18 +2326,17 @@ TEST_P(QuicSpdyStreamTest, DoNotMarkConsumedAfterQpackDecodingError) {
                         MatchesRegex("Error decoding headers on stream \\d+: "
                                      "Invalid relative index."),
                         _))
-        .WillOnce((
-            Invoke([this](QuicErrorCode error, const std::string& error_details,
-                          ConnectionCloseBehavior connection_close_behavior) {
-              connection_->ReallyCloseConnection(error, error_details,
-                                                 connection_close_behavior);
-            })));
+        .WillOnce([this](QuicErrorCode error, const std::string& error_details,
+                         ConnectionCloseBehavior connection_close_behavior) {
+          connection_->ReallyCloseConnection(error, error_details,
+                                             connection_close_behavior);
+        });
     EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
     EXPECT_CALL(*session_, OnConnectionClosed(_, _))
-        .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
-                                ConnectionCloseSource source) {
+        .WillOnce([this](const QuicConnectionCloseFrame& frame,
+                         ConnectionCloseSource source) {
           session_->ReallyOnConnectionClosed(frame, source);
-        }));
+        });
   }
   EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(), _, _));
   EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream2_->id(), _, _));
@@ -2900,15 +2897,15 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, ReceiveMetadataFrame) {
   std::string metadata_frame = metadata_frame_header + metadata_frame_payload;
 
   EXPECT_CALL(metadata_visitor, OnMetadataComplete(metadata_frame.size(), _))
-      .WillOnce(testing::WithArgs<1>(
-          Invoke([&headers](const QuicHeaderList& header_list) {
+      .WillOnce(
+          testing::WithArgs<1>([&headers](const QuicHeaderList& header_list) {
             quiche::HttpHeaderBlock actual_headers;
             for (const auto& header : header_list) {
               actual_headers.AppendValueOrAddHeader(header.first,
                                                     header.second);
             }
             EXPECT_EQ(headers, actual_headers);
-          })));
+          }));
   OnStreamFrame(metadata_frame);
 }
 
@@ -2943,7 +2940,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest,
   // receive a callback about the second.
   EXPECT_CALL(metadata_visitor, OnMetadataComplete(metadata_frame.size(), _))
       .WillOnce(testing::WithArgs<1>(
-          Invoke([&headers, this](const QuicHeaderList& header_list) {
+          [&headers, this](const QuicHeaderList& header_list) {
             quiche::HttpHeaderBlock actual_headers;
             for (const auto& header : header_list) {
               actual_headers.AppendValueOrAddHeader(header.first,
@@ -2951,7 +2948,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest,
             }
             EXPECT_EQ(headers, actual_headers);
             stream_->Reset(QUIC_STREAM_CANCELLED);
-          })));
+          }));
   std::string data = metadata_frame + metadata_frame;
   OnStreamFrame(data);
 }
@@ -3542,7 +3539,7 @@ TEST_P(QuicSpdyStreamTest, ReceiveHttpDatagram) {
   }
 
   stream_->RegisterHttp3DatagramVisitor(&h3_datagram_visitor);
-  session_->OnMessageReceived(
+  session_->OnDatagramReceived(
       absl::string_view(datagram.data(), datagram.size()));
   EXPECT_THAT(
       h3_datagram_visitor.received_h3_datagrams(),
@@ -3552,7 +3549,7 @@ TEST_P(QuicSpdyStreamTest, ReceiveHttpDatagram) {
   SavingHttp3DatagramVisitor h3_datagram_visitor2;
   stream_->ReplaceHttp3DatagramVisitor(&h3_datagram_visitor2);
   EXPECT_TRUE(h3_datagram_visitor2.received_h3_datagrams().empty());
-  session_->OnMessageReceived(
+  session_->OnDatagramReceived(
       absl::string_view(datagram.data(), datagram.size()));
   EXPECT_THAT(
       h3_datagram_visitor2.received_h3_datagrams(),
@@ -3571,10 +3568,10 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagram) {
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kRfc);
   std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
-  EXPECT_CALL(*connection_, SendMessage(1, _, false))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+  EXPECT_CALL(*connection_, SendDatagram(1, _, false))
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
   EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),
-            MESSAGE_STATUS_SUCCESS);
+            DATAGRAM_STATUS_SUCCESS);
 }
 
 TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutLocalSupport) {
@@ -3596,7 +3593,7 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagramBeforeReceivingSettings) {
   session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
   std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
   EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),
-            MESSAGE_STATUS_SETTINGS_NOT_RECEIVED);
+            DATAGRAM_STATUS_SETTINGS_NOT_RECEIVED);
 }
 
 TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutPeerSupport) {
@@ -3612,7 +3609,7 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutPeerSupport) {
 
   std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
   EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),
-            MESSAGE_STATUS_UNSUPPORTED);
+            DATAGRAM_STATUS_UNSUPPORTED);
 }
 
 TEST_P(QuicSpdyStreamTest, GetMaxDatagramSize) {

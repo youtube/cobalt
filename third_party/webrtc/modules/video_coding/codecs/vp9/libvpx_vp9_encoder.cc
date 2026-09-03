@@ -1881,6 +1881,10 @@ VideoEncoder::EncoderInfo LibvpxVp9Encoder::GetEncoderInfo() const {
         max_fps = codec_.spatialLayers[si].maxFramerate;
       }
     }
+    if (num_active_spatial_layers_ > 0) {
+      info.mapped_resolution =
+          VideoEncoder::Resolution(config_->g_w, config_->g_h);
+    }
 
     for (size_t si = 0; si < num_spatial_layers_; ++si) {
       info.fps_allocation[si].clear();

@@ -46,10 +46,10 @@
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
-#include "rtc_base/net_helpers.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network_constants.h"
+#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
@@ -338,7 +338,7 @@ void BasicPortAllocatorSession::SetCandidateFilter(uint32_t filter) {
           found_signalable_candidate = true;
           port_data.set_state(PortData::STATE_INPROGRESS);
         }
-        port->SendCandidateReady(c);
+        port->SignalCandidateReady(port, c);
       }
 
       if (CandidatePairable(c, port)) {
@@ -487,7 +487,7 @@ void BasicPortAllocatorSession::GetCandidateStatsFromReadyPorts(
 }
 
 void BasicPortAllocatorSession::SetStunKeepaliveIntervalForReadyPorts(
-    const std::optional<int>& stun_keepalive_interval) {
+    const std::optional<TimeDelta>& stun_keepalive_interval) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto ports = ReadyPorts();
   for (PortInterface* port : ports) {
@@ -924,12 +924,12 @@ void BasicPortAllocatorSession::AddAllocatedPort(Port* port,
       [this](Port* port, const IceCandidateErrorEvent& event) {
         OnCandidateError(port, event);
       });
-  port->SignalPortComplete.connect(this,
-                                   &BasicPortAllocatorSession::OnPortComplete);
+  port->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
   port->SubscribePortDestroyed(
       [this](PortInterface* port) { OnPortDestroyed(port); });
 
-  port->SignalPortError.connect(this, &BasicPortAllocatorSession::OnPortError);
+  port->SubscribePortError([this](Port* port) { OnPortError(port); });
+
   RTC_LOG(LS_INFO) << port->ToString() << ": Added port to allocator";
 
   port->PrepareAddress();
@@ -1268,9 +1268,10 @@ AllocationSequence::AllocationSequence(
 
 void AllocationSequence::Init() {
   if (IsFlagSet(PORTALLOCATOR_ENABLE_SHARED_SOCKET)) {
-    udp_socket_.reset(session_->socket_factory()->CreateUdpSocket(
-        SocketAddress(network_->GetBestIP(), 0),
-        session_->allocator()->min_port(), session_->allocator()->max_port()));
+    BasicPortAllocator& allocator = *session_->allocator();
+    udp_socket_ = session_->socket_factory()->CreateUdpSocket(
+        allocator.env(), SocketAddress(network_->GetBestIP(), 0),
+        allocator.min_port(), allocator.max_port());
     if (udp_socket_) {
       udp_socket_->RegisterReceivedPacketCallback(
           [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
@@ -1478,6 +1479,8 @@ void AllocationSequence::CreateUDPPorts() {
     // UDPPort.
     if (IsFlagSet(PORTALLOCATOR_ENABLE_SHARED_SOCKET)) {
       udp_port_ = port.get();
+      port->SubscribePortDestroyed(
+          [this](PortInterface* port) { OnPortDestroyed(port); });
       // If STUN is not disabled, setting stun server address to port.
       if (!IsFlagSet(PORTALLOCATOR_DISABLE_STUN)) {
         if (config_ && !config_->StunServers().empty()) {
@@ -1500,15 +1503,13 @@ void AllocationSequence::CreateTCPPorts() {
   }
 
   std::unique_ptr<Port> port = TCPPort::Create(
-      {
-          .env = session_->allocator()->env(),
-          .network_thread = session_->network_thread(),
-          .socket_factory = session_->socket_factory(),
-          .network = network_,
-          .ice_username_fragment = session_->username(),
-          .ice_password = session_->password(),
-          .content_name = session_->content_name(),
-      },
+      {.env = session_->allocator()->env(),
+       .network_thread = session_->network_thread(),
+       .socket_factory = session_->socket_factory(),
+       .network = network_,
+       .ice_username_fragment = session_->username(),
+       .ice_password = session_->password(),
+       .content_name = session_->content_name()},
       session_->allocator()->min_port(), session_->allocator()->max_port(),
       session_->allocator()->allow_tcp_listen());
   if (port) {
@@ -1637,6 +1638,10 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config,
       }
 
       relay_ports_.push_back(port.get());
+      // Listen to the port destroyed signal, to allow AllocationSequence to
+      // remove the entry from it's map.
+      port->SubscribePortDestroyed(
+          [this](PortInterface* port) { OnPortDestroyed(port); });
     } else {
       port = session_->allocator()->relay_port_factory()->Create(
           args, session_->allocator()->min_port(),

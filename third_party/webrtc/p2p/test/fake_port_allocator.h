@@ -186,8 +186,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
   void AddPort(Port* port) {
     port->set_component(component());
     port->set_generation(generation());
-    port->SignalPortComplete.connect(this,
-                                     &FakePortAllocatorSession::OnPortComplete);
+    port->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
     port->PrepareAddress();
     ready_ports_.push_back(port);
     SignalPortReady(this, port);

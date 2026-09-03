@@ -363,9 +363,10 @@ class TurnPortTest : public ::testing::Test,
   }
 
   void ConnectSignals() {
-    turn_port_->SignalPortComplete.connect(this,
-                                           &TurnPortTest::OnTurnPortComplete);
-    turn_port_->SignalPortError.connect(this, &TurnPortTest::OnTurnPortError);
+    turn_port_->SubscribePortComplete(
+        [this](Port* port) { OnTurnPortComplete(port); });
+    turn_port_->SubscribePortError(
+        [this](Port* port) { OnTurnPortError(port); });
     turn_port_->SubscribeCandidateError(
         [this](Port* port, const IceCandidateErrorEvent& event) {
           OnCandidateError(port, event);
@@ -391,8 +392,8 @@ class TurnPortTest : public ::testing::Test,
     // UDP port will be controlled.
     udp_port_->SetIceRole(ICEROLE_CONTROLLED);
     udp_port_->SetIceTiebreaker(kTiebreakerDefault);
-    udp_port_->SignalPortComplete.connect(this,
-                                          &TurnPortTest::OnUdpPortComplete);
+    udp_port_->SubscribePortComplete(
+        [this](Port* port) { OnUdpPortComplete(port); });
   }
 
   void PrepareTurnAndUdpPorts(ProtocolType protocol_type) {

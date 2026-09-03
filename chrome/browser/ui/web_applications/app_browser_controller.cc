@@ -22,6 +22,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window_state.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/tabs/tab_menu_model_factory.h"
@@ -98,14 +100,15 @@ void SetWebContentsCanAcceptLoadDrops(content::WebContents* contents,
 namespace web_app {
 
 // static
-bool AppBrowserController::IsWebApp(const Browser* browser) {
-  return browser && browser->app_controller();
+bool AppBrowserController::IsWebApp(const BrowserWindowInterface* browser) {
+  return browser && browser->GetFeatures().app_browser_controller();
 }
 
 // static
-bool AppBrowserController::IsForWebApp(const Browser* browser,
+bool AppBrowserController::IsForWebApp(const BrowserWindowInterface* browser,
                                        const webapps::AppId& app_id) {
-  return IsWebApp(browser) && browser->app_controller()->app_id() == app_id;
+  return IsWebApp(browser) &&
+         browser->GetFeatures().app_browser_controller()->app_id() == app_id;
 }
 
 // static
@@ -465,11 +468,14 @@ const ash::SystemWebAppDelegate* AppBrowserController::system_app() const {
 std::u16string AppBrowserController::GetLaunchFlashText() const {
   // Isolated Web Apps should show the app's name instead of the origin.
   // App Short Name is considered trustworthy because manifest comes from signed
-  // web bundle.
-  // TODO:(crbug.com/b/1394199) Disable IWA launch flash text for OSs that
-  // already display name on title bar.
+  // web bundle. The flash text is not needed on platforms that already display
+  // the app name in the title bar (e.g. Mac, Windows, and Linux).
   if (IsIsolatedWebApp()) {
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+    return std::u16string();
+#else   // !(BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX))
     return GetAppShortName();
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   }
   return GetFormattedUrlOrigin();
 }
@@ -539,31 +545,27 @@ void AppBrowserController::PrimaryPageChanged(content::Page& page) {
 }
 
 std::optional<SkColor> AppBrowserController::GetThemeColor() const {
-  ui::NativeTheme* native_theme = ui::NativeTheme::GetInstanceForNativeUi();
-  if (native_theme->InForcedColorsMode()) {
-    // use system [Window ThemeColor] when enable high contrast
-    return native_theme->GetSystemThemeColor(
-        ui::NativeTheme::SystemThemeColor::kWindow);
-  }
-
-  std::optional<SkColor> result;
-  // HTML meta theme-color tag overrides manifest theme_color, see spec:
-  // https://www.w3.org/TR/appmanifest/#theme_color-member
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  if (web_contents) {
-    std::optional<SkColor> color = web_contents->GetThemeColor();
-    if (color) {
-      result = color;
+  if (ui::NativeTheme* native_theme = ui::NativeTheme::GetInstanceForNativeUi();
+      native_theme->preferred_contrast() ==
+      ui::NativeTheme::PreferredContrast::kMore) {
+    if (const std::optional<SkColor> window_color =
+            native_theme->GetSystemThemeColor(
+                ui::NativeTheme::SystemThemeColor::kWindow)) {
+      return window_color;
     }
   }
 
-  if (!result) {
-    return std::nullopt;
+  if (content::WebContents* const web_contents =
+          browser()->tab_strip_model()->GetActiveWebContents()) {
+    // HTML meta theme-color tag overrides manifest theme_color, see spec:
+    // https://www.w3.org/TR/appmanifest/#theme_color-member
+    if (const std::optional<SkColor> color = web_contents->GetThemeColor()) {
+      // The frame/tabstrip code expects an opaque color.
+      return SkColorSetA(*color, SK_AlphaOPAQUE);
+    }
   }
 
-  // The frame/tabstrip code expects an opaque color.
-  return SkColorSetA(*result, SK_AlphaOPAQUE);
+  return std::nullopt;
 }
 
 std::optional<SkColor> AppBrowserController::GetBackgroundColor() const {

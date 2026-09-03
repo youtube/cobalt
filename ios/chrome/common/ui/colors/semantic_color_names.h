@@ -31,6 +31,7 @@ extern NSString* const kMDCSecondaryInkColor;
 extern NSString* const kPlaceholderImageTintColor;
 // Primary background color.
 extern NSString* const kPrimaryBackgroundColor;
+extern NSString* const kInvertedPrimaryBackgroundColor;
 extern NSString* const kScrimBackgroundColor;
 extern NSString* const kDarkerScrimBackgroundColor;
 // Secondary background color.
@@ -91,10 +92,6 @@ extern NSString* const kWhiteBlackAlpha50Color;
 // Lens overlay consent dialog description text color.
 extern NSString* const kLensOverlayConsentDialogDescriptionColor;
 extern NSString* const kLensOverlayConsentDialogAnimationPlayerButtonColor;
-
-// The starting color for the gradient on the Home customization image framing
-// view.
-extern NSString* const kHomeCustomizationImageFramingViewGradientStartColor;
 
 // ***************
 // Standard Colors

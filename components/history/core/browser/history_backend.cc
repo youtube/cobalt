@@ -1659,29 +1659,6 @@ bool HistoryBackend::CanAddURL(const GURL& url) const {
   return delegate_->CanAddURL(url);
 }
 
-bool HistoryBackend::GetAllTypedURLs(URLRows* urls) {
-  DCHECK(urls);
-  if (!db_)
-    return false;
-  std::vector<URLID> url_ids;
-  if (!db_->GetAllURLIDsForTransition(ui::PAGE_TRANSITION_TYPED, &url_ids))
-    return false;
-  urls->reserve(url_ids.size());
-  for (const auto& url_id : url_ids) {
-    URLRow url;
-    if (!db_->GetURLRow(url_id, &url))
-      return false;
-    urls->push_back(url);
-  }
-  return true;
-}
-
-bool HistoryBackend::GetVisitsForURL(URLID id, VisitVector* visits) {
-  if (db_)
-    return db_->GetVisitsForURL(id, visits);
-  return false;
-}
-
 bool HistoryBackend::GetMostRecentVisitForURL(URLID id, VisitRow* visit_row) {
   if (db_)
     return db_->GetMostRecentVisitForURL(id, visit_row);
@@ -1696,9 +1673,10 @@ bool HistoryBackend::GetMostRecentVisitsForURL(URLID id,
   return false;
 }
 
-QueryURLResult HistoryBackend::GetMostRecentVisitsForGurl(GURL url,
-                                                          int max_visits) {
-  QueryURLResult result;
+QueryURLAndVisitsResult HistoryBackend::GetMostRecentVisitsForGurl(
+    GURL url,
+    int max_visits) {
+  QueryURLAndVisitsResult result;
   if (db_ && GetURL(url, &result.row) &&
       db_->GetMostRecentVisitsForURL(result.row.id(), max_visits,
                                      &result.visits)) {
@@ -2016,12 +1994,30 @@ bool HistoryBackend::GetLastVisitByTime(base::Time visit_time,
   return false;
 }
 
-QueryURLResult HistoryBackend::QueryURL(const GURL& url, bool want_visits) {
+QueryURLResult HistoryBackend::QueryURL(const GURL& url) {
   QueryURLResult result;
   result.success = db_ && db_->GetRowForURL(url, &result.row);
-  // Optionally query the visits.
-  if (result.success && want_visits)
-    db_->GetVisitsForURL(result.row.id(), &result.visits);
+  return result;
+}
+
+QueryURLAndVisitsResult HistoryBackend::QueryURLAndVisits(
+    const GURL& url,
+    VisitQuery404sPolicy policy_for_404s) {
+  QueryURLAndVisitsResult result;
+  result.success = db_ && db_->GetRowForURL(url, &result.row);
+  if (!result.success) {
+    return result;
+  }
+
+  switch (policy_for_404s) {
+    case VisitQuery404sPolicy::kInclude404s:
+      db_->GetVisitsForURL(result.row.id(), &result.visits);
+      break;
+    case VisitQuery404sPolicy::kExclude404s:
+      db_->GetNon404VisitsForURL(result.row.id(), &result.visits);
+      break;
+  }
+
   return result;
 }
 
@@ -2046,10 +2042,6 @@ HistoryCountResult HistoryBackend::GetHistoryCount(const Time& begin_time,
                                                    const Time& end_time) {
   int count = 0;
   return {db_ && db_->GetHistoryCount(begin_time, end_time, &count), count};
-}
-
-HistoryCountResult HistoryBackend::CountUniqueHostsVisitedLastMonth() {
-  return {!!db_, db_ ? db_->CountUniqueHostsVisitedLastMonth() : 0};
 }
 
 std::pair<DomainDiversityResults, DomainDiversityResults>
@@ -2535,16 +2527,6 @@ void HistoryBackend::UpdateClusterVisit(
   }
 
   db_->UpdateClusterVisit(cluster_id, cluster_visit);
-}
-
-void HistoryBackend::UpdateVisitsInteractionState(
-    const std::vector<VisitID>& visit_ids,
-    const ClusterVisit::InteractionState interaction_state) {
-  TRACE_EVENT0("browser", "HistoryBackend::UpdateVisitsInteractionState");
-  if (!db_) {
-    return;
-  }
-  db_->UpdateVisitsInteractionState(visit_ids, interaction_state);
 }
 
 std::vector<Cluster> HistoryBackend::GetMostRecentClusters(
@@ -3536,13 +3518,6 @@ void HistoryBackend::ExpireHistory(
     if (update_first_recorded_time)
       db_->GetStartDate(&first_recorded_time_);
   }
-}
-
-void HistoryBackend::ExpireHistoryBeforeForTesting(base::Time end_time) {
-  if (!db_)
-    return;
-
-  expirer_.ExpireHistoryBeforeForTesting(end_time);
 }
 
 void HistoryBackend::URLsNoLongerBookmarked(const std::set<GURL>& urls) {

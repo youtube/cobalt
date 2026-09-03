@@ -51,6 +51,7 @@
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/passwords/passwords_client_ui_delegate.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
@@ -474,7 +475,8 @@ IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewChromeOSTest,
   chrome::NewEmptyWindow(profile);
   SessionRestoreTestHelper().Wait();
 
-  Browser* new_browser = BrowserList::GetInstance()->GetLastActive();
+  const BrowserWindowInterface* const new_browser =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
 
   // Check that a layout occurs.
   BrowserView* browser_view =
@@ -1058,13 +1060,11 @@ IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewChromeOSTest, AppFrameColor) {
   SkColor active_frame_color =
       window->GetProperty(chromeos::kFrameActiveColorKey);
 
-  const bool is_dark_mode_state =
-      BrowserView::GetBrowserViewForBrowser(browser())
-          ->GetNativeTheme()
-          ->ShouldUseDarkColors();
-  EXPECT_EQ(active_frame_color, is_dark_mode_state
-                                    ? gfx::kGoogleGrey900
-                                    : SkColorSetRGB(0xFF, 0xFF, 0xFF))
+  const auto* const native_theme =
+      BrowserView::GetBrowserViewForBrowser(browser())->GetNativeTheme();
+  const bool dark_mode = native_theme->ShouldUseDarkColors();
+  EXPECT_EQ(active_frame_color,
+            dark_mode ? gfx::kGoogleGrey900 : SkColorSetRGB(0xFF, 0xFF, 0xFF))
       << "RGB: " << SkColorGetR(active_frame_color) << ", "
       << SkColorGetG(active_frame_color) << ", "
       << SkColorGetB(active_frame_color);
@@ -1716,7 +1716,8 @@ IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewAshTestNoWebUiTabStrip,
   BrowserNonClientFrameViewChromeOSTestApi test_api(frame_view);
   aura::Window* window = browser->window()->GetNativeWindow();
 
-  EXPECT_FALSE(MultiUserWindowManagerHelper::ShouldShowAvatar(window));
+  EXPECT_FALSE(
+      BrowserNonClientFrameViewChromeOS::ShouldShowAvatarForTesting(window));
   EXPECT_FALSE(test_api.GetProfileIndicatorIcon());
 
   // Log in with the secondary user.
@@ -1737,13 +1738,15 @@ IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewAshTestNoWebUiTabStrip,
       session_manager::SessionManager::Get()->GetActiveSession()->account_id(),
       kSecondaryAccountId);
 
-  EXPECT_TRUE(MultiUserWindowManagerHelper::ShouldShowAvatar(window));
+  EXPECT_TRUE(
+      BrowserNonClientFrameViewChromeOS::ShouldShowAvatarForTesting(window));
   EXPECT_TRUE(test_api.GetProfileIndicatorIcon());
 
   // Teleport the window back to owner desktop.
   browser_view->Activate();
   window_manager->ShowWindowForUser(window, kPrimaryAccountId);
-  EXPECT_FALSE(MultiUserWindowManagerHelper::ShouldShowAvatar(window));
+  EXPECT_FALSE(
+      BrowserNonClientFrameViewChromeOS::ShouldShowAvatarForTesting(window));
   EXPECT_FALSE(test_api.GetProfileIndicatorIcon());
 }
 

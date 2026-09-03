@@ -40,6 +40,7 @@ rtc_library("emulated_network") {
   ]
   deps = [
     ":simulated_network",
+    "..:create_test_environment",
     "../../api:array_view",
     "../../api:async_dns_resolver",
     "../../api:field_trials_view",
@@ -49,6 +50,7 @@ rtc_library("emulated_network") {
     "../../api:sequence_checker",
     "../../api:simulated_network_api",
     "../../api:time_controller",
+    "../../api/environment",
     "../../api/numerics",
     "../../api/task_queue",
     "../../api/task_queue:pending_task_safety_flag",
