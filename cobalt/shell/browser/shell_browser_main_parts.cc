@@ -17,9 +17,11 @@
 #include <utility>
 
 #include "base/base_switches.h"
+#include "base/bind.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/android/shell_descriptors.h"
@@ -200,6 +202,12 @@ int ShellBrowserMainParts::PreCreateThreads() {
         std::make_unique<crash_reporter::ChildProcessCrashObserver>());
   }
 
+#endif
+  return 0;
+}
+
+#if BUILDFLAG(IS_ANDROID)
+void HarvestJavaStartupMetrics() {
   // Because the JNI bridge is not available early in the Java Android Phase
   // (e.g. Activity onCreate) `StartupGuard` persists Milestones 1-4 via a
   // bare-metal MappedByteBuffer. On the subsequent boot, search for the
@@ -227,14 +235,20 @@ int ShellBrowserMainParts::PreCreateThreads() {
       base::DeleteFile(state_file);
     }
   }
-#endif
-  return 0;
 }
+#endif
 
 void ShellBrowserMainParts::PostCreateThreads() {
   performance_manager_lifetime_ =
       std::make_unique<performance_manager::PerformanceManagerLifetime>(
           performance_manager::GraphFeatures::WithMinimal(), base::DoNothing());
+
+#if BUILDFLAG(IS_ANDROID)
+  base::ThreadPool::PostTask(FROM_HERE,
+                             {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+                              base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+                             base::BindOnce(&HarvestJavaStartupMetrics));
+#endif
 }
 
 int ShellBrowserMainParts::PreMainMessageLoopRun() {

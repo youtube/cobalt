@@ -23,6 +23,7 @@ public class StartupGuardPersistenceTest {
     // Clean up previous files if any
     new File(context.getFilesDir(), "java_startup_state.bin").delete();
     new File(context.getFilesDir(), "java_startup_state_previous.bin").delete();
+    StartupGuard.getInstance().resetForTesting();
   }
 
   @Test

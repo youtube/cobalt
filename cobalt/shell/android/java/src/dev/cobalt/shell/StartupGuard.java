@@ -66,14 +66,19 @@ public class StartupGuard {
       if (file.exists()) {
         java.io.File prevFile =
             new java.io.File(context.getFilesDir(), "java_startup_state_previous.bin");
+        if (prevFile.exists()) {
+          prevFile.delete();
+        }
         file.renameTo(prevFile);
       }
-      java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "rw");
-      // MappedByteBuffer defaults to big-endian, we strictly need little-endian for C++.
-      startupStateBuffer =
-          raf.getChannel().map(java.nio.channels.FileChannel.MapMode.READ_WRITE, 0, 8);
-      startupStateBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN);
-      startupStateBuffer.putLong(0, 0);
+
+      try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "rw");
+          java.nio.channels.FileChannel channel = raf.getChannel()) {
+        // MappedByteBuffer defaults to big-endian, we strictly need little-endian for C++.
+        startupStateBuffer = channel.map(java.nio.channels.FileChannel.MapMode.READ_WRITE, 0, 8);
+        startupStateBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        startupStateBuffer.putLong(0, 0);
+      }
     } catch (Exception e) {
       Log.e(TAG, "Failed to map startup state file: " + e.getMessage());
     }
@@ -112,10 +117,13 @@ public class StartupGuard {
     }
     Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
     long mask = 1L << milestone;
-    long current = startupStatus.updateAndGet(curr -> curr | mask);
 
-    if (startupStateBuffer != null) {
-      startupStateBuffer.putLong(0, current);
+    // Synchronize to ensure atomic write-through to the disk buffer without interleaving
+    synchronized (this) {
+      long current = startupStatus.updateAndGet(curr -> curr | mask);
+      if (startupStateBuffer != null) {
+        startupStateBuffer.putLong(0, current);
+      }
     }
   }
 
@@ -167,5 +175,14 @@ public class StartupGuard {
   @VisibleForTesting
   public Runnable getCrashRunnable() {
     return crashRunnable;
+  }
+
+  @VisibleForTesting
+  public void resetForTesting() {
+    synchronized (this) {
+      startupStatus.set(0);
+      isArmed.set(false);
+      startupStateBuffer = null;
+    }
   }
 }
