@@ -221,7 +221,7 @@ void SamplingHeapProfiler::SampleAdded(void* address,
   if (base::ThreadLocalStorage::HasBeenDestroyed()) [[unlikely]] {
     return;
   }
-  DCHECK(PoissonAllocationSampler::ScopedMuteThreadSamples::IsMuted());
+  PoissonAllocationSampler::ScopedMuteThreadSamples mute_scope;
   uint32_t previous_last =
       last_sample_ordinal_.fetch_add(1, std::memory_order_acq_rel);
   Sample sample(size, total, previous_last + 1);
@@ -236,7 +236,9 @@ void SamplingHeapProfiler::SampleAdded(void* address,
     // MuteHookedSamplesForTesting is running.
     return;
   }
-  RecordString(sample.context);
+  if (sample.context) {
+    RecordString(sample.context);
+  }
 
   // If a sample is already present with the same address, then that means that
   // the sampling heap profiler failed to observe the destruction -- possibly
@@ -272,7 +274,7 @@ const char* SamplingHeapProfiler::RecordString(const char* string) {
 }
 
 void SamplingHeapProfiler::SampleRemoved(void* address) {
-  DCHECK(base::PoissonAllocationSampler::ScopedMuteThreadSamples::IsMuted());
+  PoissonAllocationSampler::ScopedMuteThreadSamples mute_scope;
   base::AutoLock lock(mutex_);
   samples_.erase(address);
 }

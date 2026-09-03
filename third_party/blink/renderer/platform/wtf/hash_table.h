@@ -883,7 +883,9 @@ class HashTable final {
 
   unsigned TableSizeMask() const {
     unsigned mask = table_size_ - 1;
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
     DCHECK_EQ((mask & table_size_), 0u);
+#endif
     return mask;
   }
 

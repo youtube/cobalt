@@ -107,7 +107,7 @@ bool ReadCRL(std::string_view* data,
   if (num_serials > 32 * 1024 * 1024)  // Sanity check.
     return false;
 
-  out_serials->reserve(num_serials);
+  out_serials->reserve(std::min(num_serials, static_cast<uint32_t>(1024)));
 
   for (uint32_t i = 0; i < num_serials; ++i) {
     if (data->size() < sizeof(uint8_t))
@@ -119,8 +119,7 @@ bool ReadCRL(std::string_view* data,
     if (data->size() < serial_length)
       return false;
 
-    out_serials->push_back(std::string());
-    out_serials->back() = std::string(data->substr(0, serial_length));
+    out_serials->push_back(std::string(data->data(), serial_length));
     data->remove_prefix(serial_length);
   }
 

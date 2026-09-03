@@ -536,6 +536,7 @@ std::string BuildCrashString(const char* file,
   return base::StringPrintf("%s:%d: %s", file, line, message_without_prefix);
 }
 
+#if !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_COBALT)
 // Invokes macro to record trace event when a log message is emitted.
 void TraceLogMessage(const char* file, int line, const std::string& message) {
   TRACE_EVENT_INSTANT("log", "LogMessage", [&](perfetto::EventContext ctx) {
@@ -547,6 +548,7 @@ void TraceLogMessage(const char* file, int line, const std::string& message) {
         base::trace_event::InternedLogMessage::Get(&ctx, message));
   });
 }
+#endif
 
 }  // namespace
 
@@ -802,8 +804,8 @@ void LogMessage::Flush() {
     // TODO(chrisha): Integrate with symbolization once those tools exist!
     const auto* task = base::TaskAnnotator::CurrentTaskForThread();
     if (task && task->ipc_hash) {
-      stream_ << "IPC message handler context: "
-              << base::StringPrintf("0x%08X", task->ipc_hash) << std::endl;
+      stream_ << "IPC message handler context: 0x"
+              << std::hex << task->ipc_hash << std::dec << std::endl;
     }
 
     // Include the crash keys, if any.
@@ -812,7 +814,10 @@ void LogMessage::Flush() {
 #endif
   stream_ << std::endl;
   std::string str_newline(stream_.str());
-  TraceLogMessage(file_, line_, str_newline.substr(message_start_));
+#if !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_COBALT)
+  size_t safe_start = std::min(message_start_, str_newline.length());
+  TraceLogMessage(file_, line_, str_newline.substr(safe_start));
+#endif
 
   // FATAL messages should always run the assert handler and crash, even if a
   // message handler marks them as otherwise handled.

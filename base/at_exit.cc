@@ -29,7 +29,7 @@ static bool g_disable_managers = false;
 AtExitManager::AtExitManager() : next_manager_(g_top_manager) {
 // If multiple modules instantiate AtExitManagers they'll end up living in this
 // module... they have to coexist.
-#if !defined(COMPONENT_BUILD)
+#if !defined(COMPONENT_BUILD) && !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
   DCHECK(!g_top_manager);
 #endif
   g_top_manager = this;
@@ -37,14 +37,18 @@ AtExitManager::AtExitManager() : next_manager_(g_top_manager) {
 
 AtExitManager::~AtExitManager() {
   if (!g_top_manager) {
-    NOTREACHED() << "Tried to ~AtExitManager without an AtExitManager";
+    return;
   }
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
   DCHECK_EQ(this, g_top_manager);
+#endif
 
   if (!g_disable_managers) {
     ProcessCallbacksNow();
   }
-  g_top_manager = next_manager_;
+  if (g_top_manager == this) {
+    g_top_manager = next_manager_;
+  }
 }
 
 // static
@@ -56,11 +60,14 @@ void AtExitManager::RegisterCallback(AtExitCallbackType func, void* param) {
 // static
 void AtExitManager::RegisterTask(base::OnceClosure task) {
   if (!g_top_manager) {
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
     NOTREACHED() << "Tried to RegisterCallback without an AtExitManager";
+#endif
+    return;
   }
 
   AutoLock lock(g_top_manager->lock_);
-#if DCHECK_IS_ON()
+#if DCHECK_IS_ON() && !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
   DCHECK(!g_top_manager->processing_callbacks_);
 #endif
   g_top_manager->stack_.push(std::move(task));
@@ -69,7 +76,7 @@ void AtExitManager::RegisterTask(base::OnceClosure task) {
 // static
 void AtExitManager::ProcessCallbacksNow() {
   if (!g_top_manager) {
-    NOTREACHED() << "Tried to ProcessCallbacksNow without an AtExitManager";
+    return;
   }
 
   // Callbacks may try to add new callbacks, so run them without holding
@@ -95,19 +102,26 @@ void AtExitManager::ProcessCallbacksNow() {
 
 #if DCHECK_IS_ON()
   AutoLock lock(g_top_manager->lock_);
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
   // Expect that all callbacks have been run.
   DCHECK(g_top_manager->stack_.empty());
+#endif
   g_top_manager->processing_callbacks_ = false;
 #endif
 }
 
 void AtExitManager::DisableAllAtExitManagers() {
+  if (!g_top_manager) {
+    return;
+  }
   AutoLock lock(g_top_manager->lock_);
   g_disable_managers = true;
 }
 
 AtExitManager::AtExitManager(bool shadow) : next_manager_(g_top_manager) {
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
   DCHECK(shadow || !g_top_manager);
+#endif
   g_top_manager = this;
 }
 

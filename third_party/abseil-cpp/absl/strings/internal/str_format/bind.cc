@@ -226,7 +226,11 @@ std::string& AppendPack(std::string* out, const UntypedFormatSpecImpl format,
                         absl::Span<const FormatArgImpl> args) {
   size_t orig = out->size();
   if (ABSL_PREDICT_FALSE(!FormatUntyped(out, format, args))) {
-    out->erase(orig);
+    if (orig <= out->size()) {
+      out->erase(orig);
+    } else {
+      out->clear();
+    }
   }
   return *out;
 }

@@ -43,11 +43,8 @@ class ValueValidator {
 
   void RemoveValues(const T* invalid_values, int num_values) {
     for (int ii = 0; ii < num_values; ++ii) {
-      auto iter = std::ranges::find(valid_values_, invalid_values[ii]);
-      if (iter != valid_values_.end()) {
-        valid_values_.erase(iter);
-        DCHECK(!IsValid(invalid_values[ii]));
-      }
+      std::erase(valid_values_, invalid_values[ii]);
+      DCHECK(!IsValid(invalid_values[ii]));
     }
   }
 

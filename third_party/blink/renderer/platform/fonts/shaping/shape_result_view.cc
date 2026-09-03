@@ -613,18 +613,19 @@ void ShapeResultView::ComputePartInkBoundsScalar(
   const SimpleFontData& current_font_data = *part.run_->font_data_;
   unsigned num_glyphs = part.NumGlyphs();
 #if !BUILDFLAG(IS_APPLE)
-  Vector<Glyph, 256> glyphs(num_glyphs);
-  unsigned i = 0;
+  Vector<Glyph, 256> glyphs;
+  glyphs.reserve(num_glyphs);
   for (const auto& glyph_data : part) {
-    glyphs[i++] = glyph_data.glyph;
+    glyphs.push_back(glyph_data.glyph);
   }
-  Vector<SkRect, 256> bounds_list(num_glyphs);
+  Vector<SkRect, 256> bounds_list(glyphs.size());
   current_font_data.BoundsForGlyphs(glyphs, &bounds_list);
 #endif
 
   GlyphBoundsAccumulator<is_horizontal_run> bounds;
   InlineLayoutUnit origin = InlineLayoutUnit::FromFloatCeil(run_advance);
-  for (unsigned j = 0; j < num_glyphs; ++j) {
+  unsigned actual_glyphs = std::min(static_cast<unsigned>(bounds_list.size()), num_glyphs);
+  for (unsigned j = 0; j < actual_glyphs; ++j) {
     const HarfBuzzRunGlyphData& glyph_data = part.GlyphAt(j);
 #if BUILDFLAG(IS_APPLE)
     gfx::RectF glyph_bounds =
