@@ -28,6 +28,7 @@
 #include "starboard/android/shared/audio_track.h"
 #include "starboard/android/shared/fake_audio_track.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/span.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -104,45 +105,52 @@ class ThrottledAudioTrack : public FakeAudioTrack {
 
 TEST(AudioRendererPassthroughStaticTest, ParseAc3SyncframeAudioSampleCount) {
   // Too small buffer (< 6 bytes) returns default 1536 samples.
-  uint8_t short_buffer[5] = {0x0B, 0x77, 0, 0, 0};
-  EXPECT_EQ(AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
-                short_buffer, 5),
-            1536);
+  std::vector<uint8_t> short_buffer = {0x0B, 0x77, 0, 0, 0};
+  EXPECT_EQ(
+      AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCountForTesting(
+          short_buffer),
+      1536);
 
   // AC-3 bitstream ID <= 10 (e.g. 8) returns 1536 samples.
   auto ac3_frame = CreateAc3Frame(/*is_eac3=*/false, /*numblkscod=*/0);
-  EXPECT_EQ(AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
-                ac3_frame.data(), ac3_frame.size()),
-            1536);
+  EXPECT_EQ(
+      AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCountForTesting(
+          ac3_frame),
+      1536);
 
   // E-AC-3: numblkscod 0, 1, 2, 3 correspond to 1, 2, 3, 6 blocks of 256
   // samples.
   auto eac3_block1 = CreateAc3Frame(/*is_eac3=*/true, /*numblkscod=*/0);
-  EXPECT_EQ(AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
-                eac3_block1.data(), eac3_block1.size()),
-            256);
+  EXPECT_EQ(
+      AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCountForTesting(
+          eac3_block1),
+      256);
 
   auto eac3_block2 = CreateAc3Frame(/*is_eac3=*/true, /*numblkscod=*/1);
-  EXPECT_EQ(AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
-                eac3_block2.data(), eac3_block2.size()),
-            512);
+  EXPECT_EQ(
+      AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCountForTesting(
+          eac3_block2),
+      512);
 
   auto eac3_block3 = CreateAc3Frame(/*is_eac3=*/true, /*numblkscod=*/2);
-  EXPECT_EQ(AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
-                eac3_block3.data(), eac3_block3.size()),
-            768);
+  EXPECT_EQ(
+      AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCountForTesting(
+          eac3_block3),
+      768);
 
   auto eac3_block6 = CreateAc3Frame(/*is_eac3=*/true, /*numblkscod=*/3);
-  EXPECT_EQ(AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
-                eac3_block6.data(), eac3_block6.size()),
-            1536);
+  EXPECT_EQ(
+      AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCountForTesting(
+          eac3_block6),
+      1536);
 
   // E-AC-3 with fscod == 3 returns 6 blocks (1536 samples).
   auto eac3_fscod3 = CreateAc3Frame(/*is_eac3=*/true, /*numblkscod=*/0,
                                     /*fscod=*/3);
-  EXPECT_EQ(AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
-                eac3_fscod3.data(), eac3_fscod3.size()),
-            1536);
+  EXPECT_EQ(
+      AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCountForTesting(
+          eac3_fscod3),
+      1536);
 }
 
 class AudioRendererPassthroughTest : public ::testing::Test {

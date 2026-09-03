@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 #include "starboard/android/shared/audio_decoder_passthrough.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -38,16 +39,11 @@ constexpr int64_t kAudioTrackUpdateInternal = 5'000;  // 5ms
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
 
-}  // namespace
-
 // C++ rewrite of ExoPlayer function parseAc3SyncframeAudioSampleCount(), it
 // works for AC-3, E-AC-3, and E-AC-3-JOC.
 // The ExoPlayer implementation is based on
 // https://www.etsi.org/deliver/etsi_ts/102300_102399/102366/01.04.01_60/ts_102366v010401p.pdf.
-// static
-int AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
-    const uint8_t* buffer,
-    int size) {
+int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
   SB_CHECK(buffer);
 
   constexpr int kAudioSamplesPerAudioBlock = 256;
@@ -74,6 +70,8 @@ int AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
     return kAc3SyncFrameAudioSampleCount;
   }
 }
+
+}  // namespace
 
 // static
 NonNullResult<std::unique_ptr<AudioRendererPassthrough>>
@@ -114,6 +112,13 @@ AudioRendererPassthrough::CreateForTesting(
   return std::make_unique<AudioRendererPassthrough>(
       PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
       std::move(decoder), std::move(audio_track_factory));
+}
+
+// static
+int AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCountForTesting(
+    const std::vector<uint8_t>& buffer) {
+  return ParseAc3SyncframeAudioSampleCount(buffer.data(),
+                                           static_cast<int>(buffer.size()));
 }
 
 AudioRendererPassthrough::AudioRendererPassthrough(

@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <vector>
 
 #include "starboard/android/shared/audio_track.h"
 #include "starboard/android/shared/drm_system.h"
@@ -48,8 +49,6 @@ class AudioRendererPassthrough : public AudioRenderer,
                                  public MediaTimeProvider,
                                  private JobQueue::JobOwner {
  public:
-  static int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size);
-
   using AudioTrackFactory = std::function<std::unique_ptr<AudioTrack>(
       SbMediaAudioCodingType coding_type,
       std::optional<SbMediaAudioSampleType> sample_type,
@@ -77,6 +76,9 @@ class AudioRendererPassthrough : public AudioRenderer,
                            std::unique_ptr<AudioDecoder> decoder,
                            AudioTrackFactory audio_track_factory);
   ~AudioRendererPassthrough() override;
+
+  static int ParseAc3SyncframeAudioSampleCountForTesting(
+      const std::vector<uint8_t>& buffer);
 
   // AudioRenderer methods
   void Initialize(const ErrorCB& error_cb,
