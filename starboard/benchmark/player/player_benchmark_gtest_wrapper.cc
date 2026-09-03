@@ -24,22 +24,12 @@
 namespace starboard {
 namespace benchmark {
 
-// Dummy functions to force linking of benchmark objects
-void LinkPlayerCreateBenchmark();
-void LinkPlayerDestroyBenchmark();
-void LinkPlayerSeekBenchmark();
-
 TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
 #if BUILDFLAG(IS_ANDROID)
   perfetto::TracingInitArgs perfetto_args;
   perfetto_args.backends = perfetto::kSystemBackend;
   perfetto::Tracing::Initialize(perfetto_args);
 #endif
-
-  // Force linking of benchmarks
-  LinkPlayerCreateBenchmark();
-  LinkPlayerDestroyBenchmark();
-  LinkPlayerSeekBenchmark();
 
   // Run only the player benchmarks.
   // Google Benchmark modifies argc/argv.
