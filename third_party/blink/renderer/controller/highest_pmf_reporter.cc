@@ -109,7 +109,7 @@ HighestPmfReporter::HighestPmfReporter(
         previous_interval = interval_min;
 
         time_to_report_.push_back(base::Minutes(interval_min));
-        metric_names_.push_back(WTF::String(
+        metric_names_.push_back(String(
             ("Memory.Experimental.Renderer.HighestPrivateMemoryFootprint." +
              suffix_strs[i]).c_str()));
       }
@@ -125,7 +125,7 @@ HighestPmfReporter::HighestPmfReporter(
   if (use_baseline) {
     for (size_t i = 0; i < kBaselineReportCount; ++i) {
       time_to_report_.push_back(kBaselineTimeToReport[i]);
-      metric_names_.push_back(WTF::String(kBaselineMetricNames[i]));
+      metric_names_.push_back(String(kBaselineMetricNames[i]));
     }
   }
 #endif

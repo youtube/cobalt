@@ -43,13 +43,13 @@ class MODULES_EXPORT H5vccPlatformService final
 
  public:
   // Web-exposed static methods:
-  static bool has(ScriptState* script_state, const WTF::String& service_name);
+  static bool has(ScriptState* script_state, const String& service_name);
   static H5vccPlatformService* open(ScriptState* script_state,
-                                    const WTF::String& service_name,
+                                    const String& service_name,
                                     V8ReceiveCallback* receive_callback);
 
   H5vccPlatformService(LocalDOMWindow& window,
-                       const WTF::String& service_name,
+                       const String& service_name,
                        V8ReceiveCallback* receive_callback);
 
   // Web-exposed instance methods:
@@ -67,7 +67,7 @@ class MODULES_EXPORT H5vccPlatformService final
   void OnManagerConnectionError();
   void OnServiceConnectionError();
 
-  WTF::String service_name_;
+  String service_name_;
   Member<V8ReceiveCallback> receive_callback_;
 
   // Remote to the specific PlatformService instance in the browser

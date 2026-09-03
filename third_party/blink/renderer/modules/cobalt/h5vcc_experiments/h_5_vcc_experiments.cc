@@ -155,7 +155,7 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setLatestExperimentConfigHashData(
 ScriptPromise<IDLUndefined> H5vccExperiments::setFinchParameters(
     ScriptState* script_state,
     const HeapVector<
-        std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
+        std::pair<String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
         settings,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(

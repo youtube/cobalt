@@ -64,8 +64,8 @@ class CONTROLLER_EXPORT HighestPmfReporter
   unsigned webpage_counts_at_current_highest_pmf_ = 0;
   unsigned report_count_ = 0;
 #if BUILDFLAG(IS_COBALT)
-  WTF::Vector<base::TimeDelta> time_to_report_;
-  WTF::Vector<WTF::String> metric_names_;
+  Vector<base::TimeDelta> time_to_report_;
+  Vector<String> metric_names_;
 #endif
 };
 

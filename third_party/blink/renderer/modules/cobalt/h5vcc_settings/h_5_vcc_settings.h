@@ -45,7 +45,7 @@ class MODULES_EXPORT H5vccSettings final
   // Web-exposed interface:
 
   ScriptPromise<IDLUndefined> set(ScriptState* script_state,
-                                  const WTF::String& name,
+                                  const String& name,
                                   const V8UnionLongOrString* value,
                                   ExceptionState& exception_state);
 

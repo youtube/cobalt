@@ -75,7 +75,7 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateContextProvider(
   gpu::SharedMemoryLimits memory_limits =
 #if BUILDFLAG(IS_STARBOARD)
       gpu::SharedMemoryLimits::ForDisplayCompositor(
-          display::Screen::GetScreen()->GetPrimaryDisplay().size());
+          display::Screen::Get()->GetPrimaryDisplay().size());
 #else
       gpu::SharedMemoryLimits::ForDisplayCompositor();
 #endif

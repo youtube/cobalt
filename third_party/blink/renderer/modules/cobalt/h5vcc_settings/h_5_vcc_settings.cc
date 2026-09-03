@@ -141,7 +141,7 @@ void H5vccSettings::ContextDestroyed() {
 
 ScriptPromise<IDLUndefined> H5vccSettings::set(
     ScriptState* script_state,
-    const WTF::String& name,
+    const String& name,
     const V8UnionLongOrString* value,
     ExceptionState& exception_state) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)

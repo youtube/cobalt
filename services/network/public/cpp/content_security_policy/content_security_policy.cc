@@ -256,18 +256,13 @@ std::string ErrorMessage(CSPDirectiveName directive,
       action = "Framing '$1'";
       break;
     case CSPDirectiveName::ConnectSrc:
-<<<<<<< HEAD
       action = "Connecting to '$1'";
       break;
-=======
-      return "Refused to connect to '$1' because it violates the "
-             "following Content Security Policy directive: \"$2\".";
 #if BUILDFLAG(IS_COBALT)
     case CSPDirectiveName::CobaltLocationSrc:
-      return "Refused to navigate to '$1' because it violates the "
-             "following Content Security Policy directive: \"$2\".";
+      action = "Navigating to '$1'";
+      break;
 #endif
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     case CSPDirectiveName::BaseURI:
     case CSPDirectiveName::BlockAllMixedContent:

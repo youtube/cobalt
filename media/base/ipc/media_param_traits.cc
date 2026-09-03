@@ -129,13 +129,6 @@ bool ParamTraits<media::EncryptionPattern>::Read(const base::Pickle* m,
   return true;
 }
 
-<<<<<<< HEAD
-=======
-void ParamTraits<media::EncryptionPattern>::Log(const param_type& p,
-                                                std::string* l) {
-  l->append(base::StringPrintf("<EncryptionPattern>"));
-}
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace IPC
 
 // Generate param traits write methods.
