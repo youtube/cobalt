@@ -88,11 +88,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
     custom_fonts.fFontsXml = xml_path.c_str();
     custom_fonts.fFallbackFontsXml = nullptr;
     custom_fonts.fIsolated = true;
-    if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
-      return SkFontMgr_New_Android(&custom_fonts, SkFontScanner_Make_Fontations());
-    } else {
-      return SkFontMgr_New_Android(&custom_fonts);
-    }
+    return SkFontMgr_New_Android(&custom_fonts, SkFontScanner_Make_Fontations());
   }
 #endif  // BUILDFLAG(IS_COBALT)
   return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
