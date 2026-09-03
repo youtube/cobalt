@@ -19,6 +19,10 @@
 
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 
+namespace cobalt {
+class CobaltWebContentsObserver;
+}
+
 namespace content {
 
 // ContentBrowserClient implementation used in content browser tests.
@@ -37,6 +41,14 @@ class ContentBrowserTestContentBrowserClient
   void RegisterBrowserInterfaceBindersForFrame(
       RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<RenderFrameHost*>* map) override;
+
+  std::unique_ptr<BrowserMainParts> CreateBrowserMainParts(
+      bool is_integration_test) override;
+
+  void OnWebContentsCreated(content::WebContents* web_contents) override;
+
+ private:
+  std::unique_ptr<cobalt::CobaltWebContentsObserver> web_contents_observer_;
 };
 
 }  // namespace content

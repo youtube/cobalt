@@ -212,10 +212,17 @@ inline constexpr ExperimentalFeatureKey<bool>
         "Media.IgnoreMediaCodecCallbacksDuringFlushing",
         true);
 
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaIgnoreStaleRenderedFramesAfterSeek(
+        "Media.IgnoreStaleRenderedFramesAfterSeek");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
     "Media.NdkAudioTrack");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaPauseUsingAudioTrackState(
+    "Media.PauseUsingAudioTrackState");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
