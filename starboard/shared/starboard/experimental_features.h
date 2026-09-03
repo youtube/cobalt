@@ -224,6 +224,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 inline constexpr ExperimentalFeatureKey<bool> kMediaPauseUsingAudioTrackState(
     "Media.PauseUsingAudioTrackState");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaSeamlessAudioSwitching(
+    "Media.SeamlessAudioSwitching");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
 
