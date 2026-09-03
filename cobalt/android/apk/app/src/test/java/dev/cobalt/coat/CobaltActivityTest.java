@@ -292,6 +292,11 @@ public class CobaltActivityTest {
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
     return new CobaltActivity() {
       @Override
+      public android.content.Context getApplicationContext() {
+        return androidx.test.core.app.ApplicationProvider.getApplicationContext();
+      }
+
+      @Override
       protected Map<String, String> getJavaSwitches() {
         return switches;
       }
