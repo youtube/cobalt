@@ -18,6 +18,13 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <p>Intentionally crashing allows the system to capture a stack trace and potentially restart the
  * application, rather than leaving the user stuck on an unresponsive black screen.
+ *
+ * <p>StartupGuard also serves as the persistence bridge for the Chromium UMA funnel. Before the C++
+ * JNI library (`libcobalt.so`) is fully unpacked and initialized, early startup milestones (1-4)
+ * are recorded here. The bitmask is written to disk via a bare-metal `MappedByteBuffer` (bypassing
+ * the heap) so it easily survives watchdog crashes. The C++ `ShellBrowserMainParts` harvester
+ * collects this file on the subsequent boot and logs the rescued events to
+ * `Cobalt.Startup.MilestoneReached`.
  */
 public class StartupGuard {
   private final Handler handler;
@@ -29,6 +36,9 @@ public class StartupGuard {
   private static class LazyHolder {
     private static final StartupGuard INSTANCE = new StartupGuard();
   }
+
+  // Backing memory-mapped file for Phase 1 cross-layer UMA persistence
+  private java.nio.MappedByteBuffer startupStateBuffer = null;
 
   // Private constructor prevents direct instantiation from other classes
   private StartupGuard() {
@@ -45,6 +55,28 @@ public class StartupGuard {
                     + getStartupStatusAndDiagnosisInfo());
           }
         };
+  }
+
+  public void initializePersistence(android.content.Context context) {
+    try {
+      java.io.File file = new java.io.File(context.getFilesDir(), "java_startup_state.bin");
+      // If a file from the previous session exists, rename it so C++ can harvest the previous
+      // session's
+      // state without racing with this fresh session's writes.
+      if (file.exists()) {
+        java.io.File prevFile =
+            new java.io.File(context.getFilesDir(), "java_startup_state_previous.bin");
+        file.renameTo(prevFile);
+      }
+      java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "rw");
+      // MappedByteBuffer defaults to big-endian, we strictly need little-endian for C++.
+      startupStateBuffer =
+          raf.getChannel().map(java.nio.channels.FileChannel.MapMode.READ_WRITE, 0, 8);
+      startupStateBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+      startupStateBuffer.putLong(0, 0);
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to map startup state file: " + e.getMessage());
+    }
   }
 
   private String getStartupStatusAndDiagnosisInfo() {
@@ -80,7 +112,11 @@ public class StartupGuard {
     }
     Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
     long mask = 1L << milestone;
-    startupStatus.updateAndGet(current -> current | mask);
+    long current = startupStatus.updateAndGet(curr -> curr | mask);
+
+    if (startupStateBuffer != null) {
+      startupStateBuffer.putLong(0, current);
+    }
   }
 
   /**
