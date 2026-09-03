@@ -14,12 +14,69 @@
 
 #include "starboard/android/shared/surface_destroy_notifier.h"
 
+#include <chrono>
+#include <utility>
+
+#include "starboard/android/shared/video_window.h"
+#include "starboard/common/log.h"
+#include "starboard/shared/starboard/player/job_queue.h"
+
 namespace starboard {
 
-void SurfaceDestroyNotifier::Disconnect() {}
+void SurfaceDestroyNotifier::Disconnect() {
+  {
+    std::lock_guard lock(mutex_);
+    holder_ = nullptr;
+    job_queue_ = nullptr;
+    if (state_ != State::kExecuting) {
+      state_ = State::kDone;
+    }
+  }
+  cv_.notify_one();
+}
 
-void SurfaceDestroyNotifier::Notify() {}
+void SurfaceDestroyNotifier::Notify() {
+  std::unique_lock lock(mutex_);
+  if (state_ == State::kDone || !holder_ || !job_queue_) {
+    return;
+  }
+  scoped_refptr<SurfaceDestroyNotifier> self(this);
+  auto task = [self]() { self->NotifyDestroyed(); };
+  if (!job_queue_->Schedule(std::move(task))) {
+    SB_LOG(ERROR) << "Failed to schedule NotifyDestroyed on JobQueue.";
+    state_ = State::kDone;
+    return;
+  }
 
-void SurfaceDestroyNotifier::NotifyDestroyed() {}
+  constexpr std::chrono::seconds kTeardownTimeout(1);
+  if (!cv_.wait_for(lock, kTeardownTimeout,
+                    [this] { return state_ == State::kDone; })) {
+    SB_LOG(WARNING)
+        << "SurfaceDestroyNotifier::Notify timed out waiting for teardown!";
+  }
+}
+
+void SurfaceDestroyNotifier::NotifyDestroyed() {
+  VideoSurfaceHolder* holder_to_notify = nullptr;
+  {
+    std::lock_guard lock(mutex_);
+    if (state_ == State::kDone) {
+      return;
+    }
+    state_ = State::kExecuting;
+    holder_to_notify = holder_;
+  }
+  if (holder_to_notify) {
+    holder_to_notify->OnSurfaceDestroyed();
+  }
+
+  {
+    std::lock_guard lock(mutex_);
+    state_ = State::kDone;
+    holder_ = nullptr;
+    job_queue_ = nullptr;
+  }
+  cv_.notify_one();
+}
 
 }  // namespace starboard

@@ -18,7 +18,6 @@
 #include <android/native_window.h>
 #include <jni.h>
 
-#include "starboard/android/surface_destroy_notifier.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -26,12 +25,14 @@
 
 namespace starboard {
 
+class SurfaceDestroyNotifier;
+
 class VideoSurfaceHolder {
  public:
   struct AcquiredSurface {
     scoped_refptr<SurfaceDestroyNotifier> destroy_notifier;
     jni_zero::ScopedJavaGlobalRef<jobject> surface;
-  }
+  };
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
@@ -42,7 +43,7 @@ class VideoSurfaceHolder {
   virtual void OnSurfaceDestroyed() = 0;
 
  protected:
-  ~VideoSurfaceHolder() {}
+  ~VideoSurfaceHolder() = default;
 
   // Returns the surface which video should be rendered. Surface cannot be
   // acquired before last holder release the surface.
@@ -62,6 +63,9 @@ class VideoSurfaceHolder {
 
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();
+
+ private:
+  scoped_refptr<SurfaceDestroyNotifier> active_notifier_;
 };
 
 }  // namespace starboard
