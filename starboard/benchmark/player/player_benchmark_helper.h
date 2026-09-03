@@ -27,8 +27,6 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 
 namespace starboard {
-class Application;
-
 namespace benchmark {
 
 class SbPlayerBenchmarkHelper {
@@ -106,8 +104,6 @@ class SbPlayerBenchmarkHelper {
   void WriteSamples(SbMediaType type);
   size_t FindAudioStartIndex(int64_t target_time_us);
   size_t FindVideoStartIndex(int64_t target_time_us);
-
-  std::unique_ptr<starboard::Application> mock_application_;
   starboard::FakeGraphicsContextProvider fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;
