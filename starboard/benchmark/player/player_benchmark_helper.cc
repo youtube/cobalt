@@ -18,39 +18,12 @@
 #include <limits>
 
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/experimental_features.h"
 
 namespace starboard {
 namespace benchmark {
 
-namespace {
-// A minimal Application implementation to satisfy SbPlayer dependencies
-class MockApplication : public Application {
- public:
-  MockApplication() : Application(DummyEventHandleCallback) {
-    SetCommandLine(0, nullptr);
-  }
-
-  static void DummyEventHandleCallback(const SbEvent* event) {}
-
- protected:
-  // --- Application overrides ---
-  Event* GetNextEvent() override { return nullptr; }
-  void Inject(Event* event) override { delete event; }
-  void InjectTimedEvent(TimedEvent* timed_event) override {
-    delete timed_event;
-  }
-  void CancelTimedEvent(SbEventId event_id) override {}
-  TimedEvent* GetNextDueTimedEvent() override { return nullptr; }
-  int64_t GetNextTimedEventTargetTime() override {
-    return std::numeric_limits<int64_t>::max();
-  }
-};
-}  // namespace
-
 SbPlayerBenchmarkHelper::SbPlayerBenchmarkHelper() {
-  mock_application_.reset(new MockApplication());
   StarboardExtensionExperimentalFeatures experimental_features = {};
   experimental_features.entries = nullptr;
   experimental_features.entry_count = 0;
