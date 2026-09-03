@@ -53,6 +53,7 @@ source_set("browser") {
   }
 
   public_deps = [
+    ":resource_scheduler",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/lifecycle",
@@ -297,4 +298,21 @@ source_set("cobalt_crash_annotations") {
     sources += [ "crash_annotator/crash_annotator_jni.cc" ]
     deps += [ "//cobalt/android:jni_headers" ]
   }
+}
+
+source_set("resource_scheduler") {
+  sources = [
+    "resource_scheduler/cobalt_adaptive_resource_scheduler.cc",
+    "resource_scheduler/cobalt_adaptive_resource_scheduler.h",
+    "resource_scheduler/cobalt_resource_throttle.cc",
+    "resource_scheduler/cobalt_resource_throttle.h",
+  ]
+  deps = [
+    "//base",
+    "//cobalt/build/configs:buildflags",
+    "//content/public/browser",
+    "//net",
+    "//services/network/public/cpp",
+    "//third_party/blink/public/common",
+  ]
 }

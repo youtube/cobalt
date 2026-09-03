@@ -24,6 +24,7 @@
 #include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -42,6 +43,7 @@
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/player.h"
+#include "third_party/blink/public/common/loader/url_loader_throttle.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -55,6 +57,42 @@
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
+namespace {
+
+class CobaltUrlLoaderThrottleProvider
+    : public blink::URLLoaderThrottleProvider {
+ public:
+  explicit CobaltUrlLoaderThrottleProvider(
+      blink::URLLoaderThrottleProviderType type)
+      : type_(type) {}
+  ~CobaltUrlLoaderThrottleProvider() override = default;
+
+  CobaltUrlLoaderThrottleProvider(const CobaltUrlLoaderThrottleProvider&) =
+      delete;
+  CobaltUrlLoaderThrottleProvider& operator=(
+      const CobaltUrlLoaderThrottleProvider&) = delete;
+
+  std::unique_ptr<blink::URLLoaderThrottleProvider> Clone() override {
+    return std::make_unique<CobaltUrlLoaderThrottleProvider>(type_);
+  }
+
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
+      base::optional_ref<const blink::LocalFrameToken> local_frame_token,
+      const network::ResourceRequest& request) override {
+    std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
+    if (auto throttle = cobalt::CobaltResourceThrottle::MaybeCreate(request)) {
+      throttles.push_back(std::move(throttle));
+    }
+    return throttles;
+  }
+
+  void SetOnline(bool is_online) override {}
+
+ private:
+  blink::URLLoaderThrottleProviderType type_;
+};
+
+}  // namespace
 
 namespace {
 using ::media::ExperimentalFeatures;
@@ -216,6 +254,13 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
   LOG(INFO) << "Renderer received SbWindow handle: "
             << reinterpret_cast<void*>(handle);
   sb_window_handle_ = handle;
+}
+
+std::unique_ptr<blink::URLLoaderThrottleProvider>
+CobaltContentRendererClient::CreateURLLoaderThrottleProvider(
+    blink::URLLoaderThrottleProviderType provider_type) {
+  LOG(INFO) << "CobaltContentRendererClient::CreateURLLoaderThrottleProvider";
+  return std::make_unique<CobaltUrlLoaderThrottleProvider>(provider_type);
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {
