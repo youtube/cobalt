@@ -666,18 +666,22 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
         auto code_cache_task = WTF::BindOnce(&DelayedProduceCodeCacheTask,
                                              WrapPersistent(script_state),
                                              v8::Global<v8::Script>(isolate, script),
-                                             WrapPersistent(cache_handler),
+                                             std::move(cache_handler),
                                              classic_script->SourceText().length(),
                                              classic_script->SourceUrl(),
                                              classic_script->StartPosition());
 
-        ThreadScheduler::Current()->PostDelayedIdleTask(
-            FROM_HERE, base::Milliseconds(1),
-            WTF::BindOnce(
-                [](base::OnceClosure task, base::TimeTicks /* deadline */) {
-                  std::move(task).Run();
-                },
-                std::move(code_cache_task)));
+        if (auto* scheduler = ThreadScheduler::Current()) {
+          scheduler->PostDelayedIdleTask(
+              FROM_HERE, base::Milliseconds(1),
+              WTF::BindOnce(
+                  [](base::OnceClosure task, base::TimeTicks /* deadline */) {
+                    std::move(task).Run();
+                  },
+                  std::move(code_cache_task)));
+        } else {
+          std::move(code_cache_task).Run();
+        }
       } else
 #endif
       if (produce_cache_options ==
