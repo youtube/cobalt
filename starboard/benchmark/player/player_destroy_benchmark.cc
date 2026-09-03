@@ -21,9 +21,6 @@
 namespace starboard {
 namespace benchmark {
 
-// Dummy function to force linking of this translation unit
-void LinkPlayerDestroyBenchmark() {}
-
 namespace {
 
 void BM_PlayerDestroySync(::benchmark::State& state) {
