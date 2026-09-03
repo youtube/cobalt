@@ -16,7 +16,12 @@
 
 #include <utility>
 
+<<<<<<< HEAD
 #include "base/notimplemented.h"
+=======
+#include "base/command_line.h"
+#include "base/notreached.h"
+>>>>>>> 737ddaa9d0 (android: Migrate Android lifecycle handling to AppEventDelegate (#11162))
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
@@ -39,6 +44,7 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
 using ::starboard::StarboardBridge;
@@ -391,7 +397,9 @@ void PerformanceImpl::MeasureUsedGpuMemory(
 void PerformanceImpl::GetAppStartupTimeStamp(
     GetAppStartupTimeStampCallback callback) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  if (!app_startup_timestamp_.has_value()) {
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "use-starboard-lifecycle") &&
+      !app_startup_timestamp_.has_value()) {
     JNIEnv* env = base::android::AttachCurrentThread();
     app_startup_timestamp_ =
         StarboardBridge::GetInstance()->GetAppStartTimestamp(env);
