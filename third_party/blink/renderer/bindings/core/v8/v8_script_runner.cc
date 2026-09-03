@@ -666,7 +666,7 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
         auto code_cache_task = WTF::BindOnce(&DelayedProduceCodeCacheTask,
                                              WrapPersistent(script_state),
                                              v8::Global<v8::Script>(isolate, script),
-                                             std::move(cache_handler),
+                                             WrapPersistent(cache_handler),
                                              classic_script->SourceText().length(),
                                              classic_script->SourceUrl(),
                                              classic_script->StartPosition());
