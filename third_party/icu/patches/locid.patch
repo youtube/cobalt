@@ -1,0 +1,18 @@
+diff --git a/source/common/locid.cpp b/source/common/locid.cpp
+index 64ff63f3..888b3d35 100644
+--- a/source/common/locid.cpp
++++ b/source/common/locid.cpp
+@@ -2689,11 +2689,11 @@ Locale::setKeywordValue(const char* keywordName, const char* keywordValue, UErro
+         }
+         uprv_strcpy(newFullName, fullName);
+         if (fullName != fullNameBuffer) {
+-            // if full Name is already on the heap, need to free it.
+-            uprv_free(fullName);
+             if (baseName == fullName) {
+                 baseName = newFullName; // baseName should not point to freed memory.
+             }
++            // if full Name is already on the heap, need to free it.
++            uprv_free(fullName);
+         }
+         fullName = newFullName;
+         status = U_ZERO_ERROR;
