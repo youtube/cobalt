@@ -74,34 +74,13 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
 #else
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_COBALT)
-<<<<<<< HEAD
-  // When Cobalt optimized font loading is enabled, configure Skia to use hermetic custom
-  // XML font fallbacks (`cobalt_android_fonts.xml`) extracted into the app data directory.
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch("enable-optimized-font-loading")) {
-    base::FilePath app_data_dir;
-    if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
-      std::string xml_path = app_data_dir.Append("storage").Append("cobalt_android_fonts.xml").value();
-      SkFontMgr_Android_CustomFonts custom_fonts;
-      custom_fonts.fSystemFontUse = SkFontMgr_Android_CustomFonts::kPreferCustom;
-      custom_fonts.fBasePath = "/system/fonts/";
-      custom_fonts.fFontsXml = xml_path.c_str();
-      custom_fonts.fFallbackFontsXml = nullptr;
-      custom_fonts.fIsolated = true;
-      return SkFontMgr_New_Android(&custom_fonts,
-                                   SkFontScanner_Make_Fontations());
-=======
   // Configure Skia to use hermetic custom XML font fallbacks (`cobalt_android_fonts.xml`)
   // extracted into the app data directory.
   base::FilePath app_data_dir;
   if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
     std::string xml_path = app_data_dir.Append("storage").Append("cobalt_android_fonts.xml").value();
     if (!base::PathExists(base::FilePath(xml_path))) {
-      if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
-        return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
-      } else {
-        return SkFontMgr_New_Android(nullptr);
-      }
->>>>>>> e90a807d31 (android: enable custom fonts.xml file by default (#12208))
+      return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
     }
     SkFontMgr_Android_CustomFonts custom_fonts;
     custom_fonts.fSystemFontUse = SkFontMgr_Android_CustomFonts::kPreferCustom;
