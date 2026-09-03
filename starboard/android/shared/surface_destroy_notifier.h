@@ -15,11 +15,18 @@
 #ifndef STARBOARD_ANDROID_SHARED_SURFACE_DESTROY_NOTIFIER_H_
 #define STARBOARD_ANDROID_SHARED_SURFACE_DESTROY_NOTIFIER_H_
 
+#include <condition_variable>
+#include <mutex>
+
 #include "starboard/common/ref_counted.h"
 
 namespace starboard {
 
-class SurfaceDestroyNotifier : public RefCountedSafe<SurfaceDestroyNotifier> {
+class VideoSurfaceHolder;
+class JobQueue;
+
+class SurfaceDestroyNotifier
+    : public RefCountedThreadSafe<SurfaceDestroyNotifier> {
  public:
   SurfaceDestroyNotifier(VideoSurfaceHolder* holder, JobQueue* job_queue)
       : holder_(holder), job_queue_(job_queue) {}
@@ -34,6 +41,7 @@ class SurfaceDestroyNotifier : public RefCountedSafe<SurfaceDestroyNotifier> {
 
  private:
   ~SurfaceDestroyNotifier() = default;
+  friend class RefCountedThreadSafe<SurfaceDestroyNotifier>;
 
   void NotifyDestroyed();
 
@@ -49,7 +57,7 @@ class SurfaceDestroyNotifier : public RefCountedSafe<SurfaceDestroyNotifier> {
   State state_ = State::kIdle;
   VideoSurfaceHolder* holder_ = nullptr;
   JobQueue* job_queue_ = nullptr;
-}
+};
 
 }  // namespace starboard
 
