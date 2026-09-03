@@ -169,8 +169,8 @@ void CobaltMetricsServiceClient::Initialize() {
     base::FilePath metrics_dir =
         base_dir.AppendASCII("BrowserStabilityMetrics");
 
-    auto file_metrics_provider =
-        std::make_unique<metrics::FileMetricsProvider>(local_state_.get());
+    auto file_metrics_provider = std::make_unique<metrics::FileMetricsProvider>(
+        local_state_.get(), false);
     metrics::FileMetricsProvider::Params params(
         metrics_dir, metrics::FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
         metrics::FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE,
