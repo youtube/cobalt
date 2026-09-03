@@ -28,7 +28,7 @@
 <<<<<<< HEAD
 #include <type_traits>
 =======
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
 #include <valgrind/memcheck.h>

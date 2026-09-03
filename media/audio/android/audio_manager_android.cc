@@ -793,7 +793,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   // hardware AEC/NS that Starboard doesn't use.
   return stream;
 #else
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Avoid changing the communication mode if there are existing input streams.
   if (!stream || has_input_streams || UseAAudioPerStreamDeviceSelection()) {
     return stream;

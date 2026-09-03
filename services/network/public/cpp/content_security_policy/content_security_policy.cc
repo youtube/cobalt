@@ -267,7 +267,7 @@ std::string ErrorMessage(CSPDirectiveName directive,
       return "Refused to navigate to '$1' because it violates the "
              "following Content Security Policy directive: \"$2\".";
 #endif
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     case CSPDirectiveName::BaseURI:
     case CSPDirectiveName::BlockAllMixedContent:

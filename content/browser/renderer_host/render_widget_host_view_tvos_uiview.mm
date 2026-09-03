@@ -100,7 +100,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       break;
     case UIPressTypeMenu:
       button = kMenu;
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       break;
     default:
       break;
@@ -109,7 +109,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return direction;
 =======
   return button;
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace
@@ -306,7 +306,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                            eventType:blink::WebInputEvent::Type::kKeyDown];
   [self sendKeyEventWithRemoteButton:button
                            eventType:blink::WebInputEvent::Type::kKeyUp];
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (void)handlePan:(UIPanGestureRecognizer*)gesture {
@@ -470,7 +470,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 // Helper method to generate WebKeyboardEvent with RemoteButton.
 - (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
                            eventType:(blink::WebInputEvent::Type)type {
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
                                 ui::EventTimeForNow());
 

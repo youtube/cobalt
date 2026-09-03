@@ -420,7 +420,7 @@ class CONTENT_EXPORT StoragePartitionImpl
 
 =======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   SharedStorageHeaderObserver* shared_storage_header_observer() {
     return shared_storage_header_observer_.get();
   }

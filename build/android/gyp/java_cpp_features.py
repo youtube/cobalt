@@ -42,7 +42,7 @@ class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # For 2-arg macro: BASE_FEATURE(MyFeature, ...)
   _FEATURE_RE_2_ARGS = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(([^,]+),')
   _VALUE_RE = re.compile(r'\s*("(?:\\"|[^"])*")\s*,')
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   def ExtractConstantName(self, line):
     # Reset to a clean state when extracting constant name.

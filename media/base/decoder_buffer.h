@@ -232,7 +232,7 @@ class MEDIA_EXPORT DecoderBuffer
     return data_.data();
   }
 
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // The number of bytes in the buffer.
   size_t size() const {
     DCHECK(!end_of_stream());

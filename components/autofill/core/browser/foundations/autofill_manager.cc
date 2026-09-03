@@ -972,7 +972,7 @@ void AutofillManager::SubscribeToMlModelChanges(
     optimization_guide::proto::OptimizationTarget optimization_target) {
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   switch (optimization_target) {
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     case optimization_guide::proto::OptimizationTarget::
         OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
       if (!autofill_model_change_subscription_) {
