@@ -350,7 +350,7 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   *is_underflow = false;  // TODO: Support underflow
   *playback_rate = playback_rate_;
 
-  if (!audio_track_bridge_) {
+  if (!audio_track_) {
     return seek_to_time_;
   }
 
@@ -363,7 +363,7 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   int64_t playback_time;
   if (stop_called_) {
-    // When AudioTrackBridge::Stop() is called, the playback will continue until
+    // When AudioTrack::Stop() is called, the playback will continue until
     // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
     auto now = CurrentMonotonicTime();
@@ -381,8 +381,7 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   }
 
   int64_t updated_at;
-  auto playback_head_position =
-      audio_track_bridge_->GetAudioTimestamp(&updated_at);
+  auto playback_head_position = audio_track_->GetAudioTimestamp(&updated_at);
   if (playback_head_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
@@ -425,13 +424,13 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
   SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
   SB_DCHECK(error_cb_);
 
-  if (audio_track_bridge_) {
+  if (audio_track_) {
     SB_DCHECK(!update_status_and_write_data_token_);
     AudioTrackState initial_state;
     update_status_and_write_data_token_ = audio_track_thread_->Schedule(
         std::bind(&AudioRendererPassthrough::UpdateStatusAndWriteData, this,
                   initial_state));
-    SB_LOG(INFO) << "|audio_track_bridge_| already created, start processing.";
+    SB_LOG(INFO) << "|audio_track_| already created, start processing.";
     return;
   }
 
@@ -452,14 +451,14 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
 
   {
     std::lock_guard scoped_lock(mutex_);
-    audio_track_bridge_ = std::move(audio_track);
+    audio_track_ = std::move(audio_track);
   }
 
   AudioTrackState initial_state;
   update_status_and_write_data_token_ = audio_track_thread_->Schedule(
       std::bind(&AudioRendererPassthrough::UpdateStatusAndWriteData, this,
                 initial_state));
-  SB_LOG(INFO) << "|audio_track_bridge_| created, start processing.";
+  SB_LOG(INFO) << "|audio_track_| created, start processing.";
 }
 
 void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
@@ -469,18 +468,18 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
 
   SB_LOG(INFO) << "Pause audio track and stop processing.";
 
-  // Flushing of |audio_track_bridge_| and updating of |seek_to_time_| have to
+  // Flushing of |audio_track_| and updating of |seek_to_time_| have to
   // be done together under lock to avoid |seek_to_time_| being added to a stale
   // playback head or vice versa in GetCurrentMediaTime().
   std::lock_guard scoped_lock(mutex_);
 
-  // We have to reuse |audio_track_bridge_| instead of creating a new one, to
+  // We have to reuse |audio_track_| instead of creating a new one, to
   // reduce output mode switching between PCM and e/ac3.  Otherwise a noticeable
   // silence can be observed after seeking on some audio receivers.
   // TODO: Consider reusing audio sink for non-passthrough playbacks, to see if
   //       it reduces latency after seeking.
-  if (audio_track_bridge_) {
-    audio_track_bridge_->PauseAndFlush();
+  if (audio_track_) {
+    audio_track_->PauseAndFlush();
   }
   seek_to_time_ = seek_to_time;
   paused_ = true;
@@ -494,17 +493,17 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   SB_DCHECK(audio_track_thread_);
   SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
   SB_DCHECK(error_cb_);
-  SB_DCHECK(audio_track_bridge_);
+  SB_DCHECK(audio_track_);
 
   // Encoded passthrough bitstreams (e.g. AC3/E-AC3) cannot be seamlessly routed
   // across different sinks (e.g. Bluetooth or built-in speakers), so any device
   // change requires recreating the player to renegotiate audio capabilities.
-  if (audio_track_bridge_->GetAndResetAudioDeviceChange() !=
+  if (audio_track_->GetAndResetAudioDeviceChange() !=
       AudioDeviceChange::kNone) {
     SB_LOG(INFO) << "Audio device changed, raising a capability changed error "
                     "to restart playback.";
     ReportCapabilityChanged();
-    audio_track_bridge_->PauseAndFlush();
+    audio_track_->PauseAndFlush();
     return;
   }
 
@@ -524,17 +523,17 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   }
 
   if (previous_state.volume != current_state.volume) {
-    audio_track_bridge_->SetVolume(current_state.volume);
+    audio_track_->SetVolume(current_state.volume);
   }
   if (previous_state.playing() != current_state.playing()) {
     if (current_state.playing()) {
-      audio_track_bridge_->Play();
+      audio_track_->Play();
       audio_track_paused_ = false;
       SB_LOG(INFO) << "Played on AudioTrack thread.";
       std::lock_guard scoped_lock(mutex_);
       stop_called_ = false;
     } else {
-      audio_track_bridge_->Pause();
+      audio_track_->Pause();
       audio_track_paused_ = true;
       SB_LOG(INFO) << "Paused on AudioTrack thread.";
     }
@@ -550,10 +549,10 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       std::lock_guard scoped_lock(mutex_);
       if (current_state.playing() && !stop_called_) {
         // TODO: Check if we can apply the same stop logic to non-passthrough.
-        audio_track_bridge_->Stop();
+        audio_track_->Stop();
         stop_called_ = true;
         playback_head_position_when_stopped_ =
-            audio_track_bridge_->GetAudioTimestamp(&stopped_at_);
+            audio_track_->GetAudioTimestamp(&stopped_at_);
         total_frames_written_ = total_frames_written_on_audio_track_thread_;
         decoded_audio_writing_in_progress_ = std::nullopt;
         SB_LOG(INFO) << "Audio track stopped at " << stopped_at_
@@ -570,7 +569,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       //       It is not used in non-tunneled mode so it doesn't matter, but we
       //       should revisit this.
       auto sync_time = decoded_audio_writing_in_progress_->timestamp();
-      int samples_written = audio_track_bridge_->WriteSample(
+      int samples_written = audio_track_->WriteSample(
           MakeSpan(sample_buffer, samples_to_write), sync_time);
       // Error code returned as negative value, like kAudioTrackErrorDeadObject.
       if (samples_written < 0) {
@@ -590,7 +589,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
                           "frames, error: "
                        << samples_written;
         }
-        audio_track_bridge_->PauseAndFlush();
+        audio_track_->PauseAndFlush();
         return;
       }
 
