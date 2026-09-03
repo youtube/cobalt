@@ -1317,15 +1317,21 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
   // accessor simple and avoids lazy-initialization races across client threads.
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
   if (display) {
+    bool reinitialized_display = false;
     if (!display->IsInitialized()) {
       gl::init::GetOrInitializeGLOneOffPlatformImplementation(
           /*fallback_to_software_gl=*/false,
           /*disable_gl_drawing=*/false,
           /*init_extensions=*/true,
           gl::GpuPreference::kDefault);
+      reinitialized_display = true;
     }
     if (display->IsInitialized() &&
-        !gpu_channel_manager_->default_offscreen_surface()) {
+        (!gpu_channel_manager_->default_offscreen_surface() ||
+         reinitialized_display)) {
+      if (gpu_channel_manager_->default_offscreen_surface()) {
+        gpu_channel_manager_->default_offscreen_surface()->Destroy();
+      }
       scoped_refptr<gl::GLSurface> surface =
           gl::init::CreateOffscreenGLSurface(display, gfx::Size());
       gpu_channel_manager_->SetDefaultOffscreenSurface(std::move(surface));

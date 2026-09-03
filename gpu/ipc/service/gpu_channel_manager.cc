@@ -770,36 +770,9 @@ void GpuChannelManager::DoWakeUpGpu() {
   glFinish();
   DidAccessGpu();
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
-void GpuChannelManager::OnBackgroundCleanup() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  // Delete all the GL contexts when the channel does not use WebGL and Chrome
-  // goes to background on low-end devices.
-  std::vector<int> channels_to_clear;
-  for (auto& kv : gpu_channels_) {
-    // Stateful contexts (e.g. WebGL and WebGPU) support context lost
-    // notifications, but for now, skip those.
-    if (kv.second->HasActiveStatefulContext()) {
-      continue;
-    }
-    channels_to_clear.push_back(kv.first);
-    kv.second->MarkAllContextsLost();
-  }
-  for (int channel : channels_to_clear)
-    RemoveChannel(channel);
-
-  if (program_cache_)
-    program_cache_->Trim(0u);
-
-  if (shared_context_state_) {
-    shared_context_state_->MarkContextLost();
-    shared_context_state_.reset();
-  }
-
-  SkGraphics::PurgeAllCaches();
-}
-#elif BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -831,7 +804,36 @@ void GpuChannelManager::OnBackgroundCleanup() {
   // 5. Clear CPU-side font and 2D raster caches.
   SkGraphics::PurgeAllCaches();
 }
-#endif  // BUILDFLAG(IS_ANDROID)
+#elif BUILDFLAG(IS_ANDROID)
+void GpuChannelManager::OnBackgroundCleanup() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // Delete all the GL contexts when the channel does not use WebGL and Chrome
+  // goes to background on low-end devices.
+  std::vector<int> channels_to_clear;
+  for (auto& kv : gpu_channels_) {
+    // Stateful contexts (e.g. WebGL and WebGPU) support context lost
+    // notifications, but for now, skip those.
+    if (kv.second->HasActiveStatefulContext()) {
+      continue;
+    }
+    channels_to_clear.push_back(kv.first);
+    kv.second->MarkAllContextsLost();
+  }
+  for (int channel : channels_to_clear)
+    RemoveChannel(channel);
+
+  if (program_cache_)
+    program_cache_->Trim(0u);
+
+  if (shared_context_state_) {
+    shared_context_state_->MarkContextLost();
+    shared_context_state_.reset();
+  }
+
+  SkGraphics::PurgeAllCaches();
+}
+#endif
 
 void GpuChannelManager::OnApplicationBackgrounded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);

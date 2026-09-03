@@ -414,16 +414,24 @@ void GLContextEGL::Destroy() {
 #if BUILDFLAG(IS_COBALT)
     // Unbind the context from the calling thread before destroying it so that
     // the driver or ANGLE immediately releases the thread context binding.
-    if (IsCurrent(nullptr) || eglGetCurrentContext() == context_) {
-      SetCurrent(nullptr);
-      eglMakeCurrent(gl_display_->GetDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE,
-                     EGL_NO_CONTEXT);
+    if (gl_display_ && gl_display_->IsInitialized()) {
+      if (gl_display_->IsEGLSurfacelessContextSupported() &&
+          (IsCurrent(nullptr) || eglGetCurrentContext() == context_)) {
+        SetCurrent(nullptr);
+        eglMakeCurrent(gl_display_->GetDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE,
+                       EGL_NO_CONTEXT);
+      }
+      if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
+        LOG(ERROR) << "eglDestroyContext failed with error "
+                   << GetLastEGLErrorString();
+      }
     }
-#endif
+#else
     if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
       LOG(ERROR) << "eglDestroyContext failed with error "
                  << GetLastEGLErrorString();
     }
+#endif
 
     context_ = nullptr;
   }
@@ -543,6 +551,13 @@ bool GLContextEGL::MakeCurrentImpl(GLSurface* surface) {
     glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (!gl_display_ || !gl_display_->IsInitialized()) {
+    LOG(WARNING) << "Failed to make context current: display is not initialized";
+    return false;
+  }
+#endif
+
   if (!eglMakeCurrent(gl_display_->GetDisplay(), surface->GetHandle(),
                       surface->GetHandle(), context_)) {
     LOG(ERROR) << "eglMakeCurrent failed with error "
@@ -577,12 +592,23 @@ void GLContextEGL::ReleaseCurrent(GLSurface* surface) {
     glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
 
   SetCurrent(nullptr);
+#if BUILDFLAG(IS_COBALT)
+  if (gl_display_ && gl_display_->IsInitialized()) {
+    if (!eglMakeCurrent(gl_display_->GetDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE,
+                        EGL_NO_CONTEXT)) {
+      LOG(ERROR) << "eglMakeCurrent failed to release current with error "
+                 << GetLastEGLErrorString();
+      lost_ = true;
+    }
+  }
+#else
   if (!eglMakeCurrent(gl_display_->GetDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE,
                       EGL_NO_CONTEXT)) {
     LOG(ERROR) << "eglMakeCurrent failed to release current with error "
                << GetLastEGLErrorString();
     lost_ = true;
   }
+#endif
 
   DCHECK(!IsCurrent(nullptr));
 }

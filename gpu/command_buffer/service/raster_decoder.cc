@@ -1160,7 +1160,30 @@ void RasterDecoderImpl::Destroy(bool have_context) {
   // Note: `have_context` is always false for Vulkan, so we don't gate this code
   // on it.
   if (sk_surface_ || scoped_shared_image_raster_write_) {
+#if BUILDFLAG(IS_COBALT)
+    if ((have_context || !shared_context_state_->GrContextIsGL()) &&
+        !shared_context_state_->context_lost()) {
+      DoEndRasterCHROMIUM();
+    } else {
+      if (scoped_shared_image_raster_write_) {
+        scoped_shared_image_raster_write_->set_callback(base::BindOnce(
+            [](scoped_refptr<ServiceFontManager> font_manager,
+               std::vector<SkDiscardableHandleId> handles) {
+              font_manager->Unlock(handles);
+            },
+            font_manager_, std::move(locked_handles_)));
+        scoped_shared_image_raster_write_.reset();
+        shared_image_raster_.reset();
+        locked_handles_.clear();
+      }
+      raster_canvas_ = nullptr;
+      scoped_shared_image_write_.reset();
+      sk_surface_ = nullptr;
+      end_semaphores_.clear();
+    }
+#else
     DoEndRasterCHROMIUM();
+#endif
   }
 
   if (have_context && use_gpu_raster_ && transfer_cache()) {
