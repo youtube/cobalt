@@ -1,0 +1,32 @@
+# Global OWNERS that can approve Perfetto changes.
+# Please look first at OWNERS in the various subdirectories before falling back
+# on this, as the former tend to be more brain-cache-hot.
+
+# Perfetto tracing internals and API/ABI boundaries.
+primiano@google.com
+
+# Trace Processor, metrics, infra.
+lalitm@google.com
+mayzner@google.com
+
+# Ftrace interop, traced_probes, protozero, Android internals.
+# Callstack / memory profilers, traced_probes & Linux internals.
+ddiproietto@google.com
+rsavitski@google.com
+
+# Horizontal work
+sashwinbalaji@google.com
+ktimofeev@google.com
+
+# UI
+stevegolton@google.com
+
+# Most Android-related metrics.
+ilkos@google.com
+
+# Chromium-related things and tracing SDK.
+eseckler@google.com
+nuskos@google.com
+oysteine@google.com
+
+include platform/system/core:main:/janitors/OWNERS #{LAST_RESORT_SUGGESTION}
