@@ -294,7 +294,6 @@ bool operator==(const DecodedAudio& left, const DecodedAudio& right) {
   return left.timestamp() == right.timestamp() &&
          left.channels() == right.channels() &&
          left.sample_type() == right.sample_type() &&
-         left.storage_type() == right.storage_type() &&
          left.size_in_bytes() == right.size_in_bytes() &&
          memcmp(left.data(), right.data(), right.size_in_bytes()) == 0;
 }
@@ -310,8 +309,6 @@ std::ostream& operator<<(std::ostream& os, const DecodedAudio& decoded_audio) {
   return os << "timestamp: " << decoded_audio.timestamp()
             << ", channels: " << decoded_audio.channels() << ", sample type: "
             << GetMediaAudioSampleTypeName(decoded_audio.sample_type())
-            << ", storage type: "
-            << GetMediaAudioStorageTypeName(decoded_audio.storage_type())
             << ", frames: " << decoded_audio.frames();
 }
 
