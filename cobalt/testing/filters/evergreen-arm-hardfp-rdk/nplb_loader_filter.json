@@ -33,7 +33,6 @@
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/*",
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
-    "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemSymbolizeTest.SunnyDay",

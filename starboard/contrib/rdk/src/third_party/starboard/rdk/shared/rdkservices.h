@@ -34,6 +34,17 @@ public:
   static bool GetSettings(std::string& out_json);
 };
 
+class UserPreferences {
+public:
+  static bool GetUILanguage(std::string& out_lang);
+};
+
+class UserSettings {
+public:
+  static bool GetPresentationLanguage(std::string& out_lang);
+};
+
+
 namespace platform {
 
 class RDKServicesInterface final : public PlatformInterface {
@@ -94,6 +105,8 @@ private:
 
 namespace starboard {
 using ::third_party::starboard::rdk::shared::Accessibility;
+using ::third_party::starboard::rdk::shared::UserPreferences;
+using ::third_party::starboard::rdk::shared::UserSettings;
 namespace platform = ::third_party::starboard::rdk::shared::platform;
 }  // namespace starboard
 
