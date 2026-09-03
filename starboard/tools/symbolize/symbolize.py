@@ -59,7 +59,16 @@ _RE_GDB = re.compile(r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s*')
 
 
 class _SymbolizerRunner:
-  """Runs llvm-symbolizer in interactive mode with caching for fast lookups."""
+  """Runs llvm-symbolizer in interactive mode with caching for fast lookups.
+
+  Lifetime and Ownership:
+    Typically managed as a context manager using a `with` statement to ensure
+    the underlying subprocess is properly closed.
+
+  Threading Model:
+    This class is not thread-safe and is thread-affine. It should only be
+    accessed from a single thread.
+  """
 
   def __init__(self, library):
     self._library = library
@@ -101,14 +110,17 @@ class _SymbolizerRunner:
       lines = []
       while True:
         line = self._proc.stdout.readline()
-        if not line or line == '\n':
+        if not line:
+          self.close()
+          break
+        if line == '\n':
           break
         lines.append(line.rstrip('\r\n'))
       if lines:
         self._cache[offset] = lines
         return lines
     except Exception:  # pylint: disable=broad-except
-      pass
+      self.close()
     return None
 
 
@@ -131,7 +143,7 @@ def _Symbolize(filename, library, base_address):
     raise ValueError(f'File not found: {filename}.')
   if not os.path.exists(library):
     raise ValueError(f'Library not found: {library}.')
-  base = int(base_address, 0)
+  base = int(base_address, 0) if base_address else 0
   with _SymbolizerRunner(library) as runner:
     with open(filename, encoding='utf-8') as f:
       for line in f:
@@ -141,10 +153,12 @@ def _Symbolize(filename, library, base_address):
           addr = int(match.group(3), 0)
           offset = addr if addr < base else addr - base
           results = runner.symbolize(str(offset))
-          if results and '?' not in results[0] and (len(results) < 2 or
-                                                    '?' not in results[1]):
-            sys.stdout.write(f'    {match.group(2)} {hex(offset)} in '
-                             f'{results[0]} {results[1]}\n')
+          if results and '?' not in results[0]:
+            file_line = (f' {results[1]}'
+                         if len(results) > 1 and '?' not in results[1] else '')
+            sys.stdout.write(
+                f'{match.group(1)}    {match.group(2)} {hex(offset)} in '
+                f'{results[0]}{file_line}\n')
             continue
         # Cobalt
         match = _RE_COBALT.match(line)
@@ -173,10 +187,12 @@ def _Symbolize(filename, library, base_address):
           addr = int(match.group(3), 0)
           offset = addr if addr < base else addr - base
           results = runner.symbolize(str(offset))
-          if results and '?' not in results[0] and (len(results) < 2 or
-                                                    '?' not in results[1]):
-            sys.stdout.write(f'    {match.group(2)} {hex(offset)} in '
-                             f'{results[0]} {results[1]}\n')
+          if results and '?' not in results[0]:
+            file_line = (f' {results[1]}'
+                         if len(results) > 1 and '?' not in results[1] else '')
+            sys.stdout.write(
+                f'{match.group(1)}    {match.group(2)} {hex(offset)} in '
+                f'{results[0]}{file_line}\n')
             continue
 
         sys.stdout.write(line)
