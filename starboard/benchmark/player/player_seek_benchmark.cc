@@ -20,8 +20,6 @@
 namespace starboard {
 namespace benchmark {
 
-void LinkPlayerSeekBenchmark() {}
-
 namespace {
 
 const char* kAudioFile = "beneath_the_canopy_aac_stereo.dmp";
