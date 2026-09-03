@@ -172,7 +172,7 @@ class CONTENT_EXPORT BrowserMainLoop {
     return media_keys_listener_manager_.get();
   }
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_COBALT)
   // Cobalt: Expose on Starboard for passive updates. Note this will not be
   // null for the preload/background state.
 
