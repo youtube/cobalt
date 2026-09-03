@@ -568,7 +568,6 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
 
 void AudioRendererPcm::OnFirstOutput(
     const SbMediaAudioSampleType decoded_sample_type,
-    const SbMediaAudioFrameStorageType decoded_storage_type,
     const int decoded_sample_rate) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoder_sample_rate_);
@@ -667,8 +666,7 @@ void AudioRendererPcm::ProcessAudioData() {
         decoded_audio->AdjustForSeekTime(decoded_audio_sample_rate,
                                          seeking_to_time_);
       }
-      OnFirstOutput(decoded_audio->sample_type(), decoded_audio->storage_type(),
-                    decoded_audio_sample_rate);
+      OnFirstOutput(decoded_audio->sample_type(), decoded_audio_sample_rate);
     }
     SB_DCHECK(resampler_);
 
