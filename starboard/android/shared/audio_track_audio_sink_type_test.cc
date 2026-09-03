@@ -313,13 +313,17 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeResetAndContinue) {
   }
   EXPECT_GE(track_ptr->pause_and_flush_count(), 1);
 
-  // Verify that frames are re-fed to the track after flush.
+  // Verify that playback resumes and frames are re-fed to the track after
+  // flush.
   elapsed_ms = 0;
-  while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
+  while ((track_ptr->written_frames() == 0 ||
+          track_ptr->play_state() != AudioTrack::PlayState::kPlaying) &&
+         elapsed_ms < 1000) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     elapsed_ms += 10;
   }
   EXPECT_GT(track_ptr->written_frames(), 0);
+  EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
 
   // Verify playback continues seamlessly without error.
   EXPECT_FALSE(error_reported_);
