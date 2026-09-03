@@ -18,6 +18,7 @@ _BACKEND_STAR = os.path.join(THIS_DIR, "backend_config", "backend.star")
 
 _GOOGLE_STAR = os.path.join(THIS_DIR, "backend_config", "google.star")
 _KNOWN_GOOGLE_PROJECTS = (
+    'cobalt-actions-prod',
     'goma-foundry-experiments',
     'rbe-chrome-official',
     'rbe-chrome-trusted',
@@ -29,7 +30,7 @@ _KNOWN_GOOGLE_PROJECTS = (
     'rbe-webrtc-developer',
     'rbe-webrtc-trusted',
     'rbe-webrtc-untrusted',
-)
+  )
 
 _GOOGLE_CROS_STAR = os.path.join(THIS_DIR, "backend_config",
                                  "google_cros_chroot.star")

@@ -776,8 +776,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
-<<<<<<< HEAD
-  if (stream) {
+if (stream) {
     base::UmaHistogramSparse(kRequestedInputFramesPerBufferMetricsName,
                              params.frames_per_buffer());
     base::UmaHistogramSparse(
@@ -785,16 +784,13 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
                       media::AudioLatency::ToString(params.latency_tag())}),
         params.frames_per_buffer());
   }
-=======
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // For Cobalt, we always bypass the automatic "Communication Mode" switch.
   // This avoids opening a redundant hardware output sink (speakers) just for
   // hardware AEC/NS that Starboard doesn't use.
   return stream;
-#else
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  // Avoid changing the communication mode if there are existing input streams.
+#else  // Avoid changing the communication mode if there are existing input streams.
   if (!stream || has_input_streams || UseAAudioPerStreamDeviceSelection()) {
     return stream;
   }

@@ -61,22 +61,6 @@ UIKeyboardType keyboardTypeForInputType(ui::TextInputType inputType) {
   }
 }
 
-<<<<<<< HEAD
-NavigationDirection navigationDirectionFromPressType(UIPressType type) {
-  NavigationDirection direction = kNone;
-  switch (type) {
-    case UIPressTypeUpArrow:
-      direction = kUp;
-      break;
-    case UIPressTypeDownArrow:
-      direction = kDown;
-      break;
-    case UIPressTypeLeftArrow:
-      direction = kLeft;
-      break;
-    case UIPressTypeRightArrow:
-      direction = kRight;
-=======
 RemoteButton remoteButtonFromPressType(UIPressType type) {
   RemoteButton button = kNone;
   switch (type) {
@@ -100,17 +84,16 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       break;
     case UIPressTypeMenu:
       button = kMenu;
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       break;
     default:
       break;
   }
-<<<<<<< HEAD
-  return direction;
-=======
   return button;
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+}      break;
+    default:
+      break;
+  }
+return button;}
 
 }  // namespace
 
@@ -296,18 +279,30 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   // Because a swipe is a discrete gesture, the system sends the associated
   // action message just once per gesture. So, kKeyDown and kKeyUp are sent to
   // blink in this method.
-<<<<<<< HEAD
+NavigationDirection direction = kNone;
+  switch (button) {
+    case kLeft:
+      direction = kLeft;
+      break;
+    case kRight:
+      direction = kRight;
+      break;
+    case kUp:
+      direction = kUp;
+      break;
+    case kDown:
+      direction = kDown;
+      break;
+    default:
+      // If button is not one of the directional ones, kNone will be used.
+      // This is consistent with how `direction` is initialized in the `handlePan` method.
+      break;
+  }
+
   [self sendKeyEventWithDirection:direction
                         eventType:blink::WebInputEvent::Type::kKeyDown];
   [self sendKeyEventWithDirection:direction
-                        eventType:blink::WebInputEvent::Type::kKeyUp];
-=======
-  [self sendKeyEventWithRemoteButton:button
-                           eventType:blink::WebInputEvent::Type::kKeyDown];
-  [self sendKeyEventWithRemoteButton:button
-                           eventType:blink::WebInputEvent::Type::kKeyUp];
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+                        eventType:blink::WebInputEvent::Type::kKeyUp];}
 
 - (void)handlePan:(UIPanGestureRecognizer*)gesture {
   CGPoint velocity = [gesture velocityInView:self];
@@ -316,55 +311,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   if (gesture.state == UIGestureRecognizerStateEnded ||
       gesture.state == UIGestureRecognizerStateChanged) {
     // Use `kMinVelocity` to avoid excessive events.
-<<<<<<< HEAD
-    NavigationDirection direction = kNone;
-    if (velocity.x > kMinVelocity) {
-      direction = kRight;
-    } else if (velocity.x < -kMinVelocity) {
-      direction = kLeft;
-    }
-    [self sendKeyEventWithDirection:direction
-                          eventType:blink::WebInputEvent::Type::kKeyDown];
-    [self sendKeyEventWithDirection:direction
-                          eventType:blink::WebInputEvent::Type::kKeyUp];
-  }
-}
-
-// Generates four-directional events when buttons on the clickpad ring are
-// pressed.
-- (void)pressesBegan:(NSSet<UIPress*>*)presses
-           withEvent:(UIPressesEvent*)event {
-  for (UIPress* press in presses) {
-    NavigationDirection direction =
-        navigationDirectionFromPressType(press.type);
-    if (direction == kNone) {
-      [super pressesBegan:presses withEvent:event];
-      continue;
-    }
-    [self sendKeyEventWithDirection:direction
-                          eventType:blink::WebInputEvent::Type::kKeyDown];
-  }
-}
-
-- (void)pressesEnded:(NSSet<UIPress*>*)presses
-           withEvent:(UIPressesEvent*)event {
-  for (UIPress* press in presses) {
-    NavigationDirection direction =
-        navigationDirectionFromPressType(press.type);
-    if (direction == kNone) {
-      [super pressesEnded:presses withEvent:event];
-      continue;
-    }
-    [self sendKeyEventWithDirection:direction
-                          eventType:blink::WebInputEvent::Type::kKeyUp];
-  }
-}
-
-// Helper method to generate WebKeyboardEvent with `direction`.
-- (void)sendKeyEventWithDirection:(NavigationDirection)direction
-                        eventType:(blink::WebInputEvent::Type)type {
-=======
-    RemoteButton button = kNone;
+RemoteButton button = kNone;
     if (velocity.x > kMinVelocity) {
       button = kRight;
     } else if (velocity.x < -kMinVelocity) {
@@ -469,9 +416,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
 // Helper method to generate WebKeyboardEvent with RemoteButton.
 - (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
-                           eventType:(blink::WebInputEvent::Type)type {
->>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
+                           eventType:(blink::WebInputEvent::Type)type {  blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
                                 ui::EventTimeForNow());
 
   switch (remoteButton) {

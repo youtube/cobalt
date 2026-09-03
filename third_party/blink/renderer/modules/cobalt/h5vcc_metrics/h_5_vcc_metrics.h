@@ -70,7 +70,7 @@ class MODULES_EXPORT H5vccMetrics final
 
   // MetricsListener impl.
   void OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
-                 const WTF::String& metric_payload) override;
+                 const String& metric_payload) override;
 
   void Trace(Visitor*) const override;
 
@@ -87,7 +87,7 @@ class MODULES_EXPORT H5vccMetrics final
   void OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver);
   void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
   void OnRequestHistograms(ScriptPromiseResolver<IDLString>* resolver,
-                           const WTF::String& histograms_base64);
+                           const String& histograms_base64);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();

@@ -110,7 +110,7 @@ ScriptPromise<IDLString> H5vccMetrics::requestHistograms(
 }
 
 void H5vccMetrics::OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
-                             const WTF::String& metric_payload) {
+                             const String& metric_payload) {
   // Do not upload UMA payload if execution context is destroyed.
   if (!HasValidExecutionContext()) {
     return;
@@ -184,7 +184,7 @@ void H5vccMetrics::OnSetMetricEventInterval(
 
 void H5vccMetrics::OnRequestHistograms(
     ScriptPromiseResolver<IDLString>* resolver,
-    const WTF::String& histograms_base64) {
+    const String& histograms_base64) {
   CleanupPromise(resolver);
   resolver->Resolve(histograms_base64);
 }

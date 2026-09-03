@@ -86,7 +86,7 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
 
 std::optional<base::Value::Dict> ParseSettingsToDictionary(
     const HeapVector<
-        std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
+        std::pair<String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
         settings) {
   base::Value::Dict settings_dict;
 

@@ -27,6 +27,7 @@
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
@@ -45,7 +46,7 @@ class MODULES_EXPORT H5vccSettings final
   // Web-exposed interface:
 
   ScriptPromise<IDLUndefined> set(ScriptState* script_state,
-                                  const WTF::String& name,
+                                  const String& name,
                                   const V8UnionLongOrString* value,
                                   ExceptionState& exception_state);
 
