@@ -44,7 +44,6 @@
 
 namespace update_client {
 
-
 namespace {
 
 // The sequence of calls is:
