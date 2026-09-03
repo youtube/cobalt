@@ -12,7 +12,7 @@
 #include "base/memory/shared_memory_tracker.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/posix/eintr_wrapper.h"
-#include "third_party/ashmem/ashmem.h"
+#include "base/android/linker/ashmem.h"
 
 namespace base {
 namespace subtle {
