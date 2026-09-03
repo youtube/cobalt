@@ -28,6 +28,19 @@ public class JavaSwitches {
   public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
 
   public static final String ENABLE_QUIC = "EnableQUIC";
+
+  /**
+   * Java switch key set via Intent or Android metadata bundle to enable Starboard lifecycle
+   * migration.
+   */
+  public static final String USE_STARBOARD_LIFECYCLE = "UseStarboardLifeCycle";
+
+  /**
+   * Command-line switch name passed to CommandLine when USE_STARBOARD_LIFECYCLE is set. Allows C++
+   * code and non-Activity Java classes (e.g. NetworkStatus) to query CommandLine.
+   */
+  public static final String USE_STARBOARD_LIFECYCLE_SWITCH = "use-starboard-lifecycle";
+
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
@@ -333,6 +346,13 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
       extraCommandLineArgs.add("--disable-back-forward-cache");
+    }
+
+    // Convert the Java switch to a command-line flag so C++ code and non-Activity Java components
+    // (such as NetworkStatus) can query
+    // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
+    if (javaSwitches.containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)) {
+      extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
     }
 
     return extraCommandLineArgs;
