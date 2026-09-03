@@ -730,7 +730,7 @@ base::CallbackListSubscription RegisterNetworkServiceProcessGoneHandler(
   return GetProcessGoneHandlersList().Add(std::move(handler));
 }
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_COBALT)
 net::NetworkChangeNotifier* GetNetworkChangeNotifier() {
   return BrowserMainLoop::GetInstance()->network_change_notifier();
 }
