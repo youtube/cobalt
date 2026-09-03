@@ -737,13 +737,13 @@ void MediaStreamDispatcherHost::RequestCapturedSurfaceControlPermission(
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamDispatcherHost::ApplySubCaptureTarget(
     const base::UnguessableToken& device_id,
     media::mojom::SubCaptureTargetType type,
     const base::Token& sub_capture_target,
     uint32_t sub_capture_target_version,
     ApplySubCaptureTargetCallback callback) {
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const GlobalRenderFrameHostId captured_id =
@@ -768,13 +768,8 @@ void MediaStreamDispatcherHost::ApplySubCaptureTarget(
           sub_capture_target_version,
           WrapApplySubCaptureTarget(std::move(callback),
                                     mojo::GetBadMessageCallback())));
-#else
-  std::move(callback).Run(
-      media::mojom::ApplySubCaptureTargetResult::kNotImplemented);
-#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 }
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamDispatcherHost::OnSubCaptureTargetValidationComplete(
     const base::UnguessableToken& session_id,
     media::mojom::SubCaptureTargetType type,

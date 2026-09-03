@@ -15,8 +15,7 @@
 #include <cstring>
 
 #include "base/numerics/safe_conversions.h"
-// TODO(cobalt, b/377295011): remove the nogncheck annotation.
-#include "base/third_party/symbolize/symbolize.h"  // nogncheck
+#include "base/third_party/symbolize/symbolize.h"
 
 namespace base::debug {
 
