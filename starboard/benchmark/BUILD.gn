@@ -50,10 +50,7 @@ target(_benchmark_type, "benchmark") {
       "//starboard/shared/starboard/features_test_util.cc",
       "//starboard/shared/starboard/features_test_util.h",
     ]
-    deps += [
-      "//starboard/extension:feature_config_header",
-      "//starboard/shared/starboard:feature_list",
-    ]
+    deps += [ "//starboard/shared/starboard:feature_list" ]
   }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
