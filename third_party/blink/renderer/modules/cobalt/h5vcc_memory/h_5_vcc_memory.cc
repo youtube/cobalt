@@ -41,7 +41,7 @@ void H5vccMemory::EnsureRemoteIsBound() {
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_memory_.BindNewPipeAndPassReceiver(task_runner));
   remote_h5vcc_memory_.set_disconnect_handler(
-      WTF::BindOnce(&H5vccMemory::OnConnectionError, WrapWeakPersistent(this)));
+      BindOnce(&H5vccMemory::OnConnectionError, WrapWeakPersistent(this)));
 }
 
 void H5vccMemory::OnConnectionError() {
@@ -94,7 +94,7 @@ void H5vccMemory::MaybeRegisterLowMemoryListener() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   remote_h5vcc_memory_->AddLowMemoryListener(
       low_memory_receiver_.BindNewPipeAndPassRemote(task_runner));
-  low_memory_receiver_.set_disconnect_handler(WTF::BindOnce(
+  low_memory_receiver_.set_disconnect_handler(BindOnce(
       &H5vccMemory::OnListenerConnectionError, WrapWeakPersistent(this)));
 }
 

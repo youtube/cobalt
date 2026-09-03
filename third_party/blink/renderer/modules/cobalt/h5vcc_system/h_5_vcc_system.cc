@@ -211,8 +211,8 @@ ScriptPromise<IDLBoolean> H5vccSystem::wasLowMemoryKilled(
   EnsureReceiverIsBound();
 
   remote_h5vcc_system_->GetWasLowMemoryKilled(
-      WTF::BindOnce(&H5vccSystem::OnGetWasLowMemoryKilled, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccSystem::OnGetWasLowMemoryKilled, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
