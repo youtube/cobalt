@@ -52,10 +52,6 @@ class DecodedAudio {
 
   int channels() const { return channels_; }
   SbMediaAudioSampleType sample_type() const { return sample_type_; }
-  // TODO: b/272837615 - Remove temporary compatibility overloads.
-  SbMediaAudioFrameStorageType storage_type() const {
-    return kSbMediaAudioFrameStorageTypeInterleaved;
-  }
 
   bool is_end_of_stream() const { return channels_ == 0; }
   int64_t timestamp() const { return timestamp_; }
