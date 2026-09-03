@@ -56,8 +56,6 @@ class AudioRendererSink {
 
   virtual bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const = 0;
-  virtual bool IsAudioFrameStorageTypeSupported(
-      SbMediaAudioFrameStorageType audio_frame_storage_type) const = 0;
   virtual int GetNearestSupportedSampleFrequency(
       int sampling_frequency_hz) const = 0;
 
@@ -66,7 +64,6 @@ class AudioRendererSink {
                      int channels,
                      int sampling_frequency_hz,
                      SbMediaAudioSampleType audio_sample_type,
-                     SbMediaAudioFrameStorageType audio_frame_storage_type,
                      SbAudioSinkFrameBuffers frame_buffers,
                      int frames_per_channel,
                      RenderCallback* render_callback) = 0;
