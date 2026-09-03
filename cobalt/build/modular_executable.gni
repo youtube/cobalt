@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/compiled_action.gni")
+import("//cobalt/prebuilt.gni")
 import("//starboard/build/platform_path.gni")
 import("//starboard/content/fonts/variables.gni")
 import("//third_party/icu/config.gni")
@@ -147,11 +148,17 @@ template("evergreen_final_target") {
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
       data_deps = [
         ":copy_${original_target_name}_content",
-        ":copy_${original_target_name}_lib",
-        ":copy_${original_target_name}_uncompressed_lib",
-        ":copy_${original_target_name}_zstd_lib",
         "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
       ]
+      if (original_target_name == "cobalt" && prebuilt_cobalt_lib != "") {
+        data_deps += [ "//cobalt:copy_prebuilt" ]
+      } else {
+        data_deps += [
+          ":copy_${original_target_name}_lib",
+          ":copy_${original_target_name}_uncompressed_lib",
+          ":copy_${original_target_name}_zstd_lib",
+        ]
+      }
     }
 
     action("${original_target_name}_runfile_gen") {
