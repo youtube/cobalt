@@ -11,6 +11,9 @@ on: # zizmor: ignore[dangerous-triggers]
       - in_progress
       - completed
 
+permissions:
+  contents: read
+
 jobs:
   deflake:
     runs-on: ubuntu-latest

@@ -1058,7 +1058,7 @@ jobs:
     if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_validation
+    name: ${{ matrix.name }}_tests_passing
     strategy:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
