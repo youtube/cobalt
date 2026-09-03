@@ -23,9 +23,6 @@
 namespace starboard {
 namespace benchmark {
 
-// Dummy function to force linking of this translation unit
-void LinkPlayerCreateBenchmark() {}
-
 namespace {
 
 struct AsyncCreateContext {

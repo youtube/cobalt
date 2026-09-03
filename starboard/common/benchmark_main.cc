@@ -24,14 +24,6 @@
 #include "perfetto/tracing.h"
 #endif
 
-namespace starboard {
-namespace benchmark {
-void LinkPlayerCreateBenchmark();
-void LinkPlayerDestroyBenchmark();
-void LinkPlayerSeekBenchmark();
-}  // namespace benchmark
-}  // namespace starboard
-
 namespace {
 int RunAllBenchmarks(int argc, char** argv) {
 #if BUILDFLAG(IS_ANDROID)
@@ -42,9 +34,6 @@ int RunAllBenchmarks(int argc, char** argv) {
 #if BUILDFLAG(IS_ANDROID)
   starboard::features::InitializeStarboardFeatureListWithDefaults();
 #endif
-  starboard::benchmark::LinkPlayerCreateBenchmark();
-  starboard::benchmark::LinkPlayerDestroyBenchmark();
-  starboard::benchmark::LinkPlayerSeekBenchmark();
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();
   return 0;
