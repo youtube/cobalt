@@ -62,8 +62,7 @@ class MODULES_EXPORT H5vccExperiments final
   ScriptPromise<IDLUndefined> setFinchParameters(
       ScriptState*,
       const HeapVector<
-          std::pair<String,
-                    Member<V8UnionBooleanOrDoubleOrLongOrString>>>&,
+          std::pair<String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&,
       ExceptionState&);
 
   void Trace(Visitor*) const override;

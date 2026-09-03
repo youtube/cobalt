@@ -37,9 +37,8 @@ class FakeH5vccAccessibilityService
         mojo::PendingReceiver<
             h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser>(
             std::move(handle)));
-    receiver_.set_disconnect_handler(
-        BindOnce(&FakeH5vccAccessibilityService::OnConnectionError,
-                 Unretained(this)));
+    receiver_.set_disconnect_handler(BindOnce(
+        &FakeH5vccAccessibilityService::OnConnectionError, Unretained(this)));
   }
 
   void OnConnectionError() {

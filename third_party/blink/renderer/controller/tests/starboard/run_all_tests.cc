@@ -41,7 +41,7 @@ static int InitAndRunAllTests(int argc, char** argv) {
   return base::LaunchUnitTests(
       argc, argv,
       BindOnce(&BlinkUnitTestSuite<base::TestSuite>::Run,
-                    base::Unretained(&test_suite)));
+               base::Unretained(&test_suite)));
 }
 
 SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
