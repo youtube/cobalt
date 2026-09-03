@@ -1,0 +1,17 @@
+---
+---
+  Checks:          '-*,
+                    bugprone-argument-comment
+                    llvm-namespace-comment,
+                    modernize-use-designated-initializers,
+                    modernize-use-override,
+                    modernize-use-std-numbers,
+                    readability-container-size-empty,
+                    readability-static-definition-in-anonymous-namespace,
+                    readability-redundant-smartptr-get,
+                    readability-redundant-declaration'
+                    # readability-static-accessed-through-instance is generally useful but produces too many false positives.
+  CheckOptions:
+    # The default threshold gives false positives in test data
+    modernize-use-std-numbers.DiffThreshold: 0.00001
+...
