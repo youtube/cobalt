@@ -154,6 +154,10 @@ gpu::ContextResult ContextGroup::Initialize(
       break;
   }
   if (HaveContexts()) {
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    decoders_.push_back(decoder->AsWeakPtr());
+    return gpu::ContextResult::kSuccess;
+#else
     if (context_type != feature_info_->context_type()) {
       LOG(ERROR) << "ContextResult::kFatalFailure: the type of "
                     "the context does not fit with the group.";
@@ -162,6 +166,7 @@ gpu::ContextResult ContextGroup::Initialize(
     // If we've already initialized the group just add the context.
     decoders_.push_back(decoder->AsWeakPtr());
     return gpu::ContextResult::kSuccess;
+#endif
   }
 
   DisallowedFeatures adjusted_disallowed_features =
@@ -174,9 +179,13 @@ gpu::ContextResult ContextGroup::Initialize(
   if ((context_type == CONTEXT_TYPE_WEBGL2 ||
        context_type == CONTEXT_TYPE_OPENGLES3) &&
       !feature_info_->IsES3Capable()) {
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    LOG(WARNING) << "[GL_DEBUG] ES3 requested on non-ES3 capable driver, continuing gracefully for Cobalt...";
+#else
     LOG(ERROR) << "ContextResult::kFatalFailure: "
                << "ES3 is blocklisted/disabled/unsupported by driver.";
     return gpu::ContextResult::kFatalFailure;
+#endif
   }
 
   const GLint kMinRenderbufferSize = 512;  // GL says 1 pixel!
@@ -184,6 +193,9 @@ gpu::ContextResult ContextGroup::Initialize(
   if (!QueryGLFeature(
       GL_MAX_RENDERBUFFER_SIZE, kMinRenderbufferSize,
       &max_renderbuffer_size)) {
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    LOG(WARNING) << "[GL_DEBUG] QueryGLFeature GL_MAX_RENDERBUFFER_SIZE failed, continuing gracefully...";
+#else
     bool was_lost = decoder->CheckResetStatus();
     LOG(ERROR) << (was_lost ? "ContextResult::kTransientFailure: "
                             : "ContextResult::kFatalFailure: ")
@@ -192,6 +204,7 @@ gpu::ContextResult ContextGroup::Initialize(
                << kMinRenderbufferSize << ").";
     return was_lost ? gpu::ContextResult::kTransientFailure
                     : gpu::ContextResult::kFatalFailure;
+#endif
   }
   GLint max_samples = 0;
   if (feature_info_->feature_flags().chromium_framebuffer_multisample ||
