@@ -975,37 +975,11 @@ void QuotaDatabase::Commit() {
 
   last_operation_ = "Commit";
   DCHECK_EQ(1, db_->transaction_nesting());
-#if BUILDFLAG(IS_STARBOARD)
-  if (!db_->CommitTransactionDeprecated()) {
-    LOG(ERROR) << "Failed to commit QuotaDatabase transaction, disabling database.";
-    DisableDatabase();
-    return;
-  }
-#else
   db_->CommitTransactionDeprecated();
-#endif
   DCHECK_EQ(0, db_->transaction_nesting());
-#if BUILDFLAG(IS_STARBOARD)
-  if (!db_->BeginTransactionDeprecated()) {
-    LOG(ERROR) << "Failed to start a new transaction for QuotaDatabase, disabling database.";
-    DisableDatabase();
-    return;
-  }
-#else
   db_->BeginTransactionDeprecated();
-#endif
   DCHECK_EQ(1, db_->transaction_nesting());
 }
-
-#if BUILDFLAG(IS_STARBOARD)
-void QuotaDatabase::DisableDatabase() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  timer_.Stop();
-  is_disabled_ = true;
-  db_.reset();
-  meta_table_.reset();
-}
-#endif
 
 void QuotaDatabase::ScheduleCommit() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1047,13 +1021,9 @@ QuotaError QuotaDatabase::EnsureOpened() {
       // ResetStorage() has succeeded and database is already open.
       return QuotaError::kNone;
     }
-#if BUILDFLAG(IS_STARBOARD)
-    DisableDatabase();
-#else
     is_disabled_ = true;
     db_.reset();
     meta_table_.reset();
-#endif
     return QuotaError::kDatabaseError;
   }
 
@@ -1064,34 +1034,15 @@ QuotaError QuotaDatabase::EnsureOpened() {
       return QuotaError::kNone;
     }
     LOG(ERROR) << "Failed to reset the quota database.";
-#if BUILDFLAG(IS_STARBOARD)
-    DisableDatabase();
-#else
     is_disabled_ = true;
     db_.reset();
     meta_table_.reset();
-#endif
     return QuotaError::kDatabaseError;
   }
 
   // Start a long-running transaction.
   DCHECK_EQ(0, db_->transaction_nesting());
-#if BUILDFLAG(IS_STARBOARD)
-  if (!db_->BeginTransactionDeprecated()) {
-    LOG(ERROR) << "Could not start initial transaction on quota database, resetting.";
-    if (!is_recreating_ && !db_file_path_.empty()) {
-      if (ResetStorage()) {
-        // ResetStorage() has succeeded and database is already open.
-        return QuotaError::kNone;
-      }
-    }
-    LOG(ERROR) << "Failed to reset the quota database.";
-    DisableDatabase();
-    return QuotaError::kDatabaseError;
-  }
-#else
   db_->BeginTransactionDeprecated();
-#endif
 
   return QuotaError::kNone;
 }

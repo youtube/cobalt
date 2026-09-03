@@ -297,22 +297,6 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
   void UnmapRasterCHROMIUM(uint32_t raster_written_size,
                            uint32_t total_written_size);
 
-#if BUILDFLAG(IS_COBALT)
-  // Fast path for Cobalt in-process direct raster. Passes a pointer payload
-  // wrapping the finalized DisplayItemList and image transfer cache IDs to
-  // the GPU raster decoder, bypassing PaintOp serialization.
-  void RasterCHROMIUMInProcess(
-      const cc::DisplayItemList* list,
-      cc::ImageProvider* provider,
-      const gfx::Size& content_size,
-      const gfx::Rect& full_raster_rect,
-      const gfx::Rect& playback_rect,
-      const gfx::Vector2dF& post_translate,
-      const gfx::Vector2dF& post_scale,
-      bool requires_clear,
-      const ScrollOffsetMap* raster_inducing_scroll_offsets);
-#endif  // BUILDFLAG(IS_COBALT)
-
   // Returns the last error and clears it. Useful for debugging.
   const std::string& GetLastError() { return last_error_; }
 

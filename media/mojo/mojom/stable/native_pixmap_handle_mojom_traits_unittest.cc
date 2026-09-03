@@ -4,10 +4,7 @@
 
 #include "media/mojo/mojom/stable/native_pixmap_handle_mojom_traits.h"
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <linux/kcmp.h>
-#endif
-
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -52,12 +49,10 @@ TEST(NativePixmapHandleMojomTraitsTest, ValidNativePixmapPlane) {
             deserialized_native_pixmap_plane.offset);
   EXPECT_EQ(native_pixmap_plane.size, deserialized_native_pixmap_plane.size);
   ASSERT_TRUE(deserialized_native_pixmap_plane.fd.is_valid());
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   const auto pid = base::Process::Current().Pid();
   EXPECT_EQ(syscall(SYS_kcmp, pid, pid, KCMP_FILE, duped_fd.get(),
                     deserialized_native_pixmap_plane.fd.get()),
             0);
-#endif
 }
 
 TEST(NativePixmapHandleMojomTraitsTest, NativePixmapPlaneWithInvalidFd) {
@@ -112,9 +107,7 @@ TEST(NativePixmapHandleMojomTraitsTest, ValidNativePixmapHandle) {
 
   ASSERT_EQ(native_pixmap_handle.planes.size(),
             deserialized_native_pixmap_handle.planes.size());
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   const auto pid = base::Process::Current().Pid();
-#endif
   for (size_t i = 0; i < native_pixmap_handle.planes.size(); i++) {
     EXPECT_EQ(native_pixmap_handle.planes[i].stride,
               deserialized_native_pixmap_handle.planes[i].stride);
@@ -123,11 +116,9 @@ TEST(NativePixmapHandleMojomTraitsTest, ValidNativePixmapHandle) {
     EXPECT_EQ(native_pixmap_handle.planes[i].size,
               deserialized_native_pixmap_handle.planes[i].size);
     ASSERT_TRUE(deserialized_native_pixmap_handle.planes[i].fd.is_valid());
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
     EXPECT_EQ(syscall(SYS_kcmp, pid, pid, KCMP_FILE, duped_fds[i].get(),
                       deserialized_native_pixmap_handle.planes[i].fd.get()),
               0);
-#endif
   }
   EXPECT_EQ(native_pixmap_handle.modifier,
             deserialized_native_pixmap_handle.modifier);
