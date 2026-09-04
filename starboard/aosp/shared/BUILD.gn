@@ -61,7 +61,6 @@ source_set("aosp_loader_glue") {
   deps = [
     ":starboard_platform",
     "//base",
-    "//cobalt/android:app_event_bridge",
     "//cobalt/aosp:jni_headers",
     "//starboard/android/shared:starboard_platform",
     "//starboard/common",

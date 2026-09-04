@@ -50,13 +50,7 @@
 #include "components/crash/content/browser/child_exit_observer_android.h"
 #include "components/crash/content/browser/child_process_crash_observer_android.h"
 #include "net/android/network_change_notifier_factory_android.h"
-#endif
-
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 #include "net/base/network_change_notifier.h"
-#include "net/base/network_change_notifier_factory.h"
-#include "net/base/network_change_notifier_passive.h"
-#include "starboard/system.h"
 #endif
 
 #if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
@@ -83,7 +77,7 @@
 namespace content {
 
 namespace {
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_STARBOARD)
 class NetworkChangeNotifierFactoryStarboard
     : public net::NetworkChangeNotifierFactory {
  public:
@@ -98,7 +92,7 @@ class NetworkChangeNotifierFactoryStarboard
                                                                initial_subtype);
   }
 };
-#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
+#endif
 
 GURL GetStartupURL() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -159,11 +153,8 @@ int ShellBrowserMainParts::PreEarlyInitialization() {
   ui::InitializeInputMethodForTesting();
 #endif
 #if BUILDFLAG(IS_ANDROID)
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "use-starboard-lifecycle")) {
-    net::NetworkChangeNotifier::SetFactory(
-        new net::NetworkChangeNotifierFactoryAndroid());
-  }
+  net::NetworkChangeNotifier::SetFactory(
+      new net::NetworkChangeNotifierFactoryAndroid());
 #elif BUILDFLAG(IS_STARBOARD)
   net::NetworkChangeNotifier::SetFactory(
       new NetworkChangeNotifierFactoryStarboard());
