@@ -67,6 +67,15 @@ void StarboardGpuFactoryImpl::RunSbDecodeTargetFunctionOnGpu(
   done_event->Signal();
 }
 
+void StarboardGpuFactoryImpl::RunStandaloneFunctionOnGpu(
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context,
+    base::WaitableEvent* done_event) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  target_function(target_function_context);
+  done_event->Signal();
+}
+
 void StarboardGpuFactoryImpl::RunCallbackOnGpu(
     base::OnceCallback<void()> callback,
     base::WaitableEvent* done_event) {

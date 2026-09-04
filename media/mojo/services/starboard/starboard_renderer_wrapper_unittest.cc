@@ -147,6 +147,13 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
     done_event->Signal();
   }
 
+  void RunStandaloneFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
   void RunCallbackOnGpu(base::OnceCallback<void()> callback,
                         base::WaitableEvent* done_event) override {
     done_event->Signal();
