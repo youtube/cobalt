@@ -352,7 +352,8 @@ public class ContentViewRenderView extends FrameLayout {
           .addStartupCompletedObserver(
               new BrowserStartupController.StartupCallback() {
                 @Override
-                public void onSuccess() {
+                public void onSuccess(
+                    BrowserStartupController.@org.chromium.build.annotations.Nullable StartupMetrics metrics) {
                   Log.i(TAG, "ContentViewRenderView: Startup complete");
                   while (!mPendingTasks.isEmpty()) {
                     mPendingTasks.remove(0).run();
