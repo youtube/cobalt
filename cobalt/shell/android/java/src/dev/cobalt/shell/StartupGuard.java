@@ -2,14 +2,22 @@ package dev.cobalt.shell;
 
 import static dev.cobalt.shell.Shell.TAG;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import java.io.File;
+import java.io.RandomAccessFile;
+import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.chromium.base.PathUtils;
 
 /**
  * This class crashes the application if scheduled and not disarmed before its timer expires.
@@ -18,6 +26,13 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <p>Intentionally crashing allows the system to capture a stack trace and potentially restart the
  * application, rather than leaving the user stuck on an unresponsive black screen.
+ *
+ * <p>StartupGuard also serves as the persistence bridge for the Chromium UMA funnel. Before the C++
+ * JNI library (`libcobalt.so`) is fully unpacked and initialized, early startup milestones (1-4)
+ * are recorded here. The bitmask is written to disk via a bare-metal `MappedByteBuffer` (bypassing
+ * the heap) so it easily survives watchdog crashes. The C++ `ShellBrowserMainParts` harvester
+ * collects this file on the subsequent boot and logs the rescued events to
+ * `Cobalt.Startup.MilestoneReached`.
  */
 public class StartupGuard {
   private final Handler handler;
@@ -29,6 +44,9 @@ public class StartupGuard {
   private static class LazyHolder {
     private static final StartupGuard INSTANCE = new StartupGuard();
   }
+
+  // Backing memory-mapped file for Phase 1 cross-layer UMA persistence
+  private MappedByteBuffer startupStateBuffer = null;
 
   // Private constructor prevents direct instantiation from other classes
   private StartupGuard() {
@@ -45,6 +63,43 @@ public class StartupGuard {
                     + getStartupStatusAndDiagnosisInfo());
           }
         };
+  }
+
+  public void initializePersistence(Context context) {
+    initializePersistenceInternal(context, null);
+  }
+
+  @VisibleForTesting
+  public void initializePersistenceInternal(Context context, @Nullable File baseDir) {
+    try {
+      // Default to Chromium's data directory so it matches C++ DIR_ANDROID_APP_DATA.
+      File dir = baseDir != null ? baseDir : new File(PathUtils.getDataDirectory());
+      if (!dir.exists()) {
+        dir.mkdirs();
+      }
+
+      File file = new File(dir, "java_startup_state.bin");
+      // If a file from the previous session exists, rename it so C++ can harvest the previous
+      // session's
+      // state without racing with this fresh session's writes.
+      if (file.exists()) {
+        File prevFile = new File(dir, "java_startup_state_previous.bin");
+        if (prevFile.exists()) {
+          prevFile.delete();
+        }
+        file.renameTo(prevFile);
+      }
+
+      try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
+          FileChannel channel = raf.getChannel()) {
+        // MappedByteBuffer defaults to big-endian, we strictly need little-endian for C++.
+        startupStateBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 8);
+        startupStateBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        startupStateBuffer.putLong(0, 0);
+      }
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to map startup state file: " + e.getMessage());
+    }
   }
 
   private String getStartupStatusAndDiagnosisInfo() {
@@ -80,7 +135,14 @@ public class StartupGuard {
     }
     Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
     long mask = 1L << milestone;
-    startupStatus.updateAndGet(current -> current | mask);
+
+    // Synchronize to ensure atomic write-through to the disk buffer without interleaving
+    synchronized (this) {
+      long current = startupStatus.updateAndGet(curr -> curr | mask);
+      if (startupStateBuffer != null) {
+        startupStateBuffer.putLong(0, current);
+      }
+    }
   }
 
   /**
@@ -131,5 +193,14 @@ public class StartupGuard {
   @VisibleForTesting
   public Runnable getCrashRunnable() {
     return crashRunnable;
+  }
+
+  @VisibleForTesting
+  public void resetForTesting() {
+    synchronized (this) {
+      startupStatus.set(0);
+      isArmed.set(false);
+      startupStateBuffer = null;
+    }
   }
 }

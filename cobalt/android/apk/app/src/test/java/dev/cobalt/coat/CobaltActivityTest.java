@@ -23,8 +23,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.KeyEvent;
+import androidx.test.core.app.ApplicationProvider;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.JavaSwitches;
 import java.time.Duration;
@@ -292,6 +294,11 @@ public class CobaltActivityTest {
 
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
     return new CobaltActivity() {
+      @Override
+      public Context getApplicationContext() {
+        return ApplicationProvider.getApplicationContext();
+      }
+
       @Override
       protected Map<String, String> getJavaSwitches() {
         return switches;
