@@ -414,13 +414,15 @@ void GLContextEGL::Destroy() {
 #if BUILDFLAG(IS_COBALT)
     // Unbind the context from the calling thread before destroying it so that
     // the driver or ANGLE immediately releases the thread context binding.
-    if (gl_display_ && gl_display_->IsInitialized()) {
-      if (gl_display_->IsEGLSurfacelessContextSupported() &&
-          (IsCurrent(nullptr) || eglGetCurrentContext() == context_)) {
-        SetCurrent(nullptr);
+    if (IsCurrent(nullptr) || eglGetCurrentContext() == context_) {
+      SetCurrent(nullptr);
+      if (gl_display_ && gl_display_->IsInitialized() &&
+          gl_display_->IsEGLSurfacelessContextSupported()) {
         eglMakeCurrent(gl_display_->GetDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE,
                        EGL_NO_CONTEXT);
       }
+    }
+    if (gl_display_ && gl_display_->IsInitialized()) {
       if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
         LOG(ERROR) << "eglDestroyContext failed with error "
                    << GetLastEGLErrorString();

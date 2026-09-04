@@ -1163,7 +1163,8 @@ void RasterDecoderImpl::Destroy(bool have_context) {
 #if BUILDFLAG(IS_COBALT)
     // If the GL context is still valid (or using a non-GL backend) and has not
     // been marked lost, complete pending rasterization commands normally.
-    if ((have_context || !shared_context_state_->GrContextIsGL()) &&
+    if (shared_context_state_ &&
+        (have_context || !shared_context_state_->GrContextIsGL()) &&
         !shared_context_state_->context_lost()) {
       DoEndRasterCHROMIUM();
     } else {
