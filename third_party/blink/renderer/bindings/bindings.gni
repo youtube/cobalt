@@ -295,8 +295,6 @@ if (is_cobalt) {
     "*v8_gpu_*",
     "*v8_ml.*",
     "*v8_ml_*",
-    "*v8_xr.*",
-    "*v8_xr_*",
     "*v8_union_*gpu*",
   ]
 

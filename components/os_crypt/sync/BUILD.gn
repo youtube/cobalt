@@ -38,6 +38,7 @@ component("sync") {
     "//components/trusted_vault",
     "//components/trusted_vault:unit_tests",
     "//content/browser",
+    "//cobalt/browser",
     "//headless:headless_non_renderer",
     "//headless:headless_shell_lib",
     "//ios/chrome/browser/web/model:web_internal",

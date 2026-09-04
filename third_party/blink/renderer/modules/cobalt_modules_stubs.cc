@@ -139,54 +139,14 @@ STUB_V8_WRAPPER(V8Translator)
 STUB_V8_WRAPPER(V8Writer)
 
 // WebXR V8 Wrappers
-STUB_V8_WRAPPER(V8XRAnchor)
-STUB_V8_WRAPPER(V8XRAnchorSet)
-STUB_V8_WRAPPER(V8XRBoundedReferenceSpace)
-STUB_V8_WRAPPER(V8XRCamera)
-STUB_V8_WRAPPER(V8XRCompositionLayer)
-STUB_V8_WRAPPER(V8XRCPUDepthInformation)
-STUB_V8_WRAPPER(V8XRDepthInformation)
-STUB_V8_WRAPPER(V8XRDOMOverlayState)
-STUB_V8_WRAPPER(V8XRFrame)
-STUB_V8_WRAPPER(V8XRGPUBinding)
-STUB_V8_WRAPPER(V8XRGPUSubImage)
-STUB_V8_WRAPPER(V8XRHand)
-STUB_V8_WRAPPER(V8XRHitTestResult)
-STUB_V8_WRAPPER(V8XRHitTestSource)
-STUB_V8_WRAPPER(V8XRImageTrackingResult)
-STUB_V8_WRAPPER(V8XRInputSource)
-STUB_V8_WRAPPER(V8XRInputSourceArray)
-STUB_V8_WRAPPER(V8XRInputSourceEvent)
-STUB_V8_WRAPPER(V8XRInputSourcesChangeEvent)
-STUB_V8_WRAPPER(V8XRJointPose)
-STUB_V8_WRAPPER(V8XRJointSpace)
-STUB_V8_WRAPPER(V8XRLayer)
-STUB_V8_WRAPPER(V8XRLightEstimate)
-STUB_V8_WRAPPER(V8XRLightProbe)
-STUB_V8_WRAPPER(V8XRPlane)
-STUB_V8_WRAPPER(V8XRPlaneSet)
-STUB_V8_WRAPPER(V8XRPose)
-STUB_V8_WRAPPER(V8XRProjectionLayer)
-STUB_V8_WRAPPER(V8XRRay)
-STUB_V8_WRAPPER(V8XRReferenceSpace)
-STUB_V8_WRAPPER(V8XRReferenceSpaceEvent)
-STUB_V8_WRAPPER(V8XRRenderState)
-STUB_V8_WRAPPER(V8XRRigidTransform)
-STUB_V8_WRAPPER(V8XRSession)
-STUB_V8_WRAPPER(V8XRSessionEvent)
-STUB_V8_WRAPPER(V8XRSpace)
-STUB_V8_WRAPPER(V8XRSubImage)
-STUB_V8_WRAPPER(V8XRSystem)
-STUB_V8_WRAPPER(V8XRTransientInputHitTestResult)
-STUB_V8_WRAPPER(V8XRTransientInputHitTestSource)
-STUB_V8_WRAPPER(V8XRView)
-STUB_V8_WRAPPER(V8XRViewerPose)
-STUB_V8_WRAPPER(V8XRViewport)
-STUB_V8_WRAPPER(V8XRWebGLBinding)
-STUB_V8_WRAPPER(V8XRWebGLDepthInformation)
-STUB_V8_WRAPPER(V8XRWebGLLayer)
-STUB_V8_WRAPPER(V8XRWebGLSubImage)
 STUB_V8_WRAPPER(V8XRWebGLContext)
+STUB_V8_WRAPPER(V8XRWebGLLayer)
+STUB_V8_WRAPPER(V8XRSession)
+STUB_V8_WRAPPER(V8XRRay)
+STUB_V8_WRAPPER(V8XRFrame)
+STUB_V8_WRAPPER(V8XRHitTestResult)
+STUB_V8_WRAPPER(V8XRHand)
+STUB_V8_WRAPPER(V8XREquirectLayer)
 
 // WebGPU V8 Wrappers
 STUB_V8_WRAPPER(V8GPU)
@@ -470,6 +430,89 @@ void ExternalTextureCache::Trace(Visitor* visitor) const {
 
 V8GPUTextureFormat BaseRenderingContext2D::getTextureFormat() const {
   return V8GPUTextureFormat(V8GPUTextureFormat::Enum::kR8Unorm);
+}
+
+// Stubs for V8GPUTextureFormat::Create
+// (Needed because v8_gpu_texture_format.cc is not included in Cobalt build)
+// This is a static method that needs to return a valid object, so we mock it.
+// Note that `idl_types.h` is needed for `IDLNullable`.
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"
+V8GPUTextureFormat V8GPUTextureFormat::Create(v8::Isolate* isolate,
+                                              v8::Local<v8::Value> value,
+                                              blink::ExceptionState& exception_state) {
+  return V8GPUTextureFormat(V8GPUTextureFormat::Enum::kR8Unorm);
+}
+
+// --- WebXR C++ Stubs for Tracer, getPose, get and set methods ---
+// (These XR C++ files are not included in the Cobalt build, so we need stubs
+// to satisfy the linker for references coming from V8 bindings or other parts
+// of blink that cannot be fully excluded.)
+#include "third_party/blink/renderer/modules/xr/xr_webgl_layer.h"
+#include "third_party/blink/renderer/modules/xr/xr_session.h"
+#include "third_party/blink/renderer/modules/xr/xr_ray.h"
+#include "third_party/blink/renderer/modules/xr/xr_frame.h"
+#include "third_party/blink/renderer/modules/xr/xr_hit_test_result.h"
+#include "third_party/blink/renderer/modules/xr/xr_hand.h"
+#include "third_party/blink/renderer/modules/xr/xr_equirect_layer.h"
+#include "third_party/blink/renderer/modules/xr/xr_space.h"
+#include "third_party/blink/renderer/modules/xr/xr_rigid_transform.h"
+#include "third_party/blink/renderer/modules/xr/xr_joint_space.h"
+
+namespace blink {
+
+void XRWebGLLayer::Trace(Visitor* visitor) const {
+  XRLayer::Trace(visitor);
+  XRWebGLLayerClient::Trace(visitor);
+}
+
+void XRSession::Trace(Visitor* visitor) const {
+  EventTarget::Trace(visitor);
+  ActiveScriptWrappable::Trace(visitor);
+}
+
+void XRRay::Trace(Visitor* visitor) const {
+  ScriptWrappable::Trace(visitor);
+}
+
+void XRFrame::Trace(Visitor* visitor) const {
+  ScriptWrappable::Trace(visitor);
+}
+
+void XRHitTestResult::Trace(Visitor* visitor) const {
+  ScriptWrappable::Trace(visitor);
+}
+
+void XRHand::Trace(Visitor* visitor) const {
+  ScriptWrappable::Trace(visitor);
+  PairSyncIterable<XRHand>::Trace(visitor);
+}
+
+void XREquirectLayer::Trace(Visitor* visitor) const {
+  XRShapedLayer::Trace(visitor);
+}
+
+// Method stubs for WebXR classes
+XRPose* XRHitTestResult::getPose(XRSpace* relative_to, ExceptionState& exception_state) {
+  return nullptr;
+}
+
+XRJointSpace* XRHand::get(const V8XRHandJoint& key) const {
+  return nullptr;
+}
+
+XRPose* XRFrame::getPose(XRSpace* space,
+                         XRSpace* basespace,
+                         ExceptionState& exception_state) {
+  return nullptr;
+}
+
+void XREquirectLayer::setTransform(XRRigidTransform* value) {
+  // Do nothing
+}
+
+void XREquirectLayer::setRadius(float radius) {
+  // Do nothing
 }
 
 }  // namespace blink

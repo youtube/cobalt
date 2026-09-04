@@ -32,7 +32,9 @@ _KNOWN_GOOGLE_PROJECTS = (
 )
 
 _GOOGLE_CROS_STAR = os.path.join(THIS_DIR, "backend_config",
-                                 "google_cros_chroot.star")
+                                  "google_cros_chroot.star")
+
+_COBALT_STAR = os.path.join(THIS_DIR, "backend_config", "cobalt.star")
 
 def ReadConfig():
   entries = {}
@@ -99,6 +101,8 @@ def main():
       reapi_backend_config_path = _GOOGLE_STAR
     elif project.startswith('chromeos-') and project.endswith('-bot'):
       reapi_backend_config_path = _GOOGLE_CROS_STAR
+    elif project == 'cobalt-actions-prod':
+      reapi_backend_config_path = _COBALT_STAR
 
   if reapi_backend_config_path:
     if not os.path.isabs(reapi_backend_config_path):

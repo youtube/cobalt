@@ -295,7 +295,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
               /* scheduleFlushStartupTasks= */ false,
               new BrowserStartupController.StartupCallback() {
                 @Override
-                public void onSuccess() {
+                public void onSuccess(BrowserStartupController.StartupMetrics metrics) {
                   // NOTE: This log message is hard-coded in smoke tests to detect browser startup
                   // success.
                   // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test
