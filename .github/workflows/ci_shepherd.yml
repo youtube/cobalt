@@ -81,7 +81,7 @@ jobs:
     permissions:
       statuses: write
       pull-requests: write
-      actions: write
+      actions: read
     steps:
       - name: Update Triggering Workflow Commit Status
         id: update-status
