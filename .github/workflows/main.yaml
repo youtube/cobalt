@@ -1044,7 +1044,8 @@ jobs:
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           symbolize: 'false'
 
-  validate-test-result:
+  validate-result:
+    # List required jobs here.
     needs:
       - initialize
       - build
@@ -1053,13 +1054,11 @@ jobs:
       - web-tests
       - e2e-test
       - yts-test
-      - yts-playback-test
+      - browser-test-on-host
     if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
-    env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
@@ -1072,79 +1071,70 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Download Unit Test Results
+      - name: Download Test Results
         uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         continue-on-error: true
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          pattern: ${{ matrix.platform }}_${{ matrix.name }}_*results*
           path: results/
-      - name: Failed Tests
+      - name: Validate Results
         if: always()
         env:
-          BUILD_RESULT: ${{ needs.build.result }}
-          ON_DEVICE_TEST_RESULT: ${{ needs.on-device-test.result }}
-          ON_HOST_TEST_RESULT: ${{ needs.on-host-test.result }}
-          WEB_TESTS_RESULT: ${{ needs.web-tests.result }}
-          E2E_TEST_RESULT: ${{ needs.e2e-test.result }}
-          YTS_TEST_RESULT: ${{ needs.yts-test.result }}
-          YTS_PLAYBACK_TEST_RESULT: ${{ needs.yts-playback-test.result }}
+          PLATFORM_INPUT: ${{ inputs.platform }}
+          PLATFORM_NAME: ${{ matrix.name }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          # Print test result summary if xml files exist.
+          set -euo pipefail
           shopt -s globstar nullglob
           xml_files=(results/**/*.xml)
-          failed=false
+          test_failures='{}'
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
-            if ! python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" > test_failures.json; then
-              failed=true
-              echo "Failing Tests Summary:"
-              jq -r '
-                .failing_tests | to_entries[] |
-                .key, (
-                  .value[] |
-                  "  [  FAILED  ] \(.name)",
-                  (.message | select(. != "") | split("\n")[] | "    \(.)")
-                ),
-                ""
-              ' test_failures.json
+            test_failures=$(python3 cobalt/tools/junit_mini_parser.py \
+              "${xml_files[@]}" || true)
+            if [[ -z "${test_failures}" ]]; then
+              test_failures='{}'
             fi
-            rm -f test_failures.json
           fi
 
-          if [[ "${BUILD_RESULT}" != "success" ]]; then
-            echo "::error::Build job failed with result: ${BUILD_RESULT}"
-            failed=true
-          fi
+          # Generate shepherd_report.json
+          jq -n \
+            --arg platform "${PLATFORM_INPUT}" \
+            --arg platform_name "${PLATFORM_NAME}" \
+            --arg workflow "${WORKFLOW_NAME}" \
+            --arg run_id "${RUN_ID}" \
+            --arg run_attempt "${RUN_ATTEMPT}" \
+            --arg run_url "${RUN_URL}" \
+            --argjson needs "${NEEDS_JSON}" \
+            --argjson failing_tests "${test_failures}" \
+            --arg completed_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            '{
+              platform: $platform,
+              platform_name: $platform_name,
+              workflow: $workflow,
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              run_url: $run_url,
+              completed_at: $completed_at,
+              checks: ($needs | map_values(.result)),
+              test_failures: $failing_tests
+            }' > shepherd_report.json
 
-          if [[ "${ON_DEVICE_TEST_RESULT}" == "failure" || "${ON_DEVICE_TEST_RESULT}" == "cancelled" ]]; then
-            echo "::error::On-device test job failed with result: ${ON_DEVICE_TEST_RESULT}"
-            failed=true
-          fi
-
-          if [[ "${ON_HOST_TEST_RESULT}" == "failure" || "${ON_HOST_TEST_RESULT}" == "cancelled" ]]; then
-            echo "::error::On-host test job failed with result: ${ON_HOST_TEST_RESULT}"
-            failed=true
-          fi
-
-          if [[ "${WEB_TESTS_RESULT}" == "failure" || "${WEB_TESTS_RESULT}" == "cancelled" ]]; then
-            echo "::error::Web tests job failed with result: ${WEB_TESTS_RESULT}"
-            failed=true
-          fi
-
-          if [[ "${E2E_TEST_RESULT}" == "failure" || "${E2E_TEST_RESULT}" == "cancelled" ]]; then
-            echo "::error::E2E test job failed with result: ${E2E_TEST_RESULT}"
-            failed=true
-          fi
-
-          if [[ "${YTS_TEST_RESULT}" == "failure" || "${YTS_TEST_RESULT}" == "cancelled" ]]; then
-            echo "::error::YTS test job failed with result: ${YTS_TEST_RESULT}"
-            failed=true
-          fi
-
-          if [[ "${YTS_PLAYBACK_TEST_RESULT}" == "failure" || "${YTS_PLAYBACK_TEST_RESULT}" == "cancelled" ]]; then
-            echo "::warning::YTS playback test job failed with result: ${YTS_PLAYBACK_TEST_RESULT} (non-blocking)"
-          fi
-
-          if [[ "${failed}" == "true" ]]; then
+          failing_jobs=$(jq -r '[.checks // {} | to_entries[] | select(.value == "failure" or .value == "cancelled") | .key] | join(", ")' shepherd_report.json)
+          failed_tests_count=$(jq '[.failing_tests // {} | .[] | length] | add // 0' <<< "${test_failures}")
+          if [[ "${failed_tests_count}" -gt 0 || -n "${failing_jobs}" ]]; then
+            echo "::error title=Platform Validation Failed::Failing jobs: ${failing_jobs:-none}, Failed tests: ${failed_tests_count}"
             exit 1
           fi
+          echo "Platform validation passed."
         shell: bash
+      - name: Upload Shepherd Report
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: shepherd-report-${{ inputs.platform }}
+          path: shepherd_report.json
+          retention-days: 30

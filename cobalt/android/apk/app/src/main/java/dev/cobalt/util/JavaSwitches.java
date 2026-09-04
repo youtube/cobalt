@@ -14,15 +14,31 @@
 
 package dev.cobalt.util;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import org.chromium.base.BuildInfo;
+import org.chromium.base.ContextUtils;
+import org.chromium.base.Log;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.json.JSONObject;
 
 /** Defines the constant names for feature switches used in Kimono. */
+@JNINamespace("cobalt")
 public class JavaSwitches {
+  private static final String TAG = "JavaSwitches";
+
+  /** Default command line constants launched from A/B experiments. */
+  public static final String DEFAULT_DISABLE_QUIC = "--disable-quic";
+
   public static final String DEFAULT_INITIAL_OLD_SPACE_SIZE = "64";
   public static final String DEFAULT_MAX_OLD_SPACE_SIZE = "512";
   public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
@@ -121,8 +137,10 @@ public class JavaSwitches {
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
 
-  /** Flag for enable go/cobalt-direct-window-rendering */
-  public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
+  /** Flag to force SurfaceView for UI rendering (legacy fallback). */
+  // We keep this fallback for emergency brake.
+  // TODO: b/542337082 - Remove this after 09/17 (2-weeks after full-launch).
+  public static final String SURFACE_VIEW_UI_RENDERING = "SurfaceViewUiRendering";
 
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
   public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
@@ -154,10 +172,146 @@ public class JavaSwitches {
   /** Flag to disable v8 baseline compiler sparkplug. */
   public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
 
+  private static Boolean sOverrideForTesting;
+
+  public static void setOverrideForTesting(Boolean override) {
+    sOverrideForTesting = override;
+  }
+
+  @CalledByNative
+  public static boolean shouldApplyExperimentConfigs() {
+    if (sOverrideForTesting != null) {
+      return sOverrideForTesting;
+    }
+    // Read persisted crash streak and threshold directly from Variations beacon and
+    // Experiment Config in the cache directory.
+    // This allows Java to determine whether safe mode / empty config is active during early
+    // startup before native singletons and libraries are initialized, with zero extra disk writes.
+    try {
+      if (ContextUtils.getApplicationContext() == null) {
+        return true;
+      }
+      File cacheDir = ContextUtils.getApplicationContext().getCacheDir();
+      if (cacheDir == null) {
+        return true;
+      }
+
+      // Check the Variations beacon file first, where CleanExitBeacon synchronously records
+      // exit state and crash streak on Android. Fall back to Metrics Config.
+      File beaconFile = new File(cacheDir, CobaltPrefNames.VARIATIONS_BEACON_FILENAME);
+      boolean isBeaconFormat = true;
+      if (!beaconFile.exists()) {
+        beaconFile = new File(cacheDir, CobaltPrefNames.METRICS_CONFIG_FILENAME);
+        isBeaconFormat = false;
+        if (!beaconFile.exists()) {
+          return true;
+        }
+      }
+      String content = readFileToString(beaconFile);
+      if (content == null || content.isEmpty()) {
+        return true;
+      }
+
+      JSONObject json = new JSONObject(content);
+      int crashStreak = json.optInt(CobaltPrefNames.VARIATIONS_CRASH_STREAK, 0);
+
+      boolean exitedCleanly = true;
+      if (isBeaconFormat) {
+        exitedCleanly = json.optBoolean(CobaltPrefNames.STABILITY_EXITED_CLEANLY, true);
+      } else {
+        JSONObject userExp = json.optJSONObject("user_experience_metrics");
+        if (userExp != null) {
+          JSONObject stability = userExp.optJSONObject("stability");
+          if (stability != null) {
+            exitedCleanly = stability.optBoolean("exited_cleanly", true);
+          }
+        }
+      }
+
+      // If the previous session crashed (did not exit cleanly), native C++
+      // CleanExitBeacon::Initialize() will increment the crash streak on startup.
+      // Java must account for this pending increment so that Java and C++ evaluate
+      // the exact same threshold during early startup.
+      if (!exitedCleanly) {
+        crashStreak++;
+      }
+
+      int threshold = readCrashStreakEmptyConfigThreshold(cacheDir);
+      if (crashStreak >= threshold) {
+        return false;
+      }
+    } catch (Exception e) {
+      Log.w(TAG, "Failed to read crash streak or experiment config from disk", e);
+    }
+    return true;
+  }
+
+  private static int readCrashStreakEmptyConfigThreshold(File cacheDir) {
+    File expFile = new File(cacheDir, CobaltPrefNames.EXPERIMENT_CONFIG_FILENAME);
+    if (!expFile.exists()) {
+      return CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD;
+    }
+    String expContent = readFileToString(expFile);
+    if (expContent == null || expContent.isEmpty()) {
+      return CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD;
+    }
+    try {
+      JSONObject expJson = new JSONObject(expContent);
+      JSONObject finchParams = expJson.optJSONObject(CobaltExperimentNames.FINCH_PARAMETERS);
+      if (finchParams == null) {
+        return CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD;
+      }
+      return finchParams.optInt(
+          CobaltExperimentNames.CRASH_STREAK_EMPTY_CONFIG_THRESHOLD,
+          CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD);
+    } catch (Exception e) {
+      return CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD;
+    }
+  }
+
+  private static String readFileToString(File file) {
+    StringBuilder sb = new StringBuilder();
+    try (BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        sb.append(line);
+      }
+      return sb.toString();
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  public static List<String> getDefaultCommandLineArgs() {
+    List<String> defaultArgs = new ArrayList<>();
+    defaultArgs.add(DEFAULT_DISABLE_QUIC);
+    if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
+      defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
+    }
+    defaultArgs.add(
+        "--js-flags=--initial-old-space-size="
+            + DEFAULT_INITIAL_OLD_SPACE_SIZE
+            + ";--max-old-space-size="
+            + DEFAULT_MAX_OLD_SPACE_SIZE);
+    return defaultArgs;
+  }
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
+    return getExtraCommandLineArgs(javaSwitches, shouldApplyExperimentConfigs());
+  }
+
+  public static List<String> getExtraCommandLineArgs(
+      Map<String, String> javaSwitches, boolean shouldApplyExperimentConfigs) {
+    if (!shouldApplyExperimentConfigs) {
+      return getDefaultCommandLineArgs();
+    }
+
     if (javaSwitches == null) {
       javaSwitches = Collections.emptyMap();
     }
+
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
 
@@ -166,7 +320,7 @@ public class JavaSwitches {
     }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
-      extraCommandLineArgs.add("--disable-quic");
+      extraCommandLineArgs.add(DEFAULT_DISABLE_QUIC);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
@@ -216,11 +370,13 @@ public class JavaSwitches {
     if (limit != null) {
       extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
     }
+
     String decodeLimit =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB);
     if (decodeLimit != null) {
       extraCommandLineArgs.add("--cc-image-cache-limit-mbs=" + decodeLimit);
     }
+
     String budget =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES);
     if (budget != null) {
@@ -316,8 +472,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
-      extraCommandLineArgs.add("--use-window-surface-for-ui");
+    if (javaSwitches.containsKey(JavaSwitches.SURFACE_VIEW_UI_RENDERING)) {
+      extraCommandLineArgs.add("--use-surface-view-for-ui");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {

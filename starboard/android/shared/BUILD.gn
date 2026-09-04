@@ -439,6 +439,7 @@ test("starboard_platform_tests") {
 
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
+              "audio_renderer_passthrough_test.cc",
               "audio_track_audio_sink_type_test.cc",
               "drm_session_id_mapper_test.cc",
               "features_extension_test.cc",
@@ -474,6 +475,7 @@ test("starboard_platform_tests") {
 
 java_cpp_enum("java_enums") {
   sources = [
+    "audio_track.h",
     "media_codec.h",
     "media_common.h",
     "media_drm_bridge.h",
