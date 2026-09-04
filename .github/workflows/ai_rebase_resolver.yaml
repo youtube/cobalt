@@ -45,7 +45,7 @@ jobs:
   ai_resolve:
     name: Rebase Agent
     permissions:
-      contents: write
+      contents: read
     runs-on: [self-hosted, chrobalt-linux-runner]
     container:
       image: ghcr.io/youtube/cobalt/linux:main
@@ -58,14 +58,15 @@ jobs:
       ai_branch: ${{ steps.branch_setup.outputs.ai_branch }}
       pr_num: ${{ steps.branch_setup.outputs.pr_num }}
       base_branch: ${{ steps.branch_setup.outputs.base_branch }}
-      has_commits: ${{ steps.commit_push.outputs.has_commits }}
+      starting_sha: ${{ steps.branch_setup.outputs.starting_sha }}
+      has_commits: ${{ steps.package_resolution.outputs.has_commits }}
     env:
       DEPOT_TOOLS_METRICS: 0
       GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
       GIT_AUTHOR_EMAIL: "cobalt-github-releaser-bot@google.com"
       GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
       GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
-      GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RBE_INSTANCE: "projects/cobalt-actions-prod/instances/default_instance"
       RBE_SERVICE: "remotebuildexecution.googleapis.com:443"
       SISO_CREDENTIAL_HELPER: "gcloud"
@@ -108,10 +109,10 @@ jobs:
               git checkout "${COMMIT_SHA}"
               SHORT_SHA=$(git rev-parse --short "${COMMIT_SHA}")
               BASE_NAME="pr_${PR_NUM}_${SHORT_SHA}"
-              AI_BRANCH="${AI_PREFIX}pr_${PR_NUM}_${SHORT_SHA}"
+              AI_BRANCH="${AI_PREFIX}${PR_NUM}_${SHORT_SHA}"
             else
               BASE_NAME="pr_${PR_NUM}"
-              AI_BRANCH="${AI_PREFIX}pr_${PR_NUM}"
+              AI_BRANCH="${AI_PREFIX}${PR_NUM}"
             fi
           elif [[ -n "${COMMIT_SHA}" ]]; then
             echo "Fetching and checking out commit SHA: ${COMMIT_SHA}..."
@@ -127,6 +128,7 @@ jobs:
 
           # 2. Create a separate, isolated AI branch from the base branch
           echo "Creating isolated AI branch: ${AI_BRANCH}..."
+          STARTING_SHA=$(git rev-parse HEAD)
           git checkout -B "${AI_BRANCH}"
 
           # 3. Download rebase scripts to an isolated directory outside the src/ git repository
@@ -138,6 +140,7 @@ jobs:
           echo "pr_num=${PR_NUM}" >> "${GITHUB_OUTPUT}"
           echo "base_branch=${BASE_NAME}" >> "${GITHUB_OUTPUT}"
           echo "ai_branch=${AI_BRANCH}" >> "${GITHUB_OUTPUT}"
+          echo "starting_sha=${STARTING_SHA}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Depot Tools & gclient
         run: |
@@ -190,31 +193,46 @@ jobs:
             echo "resolved=false" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Commit and Push Resolution
-        id: commit_push
+      - name: Package Resolution Artifact
+        id: package_resolution
         if: inputs.dry_run != true
         working-directory: src
         env:
           AI_BRANCH: ${{ steps.branch_setup.outputs.ai_branch }}
           IS_RESOLVED: ${{ steps.run_ai.outputs.resolved }}
+          STARTING_SHA: ${{ steps.branch_setup.outputs.starting_sha }}
         run: |
           set -x
           git add -A
-          # Only commit and push if there are actual staged differences
+          # Only commit if there are actual staged differences
           if ! git diff --cached --quiet; then
             if [[ "${IS_RESOLVED}" == "true" ]]; then
               COMMIT_MSG="RESOLVED: AI automated rebase conflict healing"
             else
               COMMIT_MSG="WIP: AI automated rebase partial progress (build unverified)"
             fi
-            echo "Committing and pushing changes: ${COMMIT_MSG}..."
+            echo "Committing resolution locally: ${COMMIT_MSG}..."
             git commit -m "${COMMIT_MSG}"
-            git push -u origin "${AI_BRANCH}" --force
+            mkdir -p "${RUNNER_TEMP}/rebase_artifacts"
+            git bundle create "${RUNNER_TEMP}/rebase_artifacts/resolution.bundle" "${AI_BRANCH}" "^${STARTING_SHA}"
+            echo "has_commits=true" >> "${GITHUB_OUTPUT}"
+          elif [[ $(git rev-parse HEAD) != "${STARTING_SHA}" ]]; then
+            echo "Commits were already made during resolution."
+            mkdir -p "${RUNNER_TEMP}/rebase_artifacts"
+            git bundle create "${RUNNER_TEMP}/rebase_artifacts/resolution.bundle" "${AI_BRANCH}" "^${STARTING_SHA}"
             echo "has_commits=true" >> "${GITHUB_OUTPUT}"
           else
-            echo "Working tree clean; nothing to commit."
+            echo "Working tree clean and no new commits; nothing to package."
             echo "has_commits=false" >> "${GITHUB_OUTPUT}"
           fi
+
+      - name: Upload Resolution Bundle
+        if: inputs.dry_run != true && steps.package_resolution.outputs.has_commits == 'true'
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: resolution-bundle
+          path: ${{ runner.temp }}/rebase_artifacts/resolution.bundle
+          retention-days: 1
 
       - name: Check Healing Status
         if: steps.run_ai.outputs.resolved != 'true'
@@ -222,20 +240,60 @@ jobs:
           echo "::error::Rebase Agent did not achieve full build verification."
           exit 1
 
-  create_ai_pr:
-    name: Create or Update AI Pull Request
+  publish_ai_pr:
+    name: Publish AI Branch and Pull Request
     needs: [ai_resolve]
     if: inputs.dry_run != true && needs.ai_resolve.outputs.has_commits == 'true' && always() && !cancelled()
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: write
+      pull-requests: write
     env:
       GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
       PR_NUM: ${{ needs.ai_resolve.outputs.pr_num }}
       AI_BRANCH: ${{ needs.ai_resolve.outputs.ai_branch }}
+      STARTING_SHA: ${{ needs.ai_resolve.outputs.starting_sha }}
       IS_RESOLVED: ${{ needs.ai_resolve.outputs.resolved }}
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          token: ${{ secrets.CHERRY_PICK_TOKEN }}
+          fetch-depth: 1
+
+      - name: Download Resolution Bundle
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: resolution-bundle
+          path: ${{ runner.temp }}/rebase_artifacts
+
+      - name: Unbundle and Push AI Branch
+        run: |
+          set -x
+          # Ensure starting commit is available locally to satisfy bundle prerequisites
+          if [[ -n "${PR_NUM}" ]]; then
+            echo "Fetching PR #${PR_NUM} base..."
+            git fetch --depth=50 origin "pull/${PR_NUM}/head"
+          fi
+          if ! git cat-file -e "${STARTING_SHA}^{commit}" 2>/dev/null; then
+            echo "Fetching starting commit ${STARTING_SHA}..."
+            git fetch --depth=1 origin "${STARTING_SHA}" || git fetch origin "${STARTING_SHA}"
+          fi
+
+          BUNDLE_FILE="${RUNNER_TEMP}/rebase_artifacts/resolution.bundle"
+          if [[ ! -f "${BUNDLE_FILE}" ]]; then
+            BUNDLE_FILE=$(find "${RUNNER_TEMP}" -name "resolution.bundle" | head -n 1)
+          fi
+
+          echo "Verifying resolution bundle..."
+          git bundle verify "${BUNDLE_FILE}"
+
+          echo "Importing branch ${AI_BRANCH} from bundle..."
+          git fetch "${BUNDLE_FILE}" "+refs/heads/*:refs/heads/*"
+
+          echo "Pushing ${AI_BRANCH} to origin..."
+          git push origin "${AI_BRANCH}" --force
+
       - name: Create or Update AI PR
         run: |
           set -x
