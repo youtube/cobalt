@@ -16,6 +16,7 @@ import("//build/linux/strip_binary.gni")
 import("//build/toolchain/toolchain.gni")
 import("//cobalt/build/locales.gni")
 import("//cobalt/build/modular_executable.gni")
+import("//cobalt/prebuilt.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
 
@@ -26,6 +27,14 @@ if (!toolchain_for_rust_host_build_tools) {
 
 if (is_ios) {
   import("//build/config/apple/mobile_config.gni")
+}
+
+if (prebuilt_cobalt_lib != "") {
+  copy("copy_prebuilt") {
+    sources = [ prebuilt_cobalt_lib ]
+    _ext = get_path_info(prebuilt_cobalt_lib, "extension")
+    outputs = [ "$root_out_dir/app/cobalt/lib/libcobalt.${_ext}" ]
+  }
 }
 
 # This arg temporarily enables or disables the updater_sandbox target.

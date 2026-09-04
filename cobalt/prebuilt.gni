@@ -1,0 +1,3 @@
+declare_args() {
+  prebuilt_cobalt_lib = ""
+}
