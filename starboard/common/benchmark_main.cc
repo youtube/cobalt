@@ -14,11 +14,17 @@
 
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features_test_util.h"
+#endif
 #include "starboard/system.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace {
 int RunAllBenchmarks(int argc, char** argv) {
+#if BUILDFLAG(IS_ANDROID)
+  starboard::features::InitializeStarboardFeatureListWithDefaults();
+#endif
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();
   return 0;

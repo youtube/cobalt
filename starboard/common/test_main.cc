@@ -12,9 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "build/build_config.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/common/command_line.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
+
+namespace starboard {
+namespace testing {
+std::unique_ptr<CommandLine> g_test_command_line;
+const CommandLine* GetTestCommandLine() {
+  return g_test_command_line.get();
+}
+}  // namespace testing
+}  // namespace starboard
 #include "starboard/event.h"
 #include "starboard/system.h"
 #include "starboard/testing/test_runner.h"
@@ -28,6 +41,9 @@ int RunTests(int argc, char** argv) {
 }
 
 int InitAndRunAllTests(int argc, char** argv) {
+  starboard::testing::g_test_command_line =
+      std::make_unique<starboard::CommandLine>(argc, argv);
+
   ::testing::InitGoogleTest(&argc, argv);
   return starboard::RunPlatformTestSuite(argc, argv, &RunTests);
 }
