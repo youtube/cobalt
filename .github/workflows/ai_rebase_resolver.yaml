@@ -1,0 +1,331 @@
+name: AI Rebase Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to resolve (optional, e.g. 12155)'
+        required: false
+        type: string
+        default: ''
+      commit_sha:
+        description: 'Specific starting commit SHA (optional)'
+        required: false
+        type: string
+        default: ''
+      ai_branch_prefix:
+        description: 'Prefix for the isolated AI working branch'
+        required: false
+        type: string
+        #TODO(b/557260018): Create a dedicated branch prefix for AI agent.
+        default: 'experimental/rebase_agent_pr_'
+      agent_ref:
+        description: 'Branch containing the AI rebase agent scripts'
+        required: false
+        type: string
+        #TODO(b/552561778): Move the agent script to main branch once it is stable.
+        default: 'experimental/rebase_agent'
+      dry_run:
+        description: 'Dry run mode (runs AI resolver but skips pushing commit & creating PR)'
+        type: boolean
+        default: true
+      mode:
+        description: 'Execution mode'
+        type: choice
+        options:
+          - full-pipeline
+          - resolve-conflicts
+          - gn-gen
+          - build-only
+        default: full-pipeline
+
+permissions: {}
+
+jobs:
+  ai_resolve:
+    name: Rebase Agent
+    permissions:
+      contents: read
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    container:
+      image: ghcr.io/youtube/cobalt/linux:main
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      resolved: ${{ steps.run_ai.outputs.resolved }}
+      ai_branch: ${{ steps.branch_setup.outputs.ai_branch }}
+      pr_num: ${{ steps.branch_setup.outputs.pr_num }}
+      base_branch: ${{ steps.branch_setup.outputs.base_branch }}
+      starting_sha: ${{ steps.branch_setup.outputs.starting_sha }}
+      has_commits: ${{ steps.package_resolution.outputs.has_commits }}
+    env:
+      DEPOT_TOOLS_METRICS: 0
+      GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
+      GIT_AUTHOR_EMAIL: "cobalt-github-releaser-bot@google.com"
+      GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
+      GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RBE_INSTANCE: "projects/cobalt-actions-prod/instances/default_instance"
+      RBE_SERVICE: "remotebuildexecution.googleapis.com:443"
+      SISO_CREDENTIAL_HELPER: "gcloud"
+      GCP_PROJECT: ${{ vars.GCP_PROJECT || 'lxn-test' }}
+      GCP_REGION: "us-central1"
+      #TODO(b/552561778): Move to dedicated production reasoning engine ID once finalized.
+      REASONING_ENGINE_ID: ${{ vars.REASONING_ENGINE_ID || '6110792607330205696' }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: src
+          fetch-depth: 100
+          token: ${{ env.GITHUB_TOKEN }}
+
+      - name: GoB Authentication
+        uses: ./src/.github/actions/gob_auth
+        with:
+          use_gcloud: 'true'
+
+      - name: Setup Working Branch
+        id: branch_setup
+        working-directory: src
+        run: |
+          set -x
+
+          PR_NUM="${{ inputs.pr_number }}"
+          COMMIT_SHA="${{ inputs.commit_sha }}"
+          AI_PREFIX="${{ inputs.ai_branch_prefix }}"
+          AGENT_REF="${{ inputs.agent_ref }}"
+
+          # 1. Checkout starting target: PR (with optional commit SHA) or direct commit SHA
+          if [[ -n "${PR_NUM}" ]]; then
+            echo "Fetching PR #${PR_NUM}..."
+            git fetch origin "pull/${PR_NUM}/head:pr-${PR_NUM}"
+            git checkout "pr-${PR_NUM}"
+
+            if [[ -n "${COMMIT_SHA}" ]]; then
+              echo "Checking out target commit SHA inside PR #${PR_NUM}: ${COMMIT_SHA}..."
+              git checkout "${COMMIT_SHA}"
+              SHORT_SHA=$(git rev-parse --short "${COMMIT_SHA}")
+              BASE_NAME="pr_${PR_NUM}_${SHORT_SHA}"
+              AI_BRANCH="${AI_PREFIX}${PR_NUM}_${SHORT_SHA}"
+            else
+              BASE_NAME="pr_${PR_NUM}"
+              AI_BRANCH="${AI_PREFIX}${PR_NUM}"
+            fi
+          elif [[ -n "${COMMIT_SHA}" ]]; then
+            echo "Fetching and checking out commit SHA: ${COMMIT_SHA}..."
+            git fetch --depth=100 origin "${COMMIT_SHA}" || git fetch origin --tags
+            git checkout "${COMMIT_SHA}"
+            SHORT_SHA=$(git rev-parse --short "${COMMIT_SHA}")
+            BASE_NAME="commit_${SHORT_SHA}"
+            AI_BRANCH="${AI_PREFIX}${SHORT_SHA}"
+          else
+            echo "::error::No target specified! Neither PR number nor commit SHA was provided. Please specify an autoroll PR number or commit SHA."
+            exit 1
+          fi
+
+          # 2. Create a separate, isolated AI branch from the base branch
+          echo "Creating isolated AI branch: ${AI_BRANCH}..."
+          STARTING_SHA=$(git rev-parse HEAD)
+          git checkout -B "${AI_BRANCH}"
+
+          # 3. Download rebase scripts to an isolated directory outside the src/ git repository
+          echo "Fetching latest rebase pipeline scripts into ${GITHUB_WORKSPACE}/rebase_agent..."
+          mkdir -p "${GITHUB_WORKSPACE}/rebase_agent"
+          git fetch origin "${AGENT_REF}:${AGENT_REF}" || true
+          git --work-tree="${GITHUB_WORKSPACE}/rebase_agent" checkout "origin/${AGENT_REF}" -- .github/rebase
+
+          echo "pr_num=${PR_NUM}" >> "${GITHUB_OUTPUT}"
+          echo "base_branch=${BASE_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "ai_branch=${AI_BRANCH}" >> "${GITHUB_OUTPUT}"
+          echo "starting_sha=${STARTING_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Depot Tools & gclient
+        run: |
+          echo "Cloning depot_tools..."
+          if [[ ! -d "${RUNNER_TEMP}/depot_tools" ]]; then
+            git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "${RUNNER_TEMP}/depot_tools"
+          fi
+          echo "${RUNNER_TEMP}/depot_tools" >> "${GITHUB_PATH}"
+          export PATH="${RUNNER_TEMP}/depot_tools:${PATH}"
+          "${RUNNER_TEMP}/depot_tools/build_telemetry" opt-out || true
+
+          # Initialize .gclient solution config matching .github/actions/depot_tools/action.yaml
+          cd "${GITHUB_WORKSPACE}"
+          rm -f .gclient
+          echo "Configuring .gclient solution for Cobalt..."
+          "${RUNNER_TEMP}/depot_tools/gclient" config \
+            --name=src \
+            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
+            "${{ github.server_url }}/${{ github.repository }}"
+          echo "target_os=['android']" >> .gclient
+          "${RUNNER_TEMP}/depot_tools/gclient" validate || true
+
+      - name: Set Up Python Dependencies
+        working-directory: src
+        run: |
+          set -x
+          python3 --version
+          curl -sS https://bootstrap.pypa.io/get-pip.py | python3 - --user --break-system-packages
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          export PATH="${HOME}/.local/bin:${PATH}"
+
+          python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r "${GITHUB_WORKSPACE}/rebase_agent/.github/rebase/requirements.txt"
+
+      - name: Run AI Rebase Agent
+        id: run_ai
+        working-directory: src
+        continue-on-error: true
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          set +e
+          python3 "${GITHUB_WORKSPACE}/rebase_agent/.github/rebase/run_rebase_pipeline.py" \
+            --repo-path . \
+            --mode "${MODE}"
+          EXIT_CODE=$?
+
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            echo "resolved=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "resolved=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Package Resolution Artifact
+        id: package_resolution
+        if: inputs.dry_run != true
+        working-directory: src
+        env:
+          AI_BRANCH: ${{ steps.branch_setup.outputs.ai_branch }}
+          IS_RESOLVED: ${{ steps.run_ai.outputs.resolved }}
+          STARTING_SHA: ${{ steps.branch_setup.outputs.starting_sha }}
+        run: |
+          set -x
+          git add -A
+          # Only commit if there are actual staged differences
+          if ! git diff --cached --quiet; then
+            if [[ "${IS_RESOLVED}" == "true" ]]; then
+              COMMIT_MSG="RESOLVED: AI automated rebase conflict healing"
+            else
+              COMMIT_MSG="WIP: AI automated rebase partial progress (build unverified)"
+            fi
+            echo "Committing resolution locally: ${COMMIT_MSG}..."
+            git commit -m "${COMMIT_MSG}"
+            mkdir -p "${RUNNER_TEMP}/rebase_artifacts"
+            git bundle create "${RUNNER_TEMP}/rebase_artifacts/resolution.bundle" "${AI_BRANCH}" "^${STARTING_SHA}"
+            echo "has_commits=true" >> "${GITHUB_OUTPUT}"
+          elif [[ $(git rev-parse HEAD) != "${STARTING_SHA}" ]]; then
+            echo "Commits were already made during resolution."
+            mkdir -p "${RUNNER_TEMP}/rebase_artifacts"
+            git bundle create "${RUNNER_TEMP}/rebase_artifacts/resolution.bundle" "${AI_BRANCH}" "^${STARTING_SHA}"
+            echo "has_commits=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Working tree clean and no new commits; nothing to package."
+            echo "has_commits=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Upload Resolution Bundle
+        if: inputs.dry_run != true && steps.package_resolution.outputs.has_commits == 'true'
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: resolution-bundle
+          path: ${{ runner.temp }}/rebase_artifacts/resolution.bundle
+          retention-days: 1
+
+      - name: Check Healing Status
+        if: steps.run_ai.outputs.resolved != 'true'
+        run: |
+          echo "::error::Rebase Agent did not achieve full build verification."
+          exit 1
+
+  publish_ai_pr:
+    name: Publish AI Branch and Pull Request
+    needs: [ai_resolve]
+    if: inputs.dry_run != true && needs.ai_resolve.outputs.has_commits == 'true' && always() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+      PR_NUM: ${{ needs.ai_resolve.outputs.pr_num }}
+      AI_BRANCH: ${{ needs.ai_resolve.outputs.ai_branch }}
+      STARTING_SHA: ${{ needs.ai_resolve.outputs.starting_sha }}
+      IS_RESOLVED: ${{ needs.ai_resolve.outputs.resolved }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          token: ${{ secrets.CHERRY_PICK_TOKEN }}
+          fetch-depth: 1
+
+      - name: Download Resolution Bundle
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: resolution-bundle
+          path: ${{ runner.temp }}/rebase_artifacts
+
+      - name: Unbundle and Push AI Branch
+        run: |
+          set -x
+          # Ensure starting commit is available locally to satisfy bundle prerequisites
+          if [[ -n "${PR_NUM}" ]]; then
+            echo "Fetching PR #${PR_NUM} base..."
+            git fetch --depth=50 origin "pull/${PR_NUM}/head"
+          fi
+          if ! git cat-file -e "${STARTING_SHA}^{commit}" 2>/dev/null; then
+            echo "Fetching starting commit ${STARTING_SHA}..."
+            git fetch --depth=1 origin "${STARTING_SHA}" || git fetch origin "${STARTING_SHA}"
+          fi
+
+          BUNDLE_FILE="${RUNNER_TEMP}/rebase_artifacts/resolution.bundle"
+          if [[ ! -f "${BUNDLE_FILE}" ]]; then
+            BUNDLE_FILE=$(find "${RUNNER_TEMP}" -name "resolution.bundle" | head -n 1)
+          fi
+
+          echo "Verifying resolution bundle..."
+          git bundle verify "${BUNDLE_FILE}"
+
+          echo "Importing branch ${AI_BRANCH} from bundle..."
+          git fetch "${BUNDLE_FILE}" "+refs/heads/*:refs/heads/*"
+
+          echo "Pushing ${AI_BRANCH} to origin..."
+          git push origin "${AI_BRANCH}" --force
+
+      - name: Create or Update AI PR
+        run: |
+          set -x
+          TARGET_PR="${PR_NUM:-custom}"
+          if [[ -n "${PR_NUM}" ]]; then
+            TARGET_BASE=$(gh pr view "${PR_NUM}" --repo "${GITHUB_REPOSITORY}" --json headRefName --jq '.headRefName // "autoroll-chromium/main-to-staging"')
+          else
+            TARGET_BASE="autoroll-chromium/main-to-staging"
+          fi
+          PR_TITLE="[AI] Fix conflicts and builds for PR #${TARGET_PR}"
+          PR_BODY="### Vertex AI Rebase Agent Resolution
+
+          Automated rebase resolution for target PR #${TARGET_PR}.
+          - **Status**: $([[ "${IS_RESOLVED}" == "true" ]] && echo "Build Verified" || echo "In Progress")
+          - **AI Branch**: \`${AI_BRANCH}\`
+          - **Target Base**: \`${TARGET_BASE}\`"
+
+          EXISTING_PR=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${AI_BRANCH}" --json number --jq '.[0].number // ""')
+          if [[ -n "${EXISTING_PR}" ]]; then
+            echo "Updating existing AI PR #${EXISTING_PR}..."
+            gh pr edit "${EXISTING_PR}" --repo "${GITHUB_REPOSITORY}" --title "${PR_TITLE}" --body "${PR_BODY}"
+          else
+            echo "Creating new AI PR for ${AI_BRANCH} against ${TARGET_BASE}..."
+            gh pr create --repo "${GITHUB_REPOSITORY}" \
+              --base "${TARGET_BASE}" \
+              --head "${AI_BRANCH}" \
+              --title "${PR_TITLE}" \
+              --body "${PR_BODY}"
+          fi
+
+      - name: Fail Workflow If Unresolved
+        if: env.IS_RESOLVED != 'true'
+        run: |
+          echo "::error::Automated rebase pipeline did not achieve full build verification."
+          exit 1
