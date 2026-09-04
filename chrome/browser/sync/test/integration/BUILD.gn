@@ -36,7 +36,7 @@ source_set("sync_integration_tests_impl") {
     "//components/password_manager/core/browser/sharing",
     "//components/plus_addresses:test_support",
     "//components/plus_addresses/core/browser/resources/strings",
-    "//components/plus_addresses/webdata",
+    "//components/plus_addresses/core/browser/webdata",
     "//components/reading_list/core:test_support",
     "//components/saved_tab_groups/test_support",
     "//components/sync:test_support",
@@ -45,6 +45,7 @@ source_set("sync_integration_tests_impl") {
     "//components/sync_preferences:common_syncable_prefs_database",
     "//components/undo",
     "//components/version_info",
+    "//components/webauthn:features",
     "//google_apis:test_support",
   ]
 
@@ -306,6 +307,7 @@ source_set("sync_integration_tests_impl") {
         "//chromeos/ash/components/dbus/shill",
         "//chromeos/ash/components/sync_wifi",
         "//chromeos/ash/components/sync_wifi:test_support",
+        "//chromeos/constants",
         "//chromeos/printing",
         "//chromeos/services/network_config/public/cpp",
         "//components/desks_storage",

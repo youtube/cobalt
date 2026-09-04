@@ -194,7 +194,7 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
     IceTransportInternal* ice_transport,
     const CryptoOptions& crypto_options,
     SSLProtocolVersion max_version)
-    : env_(std::move(env)),
+    : env_(env),
       component_(ice_transport->component()),
       ice_transport_(ice_transport),
       downward_(nullptr),
@@ -213,13 +213,7 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
           }) {
   RTC_DCHECK(ice_transport_);
   ConnectToIceTransport();
-  if (auto field_trials = ice_transport_->field_trials()) {
-    dtls_in_stun_ = field_trials->IsEnabled("WebRTC-IceHandshakeDtls");
-  } else {
-    // TODO (BUG=webrtc:367395350): Fix upstream testcase(s).
-    RTC_DLOG(LS_ERROR) << "ice_transport_>field_trials() is NULL";
-    dtls_in_stun_ = false;
-  }
+  dtls_in_stun_ = env_.field_trials().IsEnabled("WebRTC-IceHandshakeDtls");
 }
 
 DtlsTransportInternalImpl::~DtlsTransportInternalImpl() {
@@ -447,7 +441,7 @@ bool DtlsTransportInternalImpl::SetupDtls() {
     dtls_ = SSLStreamAdapter::Create(
         std::move(downward),
         [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); },
-        ice_transport_->field_trials());
+        &env_.field_trials());
     if (!dtls_) {
       RTC_LOG(LS_ERROR) << ToString() << ": Failed to create DTLS adapter.";
       return false;

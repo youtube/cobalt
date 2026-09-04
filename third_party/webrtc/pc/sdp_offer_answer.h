@@ -151,7 +151,6 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   void AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                        std::function<void(RTCError)> callback);
   bool RemoveIceCandidate(const IceCandidate* candidate);
-  bool RemoveIceCandidates(const std::vector<Candidate>& candidates);
   // Adds a locally generated candidate to the local description.
   void AddLocalIceCandidate(const IceCandidate* candidate);
   void RemoveLocalIceCandidates(absl::string_view mid,

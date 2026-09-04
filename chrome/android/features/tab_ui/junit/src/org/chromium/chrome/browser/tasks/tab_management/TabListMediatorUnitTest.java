@@ -439,6 +439,8 @@ public class TabListMediatorUnitTest {
         mViewHolder2 = prepareViewHolder(TAB2_ID, POSITION2);
         mFakeViewHolder1 = prepareFakeViewHolder(mItemView1, POSITION1);
         mFakeViewHolder2 = prepareFakeViewHolder(mItemView2, POSITION2);
+        when(mItemView1.isAttachedToWindow()).thenReturn(true);
+        when(mItemView2.isAttachedToWindow()).thenReturn(true);
         List<Tab> tabs1 = new ArrayList<>(Arrays.asList(mTab1));
         List<Tab> tabs2 = new ArrayList<>(Arrays.asList(mTab2));
         mSavedTabGroup1 = prepareSavedTabGroup(SYNC_GROUP_ID1, GROUP_TITLE, SYNC_GROUP_COLOR1, 1);
@@ -1109,6 +1111,9 @@ public class TabListMediatorUnitTest {
         when(mTabModel.getTabAt(3)).thenReturn(tab4);
         View itemView3 = mock(View.class);
         View itemView4 = mock(View.class);
+        when(itemView3.isAttachedToWindow()).thenReturn(true);
+        when(itemView4.isAttachedToWindow()).thenReturn(true);
+
         RecyclerView.ViewHolder fakeViewHolder3 = prepareFakeViewHolder(itemView3, 2);
         RecyclerView.ViewHolder fakeViewHolder4 = prepareFakeViewHolder(itemView4, 3);
 
@@ -4372,6 +4377,7 @@ public class TabListMediatorUnitTest {
         assertEquals(
                 TabActionButtonType.CLOSE,
                 mModelList.get(POSITION1).model.get(TabProperties.TAB_ACTION_BUTTON_DATA).type);
+        assertFalse(mModelList.get(POSITION1).model.get(TabProperties.IS_PINNED));
 
         // Scenario 2: Tab is PINNED
         // Mock the tab at POSITION1 as pinned.
@@ -4383,6 +4389,7 @@ public class TabListMediatorUnitTest {
         assertEquals(
                 TabActionButtonType.PIN,
                 mModelList.get(POSITION1).model.get(TabProperties.TAB_ACTION_BUTTON_DATA).type);
+        assertTrue(mModelList.get(POSITION1).model.get(TabProperties.IS_PINNED));
     }
 
     @Test
@@ -5611,7 +5618,8 @@ public class TabListMediatorUnitTest {
             assertNull(
                     "Expected property to be unset, property=" + objectKey, model.get(objectKey));
         } else {
-            assert false : "Unsupported key type passed to function, add it to #assertUnset";
+            throw new AssertionError(
+                    "Unsupported key type passed to function, add it to #assertUnset");
         }
     }
 

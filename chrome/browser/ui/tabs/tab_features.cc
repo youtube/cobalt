@@ -88,6 +88,8 @@
 #include "components/browsing_topics/browsing_topics_service.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
+#include "components/fingerprinting_protection_filter/interventions/browser/interventions_web_contents_helper.h"
+#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/image_fetcher/core/image_fetcher_service.h"
 #include "components/ip_protection/common/ip_protection_status.h"
 #include "components/lens/tab_contextualization_controller.h"
@@ -102,7 +104,9 @@
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
-#include "chrome/browser/glic/service/glic_conversation_helper.h"
+#include "chrome/browser/glic/service/glic_instance_helper.h"
+#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
+
 #endif
 namespace tabs {
 
@@ -261,7 +265,9 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
     if (tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
       collaboration_messaging_tab_data_ =
-          std::make_unique<tab_groups::CollaborationMessagingTabData>(profile);
+          GetUserDataFactory()
+              .CreateInstance<tab_groups::CollaborationMessagingTabData>(tab,
+                                                                         &tab);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kCollaborationMessaging) &&
@@ -276,12 +282,17 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 #if BUILDFLAG(ENABLE_GLIC)
     if (glic::GlicEnabling::IsProfileEligible(
             tab.GetBrowserWindowInterface()->GetProfile())) {
-      glic_conversation_helper_ =
-          GetUserDataFactory().CreateInstance<glic::GlicConversationHelper>(
-              tab, &tab);
+      glic_instance_helper_ =
+          GetUserDataFactory().CreateInstance<glic::GlicInstanceHelper>(tab,
+                                                                        &tab);
       glic_tab_indicator_helper_ =
           GetUserDataFactory().CreateInstance<glic::GlicTabIndicatorHelper>(
               tab, &tab);
+    }
+    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+      glic_side_panel_coordinator_ =
+          GetUserDataFactory().CreateInstance<glic::GlicSidePanelCoordinator>(
+              tab, &tab, side_panel_registry_.get());
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
     // TODO(crbug.com/433973411): Move this logic to a helper function.
@@ -340,6 +351,13 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
         profile->IsIncognitoProfile());
   }
 
+  if (fingerprinting_protection_interventions::features::
+          ShouldBlockCanvasReadbackForIncognitoState(
+              profile->IsIncognitoProfile())) {
+    fingerprinting_protection_interventions::InterventionsWebContentsHelper::
+        CreateForWebContents(tab.GetContents(), profile->IsIncognitoProfile());
+  }
+
   // Only create the IpProtectionStatus if the User Bypass feature is enabled.
   if (net::features::kIpPrivacyEnableUserBypass.Get()) {
     ip_protection::IpProtectionStatus::CreateForWebContents(tab.GetContents());
@@ -361,7 +379,8 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       FromGWSNavigationAndKeepAliveRequestObserver::MaybeCreateForWebContents(
           tab.GetContents());
 
-  resource_usage_helper_ = std::make_unique<TabResourceUsageTabHelper>(tab);
+  resource_usage_helper_ =
+      GetUserDataFactory().CreateInstance<TabResourceUsageTabHelper>(tab, tab);
 
   memory_saver_chip_helper_ = std::make_unique<MemorySaverChipTabHelper>(tab);
 
@@ -400,12 +419,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   tab_contextualization_controller_ =
       GetUserDataFactory().CreateInstance<lens::TabContextualizationController>(
           tab, &tab);
-}
-
-TabResourceUsageTabHelper* TabFeatures::SetResourceUsageHelperForTesting(
-    std::unique_ptr<TabResourceUsageTabHelper> resource_usage_helper) {
-  resource_usage_helper_ = std::move(resource_usage_helper);
-  return resource_usage_helper_.get();
 }
 
 TabUIHelper* TabFeatures::SetTabUIHelperForTesting(

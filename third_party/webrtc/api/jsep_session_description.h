@@ -36,33 +36,15 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
       "JsepSessionDescription needs to be initialized with a valid description "
       "object")]]
   explicit JsepSessionDescription(SdpType type);
-  [[deprecated(
-      "Use the CreateSessionDescription() method(s) to create an instance.")]]
-  explicit JsepSessionDescription(const std::string& type);
   JsepSessionDescription(SdpType type,
                          std::unique_ptr<SessionDescription> description,
                          absl::string_view session_id,
-                         absl::string_view session_version);
+                         absl::string_view session_version,
+                         std::vector<IceCandidateCollection> candidates = {});
   ~JsepSessionDescription() override;
 
   JsepSessionDescription(const JsepSessionDescription&) = delete;
   JsepSessionDescription& operator=(const JsepSessionDescription&) = delete;
-
-  // Takes ownership of `description`.
-  // TODO(bugs.webrtc.org/442220720): Remove and prefer raii traits, make state
-  // const where possible. The problem with the Initialize method is that it
-  // is an _optional_ 2-step initialization method that prevents the class from
-  // making state const and also has been used in tests (possibly elsewhere)
-  // to call Initialize() more than once on the same object and rely on the
-  // fact that the implementation did not reset part of the state when called
-  // (the candidate list could be partially, but not completely, trimmed),
-  // meaning that the pre and post state is indeterminate.
-  [[deprecated(
-      "Use CreateSessionDescription() to construct SessionDescriptionInterface "
-      "objects.")]]
-  bool Initialize(std::unique_ptr<SessionDescription> description,
-                  const std::string& session_id,
-                  const std::string& session_version);
 
   std::unique_ptr<SessionDescriptionInterface> Clone() const override;
 
@@ -82,9 +64,9 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
   bool ToString(std::string* out) const override;
 
  private:
-  std::unique_ptr<SessionDescription> description_;
-  std::string session_id_;
-  std::string session_version_;
+  const std::unique_ptr<SessionDescription> description_;
+  const std::string session_id_;
+  const std::string session_version_;
   const SdpType type_;
   std::vector<IceCandidateCollection> candidate_collection_;
 

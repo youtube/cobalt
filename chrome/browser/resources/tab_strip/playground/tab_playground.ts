@@ -44,6 +44,14 @@ export class TabElement extends CustomElement {
   crashed: boolean = false;
   showIcon: boolean = false;
 
+  override get draggable(): boolean {
+    return this.hasAttribute('draggable');
+  }
+
+  override set draggable(isDraggable: boolean) {
+    this.toggleAttribute('draggable', isDraggable);
+  }
+
   constructor() {
     super();
 
@@ -95,8 +103,8 @@ export class TabElement extends CustomElement {
     this.toggleAttribute(
         'loading_', tab.networkState === TabNetworkState.kLoading);
     this.toggleAttribute('pinned', this.isPinned);
-    this.toggleAttribute('blocked_', this.blocked);
     this.setAttribute('draggable', 'true');
+    this.toggleAttribute('blocked_', this.blocked);
     this.toggleAttribute('crashed_', this.crashed);
 
     if (tab.title) {

@@ -185,6 +185,7 @@ rtc_library("audio_processing") {
     "../../api/audio:audio_processing",
     "../../api/audio:audio_processing_statistics",
     "../../api/audio:echo_control",
+    "../../api/audio:neural_residual_echo_estimator_api",
     "../../api/environment",
     "../../api/task_queue",
     "../../audio/utility:audio_frame_operations",

@@ -9,9 +9,9 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 
 import androidx.annotation.Nullable;
 
-import org.chromium.chrome.browser.keyboard_accessory.ManualFillingMetricsRecorder;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BarItem;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
+import org.chromium.chrome.browser.keyboard_accessory.utils.ManualFillingMetricsRecorder;
 import org.chromium.ui.modelutil.ListObservable;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -59,6 +59,7 @@ class KeyboardAccessoryMetricsRecorder {
                     || propertyKey == KeyboardAccessoryProperties.OBFUSCATED_CHILD_AT_CALLBACK
                     || propertyKey == KeyboardAccessoryProperties.HAS_SUGGESTIONS
                     || propertyKey == KeyboardAccessoryProperties.HAS_STICKY_LAST_ITEM
+                    || propertyKey == KeyboardAccessoryProperties.ANIMATE_SUGGESTIONS_FROM_TOP
                     || propertyKey == KeyboardAccessoryProperties.ANIMATION_LISTENER) {
                 return;
             }

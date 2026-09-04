@@ -200,19 +200,6 @@ bool ssl_client_hello_get_extension(const SSL_CLIENT_HELLO *client_hello,
   return false;
 }
 
-static const uint16_t kDefaultGroups[] = {
-    SSL_GROUP_X25519,
-    SSL_GROUP_SECP256R1,
-    SSL_GROUP_SECP384R1,
-};
-
-Span<const uint16_t> tls1_get_grouplist(const SSL_HANDSHAKE *hs) {
-  if (!hs->config->supported_group_list.empty()) {
-    return hs->config->supported_group_list;
-  }
-  return Span<const uint16_t>(kDefaultGroups);
-}
-
 bool tls1_get_shared_group(SSL_HANDSHAKE *hs, uint16_t *out_group_id) {
   SSL *const ssl = hs->ssl;
   assert(ssl->server);
@@ -226,7 +213,7 @@ bool tls1_get_shared_group(SSL_HANDSHAKE *hs, uint16_t *out_group_id) {
   // support our favoured group. Thus we do not special-case an emtpy
   // |peer_supported_group_list|.
 
-  Span<const uint16_t> groups = tls1_get_grouplist(hs);
+  Span<const uint16_t> groups = hs->config->supported_group_list;
   Span<const uint16_t> pref, supp;
   if (ssl->options & SSL_OP_CIPHER_SERVER_PREFERENCE) {
     pref = groups;
@@ -264,7 +251,7 @@ bool tls1_check_group_id(const SSL_HANDSHAKE *hs, uint16_t group_id) {
     return false;
   }
 
-  for (uint16_t supported : tls1_get_grouplist(hs)) {
+  for (uint16_t supported : hs->config->supported_group_list) {
     if (supported == group_id) {
       return true;
     }
@@ -2201,8 +2188,7 @@ static bool ext_early_data_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
 
 bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
   SSL *const ssl = hs->ssl;
-  hs->key_shares[0].reset();
-  hs->key_shares[1].reset();
+  hs->key_shares.clear();
   hs->key_share_bytes.Reset();
 
   // If offering a PAKE, do not set up key shares. We do not currently support
@@ -2229,7 +2215,7 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
   uint16_t second_group_id = 0;
   if (override_group_id == 0) {
     // Predict the most preferred group.
-    Span<const uint16_t> groups = tls1_get_grouplist(hs);
+    Span<const uint16_t> groups = hs->config->supported_group_list;
     if (groups.empty()) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_NO_GROUPS_SPECIFIED);
       return false;
@@ -2248,20 +2234,23 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
   }
 
   CBB key_exchange;
-  hs->key_shares[0] = SSLKeyShare::Create(group_id);
-  if (!hs->key_shares[0] ||  //
-      !CBB_add_u16(cbb.get(), group_id) ||
-      !CBB_add_u16_length_prefixed(cbb.get(), &key_exchange) ||
-      !hs->key_shares[0]->Generate(&key_exchange)) {
-    return false;
+  {
+    UniquePtr<SSLKeyShare> key_share = SSLKeyShare::Create(group_id);
+    if (key_share == nullptr || !CBB_add_u16(cbb.get(), group_id) ||
+        !CBB_add_u16_length_prefixed(cbb.get(), &key_exchange) ||
+        !key_share->Generate(&key_exchange) ||
+        !hs->key_shares.TryPushBack(std::move(key_share))) {
+      return false;
+    }
   }
 
   if (second_group_id != 0) {
-    hs->key_shares[1] = SSLKeyShare::Create(second_group_id);
-    if (!hs->key_shares[1] ||  //
-        !CBB_add_u16(cbb.get(), second_group_id) ||
+    // TODO(chlily): Fix temporary code duplication.
+    UniquePtr<SSLKeyShare> key_share = SSLKeyShare::Create(second_group_id);
+    if (key_share == nullptr || !CBB_add_u16(cbb.get(), second_group_id) ||
         !CBB_add_u16_length_prefixed(cbb.get(), &key_exchange) ||
-        !hs->key_shares[1]->Generate(&key_exchange)) {
+        !key_share->Generate(&key_exchange) ||
+        !hs->key_shares.TryPushBack(std::move(key_share))) {
       return false;
     }
   }
@@ -2295,13 +2284,9 @@ static bool ext_key_share_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
 bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
                                          Array<uint8_t> *out_secret,
                                          uint8_t *out_alert, CBS *contents) {
-  if (hs->key_shares[0] == nullptr) {
-    // If we did not offer key shares, the extension should have been rejected
-    // as unsolicited.
-    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
-    *out_alert = SSL_AD_INTERNAL_ERROR;
-    return false;
-  }
+  // If we did not offer key shares, the extension should have been rejected
+  // as unsolicited.
+  assert(!hs->key_shares.empty());
 
   CBS ciphertext;
   uint16_t group_id;
@@ -2313,24 +2298,23 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
     return false;
   }
 
-  SSLKeyShare *key_share = hs->key_shares[0].get();
-  if (key_share->GroupID() != group_id) {
-    if (!hs->key_shares[1] || hs->key_shares[1]->GroupID() != group_id) {
-      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
-      OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_CURVE);
-      return false;
-    }
-    key_share = hs->key_shares[1].get();
+  const auto key_share_it =
+      std::find_if(hs->key_shares.begin(), hs->key_shares.end(),
+                   [group_id](const auto &key_share) {
+                     return key_share->GroupID() == group_id;
+                   });
+  if (key_share_it == hs->key_shares.end()) {
+    *out_alert = SSL_AD_ILLEGAL_PARAMETER;
+    OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_CURVE);
+    return false;
   }
-
-  if (!key_share->Decap(out_secret, out_alert, ciphertext)) {
+  if (!(*key_share_it)->Decap(out_secret, out_alert, ciphertext)) {
     *out_alert = SSL_AD_INTERNAL_ERROR;
     return false;
   }
 
   hs->new_session->group_id = group_id;
-  hs->key_shares[0].reset();
-  hs->key_shares[1].reset();
+  hs->key_shares.clear();
   return true;
 }
 
@@ -2521,7 +2505,7 @@ static bool ext_supported_groups_add_clienthello(const SSL_HANDSHAKE *hs,
     return false;
   }
 
-  for (uint16_t group : tls1_get_grouplist(hs)) {
+  for (uint16_t group : hs->config->supported_group_list) {
     if (is_post_quantum_group(group) && hs->max_version < TLS1_3_VERSION) {
       continue;
     }

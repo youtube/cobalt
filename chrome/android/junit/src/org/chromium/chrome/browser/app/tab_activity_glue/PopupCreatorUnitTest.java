@@ -36,7 +36,6 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -71,7 +70,7 @@ public class PopupCreatorUnitTest {
 
     private static final int DISPLAY_ID = 73;
     private static final float DENSITY = 1.0f;
-    private static final Rect BOUNDS = new Rect(0, 0, 1920, 1080);
+    private static final Rect LOCAL_BOUNDS = new Rect(0, 0, 1920, 1080);
 
     @Before
     public void setup() {
@@ -79,7 +78,7 @@ public class PopupCreatorUnitTest {
         PopupCreator.setInsetsForecastForTesting(Insets.NONE);
         doReturn(DISPLAY_ID).when(mDisplay).getDisplayId();
         doReturn(DENSITY).when(mDisplay).getDipScale();
-        doReturn(BOUNDS).when(mDisplay).getBounds();
+        doReturn(LOCAL_BOUNDS).when(mDisplay).getLocalBounds();
     }
 
     @Test
@@ -93,8 +92,7 @@ public class PopupCreatorUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_WINDOW_POPUP_LARGE_SCREEN)
     public void testPopupsDisabledWhenDelegateReturnsFalse() {
-        ServiceLoaderUtil.setInstanceForTesting(
-                AconfigFlaggedApiDelegate.class, mFlaggedApiDelegate);
+        AconfigFlaggedApiDelegate.setInstanceForTesting(mFlaggedApiDelegate);
         doReturn(false)
                 .when(mFlaggedApiDelegate)
                 .isTaskMoveAllowedOnDisplay(any(ActivityManager.class), eq(DISPLAY_ID));
@@ -108,18 +106,16 @@ public class PopupCreatorUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_WINDOW_POPUP_LARGE_SCREEN)
     public void testPopupsDisabledWhenFlaggedApiDelegateNull() {
-        ServiceLoaderUtil.setInstanceForTesting(AconfigFlaggedApiDelegate.class, null);
+        AconfigFlaggedApiDelegate.setInstanceForTesting(null);
         Assert.assertFalse(
-                "Popups should not be enabled if the delegate returned by ServiceLoaderUtil is"
-                        + " null",
+                "Popups should not be enabled if the delegate is null",
                 PopupCreator.arePopupsEnabled(mDisplay));
     }
 
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_WINDOW_POPUP_LARGE_SCREEN)
     public void testPopupsEnabledWhenDelegateReturnsTrue() {
-        ServiceLoaderUtil.setInstanceForTesting(
-                AconfigFlaggedApiDelegate.class, mFlaggedApiDelegate);
+        AconfigFlaggedApiDelegate.setInstanceForTesting(mFlaggedApiDelegate);
         doReturn(true)
                 .when(mFlaggedApiDelegate)
                 .isTaskMoveAllowedOnDisplay(any(ActivityManager.class), eq(DISPLAY_ID));
@@ -227,8 +223,8 @@ public class PopupCreatorUnitTest {
     @Test
     @DisableFeatures(ChromeFeatureList.ANDROID_WINDOW_POPUP_PREDICT_FINAL_BOUNDS)
     public void testRequestedBoundsAreClampedToDisplayBounds_predictionFlagDisabled() {
-        final Rect displayBounds = new Rect(0, 0, 600, 800);
-        doReturn(displayBounds).when(mDisplay).getBounds();
+        final Rect displayLocalBounds = new Rect(0, 0, 600, 800);
+        doReturn(displayLocalBounds).when(mDisplay).getLocalBounds();
         WindowFeatures windowFeatures = new WindowFeatures(-100, -100, 1000, 1000);
 
         PopupCreator.moveTabToNewPopup(mTab, windowFeatures, mDisplay);
@@ -236,14 +232,14 @@ public class PopupCreatorUnitTest {
 
         Assert.assertTrue(
                 "The launch bounds specified in ActivityOptions do not fit inside display",
-                displayBounds.contains(launchBounds));
+                displayLocalBounds.contains(launchBounds));
     }
 
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_WINDOW_POPUP_PREDICT_FINAL_BOUNDS)
     public void testRequestedBoundsAreClampedToDisplayBounds_predictionFlagEnabled() {
-        final Rect displayBounds = new Rect(0, 0, 600, 800);
-        doReturn(displayBounds).when(mDisplay).getBounds();
+        final Rect displayLocalBounds = new Rect(0, 0, 600, 800);
+        doReturn(displayLocalBounds).when(mDisplay).getLocalBounds();
         WindowFeatures windowFeatures = new WindowFeatures(-100, -100, 1000, 1000);
 
         PopupCreator.moveTabToNewPopup(mTab, windowFeatures, mDisplay);
@@ -251,7 +247,7 @@ public class PopupCreatorUnitTest {
 
         Assert.assertTrue(
                 "The launch bounds specified in ActivityOptions do not fit inside display",
-                displayBounds.contains(launchBounds));
+                displayLocalBounds.contains(launchBounds));
     }
 
     @Test

@@ -1698,8 +1698,18 @@ Google Chrome is unable to recover your settings.
         </message>
         <message name="IDS_LOCAL_NETWORK_ACCESS_PERMISSION_DESC" desc="Text shown in the macOS permission dialog, describing why Chrome needs the permission to access local network.">
           This will allow you to select from available devices and display content on them.
-    </message>
+        </message>
       </if>
+
+      <!-- Side panel strings -->
+      <message name="IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE" desc="The name of the Customize Chrome feature in the side panel combo box.">
+        Customize Chrome
+      </message>
+
+      <!-- History Strings -->
+      <message name="IDS_HISTORY_HISTORY_MENU_ITEM" desc="Label displayed in history sidebar button to display history.">
+        Chrome history
+      </message>
 
       <!-- Lens Overlay Strings -->
       <if expr="not is_android">
@@ -1946,6 +1956,10 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_CONTENT_LENS_OVERLAY_HOMEWORK_ENTRYPOINT_LABEL"
           desc="The label of the Lens overlay entrypoint in the omnibox offering homework help">
           Homework help
+        </message>
+        <message name="IDS_CONTENT_LENS_OVERLAY_ASK_GOOGLE_ENTRYPOINT_LABEL"
+          desc="The label of the Lens overlay entrypoint in the omnibox, allowing users to ask Google about the page">
+          Ask Google
         </message>
         <message name="IDS_SIDE_PANEL_LENS_OVERLAY_TOOLBAR_TOOLTIP"
           desc="The tooltip for the Lens overlay toolbar button.">
@@ -2244,6 +2258,11 @@ Google Chrome is unable to recover your settings.
           Another program on your computer added a theme that may change the way Chrome works.
 
 <ph name="EXTENSION_NAME">$1<ex>Babylon Toolbar</ex></ph>
+        </message>
+        <message name="IDS_EXTENSION_EXTERNAL_INITIAL_INSTALL_PROMPT_TITLE_EXTENSION" desc="">
+          <ph name="PARTNER_NAME">$1<ex>Google</ex></ph> has added an extension that may change the way Chrome works.
+
+<ph name="EXTENSION_NAME">$2<ex>Babylon Toolbar</ex></ph>
         </message>
         <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ABORT_BUTTON" desc="Button on the external install prompt to remove an extension installed by a third party.">
           Remove from Chrome

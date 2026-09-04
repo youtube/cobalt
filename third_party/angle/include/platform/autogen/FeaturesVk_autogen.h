@@ -494,12 +494,6 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
-    FeatureInfo compressVertexData = {
-        "compressVertexData",
-        FeatureCategory::VulkanWorkarounds,
-        &members,
-    };
-
     FeatureInfo preferDrawClearOverVkCmdClearAttachments = {
         "preferDrawClearOverVkCmdClearAttachments",
         FeatureCategory::VulkanWorkarounds,
@@ -1552,6 +1546,12 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo supportsBufferDeviceAddress = {
         "supportsBufferDeviceAddress",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo preferBGR565ToRGB565 = {
+        "preferBGR565ToRGB565",
         FeatureCategory::VulkanFeatures,
         &members,
     };

@@ -117,7 +117,6 @@ interface AnimationTimeline
     method getCurrentTime
 interface AnimationTrigger
     attribute @@toStringTag
-    getter behavior
     method addAnimation
     method constructor
     method removeAnimation
@@ -1239,8 +1238,8 @@ interface CanvasRenderingContext2D
     method createPattern
     method createRadialGradient
     method drawElement
+    method drawElementImage
     method drawFocusIfNeeded
-    method drawHTML
     method drawImage
     method drawMesh
     method ellipse
@@ -2042,6 +2041,7 @@ interface Document : Node
     getter readyState
     getter referrer
     getter rootElement
+    getter routeMap
     getter scripts
     getter scrollingElement
     getter styleSheets
@@ -2965,6 +2965,8 @@ interface FontFaceSetLoadEvent : Event
 interface FormControlRange : AbstractRange
     attribute @@toStringTag
     method constructor
+    method setFormControlRange
+    method toString
 interface FormData
     attribute @@toStringTag
     method @@iterator
@@ -7502,7 +7504,6 @@ interface RTCPeerConnection : EventTarget
     getter pendingLocalDescription
     getter pendingRemoteDescription
     getter remoteDescription
-    getter rtpTransport
     getter sctp
     getter signalingState
     method addIceCandidate
@@ -7552,13 +7553,6 @@ interface RTCPeerConnectionIceEvent : Event
     attribute @@toStringTag
     getter candidate
     method constructor
-interface RTCRtpAcks
-    attribute @@toStringTag
-    getter explicitCongestionNotification
-    getter receivedTime
-    getter remoteSendTimestamp
-    method acks
-    method constructor
 interface RTCRtpReceiver
     static method getCapabilities
     attribute @@toStringTag
@@ -7580,15 +7574,6 @@ interface RTCRtpReceiver
 interface RTCRtpScriptTransform
     attribute @@toStringTag
     method constructor
-interface RTCRtpSendResult
-    attribute @@toStringTag
-    getter sent
-    getter unsent
-    method constructor
-interface RTCRtpSendStream
-    attribute @@toStringTag
-    method constructor
-    method sendRtp
 interface RTCRtpSender
     static method getCapabilities
     attribute @@toStringTag
@@ -7601,17 +7586,10 @@ interface RTCRtpSender
     method createEncodedStreams
     method getParameters
     method getStats
-    method replaceSendStreams
     method replaceTrack
     method setParameters
     method setStreams
     setter transform
-interface RTCRtpSent
-    attribute @@toStringTag
-    getter ackId
-    getter size
-    getter time
-    method constructor
 interface RTCRtpTransceiver
     attribute @@toStringTag
     getter currentDirection
@@ -7627,10 +7605,6 @@ interface RTCRtpTransceiver
     method setHeaderExtensionsToNegotiate
     method stop
     setter direction
-interface RTCRtpTransport
-    attribute @@toStringTag
-    method constructor
-    method createProcessor
 interface RTCSctpTransport : EventTarget
     attribute @@toStringTag
     getter maxChannels
@@ -7835,6 +7809,29 @@ interface RestrictionTarget
     static method fromElement
     attribute @@toStringTag
     method constructor
+interface Route : EventTarget
+    attribute @@toStringTag
+    getter matches
+    getter pattern
+    method constructor
+interface RouteEvent : Event
+    attribute @@toStringTag
+    method constructor
+interface RouteMap
+    attribute @@toStringTag
+    method constructor
+    method get
+interface RtcReceivedPacket
+    attribute @@toStringTag
+    getter data
+    method constructor
+interface RtcTransport
+    attribute @@toStringTag
+    getter onicecandidate
+    method constructor
+    method getReceivedPackets
+    method sendPackets
+    setter onicecandidate
 interface SVGAElement : SVGGraphicsElement
     attribute @@toStringTag
     getter download
@@ -9813,7 +9810,7 @@ interface TrustedTypePolicy
     method createHTML
     method createScript
     method createScriptURL
-interface TrustedTypePolicyFactory : EventTarget
+interface TrustedTypePolicyFactory
     attribute @@toStringTag
     getter defaultPolicy
     getter emptyHTML
@@ -10874,7 +10871,7 @@ interface WebGL2RenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
-    method texHTML2D
+    method texElementImage2D
     method texImage2D
     method texImage3D
     method texParameterf
@@ -11378,7 +11375,7 @@ interface WebGLRenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
-    method texHTML2D
+    method texElementImage2D
     method texImage2D
     method texParameterf
     method texParameteri
@@ -11817,7 +11814,6 @@ interface webkitRTCPeerConnection : EventTarget
     getter pendingLocalDescription
     getter pendingRemoteDescription
     getter remoteDescription
-    getter rtpTransport
     getter sctp
     getter signalingState
     method addIceCandidate

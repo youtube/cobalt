@@ -822,8 +822,8 @@ class FakeVoiceEngine : public VoiceEngineInterface {
   bool StartAecDump(FileWrapper file, int64_t max_size_bytes) override;
   void StopAecDump() override;
   std::optional<AudioDeviceModule::Stats> GetAudioDeviceStats() override;
-  std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions()
-      const override;
+  std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions(
+      const FieldTrialsView* field_trials) const override;
   void SetRtpHeaderExtensions(
       std::vector<RtpHeaderExtensionCapability> header_extensions);
 
@@ -924,8 +924,8 @@ class FakeVideoEngine : public VideoEngineInterface {
   void SetSendCodecs(const std::vector<Codec>& codecs);
   void SetRecvCodecs(const std::vector<Codec>& codecs);
   bool SetCapture(bool capture);
-  std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions()
-      const override;
+  std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions(
+      const FieldTrialsView* field_trials) const override;
   void SetRtpHeaderExtensions(
       std::vector<RtpHeaderExtensionCapability> header_extensions);
 

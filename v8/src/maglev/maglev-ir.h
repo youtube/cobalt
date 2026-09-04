@@ -47,6 +47,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone.h"
@@ -381,6 +382,7 @@ class ExceptionHandlerInfo;
   V(CheckInstanceType)                        \
   V(Dead)                                     \
   V(DebugBreak)                               \
+  V(Throw)                                    \
   V(FunctionEntryStackCheck)                  \
   V(GeneratorStore)                           \
   V(TryOnStackReplacement)                    \
@@ -757,6 +759,7 @@ enum class UseRepresentation : uint8_t {
   kUint32,
   kFloat64,
   kHoleyFloat64,
+  kLast = kHoleyFloat64
 };
 
 std::ostream& operator<<(std::ostream& os, UseRepresentation repr);
@@ -811,6 +814,8 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
 #define COMBINED_NODE_TYPE_LIST(V)                                        \
   /* A value which has all the above bits set */                          \
   V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
+  /* All bits cleared, useful as initial value when combining types. */   \
+  V(None, 0)                                                              \
   V(Callable, kJSFunction | kOtherCallable)                               \
   V(NullOrUndefined, kNull | kUndefined)                                  \
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
@@ -2641,6 +2646,8 @@ class NodeBase : public ZoneObject {
         EagerDeoptInfoSize(Derived::kProperties) +
         LazyDeoptInfoSize(Derived::kProperties);
 
+    SBXCHECK_LE(input_count, kMaxInputs);
+
     static_assert(IsAligned(size_before_inputs, alignof(ValueNode*)));
     size_t size_before_node =
         size_before_inputs + input_count * sizeof(ValueNode*);
@@ -2948,6 +2955,10 @@ class alignas(8) ValueNode : public Node {
     DCHECK_EQ(state_, kRegallocInfo);
     return static_cast<RegallocValueNodeInfo*>(regalloc_info_);
   }
+
+#define DEFINE_IS_ROOT_OBJECT(type, name, CamelName) bool Is##CamelName() const;
+  ROOT_LIST(DEFINE_IS_ROOT_OBJECT)
+#undef DEFINE_IS_ROOT_OBJECT
 
  protected:
   explicit ValueNode(uint64_t bitfield) : Node(bitfield), use_count_(0) {}
@@ -7811,6 +7822,83 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
                                                  kNumAssertConditions))>;
 };
 
+class Throw : public FixedInputNodeT<1, Throw> {
+  using Base = FixedInputNodeT<1, Throw>;
+
+ public:
+  static constexpr OpProperties kProperties = OpProperties::CanThrow() |
+                                              OpProperties::Call() |
+                                              OpProperties::NotIdempotent();
+
+#define THROW_FUNCTIONS_LIST(V)          \
+  V(kThrow)                              \
+  V(kReThrow)                            \
+  V(kThrowAccessedUninitializedVariable) \
+  V(kThrowSuperNotCalled)                \
+  V(kThrowSuperAlreadyCalledError)       \
+  V(kThrowIteratorError)                 \
+  V(kThrowSymbolIteratorInvalid)         \
+  V(kThrowConstructorNonCallableError)   \
+  V(kThrowRangeError)                    \
+  V(kThrowConstructorReturnedNonObject)
+
+  enum Function : uint8_t {
+#define DECLARE_FUNCTION(Name) Name,
+    THROW_FUNCTIONS_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+  };
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  explicit Throw(uint64_t bitfield, Function function, bool has_input)
+      : Base(HasInputBitField::update(
+            FunctionBitField::update(bitfield, function), has_input)) {}
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+  void MarkTaggedInputsAsDecompressing();
+
+  Function function() const { return FunctionBitField::decode(bitfield()); }
+
+  Runtime::FunctionId runtime_function() const {
+    switch (function()) {
+#define CASE(Name)            \
+  case Throw::Function::Name: \
+    return Runtime::Name;
+      THROW_FUNCTIONS_LIST(CASE)
+#undef CASE
+    }
+  }
+
+  bool has_input() const { return HasInputBitField::decode(bitfield()); }
+  Input value_input() {
+    DCHECK(has_input());
+    return input(0);
+  }
+
+  void VerifyInputs() const {}
+
+  auto options() const { return std::tuple{function(), has_input()}; }
+
+  void UpdateBitfield(Function function, bool has_input) {
+    set_bitfield(FunctionBitField::update(bitfield(), function));
+    set_bitfield(HasInputBitField::update(bitfield(), has_input));
+  }
+
+ private:
+  static constexpr int kNumberOfBitsForFunction = 4;
+#define COUNT(Name) +1
+  static constexpr int kNumberOfFunctions = 0 THROW_FUNCTIONS_LIST(COUNT);
+#undef COUNT
+  static_assert(kNumberOfFunctions < 1 << kNumberOfBitsForFunction);
+  using FunctionBitField = NextBitField<Function, kNumberOfBitsForFunction>;
+
+  using HasInputBitField = FunctionBitField::Next<bool, 1>;
+};
+
 class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
   using Base = FixedInputNodeT<0, DebugBreak>;
 
@@ -10134,14 +10222,14 @@ class Phi : public ValueNodeT<Phi> {
   void RecordUseReprHint(UseRepresentationSet repr_mask,
                          bool force_same_loop = false);
 
-  UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
-  UseRepresentationSet get_same_loop_uses_repr_hints() {
-    return same_loop_uses_repr_hint_;
+  UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
+  UseRepresentationSet same_loop_use_repr_hints() {
+    return same_loop_use_repr_hints_;
   }
 
   void ClearUseHints() {
-    uses_repr_hint_ = {};
-    same_loop_uses_repr_hint_ = {};
+    use_repr_hints_ = {};
+    same_loop_use_repr_hints_ = {};
   }
 
   NodeType post_loop_type() const { return post_loop_type_; }
@@ -10209,8 +10297,8 @@ class Phi : public ValueNodeT<Phi> {
 
   const interpreter::Register owner_;
 
-  UseRepresentationSet uses_repr_hint_ = {};
-  UseRepresentationSet same_loop_uses_repr_hint_ = {};
+  UseRepresentationSet use_repr_hints_ = {};
+  UseRepresentationSet same_loop_use_repr_hints_ = {};
 
   Phi* next_ = nullptr;
   MergePointInterpreterFrameState* const merge_state_;
@@ -10787,7 +10875,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
       JSDispatchHandle dispatch_handle,
 #endif
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
-      ValueNode* context, ValueNode* receiver, ValueNode* new_target);
+      ValueNode* context, ValueNode* receiver, ValueNode* new_target,
+      const compiler::FeedbackSource& feedback_source);
 
   // This node might eventually be overwritten by conversion nodes that need
   // to do a deferred call.
@@ -10816,6 +10905,10 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
     return shared_function_info_;
   }
 
+  const compiler::FeedbackSource& feedback_source() const {
+    return feedback_source_;
+  }
+
   void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
@@ -10828,9 +10921,9 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   int expected_parameter_count() const { return expected_parameter_count_; }
 
   void RecordUseReprHint(UseRepresentationSet repr_mask) {
-    uses_repr_hint_.Add(repr_mask);
+    use_repr_hints_.Add(repr_mask);
   }
-  UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
+  UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
 
  private:
 #ifdef V8_ENABLE_LEAPTIERING
@@ -10841,7 +10934,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   // MaxCallStackArgs without needing to unpark the local isolate.
   int expected_parameter_count_;
 
-  UseRepresentationSet uses_repr_hint_ = {};
+  UseRepresentationSet use_repr_hints_ = {};
+  compiler::FeedbackSource feedback_source_;
 };
 
 // This node overwrites CallKnownJSFunction in-place after inlining.
@@ -12177,6 +12271,15 @@ inline void NodeBase::ForAllInputsInRegallocAssignmentOrder(Function&& f) {
   iterate_inputs(InputAllocationPolicy::kArbitraryRegister);
   iterate_inputs(InputAllocationPolicy::kAny);
 }
+#define DEFINE_IS_ROOT_OBJECT(type, name, CamelName)                    \
+  inline bool ValueNode::Is##CamelName() const {                        \
+    if (const RootConstant* constant = this->TryCast<RootConstant>()) { \
+      return constant->index() == RootIndex::k##CamelName;              \
+    }                                                                   \
+    return false;                                                       \
+  }
+ROOT_LIST(DEFINE_IS_ROOT_OBJECT)
+#undef DEFINE_IS_ROOT_OBJECT
 
 }  // namespace maglev
 }  // namespace internal

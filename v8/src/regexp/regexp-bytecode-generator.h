@@ -47,6 +47,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void ReadCurrentPositionFromRegister(int reg) override;
   void WriteStackPointerToRegister(int reg) override;
   void ReadStackPointerFromRegister(int reg) override;
+  void CheckPosition(int cp_offset, Label* on_outside_input) override;
   void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
                                 bool check_bounds, int characters,
                                 int eats_at_least) override;
@@ -101,6 +102,11 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
                                   unsigned character, Handle<ByteArray> table,
                                   Label* on_match, Label* on_no_match) override;
+  void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
+                            unsigned both_mask, int max_offset, unsigned chars1,
+                            unsigned mask1, unsigned chars2, unsigned mask2,
+                            Label* on_match1, Label* on_match2,
+                            Label* on_failure) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
   void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,

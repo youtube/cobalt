@@ -126,6 +126,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
@@ -399,7 +400,7 @@ bool HTMLCanvasElement::PrepareTransferableResource(
   // here.
   out_resource->hdr_metadata = hdr_metadata_;
   // Note: frame is kept alive via a reference kept in out_release_callback.
-  *out_release_callback = base::BindOnce(
+  *out_release_callback = blink::BindOnce(
       ReleaseCanvasResource, std::move(release_callback), std::move(frame));
 
   return true;
@@ -1352,6 +1353,12 @@ String HTMLCanvasElement::ToDataURLInternal(const String& mime_type,
 String HTMLCanvasElement::toDataURL(const String& mime_type,
                                     const ScriptValue& quality_argument,
                                     ExceptionState& exception_state) const {
+  if (RuntimeEnabledFeatures::BlockCanvasReadbackEnabled(
+          GetExecutionContext())) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
+                                      String(kBlockCanvasReadbackErrorMessage));
+    return String();
+  }
   if (ContextHasOpenLayers(context_)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
@@ -1378,6 +1385,12 @@ void HTMLCanvasElement::toBlob(V8BlobCallback* callback,
                                const String& mime_type,
                                const ScriptValue& quality_argument,
                                ExceptionState& exception_state) {
+  if (RuntimeEnabledFeatures::BlockCanvasReadbackEnabled(
+          GetExecutionContext())) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
+                                      String(kBlockCanvasReadbackErrorMessage));
+    return;
+  }
   if (!OriginClean()) {
     exception_state.ThrowSecurityError("Tainted canvases may not be exported.");
     return;

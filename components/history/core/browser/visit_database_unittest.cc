@@ -12,6 +12,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "components/history/core/browser/url_database.h"
+#include "components/history/core/browser/visit_annotations_database.h"
 #include "components/history/core/browser/visited_link_database.h"
 #include "sql/database.h"
 #include "sql/test/test_helpers.h"
@@ -48,20 +49,22 @@ bool IsVisitInfoEqual(const VisitRow& a, const VisitRow& b) {
 class VisitDatabaseTest : public PlatformTest,
                           public URLDatabase,
                           public VisitDatabase,
-                          public VisitedLinkDatabase {
- private:
-  // Test setup.
+                          public VisitedLinkDatabase,
+                          public VisitAnnotationsDatabase {
+ protected:
   void SetUp() override {
     PlatformTest::SetUp();
 
-    EXPECT_TRUE(db_.OpenInMemory());
+    ASSERT_TRUE(db_.OpenInMemory());
 
     // Initialize the tables for this test.
-    CreateURLTable(false);
-    CreateMainURLIndex();
-    CreateVisitedLinkTable();
-    InitVisitTable();
+    ASSERT_TRUE(CreateURLTable(false));
+    ASSERT_TRUE(CreateMainURLIndex());
+    ASSERT_TRUE(CreateVisitedLinkTable());
+    ASSERT_TRUE(InitVisitTable());
+    ASSERT_TRUE(InitVisitAnnotationsTables());
   }
+
   void TearDown() override {
     db_.Close();
     PlatformTest::TearDown();
@@ -271,6 +274,119 @@ TEST_F(VisitDatabaseTest, GetMostRecentVisitForURL_Tied) {
   EXPECT_EQ(out_visit.visit_time, kNow);
 }
 
+TEST_F(VisitDatabaseTest, GetVisibleVisitCountToHost) {
+  // Add a primary main frame non-redirect visit to a URL.
+  GURL url("http://www.google.com/");
+  URLRow url_row(url);
+  URLID url_id = AddURL(url_row);
+  ASSERT_NE(0, url_id);
+
+  VisitRow visit1(url_id, base::Time::Now(), 0,
+                  ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK |
+                                            ui::PAGE_TRANSITION_CHAIN_START |
+                                            ui::PAGE_TRANSITION_CHAIN_END),
+                  0, false, 0);
+  ASSERT_TRUE(AddVisit(&visit1, SOURCE_BROWSED));
+
+  // Check that we have one visit.
+  int count = 0;
+  base::Time first_visit_time;
+  EXPECT_TRUE(GetVisibleVisitCountToHost(url, &count, &first_visit_time));
+  EXPECT_EQ(1, count);
+  EXPECT_EQ(visit1.visit_time, first_visit_time);
+
+  // Add a later visit to the same origin.
+  VisitRow visit2(url_id, base::Time::Now() + base::Seconds(1), 0,
+                  ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK |
+                                            ui::PAGE_TRANSITION_CHAIN_START |
+                                            ui::PAGE_TRANSITION_CHAIN_END),
+                  0, false, 0);
+  ASSERT_TRUE(AddVisit(&visit2, SOURCE_BROWSED));
+
+  // The count should be updated, but the first visit time should stay the same.
+  EXPECT_TRUE(GetVisibleVisitCountToHost(url, &count, &first_visit_time));
+  EXPECT_EQ(2, count);
+  EXPECT_EQ(visit1.visit_time, first_visit_time);
+
+  // Add a visit with a 404 response code.
+  GURL url2("http://www.google.com/foo");
+  URLRow url_row2(url2);
+  URLID url_id2 = AddURL(url_row2);
+  ASSERT_NE(0, url_id2);
+
+  VisitRow visit3(url_id2, base::Time::Now() + base::Seconds(2), 0,
+                  ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK |
+                                            ui::PAGE_TRANSITION_CHAIN_START |
+                                            ui::PAGE_TRANSITION_CHAIN_END),
+                  0, false, 0);
+  ASSERT_TRUE(AddVisit(&visit3, SOURCE_BROWSED));
+  VisitContextAnnotations annotations404;
+  annotations404.on_visit.response_code = 404;
+  AddContextAnnotationsForVisit(visit3.visit_id, annotations404);
+
+  // Check that the 404 visit is not counted.
+  EXPECT_TRUE(GetVisibleVisitCountToHost(url, &count, &first_visit_time));
+  EXPECT_EQ(2, count);
+
+  // Add a visit with a 403 response code.
+  GURL url3("http://www.google.com/bar");
+  URLRow url_row3(url3);
+  URLID url_id3 = AddURL(url_row3);
+  ASSERT_NE(0, url_id3);
+
+  VisitRow visit4(url_id3, base::Time::Now() + base::Seconds(3), 0,
+                  ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK |
+                                            ui::PAGE_TRANSITION_CHAIN_START |
+                                            ui::PAGE_TRANSITION_CHAIN_END),
+                  0, false, 0);
+  ASSERT_TRUE(AddVisit(&visit4, SOURCE_BROWSED));
+  VisitContextAnnotations annotations403;
+  annotations403.on_visit.response_code = 403;
+  AddContextAnnotationsForVisit(visit4.visit_id, annotations403);
+
+  // Check that the 200 visit is counted.
+  EXPECT_TRUE(GetVisibleVisitCountToHost(url, &count, &first_visit_time));
+  EXPECT_EQ(3, count);
+
+  // Add a redirect visit to the same origin and verify it isn't counted.
+  VisitRow visit5(url_id, base::Time::Now() + base::Seconds(4), 0,
+                  ui::PAGE_TRANSITION_SERVER_REDIRECT, 0, false, 0);
+  ASSERT_TRUE(AddVisit(&visit5, SOURCE_BROWSED));
+  EXPECT_TRUE(GetVisibleVisitCountToHost(url, &count, &first_visit_time));
+  EXPECT_EQ(3, count);
+
+  // Add a subframe visit, which should not be counted.
+  VisitRow visit6(url_id, base::Time::Now() + base::Seconds(5), 0,
+                  ui::PAGE_TRANSITION_AUTO_SUBFRAME, 0, false, 0);
+  ASSERT_TRUE(AddVisit(&visit6, SOURCE_BROWSED));
+  EXPECT_TRUE(GetVisibleVisitCountToHost(url, &count, &first_visit_time));
+  EXPECT_EQ(3, count);
+
+  // Add a visit for a different origin (this one is HTTPS instead of HTTP).
+  GURL url4("https://www.google.com/");
+  URLRow url_row4(url4);
+  URLID url_id4 = AddURL(url_row4);
+  ASSERT_NE(0, url_id4);
+  VisitRow visit7(url_id4, base::Time::Now() + base::Seconds(6), 0,
+                  ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK |
+                                            ui::PAGE_TRANSITION_CHAIN_START |
+                                            ui::PAGE_TRANSITION_CHAIN_END),
+                  0, false, 0);
+  ASSERT_TRUE(AddVisit(&visit7, SOURCE_BROWSED));
+  // We should only get visits for the specified origin.
+  EXPECT_TRUE(GetVisibleVisitCountToHost(url4, &count, &first_visit_time));
+  EXPECT_EQ(1, count);
+
+  // We should succeed with a count of 0 for an origin with no visits.
+  GURL url5("http://www.nevervisited.com/");
+  EXPECT_TRUE(GetVisibleVisitCountToHost(url5, &count, &first_visit_time));
+  EXPECT_EQ(0, count);
+
+  // We should fail for non-HTTP / HTTPS URLs.
+  GURL url6("ftp://ftp.example.com/");
+  EXPECT_FALSE(GetVisibleVisitCountToHost(url6, &count, &first_visit_time));
+}
+
 namespace {
 
 std::vector<VisitRow> GetTestVisitRows() {
@@ -434,20 +550,36 @@ TEST_F(VisitDatabaseTest, GetAllVisitsInRange) {
 
 TEST_F(VisitDatabaseTest, GetVisibleVisitsInRange) {
   std::vector<VisitRow> test_visit_rows = GetTestVisitRows();
+  // Add a 404 visit to the test visits.
+  VisitRow visit_404(
+      /*arg_url_id=*/100, test_visit_rows.front().visit_time,
+      /*arg_referring_visit=*/0,
+      ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK |
+                                ui::PAGE_TRANSITION_CHAIN_START |
+                                ui::PAGE_TRANSITION_CHAIN_END),
+      /*arg_segment_id=*/0, /*arg_incremented_omnibox_typed_score=*/false,
+      /*arg_opener_visit=*/0);
+  visit_404.visit_id = test_visit_rows.back().visit_id + 1;
+  visit_404.app_id = "org.chromium.dino";
+  test_visit_rows.push_back(visit_404);
+  VisitContextAnnotations context_annotations_404;
+  context_annotations_404.on_visit = {.response_code = 404};
 
   test_visit_rows[1].app_id = "org.chromium.dino";
   test_visit_rows[2].app_id = "org.chromium.dino";
   test_visit_rows[3].app_id = "org.chromium.dino";
 
-  for (size_t i = 0; i < test_visit_rows.size(); ++i) {
-    EXPECT_TRUE(AddVisit(&test_visit_rows[i], SOURCE_BROWSED));
+  for (auto& test_visit_row : test_visit_rows) {
+    EXPECT_TRUE(AddVisit(&test_visit_row, SOURCE_BROWSED));
   }
+  AddContextAnnotationsForVisit(visit_404.visit_id, context_annotations_404);
 
   // Query the visits for all time.
   VisitVector results;
   QueryOptions options;
-  GetVisibleVisitsInRange(options, &results);
-  ASSERT_EQ(2U, results.size());
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
+  ASSERT_EQ(3U, results.size());
 #if !defined(ANDROID)
   // We should not get the first or the second visit (duplicates of the sixth)
   // or the redirect or subframe visits.
@@ -458,19 +590,57 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsInRange) {
 #endif
 
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[3]));
+  // Based on `options.policy_for_404_visits`, we should get the 404 visit.
+  EXPECT_TRUE(IsVisitInfoEqual(results[2], visit_404));
+
+  // Retry the query, but exclude 404s.
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kExclude404s,
+                          &results);
+  // We shouldn't get the 404 visit anymore.
+  ASSERT_EQ(2U, results.size());
+#if !defined(ANDROID)
+  // We should not get the first or the second visit (duplicates of the sixth)
+  // or the redirect or subframe visits.
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[5]));
+#else
+  // On Android, the one with app_id is chosen among the duplicates.
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[1]));
+#endif
 
   // Query the visits with app_id. Only those with the matching app_id will be
   // returned. With app_id, the second visit is not a duplicate of the sixth.
-  // Therefore the second and the fourth are returned.
+  // Therefore the second and the fourth are returned. We include 404s, so the
+  // 404 visit should also be returned.
   options.app_id = "org.chromium.dino";
-  GetVisibleVisitsInRange(options, &results);
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
+  ASSERT_EQ(3U, results.size());
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[3]));
+  EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[1]));
+  EXPECT_TRUE(IsVisitInfoEqual(results[2], visit_404));
+
+  // Query the visits with app_id, excluding 404s. The results should be the
+  // same as above, but without the 404 visit.
+  options.app_id = "org.chromium.dino";
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kExclude404s,
+                          &results);
   ASSERT_EQ(2U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[3]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[1]));
 
-  // Test the query with app_id, but in the reverse order.
+  // Test the query with app_id including 404s, but in the reverse order.
   options.visit_order = QueryOptions::OLDEST_FIRST;
-  GetVisibleVisitsInRange(options, &results);
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
+  ASSERT_EQ(3U, results.size());
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], visit_404));
+  EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[1]));
+  EXPECT_TRUE(IsVisitInfoEqual(results[2], test_visit_rows[3]));
+
+  // Query with app_id but without 404s, in reverse order.
+  options.visit_order = QueryOptions::OLDEST_FIRST;
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kExclude404s,
+                          &results);
   ASSERT_EQ(2U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[1]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[3]));
@@ -480,34 +650,41 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsInRange) {
   // Now try with only per-day de-duping -- the second visit should appear,
   // since it's a duplicate of visit6 but on a different day.
   options.duplicate_policy = QueryOptions::REMOVE_DUPLICATES_PER_DAY;
-  GetVisibleVisitsInRange(options, &results);
-  ASSERT_EQ(3U, results.size());
-  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[5]));
-  EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[3]));
-  EXPECT_TRUE(IsVisitInfoEqual(results[2], test_visit_rows[1]));
-
-  // Now try without de-duping, expect to see all visible visits.
-  options.duplicate_policy = QueryOptions::KEEP_ALL_DUPLICATES;
-  GetVisibleVisitsInRange(options, &results);
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
   ASSERT_EQ(4U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[5]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[3]));
   EXPECT_TRUE(IsVisitInfoEqual(results[2], test_visit_rows[1]));
-  EXPECT_TRUE(IsVisitInfoEqual(results[3], test_visit_rows[0]));
+  EXPECT_TRUE(IsVisitInfoEqual(results[3], visit_404));
+
+  // Now try without de-duping, expect to see all visible visits.
+  options.duplicate_policy = QueryOptions::KEEP_ALL_DUPLICATES;
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
+  ASSERT_EQ(5U, results.size());
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[5]));
+  EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[3]));
+  EXPECT_TRUE(IsVisitInfoEqual(results[2], test_visit_rows[1]));
+  EXPECT_TRUE(IsVisitInfoEqual(results[3], visit_404));
+  EXPECT_TRUE(IsVisitInfoEqual(results[4], test_visit_rows[0]));
 
   // Set the end time to exclude the second visit. The first visit should be
   // returned. Even though the second is a more recent visit, it's not in the
   // query range.
   options.end_time = test_visit_rows[1].visit_time;
-  GetVisibleVisitsInRange(options, &results);
-  ASSERT_EQ(1U, results.size());
-  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[0]));
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
+  ASSERT_EQ(2U, results.size());
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], visit_404));
+  EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[0]));
 
   options = QueryOptions();  // Reset options to default.
 
   // Query for a max count and make sure we get only that number.
   options.max_count = 1;
-  GetVisibleVisitsInRange(options, &results);
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
   ASSERT_EQ(1U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[5]));
 
@@ -516,14 +693,16 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsInRange) {
   options.begin_time = test_visit_rows[1].visit_time;
   options.end_time = test_visit_rows[3].visit_time;
   options.max_count = 0;
-  GetVisibleVisitsInRange(options, &results);
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
   ASSERT_EQ(1U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[1]));
 
   // Query oldest visits in a time range and make sure beginning is exclusive
   // and ending is inclusive.
   options.visit_order = QueryOptions::OLDEST_FIRST;
-  GetVisibleVisitsInRange(options, &results);
+  GetVisibleVisitsInRange(options, VisitQuery404sPolicy::kInclude404s,
+                          &results);
   ASSERT_EQ(1U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[3]));
 }
@@ -596,35 +775,93 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsForURL) {
   visit_info6.visit_id = 7;
   test_visit_rows.push_back(visit_info7);
 
-  for (size_t i = 0; i < test_visit_rows.size(); ++i) {
-    EXPECT_TRUE(AddVisit(&test_visit_rows[i], SOURCE_BROWSED));
-  }
+  // Add another visit for the same URL as visits 1, 2, 6, and 7, with an app
+  // id. We'll make this visit a 404 later.
+  VisitRow visit_info8(
+      visit_info7.url_id, visit_info7.visit_time + base::Seconds(1), 0,
+      ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
+                                ui::PAGE_TRANSITION_CHAIN_START |
+                                ui::PAGE_TRANSITION_CHAIN_END),
+      0, true, 0);
+  visit_info8.visit_id = 8;
+  visit_info8.app_id = "org.chromium.dino";
+  test_visit_rows.push_back(visit_info8);
 
-  // Query the visits for the first url id.
+  // Add another visit for the same URL as visits 1, 2, 6, 7, and 8, with no app
+  // id, that's more recent than visit 8. We'll make this visit a 404 later.
+  VisitRow visit_info9(
+      visit_info8.url_id, visit_info8.visit_time + base::Seconds(1), 0,
+      ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
+                                ui::PAGE_TRANSITION_CHAIN_START |
+                                ui::PAGE_TRANSITION_CHAIN_END),
+      0, true, 0);
+  visit_info9.visit_id = 9;
+  test_visit_rows.push_back(visit_info9);
+
+  for (auto& test_visit_row : test_visit_rows) {
+    ASSERT_TRUE(AddVisit(&test_visit_row, SOURCE_BROWSED));
+  }
+  // Make `visit_info8` a 404 visit.
+  VisitContextAnnotations context_annotations_404;
+  context_annotations_404.on_visit = {.response_code = 404};
+  AddContextAnnotationsForVisit(visit_info8.visit_id, context_annotations_404);
+  // Make `visit_info9` a 404 visit.
+  AddContextAnnotationsForVisit(visit_info9.visit_id, context_annotations_404);
+
+  // Query the visits for the first url id, excluding 404s.
   VisitVector results;
   QueryOptions options;
   int url_id = test_visit_rows[0].url_id;
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(1U, results.size());
 #if !defined(ANDROID)
   // We should not get the first, the second or the sixth (duplicates of the
-  // seventh) or any other urls, redirects or subframe visits.
+  // seventh), the eighth or ninth (404), or any other urls, redirects or
+  // subframe visits.
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[6]));
 #else
   // On Android, the one with app_id is chosen among the duplicates.
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[5]));
 #endif
 
-  // Query the visits with app_id. Only those with the matching both url id
-  // (1,2,6,7) and app id(2,3,4,6) will be returned(2, 6) -> 6 (deduped).
+  // Repeat the same query, but include 404s.
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kInclude404s,
+                         &results);
+  ASSERT_EQ(1U, results.size());
+#if !defined(ANDROID)
+  // We should not get the first, the second, the sixth, the seventh, or the
+  // eighth (duplicates of the ninth) or any other urls, redirects or subframe
+  // visits.
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[8]));
+#else
+  // On Android, the ones with an app_id are chosen among the duplicates. Visit
+  // 8 is the most recent of those.
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[7]));
+#endif
+
+  // Query the visits with app_id, excluding 404s. Only non-404 visits matching
+  // both url id (1,2,6,7) and app id(2,3,4,6) will be returned(2, 6) -> 6
+  // (deduped).
   options.app_id = "org.chromium.dino";
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(1U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[5]));
 
+  // Query the visits with app_id again, including 404s this time. All visits
+  // matching both url id (1,2,6,7,8,9) and app id(2,3,4,6,8) will be
+  // returned(2,6,8) -> 8 (deduped).
+  options.app_id = "org.chromium.dino";
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kInclude404s,
+                         &results);
+  ASSERT_EQ(1U, results.size());
+  EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[7]));
+
   // Test the query with app_id, but in the reverse order.
   options.visit_order = QueryOptions::OLDEST_FIRST;
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(1U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[1]));
 
@@ -633,7 +870,8 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsForURL) {
   // Now try with only per-day de-duping -- the second visit should appear,
   // since it's a duplicate of visit6 but on a different day.
   options.duplicate_policy = QueryOptions::REMOVE_DUPLICATES_PER_DAY;
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(3U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[6]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[5]));
@@ -641,7 +879,8 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsForURL) {
 
   // Now try without de-duping, expect to see all visible visits to url id 1.
   options.duplicate_policy = QueryOptions::KEEP_ALL_DUPLICATES;
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(4U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[6]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[5]));
@@ -650,7 +889,8 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsForURL) {
 
   // Now try with a `max_count` limit to get the newest 2 visits only.
   options.max_count = 2;
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(2U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[6]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[5]));
@@ -658,7 +898,8 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsForURL) {
   // Now try getting the oldest 2 visits and make sure they're ordered oldest
   // first.
   options.visit_order = QueryOptions::OLDEST_FIRST;
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(2U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[0]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[1]));
@@ -669,7 +910,8 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsForURL) {
   options.end_time = test_visit_rows[5].visit_time;
   options.visit_order = QueryOptions::RECENT_FIRST;
   options.max_count = 0;
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(2U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[1]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[0]));
@@ -677,7 +919,8 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsForURL) {
   // Query oldest visits in a time range and make sure beginning is exclusive
   // and ending is inclusive.
   options.visit_order = QueryOptions::OLDEST_FIRST;
-  GetVisibleVisitsForURL(url_id, options, &results);
+  GetVisibleVisitsForURL(url_id, options, VisitQuery404sPolicy::kExclude404s,
+                         &results);
   ASSERT_EQ(2U, results.size());
   EXPECT_TRUE(IsVisitInfoEqual(results[0], test_visit_rows[1]));
   EXPECT_TRUE(IsVisitInfoEqual(results[1], test_visit_rows[5]));

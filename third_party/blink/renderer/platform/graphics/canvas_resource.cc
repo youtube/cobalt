@@ -72,11 +72,10 @@ BASE_FEATURE(kCanvasResourceIsWebGPUCompatible,
 );
 }  // namespace
 
-CanvasResource::CanvasResource(base::WeakPtr<CanvasResourceProvider> provider)
+CanvasResource::CanvasResource()
     : owning_thread_ref_(base::PlatformThread::CurrentRef()),
       owning_thread_task_runner_(
-          ThreadScheduler::Current()->CleanupTaskRunner()),
-      provider_(std::move(provider)) {}
+          ThreadScheduler::Current()->CleanupTaskRunner()) {}
 
 CanvasResource::~CanvasResource() {}
 
@@ -166,7 +165,7 @@ bool CanvasResource::PrepareTransferableResource(
   DCHECK(IsValid());
 
   DCHECK(out_callback);
-  *out_callback = blink::BindOnce(&ReleaseFrameResources, provider_);
+  *out_callback = blink::BindOnce(&ReleaseFrameResources, WeakProvider());
 
   if (!out_resource)
     return true;
@@ -182,9 +181,13 @@ bool CanvasResource::PrepareTransferableResource(
     return false;
   }
 
+  GetSyncToken();
+  if (needs_verified_synctoken) {
+    VerifySyncToken();
+  }
+
   *out_resource = viz::TransferableResource::Make(
-      client_shared_image, GetTransferableResourceSource(),
-      GetSyncTokenWithOptionalVerification(needs_verified_synctoken));
+      client_shared_image, GetTransferableResourceSource(), sync_token());
 
   out_resource->hdr_metadata = GetHDRMetadata();
   out_resource->is_low_latency_rendering = client_shared_image->usage().Has(
@@ -216,13 +219,13 @@ CanvasResourceSharedImage::CanvasResourceSharedImage(
     viz::SharedImageFormat format,
     SkAlphaType alpha_type,
     const gfx::ColorSpace& color_space,
-    base::WeakPtr<CanvasResourceProvider> provider,
+    base::WeakPtr<CanvasResourceProviderSharedImage> provider,
     base::WeakPtr<WebGraphicsSharedImageInterfaceProvider>
         shared_image_interface_provider)
-    : CanvasResource(std::move(provider)),
-      is_accelerated_(false),
+    : is_accelerated_(false),
       use_oop_rasterization_(false),
-      alpha_type_(alpha_type) {
+      alpha_type_(alpha_type),
+      provider_(std::move(provider)) {
   if (!shared_image_interface_provider) {
     return;
   }
@@ -238,9 +241,8 @@ CanvasResourceSharedImage::CanvasResourceSharedImage(
            "CanvasResourceSharedImage"});
 
   // This class doesn't currently have a way of verifying the sync token for
-  // software SharedImages at the time of vending it in
-  // GetSyncTokenWithOptionalVerification(), so we instead ensure that it is
-  // verified now.
+  // software SharedImages at the time of vending it in VerifySyncToken(),
+  // so we instead ensure that it is verified now.
   owning_thread_data().sync_token =
       shared_image_interface->GenVerifiedSyncToken();
   owning_thread_data().mailbox_needs_new_sync_token = false;
@@ -252,7 +254,7 @@ CanvasResourceSharedImage::CreateSoftware(
     viz::SharedImageFormat format,
     SkAlphaType alpha_type,
     const gfx::ColorSpace& color_space,
-    base::WeakPtr<CanvasResourceProvider> provider,
+    base::WeakPtr<CanvasResourceProviderSharedImage> provider,
     base::WeakPtr<WebGraphicsSharedImageInterfaceProvider>
         shared_image_interface_provider) {
   auto resource = AdoptRef(new CanvasResourceSharedImage(
@@ -267,17 +269,17 @@ CanvasResourceSharedImage::CanvasResourceSharedImage(
     SkAlphaType alpha_type,
     const gfx::ColorSpace& color_space,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
-    base::WeakPtr<CanvasResourceProvider> provider,
+    base::WeakPtr<CanvasResourceProviderSharedImage> provider,
     bool is_accelerated,
     gpu::SharedImageUsageSet shared_image_usage_flags)
-    : CanvasResource(std::move(provider)),
-      context_provider_wrapper_(std::move(context_provider_wrapper)),
+    : context_provider_wrapper_(std::move(context_provider_wrapper)),
       is_accelerated_(is_accelerated),
       use_oop_rasterization_(is_accelerated &&
                              context_provider_wrapper_->ContextProvider()
                                  .GetCapabilities()
                                  .gpu_rasterization),
-      alpha_type_(alpha_type) {
+      alpha_type_(alpha_type),
+      provider_(std::move(provider)) {
   auto* shared_image_interface =
       context_provider_wrapper_->ContextProvider().SharedImageInterface();
   DCHECK(shared_image_interface);
@@ -363,7 +365,7 @@ scoped_refptr<CanvasResourceSharedImage> CanvasResourceSharedImage::Create(
     SkAlphaType alpha_type,
     const gfx::ColorSpace& color_space,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
-    base::WeakPtr<CanvasResourceProvider> provider,
+    base::WeakPtr<CanvasResourceProviderSharedImage> provider,
     bool is_accelerated,
     gpu::SharedImageUsageSet shared_image_usage_flags) {
   TRACE_EVENT0("blink", "CanvasResourceSharedImage::Create");
@@ -517,7 +519,8 @@ void CanvasResourceSharedImage::Transfer() {
   // TODO(khushalsagar): This is for consistency with MailboxTextureHolder
   // transfer path. It's unclear why the verification can not be deferred until
   // the resource needs to be transferred cross-process.
-  GetSyncTokenWithOptionalVerification(true);
+  GetSyncToken();
+  VerifySyncToken();
 }
 
 scoped_refptr<StaticBitmapImage> CanvasResourceSharedImage::Bitmap() {
@@ -613,6 +616,7 @@ void CanvasResourceSharedImage::EndExternalWrite(
   // sync token will be chained after `external_write_sync_token` thanks to the
   // wait above.
   owning_thread_data_.mailbox_needs_new_sync_token = true;
+  GetSyncToken();
 }
 
 void CanvasResourceSharedImage::UploadSoftwareRenderingResults(
@@ -646,9 +650,7 @@ void CanvasResourceSharedImage::UploadSoftwareRenderingResults(
       GetClientSharedImage()->BackingWasExternallyUpdated(gpu::SyncToken());
 }
 
-const gpu::SyncToken
-CanvasResourceSharedImage::GetSyncTokenWithOptionalVerification(
-    bool needs_verified_token) {
+const gpu::SyncToken CanvasResourceSharedImage::GetSyncToken() {
   if (GetClientSharedImage()->is_software()) {
     // This class doesn't currently have a way of verifying the sync token
     // within this call for software SharedImages, so it instead ensures that it
@@ -679,16 +681,17 @@ CanvasResourceSharedImage::GetSyncTokenWithOptionalVerification(
     owning_thread_data().mailbox_needs_new_sync_token = false;
   }
 
-  if (needs_verified_token &&
-      !owning_thread_data().sync_token.verified_flush()) {
+  return sync_token();
+}
+
+void CanvasResourceSharedImage::VerifySyncToken() {
+  if (!owning_thread_data().sync_token.verified_flush()) {
     int8_t* token_data = owning_thread_data().sync_token.GetData();
     auto* raster_interface = RasterInterface();
     raster_interface->ShallowFlushCHROMIUM();
     raster_interface->VerifySyncTokensCHROMIUM(&token_data, 1);
     owning_thread_data().sync_token.SetVerifyFlush();
   }
-
-  return sync_token();
 }
 
 void CanvasResourceSharedImage::NotifyResourceLost() {
@@ -725,6 +728,15 @@ void CanvasResourceSharedImage::OnMemoryDump(
   client_si->OnMemoryDump(
       pmd, dump->guid(),
       static_cast<int>(gpu::TracingImportance::kClientOwner));
+}
+
+CanvasResourceProvider* CanvasResourceSharedImage::Provider() {
+  return provider_.get();
+}
+
+base::WeakPtr<CanvasResourceProvider>
+CanvasResourceSharedImage::WeakProvider() {
+  return provider_;
 }
 
 // ExternalCanvasResource
@@ -792,9 +804,7 @@ scoped_refptr<StaticBitmapImage> ExternalCanvasResource::Bitmap() {
   return image;
 }
 
-const gpu::SyncToken
-ExternalCanvasResource::GetSyncTokenWithOptionalVerification(
-    bool needs_verified_token) {
+const gpu::SyncToken ExternalCanvasResource::GetSyncToken() {
   // This method is expected to be used both in WebGL and WebGPU, that's why it
   // uses InterfaceBase.
   if (!sync_token_.HasData()) {
@@ -804,7 +814,7 @@ ExternalCanvasResource::GetSyncTokenWithOptionalVerification(
   } else if (!sync_token_.verified_flush()) {
     // The offscreencanvas usage needs the sync_token to be verified in order to
     // be able to use it by the compositor. This is why this method produces a
-    // verified token even if `needs_verified_token` is false.
+    // verified token even if no verification is explicitly requested.
     int8_t* token_data = sync_token_.GetData();
     auto* interface = InterfaceBase();
     DCHECK(interface);
@@ -830,8 +840,7 @@ ExternalCanvasResource::ExternalCanvasResource(
     gfx::HDRMetadata hdr_metadata,
     viz::ReleaseCallback out_callback,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper)
-    : CanvasResource(/*provider=*/nullptr),
-      client_si_(std::move(client_si)),
+    : client_si_(std::move(client_si)),
       context_provider_wrapper_(std::move(context_provider_wrapper)),
       sync_token_(sync_token),
       resource_source_(resource_source),
@@ -928,9 +937,7 @@ CanvasResourceSwapChain::GetClientSharedImage() const {
   return front_buffer_shared_image_;
 }
 
-const gpu::SyncToken
-CanvasResourceSwapChain::GetSyncTokenWithOptionalVerification(
-    bool needs_verified_token) {
+const gpu::SyncToken CanvasResourceSwapChain::GetSyncToken() {
   DCHECK(sync_token_.verified_flush());
   return sync_token_;
 }
@@ -992,12 +999,12 @@ CanvasResourceSwapChain::CanvasResourceSwapChain(
     const gfx::ColorSpace& color_space,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
     base::WeakPtr<CanvasResourceProvider> provider)
-    : CanvasResource(std::move(provider)),
-      context_provider_wrapper_(std::move(context_provider_wrapper)),
+    : context_provider_wrapper_(std::move(context_provider_wrapper)),
       use_oop_rasterization_(context_provider_wrapper_->ContextProvider()
                                  .GetCapabilities()
                                  .gpu_rasterization),
-      alpha_type_(alpha_type) {
+      alpha_type_(alpha_type),
+      provider_(std::move(provider)) {
   CHECK(context_provider_wrapper_);
 
   // These SharedImages are both read and written by the raster interface (both
@@ -1048,6 +1055,14 @@ CanvasResourceSwapChain::CanvasResourceSwapChain(
       back_buffer_shared_image_->mailbox());
   raster_interface->BeginSharedImageAccessDirectCHROMIUM(
       back_buffer_texture_id_, GL_SHARED_IMAGE_ACCESS_MODE_READWRITE_CHROMIUM);
+}
+
+CanvasResourceProvider* CanvasResourceSwapChain::Provider() {
+  return provider_.get();
+}
+
+base::WeakPtr<CanvasResourceProvider> CanvasResourceSwapChain::WeakProvider() {
+  return provider_;
 }
 
 }  // namespace blink

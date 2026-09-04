@@ -23,6 +23,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/autofill/address_normalizer_factory.h"
+#include "chrome/browser/autofill/android/save_update_address_profile_prompt_mode.h"
 #include "chrome/browser/autofill/autocomplete_history_manager_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_cache_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_executor_factory.h"
@@ -74,6 +75,7 @@
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/autofill/content/browser/content_identity_credential_delegate.h"
+#include "components/autofill/content/browser/integrators/one_time_tokens/content_otp_field_detector.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
@@ -145,6 +147,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/android/preferences/autofill/settings_navigation_helper.h"
 #include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/autofill/android/android_sms_otp_backend_factory.h"
 #include "chrome/browser/fast_checkout/fast_checkout_client_impl.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/signin/android/signin_bridge.h"
@@ -494,12 +497,6 @@ PasswordManagerDelegate* ChromeAutofillClient::GetPasswordManagerDelegate(
   return client ? client->GetAutofillDelegate(field_id) : nullptr;
 }
 
-OtpDelegate* ChromeAutofillClient::GetOtpDelegate() {
-  ChromePasswordManagerClient* client =
-      ChromePasswordManagerClient::FromWebContents(web_contents());
-  return client ? client->GetOtpManager() : nullptr;
-}
-
 void ChromeAutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
   blink::mojom::AIPageContentOptionsPtr extraction_options =
       optimization_guide::DefaultAIPageContentOptions(
@@ -783,7 +780,9 @@ void ChromeAutofillClient::ConfirmSaveAddressProfile(
 #if BUILDFLAG(IS_ANDROID)
   save_update_address_profile_flow_manager_->OfferSave(
       web_contents(), profile, original_profile,
-      save_address_bubble_type == SaveAddressBubbleType::kMigrateToAccount,
+      save_address_bubble_type == SaveAddressBubbleType::kMigrateToAccount
+          ? SaveUpdateAddressProfilePromptMode::kMigrateProfile
+          : SaveUpdateAddressProfilePromptMode::kSaveNewProfile,
       std::move(callback));
 #else
   AddressBubblesController::SetUpAndShowSaveOrUpdateAddressBubble(
@@ -1113,7 +1112,8 @@ ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
               Profile::FromBrowserContext(web_contents->GetBrowserContext()))),
 #endif
       ablation_study_(g_browser_process->local_state()),
-      identity_credential_delegate_(web_contents) {
+      identity_credential_delegate_(web_contents),
+      otp_field_detector_(std::make_unique<ContentOtpFieldDetector>(this)) {
   // Initialize StrikeDatabase so its cache will be loaded and ready to use
   // when requested by other Autofill classes.
   GetStrikeDatabase();
@@ -1176,6 +1176,20 @@ ChromeAutofillClient::GetContentCredentialManager() {
     return chrome_password_manager_client->GetContentCredentialManager();
   }
   return nullptr;
+}
+
+OtpFieldDetector* ChromeAutofillClient::GetOtpFieldDetector() {
+  return otp_field_detector_.get();
+}
+
+one_time_tokens::SmsOtpBackend* ChromeAutofillClient::GetSmsOtpBackend() const {
+#if BUILDFLAG(IS_ANDROID)
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  return AndroidSmsOtpBackendFactory::GetForProfile(profile);
+#else
+  return nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void ChromeAutofillClient::set_test_addresses(

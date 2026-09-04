@@ -13,8 +13,8 @@
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/views/frame/browser_frame.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/caption_button_placeholder_container.h"
 #include "chrome/browser/ui/views/frame/opaque_browser_frame_view_layout.h"
 #include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
@@ -124,10 +124,10 @@ bool HitTestCaptionButton(views::Button* button, const gfx::Point& point) {
 // OpaqueBrowserFrameView, public:
 
 OpaqueBrowserFrameView::OpaqueBrowserFrameView(
-    BrowserFrame* frame,
+    BrowserWidget* frame,
     BrowserView* browser_view,
     OpaqueBrowserFrameViewLayout* layout)
-    : BrowserNonClientFrameView(frame, browser_view),
+    : BrowserFrameView(frame, browser_view),
       layout_(layout),
       window_icon_(nullptr),
       window_title_(nullptr),
@@ -189,19 +189,19 @@ void OpaqueBrowserFrameView::InitViews() {
   }
   InitWindowCaptionButton(
       minimize_button_,
-      base::BindRepeating(&BrowserFrame::Minimize, base::Unretained(frame())),
+      base::BindRepeating(&BrowserWidget::Minimize, base::Unretained(frame())),
       IDS_ACCNAME_MINIMIZE, VIEW_ID_MINIMIZE_BUTTON);
   InitWindowCaptionButton(
       maximize_button_,
-      base::BindRepeating(&BrowserFrame::Maximize, base::Unretained(frame())),
+      base::BindRepeating(&BrowserWidget::Maximize, base::Unretained(frame())),
       IDS_ACCNAME_MAXIMIZE, VIEW_ID_MAXIMIZE_BUTTON);
   InitWindowCaptionButton(
       restore_button_,
-      base::BindRepeating(&BrowserFrame::Restore, base::Unretained(frame())),
+      base::BindRepeating(&BrowserWidget::Restore, base::Unretained(frame())),
       IDS_ACCNAME_RESTORE, VIEW_ID_RESTORE_BUTTON);
   InitWindowCaptionButton(
       close_button_,
-      base::BindRepeating(&BrowserFrame::CloseWithReason,
+      base::BindRepeating(&BrowserWidget::CloseWithReason,
                           base::Unretained(frame()),
                           views::Widget::ClosedReason::kCloseButtonClicked),
       IDS_ACCNAME_CLOSE, VIEW_ID_CLOSE_BUTTON);
@@ -240,7 +240,7 @@ void OpaqueBrowserFrameView::InitViews() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// OpaqueBrowserFrameView, BrowserNonClientFrameView implementation:
+// OpaqueBrowserFrameView, BrowserFrameView implementation:
 
 gfx::Rect OpaqueBrowserFrameView::GetBoundsForTabStripRegion(
     const gfx::Size& tabstrip_minimum_size) const {
@@ -287,12 +287,12 @@ gfx::Size OpaqueBrowserFrameView::GetMinimumSize() const {
 
 void OpaqueBrowserFrameView::PaintAsActiveChanged() {
   UpdateCaptionButtonPlaceholderContainerBackground();
-  BrowserNonClientFrameView::PaintAsActiveChanged();
+  BrowserFrameView::PaintAsActiveChanged();
 }
 
 void OpaqueBrowserFrameView::OnThemeChanged() {
   UpdateCaptionButtonPlaceholderContainerBackground();
-  BrowserNonClientFrameView::OnThemeChanged();
+  BrowserFrameView::OnThemeChanged();
 }
 ///////////////////////////////////////////////////////////////////////////////
 // OpaqueBrowserFrameView, views::NonClientFrameView implementation:
@@ -307,7 +307,7 @@ gfx::Rect OpaqueBrowserFrameView::GetWindowBoundsForClientBounds(
 }
 
 int OpaqueBrowserFrameView::NonClientHitTest(const gfx::Point& point) {
-  int super_component = BrowserNonClientFrameView::NonClientHitTest(point);
+  int super_component = BrowserFrameView::NonClientHitTest(point);
   if (super_component != HTNOWHERE) {
     return super_component;
   }
@@ -406,7 +406,7 @@ void OpaqueBrowserFrameView::GetWindowMask(const gfx::Size& size,
 }
 
 void OpaqueBrowserFrameView::ResetWindowControls() {
-  BrowserNonClientFrameView::ResetWindowControls();
+  BrowserFrameView::ResetWindowControls();
   restore_button_->SetState(views::Button::STATE_NORMAL);
   minimize_button_->SetState(views::Button::STATE_NORMAL);
   maximize_button_->SetState(views::Button::STATE_NORMAL);
@@ -556,12 +556,11 @@ bool OpaqueBrowserFrameView::UseCustomFrame() const {
 }
 
 bool OpaqueBrowserFrameView::IsFrameCondensed() const {
-  return BrowserNonClientFrameView::IsFrameCondensed() ||
-         !ShouldShowCaptionButtons();
+  return BrowserFrameView::IsFrameCondensed() || !ShouldShowCaptionButtons();
 }
 
 bool OpaqueBrowserFrameView::EverHasVisibleBackgroundTabShapes() const {
-  return BrowserNonClientFrameView::EverHasVisibleBackgroundTabShapes();
+  return BrowserFrameView::EverHasVisibleBackgroundTabShapes();
 }
 
 OpaqueBrowserFrameView::FrameButtonStyle

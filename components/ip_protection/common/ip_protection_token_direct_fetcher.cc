@@ -16,12 +16,14 @@
 #include "base/functional/bind.h"
 #include "base/hash/hash.h"
 #include "base/notreached.h"
+#include "base/rand_util.h"
 #include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "base/trace_event/builtin_categories.h"
 #include "base/trace_event/named_trigger.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
@@ -45,8 +47,6 @@ IpProtectionTokenDirectFetcher::SequenceBoundFetch::SequenceBoundFetch(
   CHECK(pending_url_loader_factory);
   url_loader_factory_ = network::SharedURLLoaderFactory::Create(
       std::move(pending_url_loader_factory));
-  ip_protection_config_http_ =
-      std::make_unique<IpProtectionConfigHttp>(url_loader_factory_.get());
 
   if (blind_sign_auth_for_testing) {
     blind_sign_auth_ = std::move(blind_sign_auth_for_testing);
@@ -56,7 +56,8 @@ IpProtectionTokenDirectFetcher::SequenceBoundFetch::SequenceBoundFetch(
   bsa_options.set_enable_privacy_pass(true);
 
   blind_sign_auth_ = std::make_unique<quiche::BlindSignAuth>(
-      ip_protection_config_http_.get(), std::move(bsa_options));
+      std::make_unique<IpProtectionConfigHttp>(url_loader_factory_.get()),
+      std::move(bsa_options));
 }
 
 IpProtectionTokenDirectFetcher::SequenceBoundFetch::~SequenceBoundFetch() =
@@ -335,6 +336,10 @@ std::optional<base::TimeDelta> IpProtectionTokenDirectFetcher::CalculateBackoff(
   last_try_get_auth_tokens_result_ = result;
   last_try_get_auth_tokens_backoff_ = backoff;
 
+  if (backoff && backoff != base::TimeDelta::Max()) {
+    return base::RandomizeByPercentage(
+        *backoff, net::features::kIpPrivacyBackoffJitter.Get() * 100);
+  }
   return backoff;
 }
 

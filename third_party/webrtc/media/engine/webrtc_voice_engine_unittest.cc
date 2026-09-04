@@ -2365,7 +2365,8 @@ TEST_P(WebRtcVoiceEngineTestFake, SetSendCodecsCaseInsensitive) {
 TEST_P(WebRtcVoiceEngineTestFake,
        SupportsTransportSequenceNumberHeaderExtension) {
   const std::vector<webrtc::RtpExtension> header_extensions =
-      webrtc::GetDefaultEnabledRtpHeaderExtensions(*engine_);
+      webrtc::GetDefaultEnabledRtpHeaderExtensions(*engine_,
+                                                   /* field_trials= */ nullptr);
   EXPECT_THAT(header_extensions,
               Contains(::testing::Field(
                   "uri", &webrtc::RtpExtension::uri,
@@ -3603,7 +3604,8 @@ TEST_P(WebRtcVoiceEngineTestFake, ConfiguresAudioReceiveStreamRtpExtensions) {
 
   // Set up receive extensions.
   const std::vector<webrtc::RtpExtension> header_extensions =
-      webrtc::GetDefaultEnabledRtpHeaderExtensions(*engine_);
+      webrtc::GetDefaultEnabledRtpHeaderExtensions(*engine_,
+                                                   /* field_trials= */ nullptr);
   webrtc::AudioReceiverParameters recv_parameters;
   recv_parameters.extensions = header_extensions;
   receive_channel_->SetReceiverParameters(recv_parameters);

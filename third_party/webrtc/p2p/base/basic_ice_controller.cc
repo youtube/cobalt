@@ -22,6 +22,8 @@
 #include "absl/algorithm/container.h"
 #include "api/candidate.h"
 #include "api/transport/enums.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/ice_controller_factory_interface.h"
@@ -36,7 +38,6 @@
 #include "rtc_base/net_helper.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network_constants.h"
-#include "rtc_base/time_utils.h"
 
 namespace {
 
@@ -86,7 +87,8 @@ int CompareCandidatePairsByNetworkPreference(
 namespace webrtc {
 
 BasicIceController::BasicIceController(const IceControllerFactoryArgs& args)
-    : ice_transport_state_func_(args.ice_transport_state_func),
+    : env_(args.env),
+      ice_transport_state_func_(args.ice_transport_state_func),
       ice_role_func_(args.ice_role_func),
       is_connection_pruned_func_(args.is_connection_pruned_func),
       field_trials_(args.ice_field_trials) {}
@@ -116,14 +118,14 @@ void BasicIceController::OnConnectionDestroyed(const Connection* connection) {
 }
 
 bool BasicIceController::HasPingableConnection() const {
-  int64_t now = TimeMillis();
+  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
   return absl::c_any_of(connections_, [this, now](const Connection* c) {
     return IsPingable(c, now);
   });
 }
 
-IceControllerInterface::PingResult BasicIceController::SelectConnectionToPing(
-    int64_t last_ping_sent_ms) {
+IceControllerInterface::PingResult BasicIceController::GetConnectionToPing(
+    Timestamp last_ping_sent) {
   // When the selected connection is not receiving or not writable, or any
   // active connection has not been pinged enough times, use the weak ping
   // interval.
@@ -137,7 +139,8 @@ IceControllerInterface::PingResult BasicIceController::SelectConnectionToPing(
                                 : strong_ping_interval();
 
   const Connection* conn = nullptr;
-  if (TimeMillis() >= last_ping_sent_ms + ping_interval.ms()) {
+  if (Connection::AlignTime(env_.clock().CurrentTime()) >=
+      last_ping_sent + ping_interval) {
     conn = FindNextPingableConnection();
   }
   return PingResult(conn, std::min(ping_interval, check_receiving_interval()));
@@ -151,7 +154,7 @@ void BasicIceController::MarkConnectionPinged(const Connection* conn) {
 
 // Returns the next pingable connection to ping.
 const Connection* BasicIceController::FindNextPingableConnection() {
-  int64_t now = TimeMillis();
+  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
 
   // Rule 1: Selected connection takes priority over non-selected ones.
   if (selected_connection_ && selected_connection_->connected() &&
@@ -237,7 +240,7 @@ const Connection* BasicIceController::FindNextPingableConnection() {
 // (last_ping_received > last_ping_sent).  But we shouldn't do
 // triggered checks if the connection is already writable.
 const Connection* BasicIceController::FindOldestConnectionNeedingTriggeredCheck(
-    int64_t now) {
+    Timestamp now) {
   const Connection* oldest_needing_triggered_check = nullptr;
   for (auto* conn : connections_) {
     if (!IsPingable(conn, now)) {
@@ -263,14 +266,14 @@ const Connection* BasicIceController::FindOldestConnectionNeedingTriggeredCheck(
 
 bool BasicIceController::WritableConnectionPastPingInterval(
     const Connection* conn,
-    int64_t now) const {
+    Timestamp now) const {
   TimeDelta interval = CalculateActiveWritablePingInterval(conn, now);
-  return conn->LastPingSent() + interval <= Timestamp::Millis(now);
+  return conn->LastPingSent() + interval <= now;
 }
 
 TimeDelta BasicIceController::CalculateActiveWritablePingInterval(
     const Connection* conn,
-    int64_t now) const {
+    Timestamp now) const {
   // Ping each connection at a higher rate at least
   // kMinPingsAtWeakPingInterval times.
   if (conn->num_pings_sent() < kMinPingsAtWeakPingInterval) {
@@ -290,7 +293,8 @@ TimeDelta BasicIceController::CalculateActiveWritablePingInterval(
 // Is the connection in a state for us to even consider pinging the other side?
 // We consider a connection pingable even if it's not connected because that's
 // how a TCP connection is kicked into reconnecting on the active side.
-bool BasicIceController::IsPingable(const Connection* conn, int64_t now) const {
+bool BasicIceController::IsPingable(const Connection* conn,
+                                    Timestamp now) const {
   const Candidate& remote = conn->remote_candidate();
   // We should never get this far with an empty remote ufrag.
   RTC_DCHECK(!remote.username().empty());
@@ -326,9 +330,8 @@ bool BasicIceController::IsPingable(const Connection* conn, int64_t now) const {
   // or not, but backup connections are pinged at a slower rate.
   if (IsBackupConnection(conn)) {
     return conn->rtt_samples() == 0 ||
-           (now >=
-            conn->last_ping_response_received() +
-                config_.backup_connection_ping_interval_or_default().ms());
+           (now >= conn->LastPingResponseReceived() +
+                       config_.backup_connection_ping_interval_or_default());
   }
   // Don't ping inactive non-backup connections.
   if (!conn->active()) {
@@ -452,7 +455,7 @@ BasicIceController::HandleInitialSelectDampening(
     return {.connection = new_connection};
   }
 
-  int64_t now = TimeMillis();
+  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
   int64_t max_delay = 0;
   if (new_connection->last_ping_received() > 0 &&
       field_trials_->initial_select_dampening_ping_received.has_value()) {
@@ -461,26 +464,24 @@ BasicIceController::HandleInitialSelectDampening(
     max_delay = *field_trials_->initial_select_dampening;
   }
 
-  int64_t start_wait =
-      initial_select_timestamp_ms_ == 0 ? now : initial_select_timestamp_ms_;
-  int64_t max_wait_until = start_wait + max_delay;
+  Timestamp start_wait = initial_select_timestamp_.value_or(now);
+  Timestamp max_wait_until = start_wait + TimeDelta::Millis(max_delay);
 
   if (now >= max_wait_until) {
     RTC_LOG(LS_INFO) << "reset initial_select_timestamp_ = "
-                     << initial_select_timestamp_ms_
-                     << " selection delayed by: " << (now - start_wait) << "ms";
-    initial_select_timestamp_ms_ = 0;
+                     << initial_select_timestamp_.value_or(Timestamp::Zero())
+                     << " selection delayed by: " << (now - start_wait);
+    initial_select_timestamp_ = std::nullopt;
     return {.connection = new_connection};
   }
 
   // We are not yet ready to select first connection...
-  if (initial_select_timestamp_ms_ == 0) {
+  if (!initial_select_timestamp_.has_value()) {
     // Set timestamp on first time...
     // but run the delayed invokation everytime to
     // avoid possibility that we miss it.
-    initial_select_timestamp_ms_ = now;
-    RTC_LOG(LS_INFO) << "set initial_select_timestamp_ms_ = "
-                     << initial_select_timestamp_ms_;
+    initial_select_timestamp_ = now;
+    RTC_LOG(LS_INFO) << "set initial_select_timestamp_ = " << now;
   }
 
   int min_delay = max_delay;
@@ -518,8 +519,12 @@ IceControllerInterface::SwitchResult BasicIceController::ShouldSwitchConnection(
   }
 
   bool missed_receiving_unchanged_threshold = false;
-  std::optional<int64_t> receiving_unchanged_threshold(
-      TimeMillis() - config_.receiving_switching_delay_or_default().ms());
+  // TODO: bugs.webrtc.org/42223979 - consider switching threshold to
+  // Timestamp type, but beware of subtracting that may lead to negative
+  // Timestamp that DCHECKs
+  std::optional<int64_t> receiving_unchanged_threshold =
+      Connection::AlignTime(env_.clock().CurrentTime()).ms() -
+      config_.receiving_switching_delay_or_default().ms();
   int cmp = CompareConnections(selected_connection_, new_connection,
                                receiving_unchanged_threshold,
                                &missed_receiving_unchanged_threshold);

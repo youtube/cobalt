@@ -7,13 +7,12 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "components/viz/test/test_context_provider.h"
-#include "components/viz/test/test_gles2_interface.h"
+#include "components/viz/test/test_raster_interface.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/viz/public/mojom/hit_test/hit_test_region_list.mojom-blink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/common/fingerprinting_protection/canvas_noise_token.h"
 #include "third_party/blink/public/mojom/frame_sinks/embedded_frame_sink.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -147,7 +146,6 @@ TEST_F(HTMLCanvasElementModuleTest,
 }
 
 TEST_F(HTMLCanvasElementModuleTest, CanvasNoisedAfterTransferToOffscreen) {
-  CanvasNoiseToken::Set(0x1234567890123456);
   V8TestingScope scope;
   NonThrowableExceptionState exception_state;
   ScopedTestingPlatformSupport<GpuMemoryBufferTestPlatform> platform;
@@ -175,15 +173,10 @@ TEST_F(HTMLCanvasElementModuleTest, CanvasNoisedAfterTransferToOffscreen) {
       /*resources=*/{});
   test::RunPendingTasks();
 
-  GetWindow()
-      ->GetRuntimeFeatureStateOverrideContext()
-      ->SetCanvasInterventionsForceDisabled();
   String data_url_no_interventions =
       canvas_element().toDataURL("image/png", exception_state);
-  GetWindow()
-      ->GetRuntimeFeatureStateOverrideContext()
-      ->SetCanvasInterventionsForceEnabled();
-  GetDocument().GetExecutionContext()->SetCanvasNoiseToken(0x1234567890123456);
+  GetDocument().GetExecutionContext()->SetCanvasNoiseToken(
+      NoiseToken(0x1234567890123456));
   String data_url_with_interventions =
       canvas_element().toDataURL("image/png", exception_state);
   EXPECT_NE(data_url_no_interventions, data_url_with_interventions);
@@ -202,16 +195,17 @@ TEST_P(HTMLCanvasElementModuleTest, LowLatencyCanvasCompositorFrameOpacity) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(features::kLowLatencyCanvas2dImageChromium);
 
-  auto context_provider = viz::TestContextProvider::Create();
+  auto context_provider = viz::TestContextProvider::CreateRaster();
 #if SK_PMCOLOR_BYTE_ORDER(B, G, R, A)
   constexpr auto buffer_format = gfx::BufferFormat::BGRA_8888;
 #elif SK_PMCOLOR_BYTE_ORDER(R, G, B, A)
   constexpr auto buffer_format = gfx::BufferFormat::RGBA_8888;
 #endif
 
-  context_provider->UnboundTestContextGL()
+  context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
+  context_provider->UnboundTestRasterInterface()
       ->set_supports_gpu_memory_buffer_format(buffer_format, true);
-  InitializeSharedGpuContextGLES2(context_provider.get());
+  InitializeSharedGpuContextRaster(context_provider.get());
 
   // To intercept SubmitCompositorFrame messages sent by a canvas's
   // CanvasResourceDispatcher, we have to override the Mojo

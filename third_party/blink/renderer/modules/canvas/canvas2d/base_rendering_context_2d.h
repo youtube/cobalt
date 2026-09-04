@@ -230,9 +230,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
       SourceDrawingBuffer source_buffer,
       FlushReason reason) final;
 
-  void SetTryRestoreContextIntervalForTesting(base::TimeDelta delay) {
-    try_restore_context_interval_ = delay;
-  }
   void SetRestoreFailedCallbackForTesting(base::RepeatingClosure callback) {
     on_restore_failed_callback_for_testing_ = std::move(callback);
   }
@@ -318,7 +315,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
 #endif
   Canvas2DColorParams color_params_;
   bool need_dispatch_context_restored_ = false;
-  base::TimeDelta try_restore_context_interval_ = kTryRestoreContextInterval;
   base::RepeatingClosure on_restore_failed_callback_for_testing_;
 };
 

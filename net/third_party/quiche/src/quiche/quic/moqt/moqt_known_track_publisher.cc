@@ -6,19 +6,18 @@
 
 #include <memory>
 
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
+#include "absl/base/nullability.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace moqt {
 
-absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>>
+absl_nullable std::shared_ptr<MoqtTrackPublisher>
 MoqtKnownTrackPublisher::GetTrack(const FullTrackName& track_name) {
   auto it = tracks_.find(track_name);
   if (it == tracks_.end()) {
-    return absl::NotFoundError("Requested track not found");
+    return nullptr;
   }
   return it->second;
 }

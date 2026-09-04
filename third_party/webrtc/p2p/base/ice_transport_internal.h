@@ -22,10 +22,10 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
-#include "api/field_trials_view.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/transport/enums.h"
+#include "api/units/time_delta.h"
 #include "p2p/base/candidate_pair_interface.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
@@ -352,11 +352,9 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   void RemoveGatheringStateCallback(const void* removal_tag);
 
   // Handles sending and receiving of candidates.
-  sigslot::signal2<IceTransportInternal*, const Candidate&>
-      SignalCandidateGathered;
   void NotifyCandidateGathered(IceTransportInternal* transport,
                                const Candidate& candidate) {
-    SignalCandidateGathered(transport, candidate);
+    candidate_gathered_callbacks_.Send(transport, candidate);
   }
   void SubscribeCandidateGathered(
       absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
@@ -438,8 +436,6 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
     dictionary_writer_synced_callback_list_.RemoveReceivers(tag);
   }
 
-  virtual const FieldTrialsView* field_trials() const { return nullptr; }
-
   virtual void ResetDtlsStunPiggybackCallbacks() {}
   virtual void SetDtlsStunPiggybackCallbacks(
       DtlsStunPiggybackCallbacks&& callbacks) {}
@@ -466,9 +462,8 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
       candidate_pair_change_callback_;
 
  private:
-  SignalTrampoline<IceTransportInternal,
-                   &IceTransportInternal::SignalCandidateGathered>
-      candidate_gathered_trampoline_;
+  CallbackList<IceTransportInternal*, const Candidate&>
+      candidate_gathered_callbacks_;
   SignalTrampoline<IceTransportInternal,
                    &IceTransportInternal::SignalRoleConflict>
       role_conflict_trampoline_;

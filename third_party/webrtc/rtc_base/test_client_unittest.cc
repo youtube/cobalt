@@ -65,7 +65,7 @@ void TestTcpInternal(const SocketAddress& loopback) {
   const Environment env = CreateTestEnvironment();
   PhysicalSocketServer socket_server;
   AutoSocketServerThread main_thread(&socket_server);
-  TestEchoServer server(&main_thread, loopback);
+  TestEchoServer server(env, &main_thread, loopback);
 
   std::unique_ptr<Socket> socket =
       socket_server.Create(loopback.family(), SOCK_STREAM);

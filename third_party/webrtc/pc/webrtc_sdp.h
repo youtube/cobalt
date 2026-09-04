@@ -51,18 +51,6 @@ std::string SdpSerializeCandidate(const IceCandidate& candidate);
 // candidate - The candidate to be serialized.
 RTC_EXPORT std::string SdpSerializeCandidate(const Candidate& candidate);
 
-// Deserializes the passed in SDP string to a JsepSessionDescription.
-// message - SDP string to be Deserialized.
-// jdesc - The JsepSessionDescription deserialized from the SDP string.
-// error - The detail error information when parsing fails.
-// return - true on success, false on failure.
-[[deprecated(
-    "Instead, use the SdpDeserialize() method that requires an SdpType and "
-    "returns std::unique_ptr<SessionDescriptionInterface>.")]]
-bool SdpDeserialize(absl::string_view message,
-                    JsepSessionDescription* jdesc,
-                    SdpParseError* error);
-
 // Deserializes the `sdp` to construct a SessionDescriptionInterface object.
 // sdp_type - The type of session description object that should be constructed.
 // sdp - The SDP string to be Deserialized.
@@ -72,21 +60,6 @@ absl_nullable std::unique_ptr<SessionDescriptionInterface> SdpDeserialize(
     SdpType sdp_type,
     absl::string_view sdp,
     SdpParseError* absl_nullable error = nullptr);
-
-// Deserializes the passed in SDP string to a cricket Candidate.
-// The first line must be a=candidate line and only the first line will be
-// parsed.
-// transport_name - The transport name (MID) of the candidate.
-// message - The SDP string to be deserialized.
-// candidate - The cricket Candidate from the SDP string.
-// error - The detail error information when parsing fails.
-// return - true on success, false on failure.
-// TODO(bugs.webrtc.org/42233526): Remove.
-[[deprecated("Use IceCandidate::Create instead.")]]
-RTC_EXPORT bool SdpDeserializeCandidate(absl::string_view transport_name,
-                                        absl::string_view message,
-                                        Candidate* candidate,
-                                        SdpParseError* error);
 
 // Parses `message` according to the grammar defined in RFC 5245, Section 15.1
 // and, if successful, stores the result in `candidate` and returns true.

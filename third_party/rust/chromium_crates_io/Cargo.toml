@@ -121,10 +121,11 @@ version = "2"
 features = ["full"]
 
 [dependencies.temporal_capi]
-version = "0.0.13"
-features = ["compiled_data"]
+version = "0.0.16"
+features = ["zoneinfo64"]
 
 [dependencies.zip]
 version = "4.1.0"
 default-features = false
 features = ["deflate-flate2"]
+

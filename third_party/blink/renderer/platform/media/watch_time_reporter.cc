@@ -10,6 +10,7 @@
 #include "base/power_monitor/power_monitor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/timestamp_constants.h"
 #include "media/base/watch_time_keys.h"
@@ -612,10 +613,26 @@ WatchTimeReporter::CreateBaseComponent() {
     }
   }
 
-  if (properties_->is_mse)
-    keys_to_finalize.emplace_back(NORMAL_KEY(Mse));
-  else
-    keys_to_finalize.emplace_back(NORMAL_KEY(Src));
+  switch (properties_->demuxer_type) {
+    case media::DemuxerType::kMockDemuxer:
+    case media::DemuxerType::kUnknownDemuxer:
+      // Testing demuxers, do nothing.
+      break;
+    case media::DemuxerType::kChunkDemuxer:
+      keys_to_finalize.emplace_back(NORMAL_KEY(Mse));
+      break;
+    case media::DemuxerType::kFFmpegDemuxer:
+    case media::DemuxerType::kFrameInjectingDemuxer:
+    case media::DemuxerType::kStreamProviderDemuxer:
+      keys_to_finalize.emplace_back(NORMAL_KEY(Src));
+      break;
+    case media::DemuxerType::kManifestDemuxer:
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    case media::DemuxerType::kUrlPlayerDemuxer:
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+      keys_to_finalize.emplace_back(NORMAL_KEY(Hls));
+      break;
+  }
 
   if (properties_->is_eme)
     keys_to_finalize.emplace_back(NORMAL_KEY(Eme));

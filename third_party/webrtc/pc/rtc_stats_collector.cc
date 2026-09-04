@@ -1754,7 +1754,10 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
     if (!voice_receiver_info.connected()) {
       continue;  // The SSRC is not known yet.
     }
-    if (spec_lifetime && voice_receiver_info.packets_received == 0) {
+    // Check both packets received and samples received to handle the Insertable
+    // Streams use case of receiving media without receiving packets.
+    if (spec_lifetime && voice_receiver_info.packets_received == 0 &&
+        voice_receiver_info.total_samples_received == 0) {
       // The SSRC is known despite not receiving any packets. This happens if
       // SSRC is signalled in the SDP which we should not rely on for getStats.
       continue;
@@ -1868,7 +1871,10 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
     if (!video_receiver_info.connected()) {
       continue;  // The SSRC is not known yet.
     }
-    if (spec_lifetime && video_receiver_info.packets_received == 0) {
+    // Check both packets received and frames received to handle the Insertable
+    // Streams use case of receiving media without receiving packets.
+    if (spec_lifetime && video_receiver_info.packets_received == 0 &&
+        video_receiver_info.frames_received == 0) {
       // The SSRC is known despite not receiving any packets. This happens if
       // SSRC is signalled in the SDP which we should not rely on for getStats.
       continue;

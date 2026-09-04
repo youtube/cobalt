@@ -27,6 +27,7 @@
 <translation id="1082554859195167538">추천 제품 리뷰</translation>
 <translation id="1084365883616172403">Facebook 게시가 완료되었습니다.</translation>
 <translation id="1085677983426914530"><ph name="FILENAME" /> 파일을 열 수 없습니다</translation>
+<translation id="1086486568852410168">Google 렌즈로 검색</translation>
 <translation id="1096992026380844478">마지막 백업에 따라 동기화 설정이 복원됩니다. <ph name="BEGIN_LINK" />동기화할 수 있는 항목 확인하기<ph name="END_LINK" /></translation>
 <translation id="1103523840287552314"><ph name="LANGUAGE" /> 항상 번역</translation>
 <translation id="110491332089958282">더 관련성 높은 대답을 얻으려면 Gemini와 페이지 콘텐츠를 공유하세요. Gemini와 페이지를 공유하면 페이지의 전체 콘텐츠와 URL이 Google로 전송됩니다. <ph name="BEGIN_LINK" />자세히 알아보기<ph name="END_LINK" /></translation>
@@ -647,7 +648,6 @@ Google이 아닌 다른 검색엔진을 사용 중이라면 해당 검색엔진�
 <translation id="3530206579861815432">동기화된 기기에서 열려 있는 탭과 최근에 닫은 탭을 빠르게 찾습니다</translation>
 <translation id="3530767473765895035">이 기기에서 계정 관리…</translation>
 <translation id="3533436815740441613">새 탭</translation>
-<translation id="3533860663366814939">자동 완성 및 비밀번호 설정 열기</translation>
 <translation id="3540141921715814660">북마크에 추가</translation>
 <translation id="3546122170015471515">Google.com에서 지도 미리보기</translation>
 <translation id="3547356470684043247">결정을 내리는 데 도움이 되도록 리뷰를 통해 제품, 서비스 또는 경험에 대한 고객 평가 읽기</translation>
@@ -681,6 +681,7 @@ Google이 아닌 다른 검색엔진을 사용 중이라면 해당 검색엔진�
 <translation id="3695446226812920698">자세히 알아보기</translation>
 <translation id="3700134753671613714">로그인하면 어느 기기에서나 내 북마크를 사용할 수 있습니다.</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{비밀번호 {COUNT}개가 이 기기에만 저장됩니다. 다른 기기에서 사용하려면 Google 계정({EMAIL})에 저장하세요.}other{비밀번호 {COUNT}개가 이 기기에만 저장됩니다. 다른 기기에서 사용하려면 Google 계정({EMAIL})에 저장하세요.}}</translation>
+<translation id="3709621342136814217">여기에서 글꼴, 텍스트 크기 등을 선택하세요</translation>
 <translation id="371230970611282515">위험한 이벤트가 발생하기 전에 이를 예측하여 알립니다.</translation>
 <translation id="372115889256123713">캐시된 파일</translation>
 <translation id="3725081662140949903">다른 사람이 내 비밀번호를 사용하지 못하도록 하려면 <ph name="APP" /> 앱을 열어 비밀번호를 변경하세요.</translation>

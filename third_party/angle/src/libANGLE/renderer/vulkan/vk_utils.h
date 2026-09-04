@@ -125,7 +125,7 @@ enum class BufferUsageType
 
 // A maximum offset of 4096 covers almost every Vulkan driver on desktop (80%) and mobile (99%). The
 // next highest values to meet native drivers are 16 bits or 32 bits.
-constexpr uint32_t kAttributeOffsetMaxBits = 15;
+constexpr uint32_t kAttributeOffsetMaxBits = 16;
 constexpr uint32_t kInvalidMemoryTypeIndex = UINT32_MAX;
 constexpr uint32_t kInvalidMemoryHeapIndex = UINT32_MAX;
 
@@ -1396,6 +1396,41 @@ angle::Result SetDebugUtilsObjectName(ContextVk *contextVk,
                                       uint64_t handle,
                                       const std::string &label);
 
+// This defines enum for VkPipelineStageFlagBits so that we can use it to compare and index into
+// array.
+enum class PipelineStage : uint32_t
+{
+    // Bellow are ordered based on Graphics Pipeline Stages
+    TopOfPipe              = 0,
+    DrawIndirect           = 1,
+    VertexInput            = 2,
+    VertexShader           = 3,
+    TessellationControl    = 4,
+    TessellationEvaluation = 5,
+    GeometryShader         = 6,
+    TransformFeedback      = 7,
+    FragmentShadingRate    = 8,
+    EarlyFragmentTest      = 9,
+    FragmentShader         = 10,
+    LateFragmentTest       = 11,
+    ColorAttachmentOutput  = 12,
+
+    // Compute specific pipeline Stage
+    ComputeShader = 13,
+
+    // Transfer specific pipeline Stage
+    Transfer     = 14,
+    BottomOfPipe = 15,
+
+    // Host specific pipeline stage
+    Host = 16,
+
+    InvalidEnum = 17,
+    EnumCount   = InvalidEnum,
+};
+using PipelineStagesMask = angle::PackedEnumBitSet<PipelineStage, uint32_t>;
+
+PipelineStage GetPipelineStage(gl::ShaderType stage);
 }  // namespace vk
 
 #if !defined(ANGLE_SHARED_LIBVULKAN)
@@ -1468,6 +1503,9 @@ void InitExternalMemoryFdFunctions(VkDevice device);
 
 // VK_EXT_external_memory_host
 void InitExternalMemoryHostFunctions(VkDevice device);
+
+// VK_KHR_buffer_device_address
+void InitBufferDeviceAddressFunctions(VkDevice device);
 
 #endif  // !defined(ANGLE_SHARED_LIBVULKAN)
 

@@ -160,13 +160,14 @@ struct JSBuiltinDispatchHandleRoot {
   V(BuiltinEntryTable, Builtins::kBuiltinCount* kSystemPointerSize,            \
     builtin_entry_table)                                                       \
   V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)  \
-  V(ActiveStack, kSystemPointerSize, active_stack)                             \
-  V(ActiveSuspender, kSystemPointerSize, active_suspender)                     \
+  IF_WASM(V, ActiveStack, kSystemPointerSize, active_stack)                    \
+  IF_WASM(V, ActiveSuspender, kSystemPointerSize, active_suspender)            \
   V(DateCacheStamp, kInt32Size, date_cache_stamp)                              \
   V(IsDateCacheUsed, kUInt8Size, is_date_cache_used)                           \
   /* This padding aligns next field to kDoubleSize bytes. */                   \
   PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
+  V(StressDeoptCount, kUInt64Size, stress_deopt_count)                         \
   ISOLATE_DATA_FIELDS_LEAPTIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -352,10 +353,14 @@ class IsolateData final {
   ThreadLocalTop const& thread_local_top() const { return thread_local_top_; }
   Address* builtin_entry_table() { return builtin_entry_table_; }
   Address* builtin_table() { return builtin_table_; }
+#if V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory* active_stack() { return active_stack_; }
   void set_active_stack(wasm::StackMemory* stack) { active_stack_ = stack; }
-  Tagged<Object> active_suspender() { return active_suspender_; }
-  void set_active_suspender(Tagged<Object> v) { active_suspender_ = v; }
+  Tagged<WasmSuspenderObject> active_suspender() { return active_suspender_; }
+  void set_active_suspender(Tagged<WasmSuspenderObject> v) {
+    active_suspender_ = v;
+  }
+#endif
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   JSDispatchHandle builtin_dispatch_handle(Builtin builtin) {
     return builtin_dispatch_table_[JSBuiltinDispatchHandleRoot::to_idx(
@@ -578,8 +583,10 @@ class IsolateData final {
   // The entries in this array are tagged pointers to Code objects.
   Address builtin_table_[Builtins::kBuiltinCount] = {};
 
+#if V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory* active_stack_ = nullptr;
-  Tagged<Object> active_suspender_ = Smi::zero();
+  Tagged<WasmSuspenderObject> active_suspender_;
+#endif
 
   // Stamp value which is increased on every
   // v8::Isolate::DateTimeConfigurationChangeNotification(..).
@@ -595,6 +602,9 @@ class IsolateData final {
   struct RawArgument {
     uint8_t storage_[kDoubleSize];
   } raw_arguments_[2] = {};
+
+  // Counts deopt points if deopt_every_n_times is enabled.
+  uint64_t stress_deopt_count_ = 0;
 
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.

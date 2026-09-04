@@ -25,7 +25,6 @@
 #include "rtc_base/gunit.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -172,14 +171,14 @@ TEST_F(StunRequestTest, TestBackoff) {
   std::unique_ptr<StunMessage> res =
       request->CreateResponseMessage(STUN_BINDING_RESPONSE);
 
-  int64_t start = TimeMillis();
+  int64_t start = env_.clock().TimeInMilliseconds();
   manager_.Send(std::move(request));
   for (int i = 0; i < 9; ++i) {
     EXPECT_THAT(WaitUntil([&] { return request_count_; }, Ne(i),
                           {.timeout = TimeDelta::Millis(STUN_TOTAL_TIMEOUT),
                            .clock = &fake_clock}),
                 IsRtcOk());
-    int64_t elapsed = TimeMillis() - start;
+    int64_t elapsed = env_.clock().TimeInMilliseconds() - start;
     RTC_DLOG(LS_INFO) << "STUN request #" << (i + 1) << " sent at " << elapsed
                       << " ms";
     EXPECT_EQ(TotalDelay(i), elapsed);

@@ -27,7 +27,6 @@
 #include "api/call/transport.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
@@ -44,6 +43,7 @@
 #include "call/rtp_transport_controller_send.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -81,9 +81,8 @@ class ChannelSendTest : public ::testing::Test {
   ChannelSendTest()
       : time_controller_(Timestamp::Seconds(1)),
         field_trials_(CreateTestFieldTrials()),
-        env_(CreateEnvironment(&field_trials_,
-                               time_controller_.GetClock(),
-                               time_controller_.CreateTaskQueueFactory())),
+        env_(CreateTestEnvironment(
+            {.field_trials = &field_trials_, .time = &time_controller_})),
         transport_controller_(
             RtpTransportConfig{.env = env_,
                                .bitrate_config = GetBitrateConfig()}) {

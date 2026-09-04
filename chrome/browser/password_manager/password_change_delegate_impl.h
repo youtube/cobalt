@@ -14,7 +14,6 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "chrome/browser/password_manager/password_change_delegate.h"
-#include "components/password_manager/core/browser/one_time_passwords/otp_manager.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -37,13 +36,11 @@ class ModelQualityLogsUploader;
 class PasswordChangeUIController;
 class PasswordChangeHats;
 class Profile;
-class OtpDetectionHelper;
 
 // This class controls password change process including acceptance of privacy
 // notice, opening of a new tab, navigation to the change password url, password
 // generation and form submission.
-class PasswordChangeDelegateImpl : public PasswordChangeDelegate,
-                                   password_manager::OtpManager::Observer {
+class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
  public:
   static constexpr char kFinalPasswordChangeStatusHistogram[] =
       "PasswordManager.FinalPasswordChangeStatus";
@@ -64,7 +61,6 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate,
 
 #if defined(UNIT_TEST)
   ModelQualityLogsUploader* logs_uploader() { return logs_uploader_.get(); }
-  OtpDetectionHelper* otp_helper() { return otp_detection_.get(); }
   LoginStateChecker* login_checker() { return login_state_checker_.get(); }
   ChangePasswordFormFinder* form_finder() { return form_finder_.get(); }
   content::WebContents* executor() { return executor_.get(); }
@@ -76,9 +72,9 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate,
   }
 #endif
 
-  // password_manager::OtpManager::Observer
-  void OnOtpFieldDetected(
-      password_manager::OtpFormManager* form_manager) override;
+  // Called by the OtpFieldDetector if an OTP field is detected in any relevant
+  // frame of executor_. Visible for testing.
+  void OnOtpFieldDetected();
 
  private:
   // PasswordChangeDelegate Impl
@@ -132,8 +128,6 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate,
 
   State current_state_ = State::kNoState;
 
-  std::unique_ptr<OtpDetectionHelper> otp_detection_;
-
   // Helper class which looks for a change password form.
   std::unique_ptr<ChangePasswordFormFinder> form_finder_;
 
@@ -163,10 +157,15 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate,
   std::unique_ptr<CrossOriginNavigationObserver> navigation_observer_;
 
   base::CallbackListSubscription tab_will_detach_subscription_;
-
-  base::ScopedObservation<password_manager::OtpManager,
-                          password_manager::OtpManager::Observer>
-      otp_observation_{this};
+  // Subscription on the removal or submission of OTP fields in `originator_`.
+  // The password change flow may be started directly after submitting a
+  // username/password and can only proceed if the user submits an OTP in case
+  // the website requires it. This subscription is only used before the password
+  // change flow starts.
+  base::CallbackListSubscription otp_fields_submitted_subscription_;
+  // Subscription on adding OTP fields in `executor_` in case the user is
+  // interrupted to enter an OTP while the password change flow happens.
+  base::CallbackListSubscription otp_fields_detected_subscription_;
 
   ukm::SourceId ukm_source_id_ = ukm::kInvalidSourceId;
 

@@ -13,9 +13,11 @@
 #include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/test/test_trace_processor.h"
+#include "base/test/trace_test_utils.h"
 #include "base/time/time.h"
 #include "components/ip_protection/common/ip_protection_data_types.h"
 #include "components/ip_protection/common/ip_protection_token_fetcher_helper.h"
@@ -30,6 +32,25 @@
 
 namespace ip_protection {
 
+// A Gmock matcher for a `base::TimeDelta` within the jitter range defined by
+// `net::features::kIpPrivacyBackoffJitter`.
+MATCHER_P(IsNearWithJitter, expected, "") {
+  if (arg == base::TimeDelta::Max() && (expected) == base::TimeDelta::Max()) {
+    return true;
+  }
+
+  const auto jitter = net::features::kIpPrivacyBackoffJitter.Get();
+  const auto lower_bound = (expected) * (1.0 - jitter);
+  const auto upper_bound = (expected) * (1.0 + jitter);
+  if (arg >= lower_bound && arg <= upper_bound) {
+    return true;
+  }
+
+  *result_listener << "which is outside the expected range [" << lower_bound
+                   << ", " << upper_bound << "]";
+  return false;
+}
+
 constexpr char kTryGetAuthTokensResultHistogram[] =
     "NetworkService.IpProtection.TryGetAuthTokensResult2";
 constexpr char kOAuthTokenFetchHistogram[] =
@@ -38,10 +59,6 @@ constexpr char kTryGetAuthTokensErrorHistogram[] =
     "NetworkService.IpProtection.TryGetAuthTokensErrors";
 constexpr char kTokenBatchHistogram[] =
     "NetworkService.IpProtection.TokenBatchRequestTime";
-const GeoHint kMountainViewGeo = {.country_code = "US",
-                                  .iso_region = "US-CA",
-                                  .city_name = "MOUNTAIN VIEW"};
-const std::string kMountainViewGeoId = GetGeoIdFromGeoHint(kMountainViewGeo);
 
 // A mock delegate for use in testing the fetcher.
 struct MockIpProtectionTokenDirectFetcherDelegate
@@ -76,6 +93,9 @@ class IpProtectionTokenDirectFetcherTest : public testing::Test {
             net::features::kIpPrivacyTryGetAuthTokensBugBackoff.Get()),
         default_not_eligible_backoff_(
             net::features::kIpPrivacyTryGetAuthTokensNotEligibleBackoff.Get()) {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        net::features::kEnableIpProtectionProxy,
+        {{"IpPrivacyBackoffJitter", "0.25"}});
     auto bsa = std::make_unique<MockBlindSignAuth>();
     bsa_ = bsa.get();
     fetcher_ = std::make_unique<IpProtectionTokenDirectFetcher>(
@@ -98,20 +118,27 @@ class IpProtectionTokenDirectFetcherTest : public testing::Test {
   }
 
   // Expect that the TryGetAuthTokens call returned nullopt, with
-  // `try_again_after` at the given delta from the current time.
+  // `try_again_after` within the expected range.
   void ExpectTryGetAuthTokensResultFailed(base::TimeDelta try_again_delta) {
     auto& [bsa_tokens, try_again_after] = tokens_future_.Get();
     EXPECT_EQ(bsa_tokens, std::nullopt);
     if (!bsa_tokens) {
-      EXPECT_EQ(*try_again_after, base::Time::Now() + try_again_delta);
+      EXPECT_THAT(*try_again_after - base::Time::Now(),
+                  IsNearWithJitter(try_again_delta));
     }
     // Clear future so it can be reused and accept new tokens.
     tokens_future_.Clear();
   }
 
+  std::optional<base::TimeDelta> CallCalculateBackoff(
+      TryGetAuthTokensResult result) {
+    return fetcher_->CalculateBackoff(result);
+  }
+
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
+  base::test::ScopedFeatureList feature_list_;
   TryGetAuthTokensFuture tokens_future_;
 
   base::test::TracingEnvironment tracing_environment_;
@@ -416,33 +443,105 @@ TEST_F(IpProtectionTokenDirectFetcherTest, IpProtectionDisabled) {
 TEST_F(IpProtectionTokenDirectFetcherTest, CalculateBackoff) {
   using enum TryGetAuthTokensResult;
 
-  auto check = [&](TryGetAuthTokensResult result,
-                   std::optional<base::TimeDelta> backoff, bool exponential) {
+  // Check that the backoff is as expected, and that it doubles on subsequent
+  // calls if the result is exponential.
+  auto check_fn = [&](TryGetAuthTokensResult result,
+                      std::optional<base::TimeDelta> backoff,
+                      bool exponential) {
     SCOPED_TRACE(::testing::Message()
                  << "result: " << static_cast<int>(result));
-    EXPECT_EQ(fetcher_->CalculateBackoff(result), backoff);
-    if (backoff && exponential) {
-      EXPECT_EQ(fetcher_->CalculateBackoff(result), (*backoff) * 2);
-      EXPECT_EQ(fetcher_->CalculateBackoff(result), (*backoff) * 4);
+    if (backoff) {
+      EXPECT_THAT(CallCalculateBackoff(result),
+                  testing::Optional(IsNearWithJitter(*backoff)));
     } else {
-      EXPECT_EQ(fetcher_->CalculateBackoff(result), backoff);
+      EXPECT_EQ(CallCalculateBackoff(result), std::nullopt);
+    }
+
+    if (backoff && exponential) {
+      EXPECT_THAT(CallCalculateBackoff(result),
+                  testing::Optional(IsNearWithJitter(*backoff * 2)));
+      EXPECT_THAT(CallCalculateBackoff(result),
+                  testing::Optional(IsNearWithJitter(*backoff * 4)));
+    } else {
+      if (backoff) {
+        EXPECT_THAT(CallCalculateBackoff(result),
+                    testing::Optional(IsNearWithJitter(*backoff)));
+      } else {
+        EXPECT_EQ(CallCalculateBackoff(result), std::nullopt);
+      }
     }
   };
 
-  check(kSuccess, std::nullopt, false);
-  check(kFailedNotEligible, default_not_eligible_backoff_, false);
-  check(kFailedBSA400, default_bug_backoff_, true);
-  check(kFailedBSA401, default_bug_backoff_, true);
-  check(kFailedBSA403, default_not_eligible_backoff_, false);
-  check(kFailedBSAOther, default_transient_backoff_, true);
-  check(kFailedOAuthTokenTransient, default_transient_backoff_, true);
+  check_fn(kSuccess, std::nullopt, false);
+  check_fn(kFailedNotEligible, default_not_eligible_backoff_, false);
+  check_fn(kFailedBSA400, default_bug_backoff_, true);
+  check_fn(kFailedBSA401, default_bug_backoff_, true);
+  check_fn(kFailedBSA403, default_not_eligible_backoff_, false);
+  check_fn(kFailedBSAOther, default_transient_backoff_, true);
+  check_fn(kFailedOAuthTokenTransient, default_transient_backoff_, true);
 
-  check(kFailedNoAccount, base::TimeDelta::Max(), false);
+  check_fn(kFailedNoAccount, base::TimeDelta::Max(), false);
   // The account-related backoffs should not be changed except by account change
   // events.
-  check(kFailedBSA400, base::TimeDelta::Max(), false);
+  check_fn(kFailedBSA400, base::TimeDelta::Max(), false);
   fetcher_->AccountStatusChanged(true);
-  check(kFailedBSA400, default_bug_backoff_, true);
+  check_fn(kFailedBSA400, default_bug_backoff_, true);
+}
+
+// Backoff calculations with jitter disabled.
+TEST_F(IpProtectionTokenDirectFetcherTest, CalculateBackoffNoJitter) {
+  // Disable jitter.
+  feature_list_.Reset();
+  feature_list_.InitAndEnableFeatureWithParameters(
+      net::features::kEnableIpProtectionProxy,
+      {{"IpPrivacyBackoffJitter", "0.0"}});
+
+  using enum TryGetAuthTokensResult;
+
+  // Check that the backoff is as expected, and that it doubles on subsequent
+  // calls if the result is exponential.
+  // We check that it perfectly matches the expected backoff, with no jitter.
+  auto check_fn = [&](TryGetAuthTokensResult result,
+                      std::optional<base::TimeDelta> backoff,
+                      bool exponential) {
+    SCOPED_TRACE(::testing::Message()
+                 << "result: " << static_cast<int>(result));
+    if (backoff) {
+      EXPECT_THAT(CallCalculateBackoff(result),
+                  testing::Optional(testing::Eq(*backoff)));
+    } else {
+      EXPECT_EQ(CallCalculateBackoff(result), std::nullopt);
+    }
+
+    if (backoff && exponential) {
+      EXPECT_THAT(CallCalculateBackoff(result),
+                  testing::Optional(testing::Eq(*backoff * 2)));
+      EXPECT_THAT(CallCalculateBackoff(result),
+                  testing::Optional(testing::Eq(*backoff * 4)));
+    } else {
+      if (backoff) {
+        EXPECT_THAT(CallCalculateBackoff(result),
+                    testing::Optional(testing::Eq(*backoff)));
+      } else {
+        EXPECT_EQ(CallCalculateBackoff(result), std::nullopt);
+      }
+    }
+  };
+
+  check_fn(kSuccess, std::nullopt, false);
+  check_fn(kFailedNotEligible, default_not_eligible_backoff_, false);
+  check_fn(kFailedBSA400, default_bug_backoff_, true);
+  check_fn(kFailedBSA401, default_bug_backoff_, true);
+  check_fn(kFailedBSA403, default_not_eligible_backoff_, false);
+  check_fn(kFailedBSAOther, default_transient_backoff_, true);
+  check_fn(kFailedOAuthTokenTransient, default_transient_backoff_, true);
+
+  check_fn(kFailedNoAccount, base::TimeDelta::Max(), false);
+  // The account-related backoffs should not be changed except by account change
+  // events.
+  check_fn(kFailedBSA400, base::TimeDelta::Max(), false);
+  fetcher_->AccountStatusChanged(true);
+  check_fn(kFailedBSA400, default_bug_backoff_, true);
 }
 
 TEST_F(IpProtectionTokenDirectFetcherTest, PerfettoEvents) {

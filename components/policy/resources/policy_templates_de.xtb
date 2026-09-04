@@ -160,6 +160,7 @@ Bei nicht verwalteten Geräten kann der Nutzer entscheiden, ob Messwerte gesende
 <translation id="1087437665304381368">Mit dieser Richtlinie wird nur der <ph name="PRODUCT_OS_NAME" />-Entwicklermodus gesteuert. Wenn du den Zugriff auf Android-Entwickleroptionen verhindern möchtest, musst du die Richtlinie "<ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" />" konfigurieren.</translation>
 <translation id="1087707496788636333">Die Adresse der Chrome Enterprise-Richtlinienliste wird geändert. Bitte ändere sie in deinen Lesezeichen zu <ph name="POLICY_DOCUMENTATION_URL" />.</translation>
 <translation id="1089150222292592899">Nutzername auf der SAML-IdP-Seite automatisch ausfüllen lassen</translation>
+<translation id="1090430607214486535">Sensibel</translation>
 <translation id="1091765729282771296">Websites dürfen den Nutzer um Zugriff auf HID-Geräte bitten</translation>
 <translation id="1095209545735032039">Serial API auf diesen Websites blockieren</translation>
 <translation id="1096105751829466145">Standardsuchmaschine</translation>
@@ -1529,6 +1530,7 @@ Diese Richtlinie ist normalerweise zum Schutz vor Phishing deaktiviert.</transla
 
 Diese Geräterichtlinie entspricht der vorhandenen Nutzerrichtlinie „<ph name="SECURITY_KEY_PERMIT_ATTESTATION_POLICY_NAME" />“, gilt aber stattdessen für das Anmeldeprofil auf dem Anmeldebildschirm.</translation>
 <translation id="2089541797660774692">Cloud-Berichterstellung über verwaltete Browser aktivieren</translation>
+<translation id="2090280024671359587">Texterfassung zulassen und KI-Modelle verbessern.</translation>
 <translation id="2090712407517297305">Die in Gruppen eingeteilte Chrome-Verlaufsseite ist unter chrome://history/grouped sichtbar.</translation>
 <translation id="2090939118981888335">Wenn diese Richtlinie aktiviert ist, wird der Proxy zur Datenkomprimierung zugelassen. Ist die Richtlinie deaktiviert, kann der Proxy nicht verwendet werden.
 
@@ -3251,7 +3253,6 @@ Ausführliche Informationen zu gültigen <ph name="URL_LABEL" />-Mustern (ab Ver
 <translation id="3285231260918855067">Konturdeckkraft des Texts auf dem Wasserzeichen von 0 (durchsichtig) bis 100 (undurchsichtig).</translation>
 <translation id="3286159327013237833">„Automatischer Klick“ auf dem Anmeldebildschirm aktivieren</translation>
 <translation id="3288595667065905535">Release-Kanal</translation>
-<translation id="3291940794983537008">Einstellungen für generative KI-Funktionen in den Entwicklertools</translation>
 <translation id="3294430356898755483">Mit dieser Richtlinie können Administratoren eine Liste von Druckern für die Nutzer festlegen. Die Druckerauswahl wird angezeigt, wenn die Nutzer zum ersten Mal einen Druckauftrag ausführen.
 
       So kannst du die Richtlinie verwenden:
@@ -3386,6 +3387,7 @@ Diese Richtlinie ist auf 1.000 Einträge beschränkt.
 Wenn die Richtlinie nicht konfiguriert ist, wird die Browsernavigation verhindert, wenn für das durchgehend aktive VPN der strikte Modus aktiviert und das VPN nicht verbunden ist.</translation>
 <translation id="3405997282295704902">Nutzern nicht erlauben, <ph name="PRODUCT_NAME" /> zu verwenden</translation>
 <translation id="3406122462682235653">Nutzer nicht fragen (Downloads werden sofort gestartet)</translation>
+<translation id="3410534959501660670">Einstellungen für die Funktion „Texterfassung“</translation>
 <translation id="3411947169047929182">Diese Richtlinie legt die WebRTC-Konfiguration fest</translation>
 <translation id="341285788698114069">Diese Richtlinie steuert die Priorität des Audioprozesses unter Windows.
       Wenn diese Richtlinie aktiviert ist, wird der Audioprozess mit einer Priorität ausgeführt, die über der normalen liegt.
@@ -3827,11 +3829,6 @@ Wenn weder „<ph name="CONTENT_TRANSFER_ENABLEMENT_STATUS_START_DATE_VALUE" />�
 Die Datenübertragung mit Datenexport muss ebenfalls aktiviert sein, damit die App „Inhaltsübertragung“ richtig funktioniert. Weitere Informationen findest du unter https://support.google.com/a/answer/6364687.</translation>
 <translation id="3702518095257671450">Remote-Attestierung</translation>
 <translation id="3702647575225525306"><ph name="POLICY_NAME" /> – Das einzeilige Feld ist veraltet und wird in Zukunft entfernt. Bitte nutze das mehrzeilige Textfeld unten.</translation>
-<translation id="3711561721191203926">Wenn diese Richtlinie aktiviert ist und aufgrund fehlgeschlagener <ph name="PRIVATE_NETWORK_ACCESS" />-Prüfungen in <ph name="DEV_TOOLS_NAME" /> eine Warnung angezeigt werden sollte, wird stattdessen die Hauptanfrage blockiert.
-
-Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, werden keine <ph name="PRIVATE_NETWORK_ACCESS" />-Warnungen erzwungen und Anfragen nicht blockiert.
-
-Informationen zu Einschränkungen für <ph name="PRIVATE_NETWORK_ACCESS" /> findest du unter https://wicg.github.io/private-network-access/.</translation>
 <translation id="3711895659073496551">Suspend-Modus</translation>
 <translation id="3712861436661566358">Profiltrennung erzwingen</translation>
 <translation id="3719826155360621982">Startseite</translation>
@@ -4846,7 +4843,6 @@ Für <ph name="PRODUCT_OS_NAME" /> wird diese Richtlinie immer angewendet.</tran
 
       Ist die Richtlinie deaktiviert oder nicht konfiguriert, melden registrierte Geräte ihren Standort nicht.</translation>
 <translation id="4461400898496433231">Überschreibe den IPv6-Erreichbarkeitstest nicht. Frage den AAAA-Eintrag zur Auflösung des Hostnamens nur dann ab, wenn das Gerät für einen globalen IPv6-Host erreichbar ist.</translation>
-<translation id="4463467966408770621">Auf generativer KI basierende Funktionen der Entwicklertools nicht zulassen.</translation>
 <translation id="4463675333222095358">Einheitenumrechnung über „Schnellinfo“ aktivieren</translation>
 <translation id="4464365009416584564"><ph name="CHROME_SYNC_NAME" /> deaktivieren</translation>
 <translation id="4467952432486360968">Drittanbieter-Cookies blockieren</translation>
@@ -6164,6 +6160,7 @@ Gültige Werte für das Handling:
 
 Eine ausführliche Beschreibung aller Werte findest du unter RFC 8828, Abschnitt 5.2 (https://tools.ietf.org/html/rfc8828.html#section-5.2).</translation>
 <translation id="5290940294294002042">Liste von Plug-ins angeben, die der Nutzer aktivieren oder deaktivieren kann</translation>
+<translation id="5292069729218406524">Texterfassung zulassen, ohne KI-Modelle zu verbessern.</translation>
 <translation id="5293285950307241933">Alle lokalen Nutzerdaten löschen</translation>
 <translation id="5293619885162445352">Erlauben, dass <ph name="PEPPER_NAME" /> den neuen Videodecoder verwendet.</translation>
 <translation id="529457411593078576">Nutzungsbedingungen während der ersten Ausführung für CCT aktivieren</translation>
@@ -7832,23 +7829,6 @@ Wenn die Richtlinie nicht konfiguriert ist, verwendet <ph name="PRODUCT_OS_NAME"
 <translation id="6383774771168138899">Konfiguration des <ph name="CLOUD_UPLOAD_NAME" />-Ablaufs für <ph name="MICROSOFT_ONE_DRIVE_NAME" /> und <ph name="MICROSOFT_365_NAME" /></translation>
 <translation id="6384542789059421431">Dadurch werden die Suchergebnisseiten der Standardsuchmaschine in der Seitenleiste des Browsers angezeigt.</translation>
 <translation id="6389240462871677239">Ursprüngen isolierter Web-Apps erlauben, Controlled Frame zu verwenden</translation>
-<translation id="6390338862225976270">Bei diesen Funktionen in den Entwicklertools von <ph name="PRODUCT_NAME" /> werden generative KI-Modelle eingesetzt, um zusätzliche Debugging-Informationen bereitzustellen. Zur Verwendung dieser Funktionen muss <ph name="PRODUCT_NAME" /> Daten wie Fehlermeldungen, Stacktraces, Code-Snippets und Netzwerkanfragen erheben und an einen Google-Server senden, auf dem ein generatives KI‑Modell ausgeführt wird. Antworttext oder Authentifizierungs- und Cookie-Header in Netzwerkanfragen sind nicht in den Daten enthalten, die an den Server gesendet werden.
-
-„0“ = Die Funktion darf verwendet werden und Google darf relevante Daten nutzen, um seine KI‑Modelle zu verbessern. Relevante Daten können je nach Funktion Prompts, Eingaben, Ausgaben, Quellmaterialien und schriftliches Feedback sein. Sie werden möglicherweise auch manuell überprüft, um KI‑Modelle zu verbessern. „0“ ist der Standardwert, außer in den unten angegebenen Fällen.
-
-„1“ = Die Funktion darf verwendet werden, Google darf aber keine Modelle mithilfe von Nutzerinhalten (einschließlich Prompts, Eingaben, Ausgaben, Quellmaterialien und schriftlichen Feedbacks) verbessern. „1“ ist der Standardwert für Unternehmensnutzer, die über die <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> verwaltet werden, sowie für Konten von Bildungseinrichtungen, die über <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> verwaltet werden.
-
-„2“ = Die Funktion darf nicht verwendet werden.
-
-Wenn die Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durch die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ bestimmt.
-
-Zu den auf generativer KI basierenden Funktionen der Entwicklertools gehören folgende:
-
-– Console Insights: erklärt Konsolenmeldungen und bietet Vorschläge zum Beheben von Konsolenfehlern.
-
-– KI‑Unterstützung: bietet Hilfe beim Verständnis von CSS-Stilen (ab Version 131), Netzwerkanfragen, Leistung und Dateien (alles ab Version 132).
-
-Weitere Informationen zur Datenverarbeitung bei auf generativer KI basierenden Funktionen findest du unter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6394350458541421998">Diese Richtlinie ist ab <ph name="PRODUCT_OS_NAME" />-Version 29 nicht mehr vorhanden. Verwende stattdessen die Richtlinie "PresentationScreenDimDelayScale".</translation>
 <translation id="6397588391180665797">Mit dieser Richtlinie wird festgelegt, ob die Netzwerkkonfiguration von Nutzern auf angemeldeten Geräten ausgegeben wird.
 
@@ -8379,11 +8359,6 @@ Wenn die Richtlinie aktiviert ist, werden Daten erhoben und in die <ph name="GOO
 
 Sie wird für <ph name="PRODUCT_NAME" /> nur angewendet, wenn das Gerät mit „<ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />“ registriert ist.
 Für <ph name="PRODUCT_OS_NAME" /> wird diese Richtlinie immer angewendet.</translation>
-<translation id="6720071484598746942">Wenn diese Richtlinie aktiviert ist und aufgrund fehlgeschlagener <ph name="LOCAL_NETWORK_ACCCESS" />-Prüfungen in <ph name="DEV_TOOLS_NAME" /> eine Warnung angezeigt werden sollte, wird stattdessen die Hauptanfrage blockiert.
-
-Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, wird für <ph name="LOCAL_NETWORK_ACCESS" />-Anfragen die Standardeinstellung für derartige Anfragen verwendet.
-
-Informationen zu Einschränkungen für <ph name="LOCAL_NETWORK_ACCESS" /> findest du unter https://wicg.github.io/local-network-access/.</translation>
 <translation id="6720330829631914048">Zahl der seit Beginn des Tages verstrichenen Stunden (im 24-Stunden-Format).</translation>
 <translation id="6721252203593581486">WebSQL ist im Zusammenhang mit Drittanbietern (z. B. websiteübergreifende iFrames) ab M97 standardmäßig deaktiviert und wird in M101 vollständig entfernt.
           Wenn diese Richtlinie auf „false“ gesetzt oder nicht konfiguriert ist, bleibt WebSQL im Zusammenhang mit Drittanbietern deaktiviert.
@@ -9706,6 +9681,7 @@ Wenn diese Richtlinie nicht konfiguriert ist, wird der PDF-Renderer vom Browser 
 <translation id="7713608076604149344">Download-Einschränkungen</translation>
 <translation id="7713845740295404764">Anmelde-/Abmeldeereignisse melden</translation>
 <translation id="7715711044277116530">Prozentsatz für die Skalierung der Spanne für die Bildschirmabdunkelung im Präsentationsmodus</translation>
+<translation id="7715838249298819250">Texterfassung nicht zulassen.</translation>
 <translation id="7716020145539921591">Diese Richtlinie wurde eingestellt. Bitte verwende stattdessen die Richtlinie "<ph name="PROXY_SETTINGS_POLICY_NAME" />".
 
        Durch Festlegen der Richtlinie kannst du die URL für den Proxyserver angeben. Diese Richtlinie ist nur dann wirksam, wenn die Richtlinie "<ph name="PROXY_SETTINGS_POLICY_NAME" />" nicht konfiguriert ist und du "<ph name="PROXY_MODE_ENUM_FIXED_SERVERS" />" mit "<ph name="PROXY_MODE_POLICY_NAME" />" ausgewählt hast.
@@ -10393,6 +10369,17 @@ Eine ausführliche Beschreibung aller Werte findest du unter RFC 8828, Abschnit
 
       Diese Richtlinie ist für reguläre Nutzerkonten nicht relevant.</translation>
 <translation id="8257863622304579015">Netzwerkdienst-Sandbox aktivieren</translation>
+<translation id="825834906982940588">Mit dieser Richtlinie werden für <ph name="PRODUCT_OS_NAME" /> die Einstellungen der Funktion „Texterfassung“ festgelegt.
+
+„0“ = Die Funktion darf verwendet werden und Google darf relevante Daten nutzen, um seine KI‑Modelle zu verbessern. Relevante Daten können je nach Funktion Prompts, Eingaben, Ausgaben, Quellen und schriftliches Feedback sein. Sie werden möglicherweise auch von Prüfern angesehen, um KI‑Modelle zu verbessern. „0“ ist der Standardwert, sofern unten nicht anders angegeben.
+
+„1“ = Die Funktion darf verwendet werden, Google darf aber keine Modelle mithilfe von Nutzerinhalten (einschließlich Prompts, Eingaben, Ausgaben, Quellen und schriftlichen Feedbacks) verbessern. „1“ ist der Standardwert für Unternehmensnutzer, die über die <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> verwaltet werden, sowie für Konten von Bildungseinrichtungen, die über <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> verwaltet werden.
+
+„2“ = Die Funktion darf nicht verwendet werden.
+
+Wenn die Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durch die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ bestimmt.
+
+Weitere Informationen zur Datenverarbeitung bei generativen KI-Funktionen findest du unter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="8259375588339409826">Chromium und Google Chrome unterstützen dieselbe Gruppe von Richtlinien. Beachte, dass dieses Dokument auch unveröffentlichte Richtlinien umfassen kann (d. h., dass diese Richtlinien nur für eine noch nicht veröffentlichte Version von <ph name="PRODUCT_NAME" /> gelten), und dass solche Richtlinien ohne vorherige Ankündigung geändert oder entfernt werden können. Für diese Richtlinien wird keinerlei Garantie abgegeben, auch nicht in Bezug auf ihre Sicherheit und Datenschutzeigenschaften.
 
 Diese Richtlinien dienen ausschließlich der Konfiguration von internen <ph name="PRODUCT_NAME" />-Instanzen innerhalb deiner Organisation. Eine Anwendung dieser Richtlinien außerhalb deiner Organisation, z. B. in einem öffentlich bereitgestellten Programm, wird als Malware angesehen und von Google sowie Anbietern von Antivirensoftware mit hoher Wahrscheinlichkeit als Malware gekennzeichnet.
@@ -11020,7 +11007,6 @@ Für <ph name="PRODUCT_OS_NAME" /> wird diese Richtlinie immer angewendet.</tran
       Hinweis: Unter https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables findest du eine Liste der Variablen, die verwendet werden können.</translation>
 <translation id="8657543427358173663">Erfassen von WebRTC-Ereignisprotokollen aus Google-Diensten zulassen</translation>
 <translation id="8659843732895043951">Zwischenablage für diese Websites zulassen</translation>
-<translation id="8660214745436301739">Auf generativer KI basierende Funktionen der Entwicklertools zulassen und KI‑Modelle verbessern.</translation>
 <translation id="8661297125441579970">Datenmigration und ARC nicht zulassen.</translation>
 <translation id="8661538142776716004">Website-Einstellungen löschen</translation>
 <translation id="8661980316738569557">Hohen Kontrast aktivieren</translation>
@@ -11811,7 +11797,6 @@ Diese Richtlinie ist nicht wirksam, wenn „<ph name="METRICS_REPORTING_ENABLED_
       Wenn diese Richtlinie auf "<ph name="ASSISTANT_ONBOARDING_MODE_EDUCATION" />" festgelegt ist, wird für die Einrichtung von Assistant der EDU-Modus verwendet.</translation>
 <translation id="9191821120522935133">Ermöglicht die Drosselung nicht sichtbarer, ursprungsübergreifender iFrames</translation>
 <translation id="9192220384862917760">Vorhangmodus für den Host für den Remote-Zugriff aktivieren</translation>
-<translation id="9194693367692364911">Auf generativer KI basierende Funktionen der Entwicklertools zulassen, ohne KI‑Modelle zu verbessern.</translation>
 <translation id="9195766455191826480">Sicherheitsstatus nicht melden</translation>
 <translation id="9197238499850071076">Gibt an, ob das Gerät auf die von <ph name="DEVICE_TARGET_VERSION_PREFIX_POLICY_NAME" /> festgelegte Version zurückgesetzt werden soll, obwohl bereits eine neuere Version ausgeführt wird.
 

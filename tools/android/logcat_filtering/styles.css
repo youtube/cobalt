@@ -9,6 +9,7 @@
   --google-button-bg-color: #4285f4;
   --google-button-text-color: white;
   --google-button-hover-bg-color: #357ae8;
+  --google-button-arrow-hover-bg-color: #0000001a;
   --dropdown-border-color: #ccc;
   --dropdown-header-bg-color: #f9f9f9;
   --dropdown-header-text-color: #5f6368;
@@ -40,6 +41,7 @@
   --google-button-bg-color: #5f6368;
   --google-button-text-color: #e8eaed;
   --google-button-hover-bg-color: #72767c;
+  --google-button-arrow-hover-bg-color: #ffffff26;
   --dropdown-border-color: #5f6368;
   --dropdown-header-bg-color: #33363b;
   --dropdown-header-text-color: #e8eaed;
@@ -94,6 +96,8 @@ body {
   position: fixed;
   top: 0;
   left: 0;
+  /* Prevent the content underneath from showing through */
+  background-color: var(--controls-bg-color);
   /* Ensure the controls stay on top of other content */
   z-index: 100;
   width: 100%;
@@ -140,20 +144,26 @@ body {
   margin-right: 8px;
 }
 
-.button-with-feedback {
-  position: relative;
-  display: flex;
-  flex-direction: column;
+.google-button.arrow-controls {
+  padding-right: 8px;
+  /* Disable mouse interactions for the entire button */
+  pointer-events: none;
 }
 
-.feedback-text {
-  position: absolute;
-  bottom: -20px;
-  left: 10px;
-  color: red;
-  font-size: 12px;
-  /* Prevents the text from wrapping, keeping height consistent */
-  white-space: nowrap;
+.google-button .arrow-feedback {
+  margin-right: 8px;
+}
+
+.google-button .arrow {
+  cursor: pointer;
+  font-size: 18px;
+  border-radius: 3px;
+  /* Re-enable mouse interaction only for the arrows */
+  pointer-events: auto;
+}
+
+.google-button .arrow:hover {
+  background-color: var(--google-button-arrow-hover-bg-color);
 }
 
 .dropdown {
@@ -185,10 +195,12 @@ body {
 }
 
 .dropdown-list {
+  position: fixed;
+  z-index: 200;
   list-style: none;
   padding: 0;
   margin: 0;
-  border-top: 1px solid var(--dropdown-list-border-color);
+  border: 1px solid var(--dropdown-border-color);
   border-radius: 0 0 4px 4px;
   /* To contain the rounded corners */
   overflow: hidden;
@@ -239,41 +251,6 @@ body {
   /* Make the label clickable */
   cursor: pointer;
   white-space: nowrap;
-}
-
-#checkbox-controls {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-}
-
-#checkbox-controls .checkbox-column {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-#checkbox-controls .checkbox-column:last-of-type {
-  margin-right: 40px;
-}
-
-#checkbox-controls label {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  color: var(--checkbox-label-text-color);
-  cursor: pointer;
-  margin-bottom: 6px;
-  margin-right: 12px;
-  /* Do not allow text wrapping */
-  white-space: nowrap;
-}
-
-#checkbox-controls input[type="checkbox"] {
-  margin-right: 8px;
-  accent-color: var(--checkbox-accent-color);
-  border: 1.5px solid var(--checkbox-border-color);
-  border-radius: 2px;
 }
 
 #text-display-area {

@@ -21,6 +21,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "api/packet_socket_factory.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -31,6 +32,7 @@
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/ip_address.h"
+#include "rtc_base/memory/less_unique_ptr.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
@@ -78,7 +80,7 @@ class TurnServerAllocation final {
   TurnServerAllocation(TurnServer* server_,
                        TaskQueueBase* thread,
                        const TurnServerConnection& conn,
-                       AsyncPacketSocket* server_socket,
+                       std::unique_ptr<AsyncPacketSocket> server_socket,
                        absl::string_view key);
   ~TurnServerAllocation();
 
@@ -183,7 +185,7 @@ class TurnServer : public sigslot::has_slots<> {
   typedef std::map<TurnServerConnection, std::unique_ptr<TurnServerAllocation>>
       AllocationMap;
 
-  explicit TurnServer(TaskQueueBase* thread);
+  TurnServer(const Environment& env, TaskQueueBase* thread);
   ~TurnServer() override;
 
   // Gets/sets the realm value to use for the server.
@@ -244,13 +246,14 @@ class TurnServer : public sigslot::has_slots<> {
   }
 
   // Starts listening for packets from internal clients.
-  void AddInternalSocket(AsyncPacketSocket* socket, ProtocolType proto);
+  void AddInternalSocket(std::unique_ptr<AsyncPacketSocket> socket,
+                         ProtocolType protocol);
   // Starts listening for the connections on this socket. When someone tries
   // to connect, the connection will be accepted and a new internal socket
   // will be added.
   void AddInternalServerSocket(
-      Socket* socket,
-      ProtocolType proto,
+      std::unique_ptr<Socket> socket,
+      ProtocolType protocol,
       std::unique_ptr<SSLAdapterFactory> ssl_adapter_factory = nullptr);
   // Specifies the factory to use for creating external sockets.
   void SetExternalSocketFactory(PacketSocketFactory* factory,
@@ -268,6 +271,9 @@ class TurnServer : public sigslot::has_slots<> {
   }
 
  private:
+  using ServerSocketMap = std::
+      map<std::unique_ptr<AsyncPacketSocket>, ProtocolType, less_unique_ptr>;
+
   // All private member functions and variables should have access restricted to
   // thread_. But compile-time annotations are missing for members access from
   // TurnServerAllocation (via friend declaration).
@@ -277,9 +283,6 @@ class TurnServer : public sigslot::has_slots<> {
                         const ReceivedIpPacket& packet) RTC_RUN_ON(thread_);
 
   void OnNewInternalConnection(Socket* socket);
-
-  // Accept connections on this server socket.
-  void AcceptConnection(Socket* server_socket) RTC_RUN_ON(thread_);
   void OnInternalSocketClose(AsyncPacketSocket* socket, int err);
 
   void HandleStunMessage(TurnServerConnection* conn,
@@ -323,16 +326,16 @@ class TurnServer : public sigslot::has_slots<> {
   void Send(TurnServerConnection* conn, const ByteBufferWriter& buf);
 
   void DestroyAllocation(TurnServerAllocation* allocation) RTC_RUN_ON(thread_);
-  void DestroyInternalSocket(AsyncPacketSocket* socket) RTC_RUN_ON(thread_);
+  void DestroyInternalSocket(ServerSocketMap::iterator iter)
+      RTC_RUN_ON(thread_);
 
-  typedef std::map<AsyncPacketSocket*, ProtocolType> InternalSocketMap;
   struct ServerSocketInfo {
     ProtocolType proto;
     // If non-null, used to wrap accepted sockets.
     std::unique_ptr<SSLAdapterFactory> ssl_adapter_factory;
   };
-  typedef std::map<Socket*, ServerSocketInfo> ServerSocketMap;
 
+  const Environment env_;
   TaskQueueBase* const thread_;
   const std::string nonce_key_;
   std::string realm_ RTC_GUARDED_BY(thread_);
@@ -347,8 +350,9 @@ class TurnServer : public sigslot::has_slots<> {
   // Check for permission when receiving an external packet.
   bool enable_permission_checks_ = true;
 
-  InternalSocketMap server_sockets_ RTC_GUARDED_BY(thread_);
-  ServerSocketMap server_listen_sockets_ RTC_GUARDED_BY(thread_);
+  ServerSocketMap server_sockets_ RTC_GUARDED_BY(thread_);
+  std::map<std::unique_ptr<Socket>, ServerSocketInfo, less_unique_ptr>
+      server_listen_sockets_ RTC_GUARDED_BY(thread_);
   std::unique_ptr<PacketSocketFactory> external_socket_factory_
       RTC_GUARDED_BY(thread_);
   SocketAddress external_addr_ RTC_GUARDED_BY(thread_);

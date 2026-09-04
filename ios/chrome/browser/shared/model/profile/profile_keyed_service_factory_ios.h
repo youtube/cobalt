@@ -10,13 +10,13 @@
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
 #include "base/traits_bag.h"
+#include "base/types/pass_key.h"
 #include "components/keyed_service/core/keyed_service_factory.h"
 #include "ios/chrome/browser/shared/model/profile/profile_keyed_service_traits.h"
 
 class ProfileIOS;
-namespace web {
-class BrowserState;
-}  // namespace web
+class RefcountedProfileKeyedServiceFactoryIOS;
+class TestProfileIOS;
 
 // ProfileKeyedServiceFactoryIOS provides a ProfileIOS-specific interface for
 // KeyedServiceFactory under //ios/chrome/browser.
@@ -59,16 +59,14 @@ class ProfileKeyedServiceFactoryIOS : public KeyedServiceFactory {
     ValidTraits(TestingCreation);
   };
 
+  // For SetTestingFactory(...).
+  using PassKey = base::PassKey<TestProfileIOS>;
+
   // A callback that returns the instance of a KeyedService for a given
   // ProfileIOS instance. This is used for testing where the test wants
   // to create a specific test double for a service.
-  using ProfileTestingFactory =
+  using TestingFactory =
       base::OnceCallback<std::unique_ptr<KeyedService>(ProfileIOS* profile)>;
-
-  using LegacyTestingFactory =
-      base::OnceCallback<std::unique_ptr<KeyedService>(web::BrowserState*)>;
-
-  using TestingFactory = LegacyTestingFactory;
 
   // Constructor accepts zero or more traits.
   template <typename... Traits>
@@ -88,12 +86,9 @@ class ProfileKeyedServiceFactoryIOS : public KeyedServiceFactory {
   // used to create the KeyedService when requested.  `testing_factory` can be
   // empty to signal that KeyedService should be null. Multiple calls to
   // SetTestingFactory() are allowed; previous services will be shut down.
-  void SetTestingFactory(ProfileIOS* profile,
-                         ProfileTestingFactory testing_factory);
-
-  // Overload of SetTestingFactory(...) that accepts legacy factories.
-  void SetTestingFactory(ProfileIOS* profile,
-                         LegacyTestingFactory testing_factory);
+  void SetTestingFactory(PassKey pass_key,
+                         ProfileIOS* profile,
+                         TestingFactory testing_factory);
 
  protected:
   // Helper that casts the value returned by GetKeyedServiceForProfile() to the
@@ -110,12 +105,12 @@ class ProfileKeyedServiceFactoryIOS : public KeyedServiceFactory {
 
   // Creates a new instance of the service for `profile`.
   virtual std::unique_ptr<KeyedService> BuildServiceInstanceFor(
-      ProfileIOS* profile) const;
+      ProfileIOS* profile) const = 0;
 
-  // Creates a new instance of the service for `context`.
-  // Deprecated, override `BuildServiceInstanceFor(ProfileIOS*)` instead.
-  virtual std::unique_ptr<KeyedService> BuildServiceInstanceFor(
-      web::BrowserState* context) const;
+  // The main public interface for declaring dependencies between services
+  // created by factories.
+  void DependsOn(ProfileKeyedServiceFactoryIOS* other);
+  void DependsOn(RefcountedProfileKeyedServiceFactoryIOS* other);
 
  private:
   // KeyedServiceFactory implementation:

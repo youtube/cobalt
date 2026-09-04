@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
-
 #include "base/threading/hang_watcher.h"
 
 #include <algorithm>
@@ -304,7 +302,7 @@ void HangWatcher::SetDelegate(Delegate* delegate) {
 // Enables the HangWatcher. When disabled, the HangWatcher thread should not be
 // started. Enabled by default only on platforms where the generated data is
 // used, to avoid unnecessary overhead.
-BASE_FEATURE(EnableHangWatcher,
+BASE_FEATURE(kEnableHangWatcher,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_LINUX)
              FEATURE_ENABLED_BY_DEFAULT
@@ -316,7 +314,7 @@ BASE_FEATURE(EnableHangWatcher,
 );
 
 // Enable HangWatcher on the GPU process.
-BASE_FEATURE(EnableHangWatcherOnGpuProcess, FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableHangWatcherOnGpuProcess, FEATURE_DISABLED_BY_DEFAULT);
 
 // Browser process.
 // Note: Do not use the prepared macro as of no need for a local cache.

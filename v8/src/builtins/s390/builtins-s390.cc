@@ -2256,6 +2256,82 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
   __ Ret();
 }
 
+static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
+                         ConvertReceiverMode mode,
+                         std::optional<RootIndex> error_string_root) {
+  Register map = r6;
+  Register instance_type = r7;
+  Register scratch = r8;
+  DCHECK(!AreAliased(argc, target, map, instance_type, scratch));
+
+  Label non_callable, class_constructor;
+  __ JumpIfSmi(target, &non_callable);
+  __ LoadMap(map, target);
+  __ CompareInstanceTypeRange(map, instance_type, scratch,
+                              FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                              LAST_CALLABLE_JS_FUNCTION_TYPE);
+  __ TailCallBuiltin(Builtins::CallFunction(mode), le);
+  __ CmpS64(instance_type, Operand(JS_BOUND_FUNCTION_TYPE));
+  __ TailCallBuiltin(Builtin::kCallBoundFunction, eq);
+
+  // Check if target has a [[Call]] internal method.
+  {
+    Register flags = r6;
+    DCHECK(!AreAliased(argc, target, flags));
+    __ LoadU8(flags, FieldMemOperand(map, Map::kBitFieldOffset));
+    map = no_reg;
+    __ TestBit(flags, Map::Bits1::IsCallableBit::kShift);
+    __ beq(&non_callable);
+  }
+
+  // Check if target is a proxy and call CallProxy external builtin
+  __ CmpS64(instance_type, Operand(JS_PROXY_TYPE));
+  __ TailCallBuiltin(Builtin::kCallProxy, eq);
+
+  // Check if target is a wrapped function and call CallWrappedFunction external
+  // builtin
+  __ CmpS64(instance_type, Operand(JS_WRAPPED_FUNCTION_TYPE));
+  __ TailCallBuiltin(Builtin::kCallWrappedFunction, eq);
+
+  // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
+  // Check that the function is not a "classConstructor".
+  __ CmpS64(instance_type, Operand(JS_CLASS_CONSTRUCTOR_TYPE));
+  __ beq(&class_constructor);
+
+  // 2. Call to something else, which might have a [[Call]] internal method (if
+  // not we raise an exception).
+  // Overwrite the original receiver with the (original) target.
+  __ StoreReceiver(target);
+  // Let the "call_as_function_delegate" take care of the rest.
+  __ LoadNativeContextSlot(target, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
+  __ TailCallBuiltin(
+      Builtins::CallFunction(ConvertReceiverMode::kNotNullOrUndefined));
+
+  // 3. Call to something that is not callable.
+  __ bind(&non_callable);
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    if (!error_string_root.has_value()) {
+      __ Push(target);
+      __ CallRuntime(Runtime::kThrowCalledNonCallable);
+    } else {
+      __ LoadRoot(r4, error_string_root.value());
+      __ Push(target, r4);
+      __ CallRuntime(Runtime::kThrowTargetNonFunction);
+      __ Trap();  // Unreachable.
+    }
+  }
+
+  // 4. The function is a "classConstructor", need to raise an exception.
+  __ bind(&class_constructor);
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    __ Push(target);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
+    __ Trap();  // Unreachable.
+  }
+}
+
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -2308,7 +2384,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   __ bind(&no_arguments);
   {
     __ mov(r2, Operand(JSParameterCount(0)));
-    __ TailCallBuiltin(Builtins::Call());
+    GenerateCall(masm, r2, r3, ConvertReceiverMode::kAny,
+                 RootIndex::kFunction_prototype_apply_string);
   }
 }
 
@@ -2332,7 +2409,8 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   __ SubS64(r2, r2, Operand(1));
 
   // 4. Call the callable.
-  __ TailCallBuiltin(Builtins::Call());
+  GenerateCall(masm, r2, r3, ConvertReceiverMode::kAny,
+               RootIndex::kFunction_prototype_call_string);
 }
 
 void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
@@ -2828,70 +2906,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- r3 : the target to call (can be any Object).
   // -----------------------------------
   Register target = r3;
-  Register map = r6;
-  Register instance_type = r7;
-  Register scratch = r8;
-  DCHECK(!AreAliased(r2, target, map, instance_type));
-
-  Label non_callable, class_constructor;
-  __ JumpIfSmi(target, &non_callable);
-  __ LoadMap(map, target);
-  __ CompareInstanceTypeRange(map, instance_type, scratch,
-                              FIRST_CALLABLE_JS_FUNCTION_TYPE,
-                              LAST_CALLABLE_JS_FUNCTION_TYPE);
-  __ TailCallBuiltin(Builtins::CallFunction(mode), le);
-  __ CmpS64(instance_type, Operand(JS_BOUND_FUNCTION_TYPE));
-  __ TailCallBuiltin(Builtin::kCallBoundFunction, eq);
-
-  // Check if target has a [[Call]] internal method.
-  {
-    Register flags = r6;
-    __ LoadU8(flags, FieldMemOperand(map, Map::kBitFieldOffset));
-    map = no_reg;
-    __ TestBit(flags, Map::Bits1::IsCallableBit::kShift);
-    __ beq(&non_callable);
-  }
-
-  // Check if target is a proxy and call CallProxy external builtin
-  __ CmpS64(instance_type, Operand(JS_PROXY_TYPE));
-  __ TailCallBuiltin(Builtin::kCallProxy, eq);
-
-  // Check if target is a wrapped function and call CallWrappedFunction external
-  // builtin
-  __ CmpS64(instance_type, Operand(JS_WRAPPED_FUNCTION_TYPE));
-  __ TailCallBuiltin(Builtin::kCallWrappedFunction, eq);
-
-  // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
-  // Check that the function is not a "classConstructor".
-  __ CmpS64(instance_type, Operand(JS_CLASS_CONSTRUCTOR_TYPE));
-  __ beq(&class_constructor);
-
-  // 2. Call to something else, which might have a [[Call]] internal method (if
-  // not we raise an exception).
-  // Overwrite the original receiver the (original) target.
-  __ StoreReceiver(target);
-  // Let the "call_as_function_delegate" take care of the rest.
-  __ LoadNativeContextSlot(target, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
-  __ TailCallBuiltin(
-      Builtins::CallFunction(ConvertReceiverMode::kNotNullOrUndefined));
-
-  // 3. Call to something that is not callable.
-  __ bind(&non_callable);
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ Push(target);
-    __ CallRuntime(Runtime::kThrowCalledNonCallable);
-    __ Trap();  // Unreachable.
-  }
-
-  // 4. The function is a "classConstructor", need to raise an exception.
-  __ bind(&class_constructor);
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ Push(target);
-    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
-    __ Trap();  // Unreachable.
-  }
+  GenerateCall(masm, r2, target, mode, std::nullopt);
 }
 
 // static
@@ -3460,48 +3475,22 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Set a sentinel value for the spill slots visited by the GC.
   ResetWasmJspiFrameStackSlots(masm);
 
-  // -------------------------------------------
-  // Save current state in active jump buffer.
-  // -------------------------------------------
   Label resume;
   DEFINE_REG(stack);
   __ LoadRootRelative(stack, IsolateData::active_stack_offset());
-  regs.ResetExcept(suspender, stack);
 
-  DEFINE_REG(suspender_stack);
-  __ LoadU64(suspender_stack,
-             FieldMemOperand(suspender, WasmSuspenderObject::kStackOffset));
-  if (v8_flags.debug_code) {
-    // -------------------------------------------
-    // Check that the suspender's stack is the active stack.
-    // -------------------------------------------
-    // TODO(thibaudm): Once we add core stack-switching instructions, this
-    // check will not hold anymore: it's possible that the active stack
-    // changed (due to an internal switch), so we have to update the suspender.
-    __ CmpS64(suspender_stack, stack);
-    Label ok;
-    __ beq(&ok);
-    __ Trap();
-    __ bind(&ok);
-  }
-  // -------------------------------------------
-  // Update roots.
-  // -------------------------------------------
-  DEFINE_REG(caller);
-  __ LoadU64(caller, MemOperand(suspender_stack, wasm::kStackParentOffset));
-  __ StoreRootRelative(IsolateData::active_stack_offset(), caller);
+  // Update active stack.
   DEFINE_REG(parent);
   __ LoadTaggedField(
       parent, FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset));
-  __ StoreRootRelative(IsolateData::active_suspender_offset(), parent);
-  regs.ResetExcept(suspender, caller, stack);
+  DEFINE_REG(target_stack);
+  __ LoadU64(target_stack,
+             FieldMemOperand(parent, WasmSuspenderObject::kStackOffset));
+  __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
 
-  // -------------------------------------------
-  // Load jump buffer.
-  // -------------------------------------------
   SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), stack, &resume,
-               no_reg, {caller, suspender});
-  FREE_REG(stack);
+               no_reg, {target_stack, suspender, parent});
+  __ StoreRootRelative(IsolateData::active_suspender_offset(), parent);
   __ LoadTaggedField(
       kReturnRegister0,
       FieldMemOperand(suspender, WasmSuspenderObject::kPromiseOffset));
@@ -3509,7 +3498,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       MemOperand(fp, WasmJspiFrameConstants::kGCScanSlotCountOffset);
   __ Zero(GCScanSlotPlace);
   DEFINE_REG(scratch);
-  LoadJumpBuffer(masm, caller, true, scratch);
+  LoadJumpBuffer(masm, target_stack, true, scratch);
   if (v8_flags.debug_code) {
     __ Trap();
   }

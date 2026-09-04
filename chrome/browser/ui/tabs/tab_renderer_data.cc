@@ -76,6 +76,13 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
       !security_interstitial_tab_helper ||
       !security_interstitial_tab_helper->IsDisplayingInterstitial() ||
       security_interstitial_tab_helper->ShouldDisplayURL();
+
+  content::NavigationEntry* entry =
+      contents->GetController().GetLastCommittedEntry();
+  if (!entry || entry->IsInitialEntry()) {
+    should_display_url = false;
+  }
+
   TabRendererData data;
 
   tabs::TabFeatures* const features = tab->GetTabFeatures();
@@ -129,8 +136,6 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
   data.should_hide_throbber = tab_ui_helper->ShouldHideThrobber();
   data.alert_state = tabs::TabAlertController::From(tab)->GetAllActiveAlerts();
 
-  content::NavigationEntry* entry =
-      contents->GetController().GetLastCommittedEntry();
   data.should_themify_favicon =
       entry && favicon::ShouldThemifyFaviconForEntry(entry);
 
@@ -153,7 +158,7 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
   }
 
   if (const auto* const resource_tab_helper =
-          tab->GetTabFeatures()->resource_usage_helper()) {
+          TabResourceUsageTabHelper::From(tab)) {
     data.tab_resource_usage = resource_tab_helper->resource_usage();
   }
 

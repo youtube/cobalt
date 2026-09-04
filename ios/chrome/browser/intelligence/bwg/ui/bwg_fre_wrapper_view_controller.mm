@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_view_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_view_controller_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/public/provider/chrome/browser/lottie/lottie_animation_api.h"
@@ -28,6 +29,13 @@ const CGFloat kExtraSpacingTitleContent = 8.0;
 // Transitions.
 const CGFloat kAnimationDuration = 1.0;
 const CGFloat kDamping = 0.85;
+
+// Spacing for secondary button.
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+const CGFloat kSpacingAfterSecondaryButton = 8.0;
+#else
+const CGFloat kSpacingAfterSecondaryButton = 0.0;
+#endif
 
 }  // namespace
 
@@ -116,9 +124,21 @@ const CGFloat kDamping = 0.85;
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
   _contentHeightConstraint = [self.contentScrollView.heightAnchor
-      constraintEqualToConstant:[_currentChildViewController contentHeight]];
+      constraintEqualToConstant:[self childContentHeight]];
   _contentHeightConstraint.active = YES;
   [self.sheetPresentationController invalidateDetents];
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+  [super viewDidAppear:animated];
+  // The related WebState can be hidden asynchronously while this animated view
+  // is being shown. `BWGTabHelper::WasHidden()` causes the related coordinator
+  // to shut down, causing the `mutator` to be nil, and leaves the view in a
+  // broken state once shown. This check ensures that if the view is in a broken
+  // state, automatically dismiss it.
+  if (!self.mutator) {
+    [self dismissViewControllerAnimated:YES completion:nil];
+  }
 }
 
 #pragma mark - Private
@@ -131,8 +151,13 @@ const CGFloat kDamping = 0.85;
 
 // Updates the content height constraint.
 - (void)updateContentHeightConstraint {
-  _contentHeightConstraint.constant =
-      [_currentChildViewController contentHeight];
+  _contentHeightConstraint.constant = [self childContentHeight];
+}
+
+// Returns the child view controller's content height.
+- (CGFloat)childContentHeight {
+  return [_currentChildViewController contentHeight] +
+         kSpacingAfterSecondaryButton;
 }
 
 // Creates and returns the stack view containing the animated logos.
@@ -300,13 +325,22 @@ const CGFloat kDamping = 0.85;
   self.modalPresentationStyle = UIModalPresentationPageSheet;
   self.sheetPresentationController.selectedDetentIdentifier =
       kBWGPromoConsentFullDetentIdentifier;
-  self.sheetPresentationController.preferredCornerRadius =
-      kPreferredCornerRadius;
+  [self configureCornerRadius];
+}
+
+// Configures the correct preferred corner radius given the form factor.
+- (void)configureCornerRadius {
+  CGFloat preferredCornerRadius =
+      IsSplitToolbarMode(self.presentingViewController)
+          ? kPreferredCornerRadius
+          : UISheetPresentationControllerAutomaticDimension;
+  self.navigationController.sheetPresentationController.preferredCornerRadius =
+      preferredCornerRadius;
 }
 
 // Calculates the total height of the content to be displayed in the sheet.
 - (CGFloat)contentHeight {
-  CGFloat childContentHeight = [_currentChildViewController contentHeight];
+  CGFloat childContentHeight = [self childContentHeight];
   return childContentHeight + kLogoPointSize + kLogoTopGap +
          kExtraSpacingTitleContent;
 }

@@ -218,7 +218,9 @@ void BwgTabHelper::PageLoaded(
 
 void BwgTabHelper::WebStateDestroyed(web::WebState* web_state) {
   web_state_observation_.Reset();
-  CleanupSessionFromPrefs(GetClientId());
+  if (!IsGeminiCrossTabEnabled()) {
+    CleanupSessionFromPrefs(GetClientId());
+  }
   web_state_ = nullptr;
 }
 
@@ -302,7 +304,5 @@ void BwgTabHelper::UpdateWebStateSnapshotInStorage() {
 
   if (cached_snapshot_) {
     snapshot_tab_helper->UpdateSnapshotStorageWithImage(cached_snapshot_);
-  } else {
-    snapshot_tab_helper->UpdateSnapshotWithCallback(nil);
   }
 }

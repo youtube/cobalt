@@ -151,11 +151,11 @@ and then write commands into it:
 std::optional<autofill::FieldType> StringToFieldType(std::string_view str) {
   static auto map = [] {
     std::map<std::string_view, autofill::FieldType> map;
-    for (autofill::FieldType field_type : autofill::kAllFieldTypes) {
+    for (autofill::FieldType field_type : autofill::FieldTypeSet::all()) {
       map[autofill::FieldTypeToStringView(field_type)] = field_type;
     }
     for (autofill::HtmlFieldType html_field_type :
-         autofill::kAllHtmlFieldTypes) {
+         autofill::HtmlFieldTypeSet::all()) {
       map[autofill::FieldTypeToStringView(html_field_type)] =
           autofill::HtmlFieldTypeToBestCorrespondingFieldType(html_field_type);
     }
@@ -677,13 +677,7 @@ bool WebPageReplayServerWrapper::Start(
       args.push_back("--quiet_mode");
   }
   args.push_back(base::StringPrintf(
-      "--inject_scripts=%s,%s",
-      FilePathToUTF8(src_dir.AppendASCII("third_party")
-                         .AppendASCII("catapult")
-                         .AppendASCII("web_page_replay_go")
-                         .AppendASCII("deterministic.js")
-                         .value())
-          .c_str(),
+      "--inject_scripts=%s",
       FilePathToUTF8(src_dir.AppendASCII("chrome")
                          .AppendASCII("test")
                          .AppendASCII("data")

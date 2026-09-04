@@ -91,6 +91,9 @@ id<GREYMatcher> MenuButtonMatcher(int accessibility_label_id) {
 // Displays the tab cell context menu by long pressing at the tab cell at
 // `tab_cell_index`.
 void DisplayContextMenuForTabCellAtIndex(int tab_cell_index) {
+  // TODO(crbug.com/443957909): Investigate if there is a better solution to fix
+  // flakiness on iOS26.
+  base::PlatformThread::Sleep(base::Seconds(1));
   [[EarlGrey selectElementWithMatcher:TabGridCellAtIndex(tab_cell_index)]
       performAction:grey_longPress()];
 }
@@ -99,6 +102,10 @@ void DisplayContextMenuForTabCellAtIndex(int tab_cell_index) {
 // when no group is in the grid.
 void CreateDefaultFirstGroupFromTabCellAtIndex(int tab_cell_index) {
   DisplayContextMenuForTabCellAtIndex(tab_cell_index);
+
+  // TODO(crbug.com/443957909): Investigate if there is a better solution to fix
+  // flakiness on iOS26.
+  base::PlatformThread::Sleep(base::Seconds(1));
   [[EarlGrey
       selectElementWithMatcher:
           ContextMenuItemWithAccessibilityLabel(l10n_util::GetPluralNSStringF(

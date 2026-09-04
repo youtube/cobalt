@@ -421,6 +421,11 @@ std::string ClspvGetCompilerOptions(const CLDeviceVk *device)
         ASSERT(false);
     }
     options += addressBits == 64 ? " -arch=spir64" : " -arch=spir";
+    if (rendererVk->getFeatures().supportsBufferDeviceAddress.enabled)
+    {
+        ASSERT(addressBits == 64);
+        options += " -physical-storage-buffers ";
+    }
 
     // select SPIR-V version target
     options += " --spv-version=" + GetSpvVersionAsClspvString(device->getSpirvVersion());
@@ -535,6 +540,16 @@ std::string ClspvGetCompilerOptions(const CLDeviceVk *device)
         featureMacros.push_back("__opencl_c_images");
         featureMacros.push_back("__opencl_c_3d_image_writes");
         featureMacros.push_back("__opencl_c_read_write_images");
+    }
+
+    if (rendererVk->getFeatures().supportsBufferDeviceAddress.enabled)
+    {
+        // It is for generating ConstantDataStorageBuffer without -physical-storage-buffers,
+        // ConstantDataPointerPushConstant with -physical-storage-buffers
+        // TODO: this flag is only on in case of supportsBufferDeviceAddress.enabled
+        // until ConstantDataStorageBuffer will be implemented.
+        // http://anglebug.com/442950569
+        options += " -module-constants-in-storage-buffer";
     }
 
     if (rendererVk->getEnabledFeatures().features.shaderInt64)

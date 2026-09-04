@@ -27,6 +27,7 @@ class [[deprecated(
     "interface.")]] MockSessionDescriptionInterface
     : public SessionDescriptionInterface {
  public:
+  MockSessionDescriptionInterface() = default;
   MOCK_METHOD(std::unique_ptr<SessionDescriptionInterface>,
               Clone,
               (),
@@ -46,6 +47,11 @@ class [[deprecated(
               (const, override));
   MOCK_METHOD(bool, ToString, (std::string*), (const, override));
 };
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+static_assert(!std::is_abstract_v<MockSessionDescriptionInterface>);
+#pragma clang diagnostic pop
 
 }  // namespace webrtc
 

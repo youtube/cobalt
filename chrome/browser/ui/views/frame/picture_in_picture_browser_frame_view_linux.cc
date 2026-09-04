@@ -32,7 +32,7 @@ gfx::ShadowValues PictureInPictureBrowserFrameViewLinux::GetShadowValues() {
 }
 
 PictureInPictureBrowserFrameViewLinux::PictureInPictureBrowserFrameViewLinux(
-    BrowserFrame* frame,
+    BrowserWidget* frame,
     BrowserView* browser_view)
     : PictureInPictureBrowserFrameView(frame, browser_view) {
   auto* profile = browser_view->browser()->profile();
@@ -62,7 +62,7 @@ PictureInPictureBrowserFrameViewLinux::
     ~PictureInPictureBrowserFrameViewLinux() = default;
 
 ///////////////////////////////////////////////////////////////////////////////
-// BrowserNonClientFrameView: implementations:
+// BrowserFrameView: implementations:
 
 gfx::Insets
 PictureInPictureBrowserFrameViewLinux::RestoredMirroredFrameBorderInsets()
@@ -143,7 +143,7 @@ void PictureInPictureBrowserFrameViewLinux::OnPaint(gfx::Canvas* canvas) {
         frame()->tiled());
   }
 
-  BrowserNonClientFrameView::OnPaint(canvas);
+  BrowserFrameView::OnPaint(canvas);
 }
 
 bool PictureInPictureBrowserFrameViewLinux::ShouldDrawFrameShadow() const {

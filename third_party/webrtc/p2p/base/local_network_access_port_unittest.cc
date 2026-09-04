@@ -19,7 +19,6 @@
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/local_network_access_permission.h"
 #include "api/test/mock_async_dns_resolver.h"
 #include "api/test/mock_local_network_access_permission.h"
@@ -42,6 +41,7 @@
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -189,7 +189,7 @@ class LocalNetworkAccessPortTest
   bool port_error_ = false;
 
   ScopedFakeClock fake_clock_;
-  const Environment env_ = CreateEnvironment();
+  const Environment env_ = CreateTestEnvironment();
   VirtualSocketServer ss_;
   AutoSocketServerThread thread_{&ss_};
   MockDnsResolvingPacketSocketFactory socket_factory_{&ss_};
@@ -200,7 +200,8 @@ class LocalNetworkAccessPortTest
                                                     : kLocalAddr};
   Network network_{"unittest", "unittest", local_address_.ipaddr(), 32};
 
-  TestTurnServer turn_server_{&thread_, &ss_, kTurnUdpIntAddr, kTurnUdpExtAddr};
+  TestTurnServer turn_server_{env_, &thread_, &ss_, kTurnUdpIntAddr,
+                              kTurnUdpExtAddr};
   TestStunServer::StunServerPtr stun_server_;
 };
 

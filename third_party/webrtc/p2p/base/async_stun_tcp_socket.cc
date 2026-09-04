@@ -17,7 +17,6 @@
 #include <utility>
 
 #include "absl/base/nullability.h"
-#include "absl/memory/memory.h"
 #include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/transport/stun.h"
@@ -51,9 +50,6 @@ AsyncStunTCPSocket::AsyncStunTCPSocket(
     const Environment& /*env*/,
     absl_nonnull std::unique_ptr<Socket> socket)
     : AsyncTCPSocketBase(std::move(socket), kBufSize) {}
-
-AsyncStunTCPSocket::AsyncStunTCPSocket(Socket* socket)
-    : AsyncTCPSocketBase(absl::WrapUnique(socket), kBufSize) {}
 
 int AsyncStunTCPSocket::Send(const void* pv,
                              size_t cb,

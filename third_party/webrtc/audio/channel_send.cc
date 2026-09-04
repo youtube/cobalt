@@ -879,9 +879,9 @@ void ChannelSend::ProcessAndEncodeAudio(
 
   // Profile time between when the audio frame is added to the task queue and
   // when the task is actually executed.
-  audio_frame->UpdateProfileTimeStamp();
+  Timestamp post_task_time = env_.clock().CurrentTime();
   encoder_queue_->PostTask(
-      [this, audio_frame = std::move(audio_frame)]() mutable {
+      [this, post_task_time, audio_frame = std::move(audio_frame)]() mutable {
         RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
         if (!encoder_queue_is_active_.load()) {
           return;
@@ -889,8 +889,9 @@ void ChannelSend::ProcessAndEncodeAudio(
         // Measure time between when the audio frame is added to the task queue
         // and when the task is actually executed. Goal is to keep track of
         // unwanted extra latency added by the task queue.
+        TimeDelta latency = post_task_time - env_.clock().CurrentTime();
         RTC_HISTOGRAM_COUNTS_10000("WebRTC.Audio.EncodingTaskQueueLatencyMs",
-                                   audio_frame->ElapsedProfileTimeMs());
+                                   latency.ms());
 
         bool is_muted = InputMute();
         AudioFrameOperations::Mute(audio_frame.get(), previous_frame_muted_,

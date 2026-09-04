@@ -17,9 +17,7 @@ namespace {
 
 constexpr uint32_t kMinVersion = 1;
 
-BASE_FEATURE(kWaylandWpColorManagerV1,
-             "WaylandWpColorManagerV1",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWaylandWpColorManagerV1, base::FEATURE_ENABLED_BY_DEFAULT);
 
 std::optional<wp_color_manager_v1_primaries> ColorSpaceToPrimaries(
     gfx::ColorSpace::PrimaryID primary_id) {
@@ -331,6 +329,21 @@ WaylandWpColorManager::CreateColorManagementFeedbackSurface(
     wl_surface* surface) {
   return wl::Object<wp_color_management_surface_feedback_v1>(
       wp_color_manager_v1_get_surface_feedback(manager_.get(), surface));
+}
+
+void WaylandWpColorManager::OnHdrEnabledChanged(bool hdr_enabled) {
+  hdr_enabled_ = hdr_enabled;
+  for (auto& observer : observers_) {
+    observer.OnHdrEnabledChanged(hdr_enabled);
+  }
+}
+
+void WaylandWpColorManager::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void WaylandWpColorManager::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 bool WaylandWpColorManager::IsSupportedRenderIntent(

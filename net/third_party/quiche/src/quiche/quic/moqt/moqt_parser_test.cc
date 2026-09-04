@@ -37,15 +37,15 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kSubscribeError,
     MoqtMessageType::kSubscribeUpdate,
     MoqtMessageType::kUnsubscribe,
-    MoqtMessageType::kSubscribeDone,
-    MoqtMessageType::kAnnounceCancel,
+    MoqtMessageType::kPublishDone,
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kTrackStatusOk,
     MoqtMessageType::kTrackStatusError,
-    MoqtMessageType::kAnnounce,
-    MoqtMessageType::kAnnounceOk,
-    MoqtMessageType::kAnnounceError,
-    MoqtMessageType::kUnannounce,
+    MoqtMessageType::kPublishNamespace,
+    MoqtMessageType::kPublishNamespaceOk,
+    MoqtMessageType::kPublishNamespaceError,
+    MoqtMessageType::kPublishNamespaceDone,
+    MoqtMessageType::kPublishNamespaceCancel,
     MoqtMessageType::kClientSetup,
     MoqtMessageType::kServerSetup,
     MoqtMessageType::kGoAway,
@@ -519,6 +519,23 @@ TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
+TEST_F(MoqtMessageSpecificTest, SetupAuthorityFromServer) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char setup[] = {
+      0x21, 0x00, 0x07,
+      0x01,                          // version = 1
+      0x01,                          // 1 param
+      0x05, 0x03, 0x66, 0x6f, 0x6f,  // authority = "foo"
+  };
+  stream.Receive(absl::string_view(setup, sizeof(setup)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_,
+            "Server SETUP contains invalid parameters");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidAuthority);
+}
+
 TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
@@ -552,6 +569,22 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
+TEST_F(MoqtMessageSpecificTest, SetupAuthorityOverWebtrans) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kWebTrans, &stream, visitor_);
+  char setup[] = {
+      0x20, 0x00, 0x09, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x01,                                // 1 param
+      0x05, 0x03, 0x66, 0x6f, 0x6f,        // authority = "foo"
+  };
+  stream.Receive(absl::string_view(setup, sizeof(setup)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_,
+            "Client SETUP contains invalid parameters");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidAuthority);
+}
+
 TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
@@ -583,6 +616,37 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMaxRequestIdAppearsTwice) {
   EXPECT_EQ(visitor_.parsing_error_,
             "Client SETUP contains invalid parameters");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+}
+
+TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedPath) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char setup[] = {
+      0x20, 0x00, 0x09, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x01,                                // 1 param
+      0x01, 0x03, 0x66, 0x5c, 0x6f,        // path = "f\o"
+  };
+  stream.Receive(absl::string_view(setup, sizeof(setup)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_, "Malformed path");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kMalformedPath);
+}
+
+TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedAuthority) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char setup[] = {
+      0x20, 0x00, 0x0e, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x02,                                // 2 params
+      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
+      0x05, 0x03, 0x66, 0x5c, 0x6f,        // authority = "f\o"
+  };
+  stream.Receive(absl::string_view(setup, sizeof(setup)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_, "Malformed authority");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kMalformedAuthority);
 }
 
 TEST_F(MoqtMessageSpecificTest, UnknownParameterTwiceIsOk) {
@@ -891,53 +955,38 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationToken) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationToken) {
+TEST_F(MoqtMessageSpecificTest, PublishNamespaceAuthorizationTokenTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
-  char subscribe_update[] = {
-      0x02, 0x00, 0x0e, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
-      0xaa, 0x01,                                // priority, forward
-      0x01,                                      // 1 parameter
-      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
-  };
-  stream.Receive(absl::string_view(subscribe_update, sizeof(subscribe_update)),
-                 false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "SUBSCRIBE_UPDATE contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
-TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationTokenTwice) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kWebTrans, &stream, visitor_);
-  char announce[] = {
+  char publish_namespace[] = {
       0x06, 0x00, 0x15, 0x02, 0x01, 0x03, 0x66,
       0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
   };
-  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
 }
 
-TEST_F(MoqtMessageSpecificTest, AnnounceHasDeliveryTimeout) {
+TEST_F(MoqtMessageSpecificTest, PublishNamespaceHasDeliveryTimeout) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
-  char announce[] = {
+  char publish_namespace[] = {
       0x06, 0x00, 0x11, 0x02, 0x01, 0x03, 0x66,
       0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000
   };
-  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "ANNOUNCE contains invalid parameters");
+  EXPECT_EQ(visitor_.parsing_error_,
+            "PUBLISH_NAMESPACE contains invalid parameters");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -1277,7 +1326,7 @@ TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {
 }
 
 TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
-  for (MoqtDatagramType datagram_type : kMoqtDatagramTypes) {
+  for (MoqtDatagramType datagram_type : AllMoqtDatagramTypes()) {
     ObjectDatagramMessage message(datagram_type);
     MoqtObject object;
     std::optional<absl::string_view> payload =
@@ -1295,7 +1344,7 @@ TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
 }
 
 TEST_F(MoqtMessageSpecificTest, DatagramSuccessfulExpandVarints) {
-  for (MoqtDatagramType datagram_type : kMoqtDatagramTypes) {
+  for (MoqtDatagramType datagram_type : AllMoqtDatagramTypes()) {
     ObjectDatagramMessage message(datagram_type);
     message.ExpandVarints();
     MoqtObject object;
@@ -1323,7 +1372,7 @@ TEST_F(MoqtMessageSpecificTest, WrongMessageInDatagram) {
 }
 
 TEST_F(MoqtMessageSpecificTest, TruncatedDatagram) {
-  ObjectDatagramMessage message(MoqtDatagramType(false, true, false));
+  ObjectDatagramMessage message(MoqtDatagramType(false, true, false, false));
   message.set_wire_image_size(4);
   MoqtObject object;
   std::optional<absl::string_view> payload =
@@ -1431,22 +1480,25 @@ TEST_F(MoqtMessageSpecificTest, PaddingStream) {
 }
 
 // All messages with TrackNamespace use ReadTrackNamespace too check this. Use
-// ANNOUNCE.
+// PUBLISH_NAMESPACE.
 TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char announce[7] = {
+  char publish_namespace[7] = {
       0x06, 0x00, 0x04, 0x02,  // request_id = 2
       0x01, 0x00,              // one empty namespace element
       0x00,                    // no parameters
   };
-  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
-  --announce[2];  // Remove one element.
-  --announce[4];
-  stream.Receive(absl::string_view(announce, sizeof(announce) - 1), false);
+  --publish_namespace[2];  // Remove one element.
+  --publish_namespace[4];
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace) - 1),
+      false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
@@ -1455,18 +1507,21 @@ TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
 TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char announce[39] = {
+  char publish_namespace[39] = {
       0x06, 0x00, 0x23, 0x02,  // type, length = 35, request_id = 2
       0x20,                    // 32 namespace elements. This is the maximum.
   };
   // 32 empty namespace elements + no parameters.
-  stream.Receive(absl::string_view(announce, sizeof(announce) - 1), false);
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace) - 1),
+      false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
-  ++announce[2];  // Add one element.
-  ++announce[4];
-  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
+  ++publish_namespace[2];  // Add one element.
+  ++publish_namespace[4];
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");

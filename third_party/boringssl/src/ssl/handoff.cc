@@ -17,6 +17,8 @@
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
 
+#include <algorithm>
+
 #include "../crypto/internal.h"
 #include "internal.h"
 
@@ -186,21 +188,15 @@ static bool apply_remote_features(SSL *ssl, CBS *in) {
     supported_groups[idx++] = group;
   }
   Span<const uint16_t> configured_groups =
-      tls1_get_grouplist(ssl->s3->hs.get());
+      ssl->s3->hs->config->supported_group_list;
   Array<uint16_t> new_configured_groups;
   if (!new_configured_groups.InitForOverwrite(configured_groups.size())) {
     return false;
   }
   idx = 0;
   for (uint16_t configured_group : configured_groups) {
-    bool ok = false;
-    for (uint16_t supported_group : supported_groups) {
-      if (supported_group == configured_group) {
-        ok = true;
-        break;
-      }
-    }
-    if (ok) {
+    if (std::find(supported_groups.begin(), supported_groups.end(),
+                  configured_group) != supported_groups.end()) {
       new_configured_groups[idx++] = configured_group;
     }
   }
@@ -760,9 +756,10 @@ bool SSL_apply_handback(SSL *ssl, Span<const uint8_t> handback) {
         !CBS_get_asn1(&key_share, &private_key, CBS_ASN1_OCTETSTRING)) {
       return false;
     }
-    hs->key_shares[0] = SSLKeyShare::Create(group_id);
-    if (!hs->key_shares[0] ||
-        !hs->key_shares[0]->DeserializePrivateKey(&private_key)) {
+    UniquePtr<SSLKeyShare> ssl_key_share = SSLKeyShare::Create(group_id);
+    if (ssl_key_share == nullptr ||
+        !ssl_key_share->DeserializePrivateKey(&private_key) ||
+        !hs->key_shares.TryPushBack(std::move(ssl_key_share))) {
       return false;
     }
   }

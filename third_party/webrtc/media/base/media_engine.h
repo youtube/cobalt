@@ -77,8 +77,8 @@ class RtpHeaderExtensionQueryInterface {
 
   // Returns a vector of RtpHeaderExtensionCapability, whose direction is
   // kStopped if the extension is stopped (not used) by default.
-  virtual std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions()
-      const = 0;
+  virtual std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions(
+      const webrtc::FieldTrialsView* field_trials) const = 0;
 };
 
 class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
@@ -238,7 +238,8 @@ RtpParameters CreateRtpParametersWithEncodings(StreamParams sp);
 // offered by default, i.e. the list of extensions returned from
 // GetRtpHeaderExtensions() that are not kStopped.
 std::vector<RtpExtension> GetDefaultEnabledRtpHeaderExtensions(
-    const RtpHeaderExtensionQueryInterface& query_interface);
+    const RtpHeaderExtensionQueryInterface& query_interface,
+    const webrtc::FieldTrialsView* field_trials);
 
 }  //  namespace webrtc
 

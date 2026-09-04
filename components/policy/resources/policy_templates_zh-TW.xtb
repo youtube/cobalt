@@ -156,6 +156,7 @@
 <translation id="1087437665304381368">這項政策只能控管 <ph name="PRODUCT_OS_NAME" />開發人員模式。如要禁止他人存取 Android 開發人員選項，則必須設定 <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" /> 政策。</translation>
 <translation id="1087707496788636333">Chrome Enterprise 政策清單的網址已變更！請將你的書籤更新為 <ph name="POLICY_DOCUMENTATION_URL" />。</translation>
 <translation id="1089150222292592899">在 SAML IdP 頁面自動填入使用者名稱</translation>
+<translation id="1090430607214486535">機密</translation>
 <translation id="1091765729282771296">允許網站要求使用者授予 HID 裝置的存取權</translation>
 <translation id="1095209545735032039">封鎖這些網站上的 Serial API</translation>
 <translation id="1096105751829466145">預設搜尋引擎</translation>
@@ -1495,6 +1496,7 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 
 這項裝置政策與現有的使用者政策 <ph name="SECURITY_KEY_PERMIT_ATTESTATION_POLICY_NAME" /> 相同，但適用於登入畫面上的登入設定檔。</translation>
 <translation id="2089541797660774692">啟用受管理瀏覽器的雲端報告功能</translation>
+<translation id="2090280024671359587">允許使用文字擷取功能，並協助改良 AI 模型。</translation>
 <translation id="2090712407517297305">chrome://history/grouped 的 Chrome 歷史記錄頁面會依群組顯示內容。</translation>
 <translation id="2090939118981888335">如果將這項政策設為啟用，代表允許使用資料壓縮 Proxy。如果將這項政策設為停用，則代表禁止使用該 Proxy。
 
@@ -3185,7 +3187,6 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
 <translation id="3285231260918855067">浮水印文字的外框不透明度，範圍從 0 (透明) 到 100 (不透明)。</translation>
 <translation id="3286159327013237833">在登入畫面上啟用自動點選功能</translation>
 <translation id="3288595667065905535">發布頻道</translation>
-<translation id="3291940794983537008">開發人員工具生成式 AI 功能設定</translation>
 <translation id="3294430356898755483">你可以透過這項政策，讓管理員為使用者設定印表機清單。印表機選取作業會在使用者第一次嘗試列印時啟動。
 
       這項政策的用途如下：
@@ -3316,6 +3317,7 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
 如果不設定這項政策，只要「永久連線 VPN」處於嚴格模式，但裝置未連上該 VPN，系統將禁止瀏覽器開啟網頁。</translation>
 <translation id="3405997282295704902">不允許使用者使用 <ph name="PRODUCT_NAME" /></translation>
 <translation id="3406122462682235653">不詢問使用者 (立即開始下載)</translation>
+<translation id="3410534959501660670">文字擷取功能的設定</translation>
 <translation id="3411947169047929182">控管 WebRTC 相關設定</translation>
 <translation id="341285788698114069">這項政策可控管音訊程序在 Windows 系統上的優先順序。
       如果啟用這項政策，系統將以高於一般優先順序的次序執行音訊程序。
@@ -3743,11 +3745,6 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 此外，「匯出」的資料移轉功能也必須是啟用狀態，內容轉移工具應用程式才能正常運作。詳情請見 https://support.google.com/a/answer/6364687。</translation>
 <translation id="3702518095257671450">遠端認證</translation>
 <translation id="3702647575225525306"><ph name="POLICY_NAME" /> (單行欄位已淘汰，日後將遭到移除。請開始使用下方的多行文字方塊。)</translation>
-<translation id="3711561721191203926">如果將這項政策設為啟用，只要系統因 <ph name="PRIVATE_NETWORK_ACCESS" /> 檢查失敗而應在<ph name="DEV_TOOLS_NAME" />中顯示警告，系統就會改為封鎖主要要求。
-
-如果將這項政策設為停用或不設定，系統不會強制執行所有<ph name="PRIVATE_NETWORK_ACCESS" />警告，而且不會封鎖要求。
-
-如要瞭解<ph name="PRIVATE_NETWORK_ACCESS" />限制，請前往 https://wicg.github.io/private-network-access/。</translation>
 <translation id="3711895659073496551">暫停</translation>
 <translation id="3712861436661566358">強制區隔設定檔</translation>
 <translation id="3719826155360621982">首頁</translation>
@@ -4755,7 +4752,6 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 
       如果將這項政策設為停用或未設定，已註冊的裝置不會回報所在位置。</translation>
 <translation id="4461400898496433231">不要覆寫 IPv6 可連性檢查。只有在裝置可連線至全域 IPv6 主機時，才查詢 AAAA 記錄來解析主機名稱。</translation>
-<translation id="4463467966408770621">不允許使用開發人員工具生成式 AI 功能。</translation>
 <translation id="4463675333222095358">啟用快速解答的單位轉換功能</translation>
 <translation id="4464365009416584564">停用 <ph name="CHROME_SYNC_NAME" /></translation>
 <translation id="4467952432486360968">封鎖第三方 Cookie</translation>
@@ -6037,6 +6033,7 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 
 如要進一步瞭解所有處理值，請參閱 RFC 8828 第 5.2 節 (https://tools.ietf.org/html/rfc8828.html#section-5.2)。</translation>
 <translation id="5290940294294002042">指定使用者可以任意啟用或停用的外掛程式清單</translation>
+<translation id="5292069729218406524">允許使用文字擷取功能，但不協助改良 AI 模型。</translation>
 <translation id="5293285950307241933">清除所有本機使用者資料</translation>
 <translation id="5293619885162445352">允許 <ph name="PEPPER_NAME" /> 使用新版影片解碼器。</translation>
 <translation id="529457411593078576">在第一次執行 CCT 時啟用《服務條款》</translation>
@@ -7677,23 +7674,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="6383774771168138899">設定 <ph name="MICROSOFT_ONE_DRIVE_NAME" /> 和 <ph name="MICROSOFT_365_NAME" /> 的<ph name="CLOUD_UPLOAD_NAME" />資料流</translation>
 <translation id="6384542789059421431">允許在瀏覽器側邊面板中顯示預設搜尋引擎的搜尋結果頁面。</translation>
 <translation id="6389240462871677239">允許隔離網頁應用程式來源使用受控頁框</translation>
-<translation id="6390338862225976270">這些 <ph name="PRODUCT_NAME" /> 開發人員工具功能採用生成式 AI 模型，可提供額外偵錯資訊。如要使用這些功能，<ph name="PRODUCT_NAME" /> 必須收集錯誤訊息、堆疊追蹤、程式碼片段和網路要求等資料，再傳送到執行生成式 AI 模型的 Google 伺服器。傳送到伺服器的資料不會有網路要求中的回應內文、驗證和 Cookie 標頭。
-
-0 = 允許使用這項功能，並允許 Google 運用相關資料改善 AI 模型。相關資料可能包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋 (視功能而定)。這些資料也可能會送交專人審查，以改善 AI 模型。預設值為 0，但以下註明的情形除外。
-
-1 = 允許使用這項功能，但不允許 Google 運用使用者的內容 (包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋) 改善模型。如果是 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企業版使用者，以及 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版帳戶，預設值為 1。
-
-2 = 不允許使用這項功能。
-
-如果不設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。
-
-開發人員工具生成式 AI 功能包括：
-
-- Console Insights：說明控制台訊息，並提供修正控制台錯誤的建議。
-
-- AI 輔助：取得瞭解 CSS 樣式 (自 131 版起)、網路要求、效能和檔案 (皆自 132 版起) 的相關協助。
-
-如要進一步瞭解生成式 AI 功能的資料處理方式，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="6394350458541421998">我們已於 <ph name="PRODUCT_OS_NAME" />版本 29 中移除這項政策。請改用 PresentationScreenDimDelayScale 政策。</translation>
 <translation id="6397588391180665797">回報已註冊裝置上的使用者網路設定。
 
@@ -8218,11 +8198,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
 如果是 <ph name="PRODUCT_NAME" />，裝置必須使用 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> 註冊，這項政策才會生效。
 如果是 <ph name="PRODUCT_OS_NAME" />，這項政策一律會生效。</translation>
-<translation id="6720071484598746942">如果將這項政策設為啟用，只要<ph name="DEV_TOOLS_NAME" />因 <ph name="LOCAL_NETWORK_ACCCESS" /> 檢查失敗而應該顯示警告，系統就會改為封鎖主要要求。
-
-如果將這項政策設為停用或未設定，系統會使用預設處理方式處理<ph name="LOCAL_NETWORK_ACCESS" />要求。
-
-如要瞭解<ph name="LOCAL_NETWORK_ACCESS" />限制，請前往 https://wicg.github.io/local-network-access/。</translation>
 <translation id="6720330829631914048">一天開始後經過的小時數 (24 小時制)。</translation>
 <translation id="6721252203593581486">在 M97 中，第三方內容中的 WebSQL (例如跨網站 iframe) 預設為關閉狀態，而在 M101 中將全面移除。
           如果將這項政策設為 False 或不予設定，第三方內容中的 WebSQL 會保持關閉。
@@ -9519,6 +9494,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="7713608076604149344">下載限制</translation>
 <translation id="7713845740295404764">回報登入/登出事件</translation>
 <translation id="7715711044277116530">簡報模式中的螢幕調暗延遲時間延長百分比</translation>
+<translation id="7715838249298819250">不允許使用文字擷取功能。</translation>
 <translation id="7716020145539921591">這項政策已遭淘汰，請改用 <ph name="PROXY_SETTINGS_POLICY_NAME" />。
 
        你可以透過這項政策，指定 Proxy 伺服器的網址。只有在 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策未設定，且你為 <ph name="PROXY_MODE_POLICY_NAME" /> 選取 <ph name="PROXY_MODE_ENUM_FIXED_SERVERS" /> 時，這項政策才會生效。
@@ -10193,6 +10169,17 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
       這項政策對於一般使用者帳戶無效。</translation>
 <translation id="8257863622304579015">啟用網路服務沙箱</translation>
+<translation id="825834906982940588">這項政策會控管 <ph name="PRODUCT_OS_NAME" /> 的文字擷取功能設定。
+
+0 = 允許使用這項功能，並允許 Google 運用相關資料改良 AI 模型。相關資料可能包括提示、輸入內容、輸出內容、來源資料和文字意見回饋 (視功能而定)。這些資料也可能會送交專人審查，以改良 AI 模型。預設值為 0，但以下註明的情形除外。
+
+1 = 允許使用這項功能，但不允許 Google 運用使用者的內容 (包括提示、輸入內容、輸出內容、來源資料和文字意見回饋) 改良模型。如果是 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企業版使用者，以及 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版帳戶，預設值為 1。
+
+2 = 不允許使用這項功能。
+
+如果不設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。
+
+如要進一步瞭解生成式 AI 功能的資料處理方式，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="8259375588339409826">Chromium 和 Google Chrome 支援同一套政策。請注意，這份文件可能包含未發布的政策 (即「支援環境」項目是指尚未發布的 <ph name="PRODUCT_NAME" /> 版本)，後續有關這些政策的變更與移除恕不另行通知，我們也不提供任何方面的保證，包括安全性和隱私權方面的保證。
 
 這些政策僅適用於設定貴機構內部的 <ph name="PRODUCT_NAME" /> 執行個體。如果在機構外 (例如公開發布的程式中) 使用這些政策，會被視為惡意軟體行徑，且 Google 和防毒軟體廠商可能會將其標示為惡意軟體。
@@ -10811,7 +10798,6 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
       注意：如要查看可用的變數清單，請前往 https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables。</translation>
 <translation id="8657543427358173663">允許從 Google 服務收集 WebRTC 事件記錄</translation>
 <translation id="8659843732895043951">允許這些網站使用剪貼簿</translation>
-<translation id="8660214745436301739">允許使用開發人員工具生成式 AI 功能並改善 AI 模型。</translation>
 <translation id="8661297125441579970">不允許資料遷移功能和 ARC。</translation>
 <translation id="8661538142776716004">清除網站設定</translation>
 <translation id="8661980316738569557">啟用高對比模式</translation>
@@ -11590,7 +11576,6 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
       如果將這項政策設為 <ph name="ASSISTANT_ONBOARDING_MODE_EDUCATION" />，系統會使用 Google 助理入門使用體驗的 EDU 模式。</translation>
 <translation id="9191821120522935133">允許啟用不可見的不同來源 iframe 節流功能</translation>
 <translation id="9192220384862917760">啟用遠端存取主機的簾幕模式</translation>
-<translation id="9194693367692364911">允許使用開發人員工具的生成式 AI 功能，但不改善 AI 模型。</translation>
 <translation id="9195766455191826480">不要回報裝置安全性狀態</translation>
 <translation id="9197238499850071076">指定是否要將已搭載較新版本的裝置復原至 <ph name="DEVICE_TARGET_VERSION_PREFIX_POLICY_NAME" /> 設定的版本。
 

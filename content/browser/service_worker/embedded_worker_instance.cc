@@ -1328,7 +1328,8 @@ EmbeddedWorkerInstance::GetDipReporterInternal(
   return new_dip_reporter;
 }
 
-std::optional<uint64_t> EmbeddedWorkerInstance::GetOrCreateCanvasNoiseToken() {
+std::optional<blink::NoiseToken>
+EmbeddedWorkerInstance::GetOrCreateCanvasNoiseToken() {
   DCHECK(context_);
   BrowserContext* browser_context = context_->wrapper()->browser_context();
   GURL top_url = owner_version_->key().top_level_site().GetURL();

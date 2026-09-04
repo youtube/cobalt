@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/tabs/organization/tab_organization_service.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_session.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
@@ -212,6 +213,84 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsWithReloadSelectionModelTest,
   EXPECT_EQ(1, load_sum);
 }
 
+class BrowserCommandsWithCloseHotkeySplitViewTest : public BrowserCommandsTest {
+ public:
+  BrowserCommandsWithCloseHotkeySplitViewTest() {
+    feature_list_.InitWithFeatures(
+        {
+            features::kCloseActiveTabInSplitViewViaHotkey,
+            features::kSideBySide,
+        },
+        {});
+  }
+
+ protected:
+  TabStripModel* GetTabStripModel(Browser* browser) {
+    return browser->tab_strip_model();
+  }
+
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// With kCloseHotkeySplitView enabled, only the active tab in the split view is
+// closed.
+IN_PROC_BROWSER_TEST_F(BrowserCommandsWithCloseHotkeySplitViewTest,
+                       OnlyCloseActiveTabInSplitView) {
+  // Add 2 tabs.
+  constexpr int kTabCount = 3;
+  for (int i = 1; i < kTabCount; i++) {
+    ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), i, GURL(kUrl),
+                                       ui::PAGE_TRANSITION_LINK, false));
+  }
+
+  EXPECT_EQ(kTabCount, GetTabStripModel(browser())->GetTabCount());
+
+  // Add second last tab to split view with the last tab.
+  GetTabStripModel(browser())->AddToNewSplit(
+      {kTabCount - 2},
+      split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical,
+                                     1.0f),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  EXPECT_TRUE(GetTabStripModel(browser())->IsActiveTabSplit());
+
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_CLOSE_TAB));
+
+  EXPECT_FALSE(GetTabStripModel(browser())->IsActiveTabSplit());
+  EXPECT_EQ(2, GetTabStripModel(browser())->GetTabCount());
+}
+
+// All tabs in the selection model get closed.
+IN_PROC_BROWSER_TEST_F(BrowserCommandsWithCloseHotkeySplitViewTest,
+                       CloseAllTabsInSelectionModel) {
+  // Add 3 tabs.
+  constexpr int kTabCount = 4;
+  for (int i = 1; i < kTabCount; i++) {
+    ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), i, GURL(kUrl),
+                                       ui::PAGE_TRANSITION_LINK, false));
+  }
+
+  EXPECT_EQ(kTabCount, GetTabStripModel(browser())->GetTabCount());
+
+  // Add second last tab to split view with the last tab.
+  GetTabStripModel(browser())->AddToNewSplit(
+      {kTabCount - 2},
+      split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical,
+                                     1.0f),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  EXPECT_TRUE(GetTabStripModel(browser())->IsActiveTabSplit());
+
+  // Add a non-split tab to the selection model.
+  GetTabStripModel(browser())->SelectTabAt(kTabCount - 3);
+
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_CLOSE_TAB));
+
+  // Only one, non-split tab should remain.
+  EXPECT_FALSE(GetTabStripModel(browser())->IsActiveTabSplit());
+  EXPECT_EQ(1, GetTabStripModel(browser())->GetTabCount());
+}
+
 // Check that the ThirdPartyCookieBreakageIndicator UKM is sent on Reload.
 // Disabled because of crbug.com/1468528
 IN_PROC_BROWSER_TEST_F(BrowserCommandsTest, DISABLED_ReloadBreakageUKM) {
@@ -318,13 +397,12 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest, MoveGroupToNewWindow) {
   browser()->tab_strip_model()->ChangeTabGroupVisuals(
       group_id, tab_groups::TabGroupVisualData(
                     u"Test Group", tab_groups::TabGroupColorId::kGrey));
-  ui_test_utils::BrowserChangeObserver new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
 
   chrome::MoveGroupToNewWindow(browser(), group_id);
   ASSERT_TRUE(browser()->tab_strip_model()->count() == 1);
 
-  Browser* active_browser = new_browser_observer.Wait();
+  Browser* active_browser = browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(active_browser);
 
   EXPECT_TRUE(
@@ -395,10 +473,9 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest, MoveActiveTabToNewWindow) {
   EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents()->GetURL(),
             url2);
 
-  ui_test_utils::BrowserChangeObserver new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   chrome::ExecuteCommand(browser(), IDC_MOVE_TAB_TO_NEW_WINDOW);
-  Browser* active_browser = new_browser_observer.Wait();
+  Browser* active_browser = browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(active_browser);
 
   // Now we should have: two browsers, each with one tab (url1 in browser(),
@@ -428,10 +505,9 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest,
   EXPECT_FALSE(browser()->tab_strip_model()->IsTabSelected(1));
   EXPECT_TRUE(browser()->tab_strip_model()->IsTabSelected(2));
 
-  ui_test_utils::BrowserChangeObserver new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   chrome::ExecuteCommand(browser(), IDC_MOVE_TAB_TO_NEW_WINDOW);
-  Browser* active_browser = new_browser_observer.Wait();
+  Browser* active_browser = browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(active_browser);
 
   // Now we should have two browsers:

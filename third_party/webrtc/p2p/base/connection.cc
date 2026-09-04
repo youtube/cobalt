@@ -261,7 +261,11 @@ Connection::Connection(const Environment& env,
       delta_internal_unix_epoch_(Timestamp::Millis(TimeUTCMillis()) -
                                  time_created_),
       field_trials_(&kDefaultFieldTrials),
-      rtt_estimate_(kDefaultRttEstimateHalfTimeMs) {
+      rtt_estimate_(kDefaultRttEstimateHalfTimeMs),
+      state_change_trampoline_(this),
+      destroyed_trampoline_(this),
+      ready_to_send_trampoline_(this),
+      nominated_trampoline_(this) {
   RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(port_);
   RTC_LOG(LS_INFO) << ToString() << ": Connection created";

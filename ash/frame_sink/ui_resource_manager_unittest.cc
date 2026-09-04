@@ -12,6 +12,7 @@
 #include "components/viz/common/resources/resource_id.h"
 #include "components/viz/common/resources/returned_resource.h"
 #include "components/viz/common/resources/transferable_resource.h"
+#include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -22,18 +23,6 @@ constexpr UiSourceId kTestUiSourceId_1 = 1u;
 constexpr UiSourceId kTestUiSourceId_2 = 2u;
 constexpr gfx::Size kDefaultSize(20, 20);
 
-std::unique_ptr<UiResource> MakeResource(
-    const gfx::Size& resource_size,
-    viz::SharedImageFormat format = viz::SinglePlaneFormat::kBGRA_8888,
-    UiSourceId ui_source_id = kTestUiSourceId_1) {
-  auto resource = std::make_unique<UiResource>();
-  resource->ui_source_id = ui_source_id;
-  resource->format = format;
-  resource->resource_size = resource_size;
-  resource->SetExternallyOwnedMailbox(gpu::Mailbox::Generate());
-  return resource;
-}
-
 class UiResourceManagerTest : public testing::Test {
  public:
   UiResourceManagerTest() = default;
@@ -41,12 +30,29 @@ class UiResourceManagerTest : public testing::Test {
   UiResourceManagerTest& operator=(const UiResourceManagerTest&) = delete;
 
  protected:
+  std::unique_ptr<UiResource> MakeResource(
+      const gfx::Size& resource_size = kDefaultSize,
+      viz::SharedImageFormat format = viz::SinglePlaneFormat::kBGRA_8888,
+      UiSourceId ui_source_id = kTestUiSourceId_1) {
+    auto shared_image = sii_->CreateSharedImage(
+        {format, resource_size, gfx::ColorSpace(),
+         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ, "FastInkRootViewFrame"},
+        gpu::kNullSurfaceHandle);
+    auto resource = std::make_unique<UiResource>(sii_, std::move(shared_image));
+    resource->ui_source_id = ui_source_id;
+    resource->format = format;
+    resource->resource_size = resource_size;
+    return resource;
+  }
+
   void SetUp() override {
+    sii_ = base::MakeRefCounted<gpu::TestSharedImageInterface>();
     resource_manager_ = std::make_unique<UiResourceManager>();
   }
 
   void TearDown() override { resource_manager_->LostExportedResources(); }
 
+  scoped_refptr<gpu::SharedImageInterface> sii_;
   std::unique_ptr<UiResourceManager> resource_manager_;
 };
 
@@ -105,8 +111,8 @@ TEST_F(UiResourceManagerTest, ReuseResource) {
 }
 
 TEST_F(UiResourceManagerTest, OfferResource) {
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
+  resource_manager_->OfferResourceForTesting(MakeResource());
+  resource_manager_->OfferResourceForTesting(MakeResource());
 
   // As soon as we offer a resource, it is available to be used.
   EXPECT_EQ(resource_manager_->available_resources_count(), 2u);
@@ -115,7 +121,7 @@ TEST_F(UiResourceManagerTest, OfferResource) {
 using UiResourceManagerDeathTest = UiResourceManagerTest;
 TEST_F(UiResourceManagerDeathTest,
        NeedToClearAllExportedResourceBeforeDeletingManager) {
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
+  resource_manager_->OfferResourceForTesting(MakeResource());
   resource_manager_->OfferAndPrepareResourceForExport(
       MakeResource(kDefaultSize));
 
@@ -124,8 +130,8 @@ TEST_F(UiResourceManagerDeathTest,
 }
 
 TEST_F(UiResourceManagerTest, PrepareResourceForExporting) {
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
+  resource_manager_->OfferResourceForTesting(MakeResource());
+  resource_manager_->OfferResourceForTesting(MakeResource());
 
   EXPECT_EQ(resource_manager_->exported_resources_count(), 0u);
   EXPECT_EQ(resource_manager_->available_resources_count(), 2u);
@@ -140,7 +146,8 @@ TEST_F(UiResourceManagerTest, PrepareResourceForExporting) {
 }
 
 TEST_F(UiResourceManagerTest, CannotReuseExportedResourcesTillReclaimed) {
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
+  const gfx::Size kDefaultSize2(10, 10);
+  resource_manager_->OfferResourceForTesting(MakeResource(kDefaultSize2));
   EXPECT_EQ(resource_manager_->available_resources_count(), 1u);
 
   viz::TransferableResource transferable_resource =
@@ -173,9 +180,9 @@ TEST_F(UiResourceManagerTest, CannotReuseExportedResourcesTillReclaimed) {
 }
 
 TEST_F(UiResourceManagerTest, ExportedResourcesAreLost) {
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
-  resource_manager_->OfferResourceForTesting(std::make_unique<UiResource>());
+  resource_manager_->OfferResourceForTesting(MakeResource());
+  resource_manager_->OfferResourceForTesting(MakeResource());
+  resource_manager_->OfferResourceForTesting(MakeResource());
 
   resource_manager_->OfferAndPrepareResourceForExport(
       MakeResource(kDefaultSize));

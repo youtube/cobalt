@@ -152,6 +152,10 @@ int x509_print_rsa_pss_params(BIO *bp, const X509_ALGOR *sigalg, int indent,
   const char *hash_str = nullptr;
   uint32_t salt_len = 0;
   switch (params) {
+    case rsa_pss_none:
+      // |rsa_pss_decode| will never return this.
+      OPENSSL_PUT_ERROR(X509, ERR_R_INTERNAL_ERROR);
+      return 0;
     case rsa_pss_sha256:
       hash_str = "sha256";
       salt_len = 32;

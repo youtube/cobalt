@@ -85,11 +85,6 @@ BASE_FEATURE(kAutofillAiCreateEntityDataManager,
 #endif
 );
 
-// If enabled, AutofillAi supports flight reservations.
-BASE_FEATURE(kAutofillAiFlightReservation,
-             "AutofillAiFlightReservation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // If enabled, no account-level capabilities are checked to determine whether
 // a user is eligible for AutofillAI.
 BASE_FEATURE(kAutofillAiIgnoreCapabilityCheck,
@@ -176,6 +171,18 @@ BASE_FEATURE(kAutofillAiServerModel,
              "AutofillAiServerModel",
              IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
                                      : base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, AutofillAi supports flight reservation entities from Google
+// Wallet.
+BASE_FEATURE(kAutofillAiWalletFlightReservation,
+             "AutofillAiWalletFlightReservation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, AutofillAi supports vehicle registration entities from Google
+// Wallet.
+BASE_FEATURE(kAutofillAiWalletVehicleRegistration,
+             "AutofillAiWalletVehicleRegistration",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The maximum duration for which an AutofillAI server model response is kept in
 // the local cache. NOTE: It is advisable to choose a value that is at least as
@@ -792,6 +799,13 @@ BASE_FEATURE(kAutofillGreekRegexes,
              "AutofillGreekRegexes",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables uploading fields that were autofilled with fallback types.
+// TODO: crbug.com/444147005 - Clean up after this feature is rolled out.
+COMPONENT_EXPORT(AUTOFILL)
+BASE_FEATURE(kAutofillUploadManualFallbackFieldsToServer,
+             "AutofillUploadManualFallbackFieldsToServer",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables uploading of more data to the Autofill server to use for computing
 // signatures: go/autofill-signatures-more-data.
 COMPONENT_EXPORT(AUTOFILL)
@@ -920,6 +934,12 @@ BASE_FEATURE(kAutofillAndroidDesktopSuppressAccessoryOnEmpty,
 BASE_FEATURE(kAutofillDeepLinkAutofillOptions,
              "AutofillDeepLinkAutofillOptions",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls if Chrome Keyboard Accessory on Android displays 2 line chips.
+// TODO: crbug.com/385172647 - Clean up after the feature is launched.
+BASE_FEATURE(kAutofillEnableKeyboardAccessoryChipRedesign,
+             "AutofillEnableKeyboardAccessoryChipRedesign",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls if Chrome Autofill UI surfaces ignore touch events if something is
 // fully or partially obscuring the Chrome window.

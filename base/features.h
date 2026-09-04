@@ -15,6 +15,8 @@ namespace base::features {
 // alongside the definition of their values in the .cc file.
 
 // Alphabetical:
+BASE_EXPORT BASE_DECLARE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle);
+
 #if BUILDFLAG(IS_COBALT)
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
@@ -55,6 +57,11 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kUseSharedRebindServiceConnection);
 BASE_EXPORT BASE_DECLARE_FEATURE(kBackgroundThreadPoolFieldTrial);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kBackgroundThreadPoolFieldTrialConfig);
+
+BASE_EXPORT BASE_DECLARE_FEATURE(kLibraryPrefetcherMadvise);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t, kLibraryPrefetcherMadviseLength);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kLibraryPrefetcherMadviseFallback);
+
 #endif
 
 // Whether the ReducePPMs feature is enabled. Unlike

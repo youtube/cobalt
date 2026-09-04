@@ -382,6 +382,9 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 DEFINE_STRING(icu_datetime_compat_lang, "*",
               "limits ICU date time compat changes to the given language")
+DEFINE_BOOL(icu_default_italian_number_grouping_always, false,
+            "override the default useGrouping rule for Italian to \"always\" "
+            "to match behavior of ICU <76")
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK
@@ -617,13 +620,12 @@ DEFINE_BOOL(maglev_pretenure_store_values, true,
             "Recursively pretenure values which are stored into pretenured "
             "allocation sites.")
 DEFINE_BOOL(maglev_poly_calls, true, "Support (inlining) polymorphic calls")
-DEFINE_EXPERIMENTAL_FEATURE(maglev_truncation, "Enable Maglev truncation pass")
+DEFINE_BOOL(maglev_truncation, true, "Enable Maglev truncation pass")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_truncation)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,
@@ -678,7 +680,6 @@ DEFINE_EXPERIMENTAL_FEATURE(maglev_non_eager_inlining,
 DEFINE_EXPERIMENTAL_FEATURE(turbolev_non_eager_inlining,
                             "enable Turbolev non-eager inlining")
 DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_non_eager_inlining)
-DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_truncation)
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_STRING(maglev_print_filter, "*",
@@ -701,6 +702,8 @@ DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
 DEFINE_BOOL(trace_maglev_loop_speeling, false, "trace maglev loop SPeeling")
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, trace_maglev_loop_speeling)
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
+DEFINE_BOOL(trace_maglev_kna_processor, false,
+            "trace maglev known node aspects processor")
 
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")
@@ -876,6 +879,7 @@ DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
 #ifdef V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(jitless, maglev)
 #endif  // V8_ENABLE_MAGLEV
+DEFINE_NEG_IMPLICATION(jitless, turbolev)
 // Doesn't work without an executable code space.
 DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
@@ -1615,6 +1619,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turboshaft)
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turbo_inline_js_wasm_calls)
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    turbolev_inline_js_wasm_wrappers,
+    "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
+
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
 DEFINE_BOOL(turboshaft_loop_unrolling, true,
@@ -2166,6 +2174,7 @@ DEFINE_NEG_IMPLICATION(wasm_enable_exec_time_histograms, wasm_generic_wrapper)
 DEFINE_BOOL_READONLY(wasm_jitless, false,
                      "execute all Wasm code in the Wasm interpreter")
 DEFINE_BOOL(wasm_jitless_if_available_for_testing, false, "")
+DEFINE_NEG_IMPLICATION(wasm_jitless_if_available_for_testing, turbolev)
 #endif  // V8_ENABLE_DRUMBRAKE
 
 DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,
@@ -2451,8 +2460,10 @@ DEFINE_BOOL(flush_bytecode, true,
 DEFINE_INT(bytecode_old_age, 6, "number of gcs before we flush code")
 DEFINE_BOOL(flush_code_based_on_time, false,
             "Use time-base code flushing instead of age.")
+DEFINE_IMPLICATION(flush_code_based_on_time, late_heap_limit_check)
 DEFINE_BOOL(flush_code_based_on_tab_visibility, false,
             "Flush code when tab goes into the background.")
+DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
 DEFINE_INT(bytecode_old_time, 30, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)
@@ -2551,6 +2562,15 @@ DEFINE_FLOAT(memory_balancer_c_value, 3e-10,
              "The smaller the more memory it uses.")
 DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
 DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
+DEFINE_BOOL(late_heap_limit_check, true,
+            "skips heap limit check for early GCs on allocation failure.")
+
+#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+DEFINE_BOOL(reserve_contiguous_compressed_read_only_space,
+            CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL,
+            "reserves a contiguous compressed read-only space in all pointer "
+            "compression cages")
+#endif
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -2604,6 +2624,11 @@ DEFINE_BOOL(enable_popcnt, true,
 DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
               "generate instructions for the selected ARM architecture if "
               "available: armv6, armv7, armv7+sudiv or armv8")
+#if defined(V8_TARGET_ARCH_ARM)
+DEFINE_STRING(mfloat_abi, "auto",
+              "selects the ARM FP ABI to use: softfp, hardfp or auto."
+              "available: softfp,hardfp or auto")
+#endif
 DEFINE_BOOL(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS/PPC only)")
 DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
@@ -2801,6 +2826,9 @@ DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
 // inspector
 DEFINE_BOOL(expose_inspector_scripts, false,
             "expose injected-script-source.js for debugging")
+DEFINE_BOOL(inspector_live_edit, true,
+            "Enable the Debugger.setScriptSource CDP command, otherwise it'll "
+            "always fail with an error")
 
 // execution.cc
 //
@@ -3088,13 +3116,15 @@ DEFINE_UINT(regexp_backtracks_before_fallback, 50000,
             "to experimental engine if "
             "enable_experimental_regexp_engine_on_excessive_backtracks is set")
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV32 || \
+    V8_TARGET_ARCH_RISCV64
 DEFINE_BOOL(regexp_simd, true, "enable SIMD for regexp jit code")
 #else
 DEFINE_BOOL_READONLY(
     regexp_simd, false,
     "enable SIMD for regexp jit code (not supported for this architecture)")
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV32
+        // || V8_TARGET_ARCH_RISCV64
 
 DEFINE_BOOL(trace_read_only_promotion, false,
             "trace the read-only promotion pass")
@@ -3313,6 +3343,11 @@ DEFINE_UINT(minor_ms_concurrent_marking_trigger, 90,
 DEFINE_SIZE_T(minor_ms_min_lab_size_kb, 0,
               "override for the minimum lab size in KB to be used for new "
               "space allocations with minor ms. ")
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    handle_weak_ref_weakly_in_minor_gc,
+    "Enables weak handling of WeakRef and FinalizationRegistry in minor GCs.")
+DEFINE_NEG_IMPLICATION(minor_ms, handle_weak_ref_weakly_in_minor_gc)
 
 //
 // Dev shell flags

@@ -5,25 +5,30 @@
 #ifndef CHROME_BROWSER_GLIC_WIDGET_GLIC_INACTIVE_SIDE_PANEL_UI_H_
 #define CHROME_BROWSER_GLIC_WIDGET_GLIC_INACTIVE_SIDE_PANEL_UI_H_
 
-#include "base/notimplemented.h"
 #include "chrome/browser/glic/host/glic_ui_embedder.h"
 
 namespace glic {
+
+class GlicSidePanelUi;
 
 // A GlicUiEmbedder for inactive Glic instances. This will show a
 // blurred screenshot of the previously active UI.
 class GlicInactiveSidePanelUi : public GlicUiEmbedder {
  public:
-  GlicInactiveSidePanelUi() = default;
-  ~GlicInactiveSidePanelUi() override = default;
+  static std::unique_ptr<GlicInactiveSidePanelUi> From(
+      const GlicSidePanelUi& active_ui);
+
+  ~GlicInactiveSidePanelUi() override;
 
   // GlicUiEmbedder:
-  Host::Delegate* GetHostDelegate() override { return nullptr; }
-  void Show() override { NOTIMPLEMENTED(); }
-  std::unique_ptr<views::View> CreateView() override {
-    NOTIMPLEMENTED();
-    return nullptr;
-  }
+  Host::Delegate* GetHostDelegate() override;
+  void Show() override;
+  void Close() override;
+  std::unique_ptr<views::View> CreateView() override;
+  std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
+
+ private:
+  GlicInactiveSidePanelUi();
 };
 
 }  // namespace glic

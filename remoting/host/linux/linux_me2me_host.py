@@ -18,6 +18,7 @@ import abc
 import argparse
 import atexit
 import base64
+import dbus
 import errno
 import fcntl
 import getpass
@@ -177,9 +178,6 @@ RUNTIME_DIR_TEMPLATE = "/run/user/%s"
 
 # Binary name for `gnome-session`.
 GNOME_SESSION = "gnome-session"
-
-# Binary name for `gnome-session-quit`.
-GNOME_SESSION_QUIT = "gnome-session-quit"
 
 # Globals needed by the atexit cleanup() handler.
 g_desktop = None
@@ -1157,13 +1155,9 @@ class Desktop(abc.ABC):
 class WaylandDesktop(Desktop):
   """Manage a single virtual wayland based desktop"""
 
-  WL_SOCKET_CHECK_DELAY_SECONDS = 1
-  WL_SOCKET_CHECK_TIMEOUT_SECONDS = 5
+  WL_SERVER_CHECK_DELAY_SECONDS = 1
+  WL_SERVER_CHECK_TIMEOUT_SECONDS = 10
   WL_SERVER_REPLY_TIMEOUT_SECONDS = 1
-  # We scan for the unused socket starting from number 1. If we are not able to
-  # find anything between 1 and 100 then we error out since there could be a
-  # socket leak and we don't want to keep retrying forever.
-  MAX_WAYLAND_SOCKET_NUM = 100
 
   def __init__(self, sizes, host_config):
     self.debug = False
@@ -1193,25 +1187,6 @@ class WaylandDesktop(Desktop):
       self.child_env["G_DEBUG"] = "fatal-criticals"
       self.child_env["WAYLAND_DEBUG"] = "1"
 
-  def _get_unused_wayland_socket(self):
-    """
-    Return a candidate wayland socket that is not already taken by another
-    compositor.
-    """
-    socket_num = starting_socket_num = 0
-    full_sock_path = os.path.join(self.runtime_dir, "wayland-%s" % socket_num)
-    while ((os.path.exists(full_sock_path)) and
-            socket_num <= self.MAX_WAYLAND_SOCKET_NUM):
-      socket_num += 1
-      full_sock_path = os.path.join(self.runtime_dir, "wayland-%s" % socket_num)
-    if socket_num > self.MAX_WAYLAND_SOCKET_NUM:
-      logging.error("Unable to find an unused wayland socket (searched between "
-                    "'wayland-%s' to 'wayland-%s' under runtime directory",
-                    starting_socket_num,
-                    self.MAX_WAYLAND_SOCKET_NUM, self.runtime_dir)
-      return None
-    return "wayland-%s" % socket_num
-
   @staticmethod
   def _is_gnome_session_present():
     if not shutil.which(GNOME_SESSION):
@@ -1228,13 +1203,23 @@ class WaylandDesktop(Desktop):
       # attempting to relaunch.
       sys.exit(1)
     logging.info("Launching wayland server.")
-    self._wayland_socket = self._get_unused_wayland_socket()
-    if self._wayland_socket is None:
-      logging.error("Unable to find unused wayland socket, running compositor "
-                    "is going to fail")
-      sys.exit(1)
-    else:
-      self.child_env["WAYLAND_DISPLAY"] = self._wayland_socket
+    # Remove the display layout file, which will cause problems if it is applied
+    # right after the gnome session is launched. See: http://crbug.com/444052254
+    display_layout_file = os.path.join(
+        CONFIG_DIR, "host#%s.display_layout.pb" % g_host_hash)
+    try:
+      os.remove(display_layout_file)
+      logging.info("Existing display layout file deleted.")
+    except FileNotFoundError:
+      pass
+
+    # Remove variables from the systemd environment that are known to cause
+    # problems in the GNOME Wayland session if present - see
+    # http://crbug.com/444255720.
+    subprocess.call(["systemctl", "--user", "unset-environment",
+                     "GDK_BACKEND", "SSH_CONNECTION"],
+                    stdout=subprocess.DEVNULL)
+
     self.server_proc = subprocess.Popen([GNOME_SESSION],
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT,
@@ -1247,31 +1232,71 @@ class WaylandDesktop(Desktop):
         "Wayland server output: ", SERVER_OUTPUT_TIME_LIMIT_SECONDS)
     output_filter_thread.start()
 
+  def _fetch_wayland_socket_from_systemd(self):
+    """
+    Fetches the wayland socket name from $WAYLAND_DISPLAY in the systemd user
+    environment. This is set by the GNOME Shell service when it becomes active.
+    If successful, the value is stored in `_wayland_socket`. It is also
+    stored in `child_env` for child processes that might want to connect to
+    Wayland (such as the host process). Returns True if successful.
+    """
+    # Use the D-Bus API directly, instead of parsing the output of
+    # "systemctl --user show-environment". That command may shell-escape its
+    # output, and there may be issues with embedded newlines or invalid UTF-8
+    # encoding.
+    try:
+      # A private connection is needed. The systemd user "dbus" service runs
+      # on-demand (whenever the dbus socket is accessed) so it may stop and
+      # start. This causes disconnection errors if a global connection is
+      # re-used here.
+      bus = dbus.SessionBus(private=True)
+      systemd_object = bus.get_object("org.freedesktop.systemd1",
+                                      "/org/freedesktop/systemd1")
+      systemd_properties = dbus.Interface(systemd_object,
+                                          "org.freedesktop.DBus.Properties")
+      systemd_environment = systemd_properties.Get(
+        "org.freedesktop.systemd1.Manager", "Environment")
+    except dbus.exceptions.DBusException:
+      # D-Bus errors should be rare - include exception info for debugging.
+      logging.error("Failed to get Wayland socket name", exc_info=True)
+      return False
+
+    wayland_display_env = "WAYLAND_DISPLAY"
+    wayland_env_prefix = wayland_display_env + "="
+    for setting in systemd_environment:
+      if setting.startswith(wayland_env_prefix):
+        self._wayland_socket = setting[len(wayland_env_prefix):]
+        self.child_env[wayland_display_env] = self._wayland_socket
+        logging.info("Fetched Wayland socket name: %s" % self._wayland_socket)
+        return True
+    logging.error("%s not found in systemd environment" % wayland_display_env)
+    return False
+
   def _wait_for_wayland_compositor_running(self):
     """
-    Waits for wayland socket to be created by the wayland compositor. Returns
-    true if socket is created within the allowed timeout, else false.
+    Waits for the wayland service to become active. Returns true if this
+    happens within the allowed timeout, else false.
     """
-    full_socket_path = os.path.join(self.runtime_dir, self._wayland_socket)
     start_time = time.time()
-    while not os.path.exists(full_socket_path):
-      time_passed = time.time() - start_time
-      if time_passed >= self.WL_SOCKET_CHECK_TIMEOUT_SECONDS:
-        break
-      logging.info("Wayland socket not yet present. Will wait for %s seconds "
-                   "for compositor to create it (remaining wait time: %s "
-                   "seconds)" %
-                   (self.WL_SOCKET_CHECK_DELAY_SECONDS,
-                    int(self.WL_SOCKET_CHECK_TIMEOUT_SECONDS - time_passed)))
-      time.sleep(self.WL_SOCKET_CHECK_DELAY_SECONDS)
-    if not os.path.exists(full_socket_path):
-      logging.error("Waited for wayland compositor to create wayland "
-                    "socket: %s, but it didn't happen in %s seconds" %
-                    (full_socket_path, self.WL_SOCKET_CHECK_TIMEOUT_SECONDS))
-      return False
-    logging.info("Wayland socket detected in %s seconds: " %
+    while time.time() - start_time < self.WL_SERVER_CHECK_TIMEOUT_SECONDS:
+      exit_code = subprocess.call(
+        # 'systemctl' is provided by the 'systemd' package. The GNOME Shell
+        # service is of type 'notify', which means that it tells systemd when
+        # it is ready to accept Wayland connections.
+        ["systemctl", "--user", "is-active", "org.gnome.Shell@wayland"],
+        stdout=subprocess.DEVNULL)
+      if exit_code == 0:
+        logging.info("Wayland server became active in %s seconds: " %
                  str(time.time() - start_time))
-    return True
+        # If the socket-name can't be fetched, treat it as a launch failure
+        # requiring a restart, since it will not be possible for this script,
+        # or a child process, to make a Wayland connection.
+        return self._fetch_wayland_socket_from_systemd()
+      time.sleep(self.WL_SERVER_CHECK_DELAY_SECONDS)
+    logging.error("Waited for wayland service to become active, but it "
+                  "didn't happen in %s seconds" %
+                  (self.WL_SERVER_CHECK_TIMEOUT_SECONDS))
+    return False
 
   def launch_desktop_session(self):
     """
@@ -1327,22 +1352,6 @@ class WaylandDesktop(Desktop):
       except psutil.Error:
         logging.error("Error terminating process")
       self.host_proc = None
-
-    # We only support gnome-session, which is currently managed by CRD itself.
-    logging.info("Executing %s" % GNOME_SESSION_QUIT)
-    if shutil.which(GNOME_SESSION_QUIT):
-      cleanup_proc = subprocess.Popen(
-        [GNOME_SESSION_QUIT, "--force", "--no-prompt"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=self.child_env)
-      stdout, stderr = cleanup_proc.communicate()
-      if stderr:
-        logging.error("Failed to execute %s:\n%s" %
-                      (GNOME_SESSION_QUIT, stderr))
-      self.session_proc = None
-    else:
-      logging.warning("No %s found on the system" % GNOME_SESSION_QUIT)
 
     super(WaylandDesktop, self).cleanup()
     if self._wayland_socket:

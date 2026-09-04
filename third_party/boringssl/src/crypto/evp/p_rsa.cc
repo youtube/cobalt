@@ -65,14 +65,16 @@ static int pkey_rsa_init(EVP_PKEY_CTX *ctx) {
 
   if (is_pss_only(ctx)) {
     rctx->pad_mode = RSA_PKCS1_PSS_PADDING;
-    // Pick up PSS parameters from the key. For now, we only support the SHA-256
-    // parameter set, so every key is necessarily SHA-256. If we ever support
-    // other parameters, we will need more state in |EVP_PKEY| and to translate
-    // that state into defaults here.
-    if (ctx->pkey != nullptr) {
-      rctx->md = rctx->mgf1md = EVP_sha256();
-      rctx->saltlen = EVP_MD_size(rctx->md);
-      rctx->restrict_pss_params = true;
+    // Pick up PSS parameters from the key.
+    if (ctx->pkey != nullptr && ctx->pkey->pkey != nullptr) {
+      RSA *rsa = static_cast<RSA *>(ctx->pkey->pkey);
+      const EVP_MD *md = rsa_pss_params_get_md(rsa->pss_params);
+      if (md != nullptr) {
+        rctx->md = rctx->mgf1md = md;
+        // All our supported modes use the digest length as the salt length.
+        rctx->saltlen = EVP_MD_size(rctx->md);
+        rctx->restrict_pss_params = true;
+      }
     }
   }
 
@@ -530,7 +532,7 @@ const EVP_PKEY_CTX_METHOD rsa_pkey_meth = {
     pkey_rsa_ctrl,
 };
 
-const EVP_PKEY_CTX_METHOD rsa_pss_sha256_pkey_meth = {
+const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth = {
     EVP_PKEY_RSA_PSS,
     pkey_rsa_init,
     pkey_rsa_copy,

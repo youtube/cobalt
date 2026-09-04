@@ -765,7 +765,8 @@ const std::vector<Codec>& WebRtcVoiceEngine::LegacyRecvCodecs() const {
 }
 
 std::vector<RtpHeaderExtensionCapability>
-WebRtcVoiceEngine::GetRtpHeaderExtensions() const {
+WebRtcVoiceEngine::GetRtpHeaderExtensions(
+    const webrtc::FieldTrialsView* field_trials) const {
   RTC_DCHECK(signal_thread_checker_.IsCurrent());
   std::vector<RtpHeaderExtensionCapability> result;
   // id is *not* incremented for non-default extensions, UsedIds needs to

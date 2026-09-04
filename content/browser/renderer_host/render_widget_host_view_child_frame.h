@@ -35,7 +35,7 @@
 #include "third_party/blink/public/mojom/input/input_event_result.mojom-shared.h"
 #include "third_party/blink/public/mojom/widget/record_content_to_visible_time_request.mojom-forward.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "third_party/blink/public/mojom/webshare/webshare.mojom.h"
@@ -197,6 +197,7 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
   void DisableAutoResize(const gfx::Size& new_size) override;
   viz::ScopedSurfaceIdAllocator DidUpdateVisualProperties(
       const cc::RenderFrameMetadata& metadata) override;
+  input::CursorManager* GetCursorManager() override;
 
   // RenderFrameMetadataProvider::Observer implementation.
   void OnRenderFrameMetadataChangedBeforeActivation(

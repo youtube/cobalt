@@ -20,6 +20,7 @@
 #include "api/async_dns_resolver.h"
 #include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/system/rtc_export.h"
@@ -60,6 +61,9 @@ class RTC_EXPORT PacketSocketFactory {
 
   virtual ~PacketSocketFactory() = default;
 
+  // TODO: bugs.webrtc.org/42223992 - after Oct 10, 2025 make Create*Socket
+  // functions that accept Environment pure virtual, and delete legacy
+  // Create*Socket functions.
   virtual std::unique_ptr<AsyncPacketSocket> CreateUdpSocket(
       const Environment& /*env*/,
       const SocketAddress& address,
@@ -87,25 +91,32 @@ class RTC_EXPORT PacketSocketFactory {
         CreateClientTcpSocket(local_address, remote_address, tcp_options));
   }
 
-  // TODO: bugs.webrtc.org/42223992 - deprecate all 3 CreateSomeSocket functions
-  // below when WebRTC and downstream users are updated to always provide
-  // Environment to construct a packet socket.
+  virtual std::unique_ptr<AsyncDnsResolverInterface>
+  CreateAsyncDnsResolver() = 0;
+
+ private:
   virtual AsyncPacketSocket* CreateUdpSocket(const SocketAddress& address,
                                              uint16_t min_port,
-                                             uint16_t max_port) = 0;
+                                             uint16_t max_port) {
+    RTC_DCHECK_NOTREACHED();
+    return nullptr;
+  }
   virtual AsyncListenSocket* CreateServerTcpSocket(
       const SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port,
-      int opts) = 0;
+      int opts) {
+    RTC_DCHECK_NOTREACHED();
+    return nullptr;
+  }
 
   virtual AsyncPacketSocket* CreateClientTcpSocket(
       const SocketAddress& local_address,
       const SocketAddress& remote_address,
-      const PacketSocketTcpOptions& tcp_options) = 0;
-
-  virtual std::unique_ptr<AsyncDnsResolverInterface>
-  CreateAsyncDnsResolver() = 0;
+      const PacketSocketTcpOptions& tcp_options) {
+    RTC_DCHECK_NOTREACHED();
+    return nullptr;
+  }
 };
 
 }  //  namespace webrtc

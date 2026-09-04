@@ -142,7 +142,7 @@ EmulatedTURNServer::EmulatedTURNServer(const Environment& env,
   ice_config_.password = "keso";
   SendTask(thread_.get(), [&] {
     RTC_DCHECK_RUN_ON(thread_.get());
-    turn_server_ = std::make_unique<TurnServer>(thread_.get());
+    turn_server_ = std::make_unique<TurnServer>(env, thread_.get());
     turn_server_->set_realm(kTestRealm);
     turn_server_->set_realm(kTestSoftware);
     turn_server_->set_auth_hook(this);
@@ -150,7 +150,7 @@ EmulatedTURNServer::EmulatedTURNServer(const Environment& env,
 
     std::unique_ptr<AsyncPacketSocket> client_socket = Wrap(client_);
     client_address_ = client_socket->GetLocalAddress();
-    turn_server_->AddInternalSocket(client_socket.release(), PROTO_UDP);
+    turn_server_->AddInternalSocket(std::move(client_socket), PROTO_UDP);
     turn_server_->SetExternalSocketFactory(new PacketSocketFactoryWrapper(this),
                                            SocketAddress());
     char buf[256];

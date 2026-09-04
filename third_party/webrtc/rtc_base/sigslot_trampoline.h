@@ -51,6 +51,18 @@ namespace webrtc {
 //     my_class_object.SubscibeMyNamedEvent(
 //         SafeInvocable(target.safety_flag_.flag(),
 //                       [target] { target.function(); }
+// WHEN REMOVING THE SIGNAL
+// Make a CL that will:
+// - Delete the SignalMyNamedEvent signal
+// - Change my_named_event_trampoline_ to my_named_event_callbacks,
+//   of type CallbackList<function arguments>
+// - Change SubscribeMyNamedEvent to call my_named_event_callbacks.AddReceiver
+// - Change NotifyMyNamedEvent to call my_named_event_callbacks_.Send
+// - If UnsubscribeMyNamedEvent exists, change that also.
+// - Delete the initialization of my_named_event_trampoline_ from the
+//   relevant constructor.
+// Sending this through the bots will flush out remaining references to
+// SignalMyNamedEvent.
 namespace internal {
 template <typename MemberPtrT>
 struct member_pointer_traits;

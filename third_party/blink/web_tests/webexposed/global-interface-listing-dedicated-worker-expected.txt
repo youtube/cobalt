@@ -1824,13 +1824,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method setMetadata
 [Worker]     method toString
 [Worker]     setter data
-[Worker] interface RTCRtpAcks
-[Worker]     attribute @@toStringTag
-[Worker]     getter explicitCongestionNotification
-[Worker]     getter receivedTime
-[Worker]     getter remoteSendTimestamp
-[Worker]     method acks
-[Worker]     method constructor
 [Worker] interface RTCRtpScriptTransformer : EventTarget
 [Worker]     attribute @@toStringTag
 [Worker]     getter options
@@ -1838,32 +1831,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter writable
 [Worker]     method constructor
 [Worker]     method sendKeyFrameRequest
-[Worker] interface RTCRtpSendResult
-[Worker]     attribute @@toStringTag
-[Worker]     getter sent
-[Worker]     getter unsent
-[Worker]     method constructor
-[Worker] interface RTCRtpSendStream
-[Worker]     attribute @@toStringTag
-[Worker]     method constructor
-[Worker]     method sendRtp
-[Worker] interface RTCRtpSent
-[Worker]     attribute @@toStringTag
-[Worker]     getter ackId
-[Worker]     getter size
-[Worker]     getter time
-[Worker]     method constructor
-[Worker] interface RTCRtpTransportProcessor
-[Worker]     attribute @@toStringTag
-[Worker]     getter customMaxBandwidth
-[Worker]     method constructor
-[Worker]     method readReceivedAcks
-[Worker]     method readSentRtp
-[Worker]     setter customMaxBandwidth
-[Worker] interface RTCRtpTransportProcessorEvent : Event
-[Worker]     attribute @@toStringTag
-[Worker]     getter processor
-[Worker]     method constructor
 [Worker] interface RTCTransformEvent : Event
 [Worker]     attribute @@toStringTag
 [Worker]     getter transformer
@@ -1976,6 +1943,17 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker] interface RestrictionTarget
 [Worker]     attribute @@toStringTag
 [Worker]     method constructor
+[Worker] interface RtcReceivedPacket
+[Worker]     attribute @@toStringTag
+[Worker]     getter data
+[Worker]     method constructor
+[Worker] interface RtcTransport
+[Worker]     attribute @@toStringTag
+[Worker]     getter onicecandidate
+[Worker]     method constructor
+[Worker]     method getReceivedPackets
+[Worker]     method sendPackets
+[Worker]     setter onicecandidate
 [Worker] interface Scheduler
 [Worker]     attribute @@toStringTag
 [Worker]     method constructor
@@ -2255,7 +2233,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method createHTML
 [Worker]     method createScript
 [Worker]     method createScriptURL
-[Worker] interface TrustedTypePolicyFactory : EventTarget
+[Worker] interface TrustedTypePolicyFactory
 [Worker]     attribute @@toStringTag
 [Worker]     getter defaultPolicy
 [Worker]     getter emptyHTML
@@ -3257,7 +3235,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method stencilOp
 [Worker]     method stencilOpSeparate
 [Worker]     method texElement2D
-[Worker]     method texHTML2D
+[Worker]     method texElementImage2D
 [Worker]     method texImage2D
 [Worker]     method texImage3D
 [Worker]     method texParameterf
@@ -3762,7 +3740,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method stencilOp
 [Worker]     method stencilOpSeparate
 [Worker]     method texElement2D
-[Worker]     method texHTML2D
+[Worker]     method texElementImage2D
 [Worker]     method texImage2D
 [Worker]     method texParameterf
 [Worker]     method texParameteri
@@ -4132,7 +4110,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter name
 [Worker]     getter onmessage
 [Worker]     getter onmessageerror
-[Worker]     getter onrtcrtptransportprocessor
 [Worker]     getter onrtctransform
 [Worker]     method cancelAnimationFrame
 [Worker]     method close
@@ -4146,7 +4123,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     setter name
 [Worker]     setter onmessage
 [Worker]     setter onmessageerror
-[Worker]     setter onrtcrtptransportprocessor
 [Worker]     setter onrtctransform
 PASS successfullyParsed is true
 

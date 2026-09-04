@@ -108,6 +108,7 @@ rtc_library("builtin_audio_processing_builder") {
   deps = [
     ":audio_processing",
     ":echo_control",
+    ":neural_residual_echo_estimator_api",
     "..:make_ref_counted",
     "..:scoped_refptr",
     "../../modules/audio_processing",
@@ -166,6 +167,12 @@ rtc_source_set("echo_control") {
     "../environment",
     "//third_party/abseil-cpp/absl/base:nullability",
   ]
+}
+
+rtc_source_set("neural_residual_echo_estimator_api") {
+  visibility = [ "*" ]
+  sources = [ "neural_residual_echo_estimator.h" ]
+  deps = [ "..:array_view" ]
 }
 
 rtc_library("echo_detector_creator") {

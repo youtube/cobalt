@@ -53,6 +53,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <vector>
@@ -585,17 +586,17 @@ static void test_crbug_170666() {
 
 static void test_tiny_path_convexity(skiatest::Reporter* reporter, const char* pathBug,
         SkScalar tx, SkScalar ty, SkScalar scale) {
-    SkPath smallPath;
-    SkAssertResult(SkParsePath::FromSVGString(pathBug, &smallPath));
-    bool smallConvex = smallPath.isConvex();
-    SkPath largePath;
-    SkAssertResult(SkParsePath::FromSVGString(pathBug, &largePath));
+    auto smallPath = SkParsePath::FromSVGString(pathBug);
+    SkAssertResult(smallPath.has_value());
+    bool smallConvex = smallPath->isConvex();
+    auto largePath = SkParsePath::FromSVGString(pathBug);
+    SkAssertResult(largePath.has_value());
     SkMatrix matrix;
     matrix.reset();
     matrix.preTranslate(100, 100);
     matrix.preScale(scale, scale);
-    largePath.transform(matrix);
-    bool largeConvex = largePath.isConvex();
+    largePath = largePath->makeTransform(matrix);
+    bool largeConvex = largePath->isConvex();
     REPORTER_ASSERT(reporter, smallConvex == largeConvex);
 }
 
@@ -1110,9 +1111,8 @@ static void check_direction(skiatest::Reporter* reporter, const SkPath& path,
 
 static void test_direction(skiatest::Reporter* reporter) {
     size_t i;
-    SkPath path;
     REPORTER_ASSERT(reporter,
-                    SkPathPriv::ComputeFirstDirection(path) == SkPathFirstDirection::kUnknown);
+                    SkPathPriv::ComputeFirstDirection(SkPath()) == SkPathFirstDirection::kUnknown);
 
     static const char* gDegen[] = {
         "M 10 10",
@@ -1123,11 +1123,10 @@ static void test_direction(skiatest::Reporter* reporter) {
         "M 10 10 C 10 10 10 10 10 10",
     };
     for (i = 0; i < std::size(gDegen); ++i) {
-        path.reset();
-        bool valid = SkParsePath::FromSVGString(gDegen[i], &path);
-        REPORTER_ASSERT(reporter, valid);
+        auto path = SkParsePath::FromSVGString(gDegen[i]);
+        REPORTER_ASSERT(reporter, path.has_value());
         REPORTER_ASSERT(reporter,
-                        SkPathPriv::ComputeFirstDirection(path) == SkPathFirstDirection::kUnknown);
+                        SkPathPriv::ComputeFirstDirection(*path) == SkPathFirstDirection::kUnknown);
     }
 
     static const char* gCW[] = {
@@ -1140,10 +1139,9 @@ static void test_direction(skiatest::Reporter* reporter) {
         "M 20 10 L 0 10 Q 10 10 20 0",  // left, degenerate serif
     };
     for (i = 0; i < std::size(gCW); ++i) {
-        path.reset();
-        bool valid = SkParsePath::FromSVGString(gCW[i], &path);
-        REPORTER_ASSERT(reporter, valid);
-        check_direction(reporter, path, SkPathFirstDirection::kCW);
+        auto path = SkParsePath::FromSVGString(gCW[i]);
+        REPORTER_ASSERT(reporter, path.has_value());
+        check_direction(reporter, *path, SkPathFirstDirection::kCW);
     }
 
     static const char* gCCW[] = {
@@ -1156,15 +1154,14 @@ static void test_direction(skiatest::Reporter* reporter) {
         "M 10 10 L 30 10 Q 20 10 10 0",  // right, degenerate serif
     };
     for (i = 0; i < std::size(gCCW); ++i) {
-        path.reset();
-        bool valid = SkParsePath::FromSVGString(gCCW[i], &path);
-        REPORTER_ASSERT(reporter, valid);
-        check_direction(reporter, path, SkPathFirstDirection::kCCW);
+        auto path = SkParsePath::FromSVGString(gCCW[i]);
+        REPORTER_ASSERT(reporter, path.has_value());
+        check_direction(reporter, *path, SkPathFirstDirection::kCCW);
     }
 
     // Test two donuts, each wound a different direction. Only the outer contour
     // determines the cheap direction
-    path.reset();
+    SkPath path;
     path.addCircle(0, 0, SkIntToScalar(2), SkPathDirection::kCW);
     path.addCircle(0, 0, SkIntToScalar(1), SkPathDirection::kCCW);
     check_direction(reporter, path, SkPathFirstDirection::kCW);
@@ -2876,7 +2873,6 @@ static void test_transform(skiatest::Reporter* reporter) {
 }
 
 static void test_zero_length_paths(skiatest::Reporter* reporter) {
-    SkPath  p;
     uint8_t verbs[32];
 
     struct SUPPRESS_VISIBILITY_WARNING zeroPathTestData {
@@ -2931,13 +2927,12 @@ static void test_zero_length_paths(skiatest::Reporter* reporter) {
     };
 
     for (size_t i = 0; i < std::size(gZeroLengthTests); ++i) {
-        p.reset();
-        bool valid = SkParsePath::FromSVGString(gZeroLengthTests[i].testPath, &p);
-        REPORTER_ASSERT(reporter, valid);
-        REPORTER_ASSERT(reporter, !p.isEmpty());
-        REPORTER_ASSERT(reporter, gZeroLengthTests[i].numResultPts == (size_t)p.countPoints());
-        REPORTER_ASSERT(reporter, gZeroLengthTests[i].resultBound == p.getBounds());
-        REPORTER_ASSERT(reporter, gZeroLengthTests[i].numResultVerbs == (size_t)p.getVerbs(verbs));
+        auto p = SkParsePath::FromSVGString(gZeroLengthTests[i].testPath);
+        REPORTER_ASSERT(reporter, p.has_value());
+        REPORTER_ASSERT(reporter, !p->isEmpty());
+        REPORTER_ASSERT(reporter, gZeroLengthTests[i].numResultPts == (size_t)p->countPoints());
+        REPORTER_ASSERT(reporter, gZeroLengthTests[i].resultBound == p->getBounds());
+        REPORTER_ASSERT(reporter, gZeroLengthTests[i].numResultVerbs == (size_t)p->getVerbs(verbs));
         for (size_t j = 0; j < gZeroLengthTests[i].numResultVerbs; ++j) {
             REPORTER_ASSERT(reporter, gZeroLengthTests[i].resultVerbs[j] == verbs[j]);
         }
@@ -2949,31 +2944,62 @@ struct SegmentInfo {
     int    fPointCount;
 };
 
-#define kCurveSegmentMask   (SkPath::kQuad_SegmentMask | SkPath::kCubic_SegmentMask)
-
 static void test_segment_masks(skiatest::Reporter* reporter) {
-    SkPath p, p2;
+    auto check_mask = [reporter](const char* desc,
+                                 uint32_t expectedMask,
+                                 const std::function<void(SkPathBuilder&)>& build) {
+        skiatest::ReporterContext context(reporter, desc);
+        SkPathBuilder builder;
+        build(builder);
+        SkPath path = builder.detach();
+        REPORTER_ASSERT(reporter, path.getSegmentMasks() == expectedMask);
+    };
 
-    p.moveTo(0, 0);
-    p.quadTo(100, 100, 200, 200);
-    REPORTER_ASSERT(reporter, SkPath::kQuad_SegmentMask == p.getSegmentMasks());
-    REPORTER_ASSERT(reporter, !p.isEmpty());
-    p2 = p;
-    REPORTER_ASSERT(reporter, p2.getSegmentMasks() == p.getSegmentMasks());
-    p.cubicTo(100, 100, 200, 200, 300, 300);
-    REPORTER_ASSERT(reporter, kCurveSegmentMask == p.getSegmentMasks());
-    REPORTER_ASSERT(reporter, !p.isEmpty());
-    p2 = p;
-    REPORTER_ASSERT(reporter, p2.getSegmentMasks() == p.getSegmentMasks());
+    check_mask("empty", 0, [](SkPathBuilder& builder) {
+        // empty
+    });
 
-    p.reset();
-    p.moveTo(0, 0);
-    p.cubicTo(100, 100, 200, 200, 300, 300);
-    REPORTER_ASSERT(reporter, SkPath::kCubic_SegmentMask == p.getSegmentMasks());
-    p2 = p;
-    REPORTER_ASSERT(reporter, p2.getSegmentMasks() == p.getSegmentMasks());
+    check_mask("move-only", 0, [](SkPathBuilder& builder) { builder.moveTo(0, 0); });
 
-    REPORTER_ASSERT(reporter, !p.isEmpty());
+    check_mask("line", SkPath::kLine_SegmentMask, [](SkPathBuilder& builder) {
+        builder.moveTo(0, 0);
+        builder.lineTo(1, 1);
+    });
+
+    check_mask("quad", SkPath::kQuad_SegmentMask, [](SkPathBuilder& builder) {
+        builder.moveTo(0, 0);
+        builder.quadTo(1, 1, 2, 2);
+    });
+
+    check_mask("conic", SkPath::kConic_SegmentMask, [](SkPathBuilder& builder) {
+        builder.moveTo(0, 0);
+        builder.conicTo(1, 1, 2, 2, 0.5f);
+    });
+
+    check_mask("cubic", SkPath::kCubic_SegmentMask, [](SkPathBuilder& builder) {
+        builder.moveTo(0, 0);
+        builder.cubicTo(1, 1, 2, 2, 3, 3);
+    });
+
+    check_mask("quad-cubic",
+               SkPath::kQuad_SegmentMask | SkPath::kCubic_SegmentMask,
+               [](SkPathBuilder& builder) {
+                   builder.moveTo(0, 0);
+                   builder.quadTo(1, 1, 2, 2);
+                   builder.cubicTo(3, 3, 4, 4, 5, 5);
+               });
+
+    check_mask("all",
+               SkPath::kLine_SegmentMask | SkPath::kQuad_SegmentMask | SkPath::kConic_SegmentMask |
+                       SkPath::kCubic_SegmentMask,
+               [](SkPathBuilder& builder) {
+                   builder.moveTo(0, 0);
+                   builder.lineTo(1, 1);
+                   builder.quadTo(2, 2, 3, 3);
+                   builder.conicTo(4, 4, 5, 5, 0.5f);
+                   builder.cubicTo(6, 6, 7, 7, 8, 8);
+                   builder.close();
+               });
 }
 
 static void test_iter(skiatest::Reporter* reporter) {
@@ -3036,10 +3062,9 @@ static void test_iter(skiatest::Reporter* reporter) {
     };
 
     for (size_t i = 0; i < std::size(gIterTests); ++i) {
-        p.reset();
-        bool valid = SkParsePath::FromSVGString(gIterTests[i].testPath, &p);
-        REPORTER_ASSERT(reporter, valid);
-        iter.setPath(p, gIterTests[i].forceClose);
+        auto path = SkParsePath::FromSVGString(gIterTests[i].testPath);
+        REPORTER_ASSERT(reporter, path.has_value());
+        iter.setPath(*path, gIterTests[i].forceClose);
         int j = 0, l = 0;
         do {
             REPORTER_ASSERT(reporter, iter.next(pts) == gIterTests[i].resultVerbs[j]);
@@ -4936,7 +4961,8 @@ DEF_TEST(Paths, reporter) {
     check_convex_bounds(reporter, p, bounds);
     // we have quads or cubics
     REPORTER_ASSERT(reporter,
-                    p.getSegmentMasks() & (kCurveSegmentMask | SkPath::kConic_SegmentMask));
+                    p.getSegmentMasks() & (SkPath::kQuad_SegmentMask | SkPath::kCubic_SegmentMask |
+                                           SkPath::kConic_SegmentMask));
     REPORTER_ASSERT(reporter, !p.isEmpty());
 
     p.reset();
@@ -5159,21 +5185,15 @@ DEF_TEST(AndroidArc, reporter) {
          "M50 0A50 50,0,1,1,50 100A50 50,0,1,1,50 0"
     };
     for (auto test : tests) {
-        SkPath aPath;
-        SkAssertResult(SkParsePath::FromSVGString(test, &aPath));
-        SkASSERT(aPath.isConvex());
+        const auto aPath = SkParsePath::FromSVGString(test);
+        SkAssertResult(aPath.has_value());
+        SkASSERT(aPath->isConvex());
         for (SkScalar scale = 1; scale < 1000; scale *= 1.1f) {
-            SkPath scalePath = aPath;
-            SkMatrix matrix;
-            matrix.setScale(scale, scale);
-            scalePath.transform(matrix);
+            auto scalePath = aPath->makeTransform(SkMatrix::Scale(scale, scale));
             SkASSERT(scalePath.isConvex());
         }
         for (SkScalar scale = 1; scale < .001; scale /= 1.1f) {
-            SkPath scalePath = aPath;
-            SkMatrix matrix;
-            matrix.setScale(scale, scale);
-            scalePath.transform(matrix);
+            auto scalePath = aPath->makeTransform(SkMatrix::Scale(scale, scale));
             SkASSERT(scalePath.isConvex());
         }
     }
@@ -5557,9 +5577,9 @@ struct Xforms {
     }
 };
 
-static bool conditional_convex(const SkPath& path, bool is_convex) {
-    SkPathConvexity c = SkPathPriv::GetConvexityOrUnknown(path);
-    return is_convex ? (c == SkPathConvexity::kConvex) : (c != SkPathConvexity::kConvex);
+static bool nocompute_isconvex(const SkPath& path) {
+    SkPathConvexity convexity = SkPathPriv::GetConvexityOrUnknown(path);
+    return SkPathConvexity_IsConvex(convexity);
 }
 
 // expect axis-aligned shape to survive assignment, identity and scale/translate matrices
@@ -5575,39 +5595,39 @@ void survive(SkPath* path, const Xforms& x, bool isAxisAligned, skiatest::Report
     // a path's isa and convexity should survive assignment
     path2 = *path;
     REPORTER_ASSERT(reporter, isa_proc(path2));
-    REPORTER_ASSERT(reporter, SkPathPriv::GetConvexityOrUnknown(path2) == SkPathConvexity::kConvex);
+    REPORTER_ASSERT(reporter, nocompute_isconvex(path2));
 
     // a path's isa and convexity should identity transform
     path->transform(x.fIM, &path2);
     path->transform(x.fIM);
     REPORTER_ASSERT(reporter, isa_proc(path2));
-    REPORTER_ASSERT(reporter, SkPathPriv::GetConvexityOrUnknown(path2) == SkPathConvexity::kConvex);
+    REPORTER_ASSERT(reporter, nocompute_isconvex(path2));
     REPORTER_ASSERT(reporter, isa_proc(*path));
-    REPORTER_ASSERT(reporter, SkPathPriv::GetConvexityOrUnknown(*path) == SkPathConvexity::kConvex);
+    REPORTER_ASSERT(reporter, nocompute_isconvex(*path));
 
     // a path's isa should survive translation, convexity depends on axis alignment
     path->transform(x.fTM, &path2);
     path->transform(x.fTM);
     REPORTER_ASSERT(reporter, isa_proc(path2));
     REPORTER_ASSERT(reporter, isa_proc(*path));
-    REPORTER_ASSERT(reporter, conditional_convex(path2, isAxisAligned));
-    REPORTER_ASSERT(reporter, conditional_convex(*path, isAxisAligned));
+    REPORTER_ASSERT(reporter, nocompute_isconvex(path2) == isAxisAligned);
+    REPORTER_ASSERT(reporter, nocompute_isconvex(*path) == isAxisAligned);
 
     // a path's isa should survive scaling, convexity depends on axis alignment
     path->transform(x.fSM, &path2);
     path->transform(x.fSM);
     REPORTER_ASSERT(reporter, isa_proc(path2));
     REPORTER_ASSERT(reporter, isa_proc(*path));
-    REPORTER_ASSERT(reporter, conditional_convex(path2, isAxisAligned));
-    REPORTER_ASSERT(reporter, conditional_convex(*path, isAxisAligned));
+    REPORTER_ASSERT(reporter, nocompute_isconvex(path2) == isAxisAligned);
+    REPORTER_ASSERT(reporter, nocompute_isconvex(*path) == isAxisAligned);
 
     // For security, post-rotation, we can't assume we're still convex. It might prove to be,
     // in fact, still be convex, be we can't have cached that setting, hence the call to
     // getConvexityOrUnknown() instead of getConvexity().
     path->transform(x.fRM, &path2);
     path->transform(x.fRM);
-    REPORTER_ASSERT(reporter, SkPathPriv::GetConvexityOrUnknown(path2) != SkPathConvexity::kConvex);
-    REPORTER_ASSERT(reporter, SkPathPriv::GetConvexityOrUnknown(*path) != SkPathConvexity::kConvex);
+    REPORTER_ASSERT(reporter, !nocompute_isconvex(path2));
+    REPORTER_ASSERT(reporter, !nocompute_isconvex(*path));
 
     if (isAxisAligned) {
         REPORTER_ASSERT(reporter, !isa_proc(path2));
@@ -5893,15 +5913,18 @@ DEF_TEST(path_moveto_addrect, r) {
 
             // addRect should mark the path as known convex automatically (i.e. it wasn't set
             // to unknown after edits)
-            SkPathConvexity origConvexity = SkPathPriv::GetConvexityOrUnknown(path);
-            REPORTER_ASSERT(r, origConvexity == SkPathConvexity::kConvex);
+            REPORTER_ASSERT(r, nocompute_isconvex(path));
 
             // but it should also agree with the regular convexity computation
             SkPathPriv::ForceComputeConvexity(path);
             REPORTER_ASSERT(r, path.isConvex());
 
-            SkRect query = rect.makeInset(10.f, 0.f);
-            REPORTER_ASSERT(r, path.conservativelyContainsRect(query));
+            const SkRect query = rect.makeInset(10.f, 0.f);
+            const bool contains = path.conservativelyContainsRect(query);
+            // if the rect we used to build the path was empty, then "containing" something
+            // else is poorly defined -- so we only assert we contain the query if we're
+            // non-empty (i.e. path with some area)
+            REPORTER_ASSERT(r, rect.isEmpty() || contains);
         }
     }
 }

@@ -22,15 +22,15 @@ std::vector<const tabs_api::mojom::OnTabsClosedEvent*>
 FilterForTabsClosedEvents(
     const std::vector<tabs_api::mojom::TabsEventPtr>& events);
 
-std::vector<const tabs_api::mojom::OnTabMovedEvent*> FilterForTabMovedEvents(
+std::vector<const tabs_api::mojom::OnNodeMovedEvent*> FilterForNodeMovedEvents(
     const std::vector<tabs_api::mojom::TabsEventPtr>& events);
 
 std::vector<const tabs_api::mojom::OnDataChangedEvent*>
 FilterForDataChangedEvents(
     const std::vector<tabs_api::mojom::TabsEventPtr>& events);
 
-std::vector<const tabs_api::mojom::OnTabGroupCreatedEvent*>
-FilterForTabGroupCreatedEvents(
+std::vector<const tabs_api::mojom::OnCollectionCreatedEvent*>
+FilterForCollectionCreatedEvents(
     const std::vector<tabs_api::mojom::TabsEventPtr>& events);
 
 }  // namespace tabs_api::events

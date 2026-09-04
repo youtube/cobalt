@@ -319,6 +319,9 @@ class MaglevGraphBuilder {
   template <bool is_possible_map_change = true>
   void ResetBuilderCachedState();
 
+  static SpeculationMode GetSpeculationMode(
+      compiler::JSHeapBroker* broker, compiler::FeedbackSource feedback_source);
+
  private:
   class DeoptFrameScopeBase;
 
@@ -473,8 +476,9 @@ class MaglevGraphBuilder {
   // `post_create_input_initializer` function before the node is added to the
   // graph.
   template <typename NodeT, typename Function, typename... Args>
-  NodeT* AddNewNode(size_t input_count,
-                    Function&& post_create_input_initializer, Args&&... args);
+  NodeT* AddNewNodeNoInputConversion(size_t input_count,
+                                     Function&& post_create_input_initializer,
+                                     Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args);
@@ -545,7 +549,7 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildToString(ValueNode* value, ToString::ConversionMode mode);
 
-  constexpr bool RuntimeFunctionCanThrow(Runtime::FunctionId function_id) {
+  constexpr bool RuntimeFunctionWillThrow(Runtime::FunctionId function_id) {
 #define BAILOUT(name, ...)               \
   if (function_id == Runtime::k##name) { \
     return true;                         \
@@ -557,6 +561,8 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs);
+
+  ReduceResult BuildThrow(Throw::Function function, ValueNode* input = nullptr);
 
   ReduceResult BuildAbort(AbortReason reason);
 
@@ -611,16 +617,6 @@ class MaglevGraphBuilder {
   MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);
 
   ValueNode* GetRegisterInput(Register reg);
-
-#define DEFINE_IS_ROOT_OBJECT(type, name, CamelName)               \
-  bool Is##CamelName(ValueNode* value) const {                     \
-    if (RootConstant* constant = value->TryCast<RootConstant>()) { \
-      return constant->index() == RootIndex::k##CamelName;         \
-    }                                                              \
-    return false;                                                  \
-  }
-  ROOT_LIST(DEFINE_IS_ROOT_OBJECT)
-#undef DEFINE_IS_ROOT_OBJECT
 
   // Move an existing ValueNode between two registers. You can pass
   // virtual_accumulator as the src or dst to move in or out of the accumulator.
@@ -1115,6 +1111,8 @@ class MaglevGraphBuilder {
                                       ConvertReceiverMode receiver_mode);
 
   ValueNode* BuildElementsArray(int length);
+  ValueNode* BuildElementsArray(ElementsKind elements_kind,
+                                base::Vector<ValueNode*> values);
   ReduceResult BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
   ReduceResult BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
@@ -1472,7 +1470,7 @@ class MaglevGraphBuilder {
   VirtualObject* CreateVirtualObject(compiler::MapRef map,
                                      uint32_t slot_count_including_map);
   VirtualObject* CreateHeapNumber(Float64 value);
-  VirtualObject* CreateDoubleFixedArray(uint32_t elements_length,
+  VirtualObject* CreateFixedDoubleArray(uint32_t elements_length,
                                         compiler::FixedDoubleArrayRef elements);
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,

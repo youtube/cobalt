@@ -1208,12 +1208,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Check(ne, AbortReason::kOperandIsCleared);
       }
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool =
+          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       __ StoreTaggedField(value, operand, r0);
       break;
@@ -2790,7 +2789,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16BitMask: {
-      __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), r0, ip,
+      __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), ip, r0,
                       kScratchSimd128Reg);
       break;
     }

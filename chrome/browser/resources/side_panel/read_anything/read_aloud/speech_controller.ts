@@ -137,34 +137,6 @@ export class SpeechController {
         (source === PauseActionSource.VOICE_SETTINGS_CHANGE);
   }
 
-  getSelectionAdjustedForHighlights(
-      anchorNode: Node, anchorOffset: number, focusNode: Node,
-      focusOffset: number): {
-    anchorNodeId: number|undefined,
-    anchorOffset: number,
-    focusNodeId: number|undefined,
-    focusOffset: number,
-  } {
-    let anchorNodeId = this.nodeStore_.getAxId(anchorNode);
-    let focusNodeId = this.nodeStore_.getAxId(focusNode);
-    let adjustedAnchorOffset = anchorOffset;
-    let adjustedFocusOffset = focusOffset;
-    if (!anchorNodeId) {
-      anchorNodeId = this.highlighter_.getAncestorId(anchorNode);
-      adjustedAnchorOffset += this.highlighter_.getOffsetInAncestor(anchorNode);
-    }
-    if (!focusNodeId) {
-      focusNodeId = this.highlighter_.getAncestorId(focusNode);
-      adjustedFocusOffset += this.highlighter_.getOffsetInAncestor(focusNode);
-    }
-    return {
-      anchorNodeId: anchorNodeId,
-      anchorOffset: adjustedAnchorOffset,
-      focusNodeId: focusNodeId,
-      focusOffset: adjustedFocusOffset,
-    };
-  }
-
   initializeSpeechTree(context?: Node) {
     if (context && !this.model_.getContextNode()) {
       this.model_.setContextNode(context);
@@ -177,11 +149,7 @@ export class SpeechController {
 
     // TODO: crbug.com/40927698 - This step should be skipped on migrating to
     // a non-AXPosition-based text segmentation strategy.
-    const readAloudNode = ReadAloudNode.create(contextNode);
-    if (!readAloudNode) {
-      return;
-    }
-    this.readAloudModel_.init(readAloudNode);
+    this.readAloudModel_.init(contextNode);
   }
 
   onSelectionChange() {
@@ -351,6 +319,8 @@ export class SpeechController {
     }
 
     if (chrome.readingMode.isTsTextSegmentationEnabled) {
+      // TODO: crbug.com/440400392- The speech tree should also be initialized
+      // before the play button is pressed.
       this.initializeSpeechTree(context);
     } else {
       this.initializeSpeechTree();

@@ -34,10 +34,6 @@ typedef struct evp_pkey_ctx_method_st EVP_PKEY_CTX_METHOD;
 struct evp_pkey_alg_st {
   // method implements operations for this |EVP_PKEY_ALG|.
   const EVP_PKEY_ASN1_METHOD *method;
-
-  // ec_group returns the |EC_GROUP| for this algorithm, if |method| is for
-  // |EVP_PKEY_EC|.
-  const EC_GROUP *(*ec_group)();
 };
 
 enum evp_decode_result_t {
@@ -277,13 +273,13 @@ typedef struct {
 extern const EVP_PKEY_ASN1_METHOD dsa_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ec_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD rsa_asn1_meth;
-extern const EVP_PKEY_ASN1_METHOD rsa_pss_sha256_asn1_meth;
+extern const EVP_PKEY_ASN1_METHOD rsa_pss_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD x25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD dh_asn1_meth;
 
 extern const EVP_PKEY_CTX_METHOD rsa_pkey_meth;
-extern const EVP_PKEY_CTX_METHOD rsa_pss_sha256_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD ec_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD ed25519_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD x25519_pkey_meth;

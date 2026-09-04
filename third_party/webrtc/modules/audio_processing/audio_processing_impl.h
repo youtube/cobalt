@@ -26,6 +26,7 @@
 #include "api/audio/audio_processing.h"
 #include "api/audio/audio_processing_statistics.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/task_queue_base.h"
@@ -68,7 +69,9 @@ class AudioProcessingImpl : public AudioProcessing {
                       std::unique_ptr<CustomProcessing> render_pre_processor,
                       std::unique_ptr<EchoControlFactory> echo_control_factory,
                       scoped_refptr<EchoDetector> echo_detector,
-                      std::unique_ptr<CustomAudioAnalyzer> capture_analyzer);
+                      std::unique_ptr<CustomAudioAnalyzer> capture_analyzer,
+                      std::unique_ptr<NeuralResidualEchoEstimator>
+                          neural_residual_echo_estimator);
   ~AudioProcessingImpl() override;
   int Initialize() override;
   int Initialize(const ProcessingConfig& processing_config) override;
@@ -367,11 +370,15 @@ class AudioProcessingImpl : public AudioProcessing {
     Submodules(std::unique_ptr<CustomProcessing> capture_post_processor,
                std::unique_ptr<CustomProcessing> render_pre_processor,
                scoped_refptr<EchoDetector> echo_detector,
-               std::unique_ptr<CustomAudioAnalyzer> capture_analyzer)
+               std::unique_ptr<CustomAudioAnalyzer> capture_analyzer,
+               std::unique_ptr<NeuralResidualEchoEstimator>
+                   neural_residual_echo_estimator)
         : echo_detector(std::move(echo_detector)),
           capture_post_processor(std::move(capture_post_processor)),
           render_pre_processor(std::move(render_pre_processor)),
-          capture_analyzer(std::move(capture_analyzer)) {}
+          capture_analyzer(std::move(capture_analyzer)),
+          neural_residual_echo_estimator(
+              std::move(neural_residual_echo_estimator)) {}
     // Accessed internally from capture or during initialization.
     const scoped_refptr<EchoDetector> echo_detector;
     const std::unique_ptr<CustomProcessing> capture_post_processor;
@@ -386,6 +393,7 @@ class AudioProcessingImpl : public AudioProcessing {
     std::unique_ptr<NoiseSuppressor> noise_suppressor;
     std::unique_ptr<PostFilter> post_filter;
     std::unique_ptr<CaptureLevelsAdjuster> capture_levels_adjuster;
+    std::unique_ptr<NeuralResidualEchoEstimator> neural_residual_echo_estimator;
   } submodules_;
 
   // State that is written to while holding both the render and capture locks

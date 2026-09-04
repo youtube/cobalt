@@ -87,8 +87,7 @@ class ChatClient {
 
   quic::QuicEventLoop* event_loop() { return event_loop_; }
 
-  class QUICHE_EXPORT RemoteTrackVisitor
-      : public moqt::SubscribeRemoteTrack::Visitor {
+  class QUICHE_EXPORT RemoteTrackVisitor : public moqt::SubscribeVisitor {
    public:
     RemoteTrackVisitor(ChatClient* client) : client_(client) {}
 
@@ -103,7 +102,7 @@ class ChatClient {
                           absl::string_view object,
                           bool end_of_message) override;
 
-    void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+    void OnPublishDone(FullTrackName /*full_track_name*/) override {}
 
     // TODO(martinduke): Implement this.
     void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
@@ -113,7 +112,7 @@ class ChatClient {
   };
 
   // Returns false on error.
-  bool AnnounceAndSubscribeNamespace();
+  bool PublishNamespaceAndSubscribeNamespace();
 
   bool session_is_open() const { return session_is_open_; }
 
@@ -127,8 +126,8 @@ class ChatClient {
 
  private:
   void RunEventLoop() { event_loop_->RunEventLoopOnce(kChatEventLoopDuration); }
-  // Callback for incoming announces.
-  std::optional<MoqtAnnounceErrorReason> OnIncomingAnnounce(
+  // Callback for incoming publish_namespaces.
+  std::optional<MoqtPublishNamespaceErrorReason> OnIncomingPublishNamespace(
       const moqt::TrackNamespace& track_namespace,
       std::optional<VersionSpecificParameters> parameters);
 
@@ -151,7 +150,7 @@ class ChatClient {
   absl::flat_hash_set<FullTrackName> other_users_;
   int subscribes_to_make_ = 0;
 
-  // Related to subscriptions/announces
+  // Related to subscriptions/publish_namespaces
   // TODO: One for each subscribe
   RemoteTrackVisitor remote_track_visitor_;
 

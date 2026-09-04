@@ -23,7 +23,9 @@ class GlicFloatingUi : public GlicUiEmbedder, public Host::Delegate {
   // GlicUiEmbedder:
   Host::Delegate* GetHostDelegate() override;
   void Show() override;
+  void Close() override;
   std::unique_ptr<views::View> CreateView() override;
+  std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
 
   // Host::Delegate:
   const mojom::PanelState& GetPanelState() const override;

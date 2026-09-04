@@ -379,6 +379,7 @@ webrtc_fuzzer_test("audio_decoder_multiopus_fuzzer") {
   sources = [ "audio_decoder_multistream_opus_fuzzer.cc" ]
   deps = [
     ":audio_decoder_fuzzer",
+    "../../api:array_view",
     "../../api/audio_codecs/opus:audio_decoder_multiopus",
     "../../api/audio_codecs/opus:audio_decoder_opus_config",
     "../../rtc_base:checks",

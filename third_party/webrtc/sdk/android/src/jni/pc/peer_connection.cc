@@ -548,12 +548,12 @@ JNI_PeerConnection_GetLocalDescription(
   // signaling thread, but `jni` may only be used on the current thread, so we
   // must do this odd dance.
   std::string sdp;
-  std::string type;
+  SdpType type;
   pc->signaling_thread()->BlockingCall([pc, &sdp, &type] {
     const SessionDescriptionInterface* desc = pc->local_description();
     if (desc) {
       RTC_CHECK(desc->ToString(&sdp)) << "got so far: " << sdp;
-      type = desc->type();
+      type = desc->GetType();
     }
   });
   return sdp.empty() ? nullptr : NativeToJavaSessionDescription(jni, sdp, type);
@@ -568,12 +568,12 @@ JNI_PeerConnection_GetRemoteDescription(
   // signaling thread, but `jni` may only be used on the current thread, so we
   // must do this odd dance.
   std::string sdp;
-  std::string type;
+  SdpType type;
   pc->signaling_thread()->BlockingCall([pc, &sdp, &type] {
     const SessionDescriptionInterface* desc = pc->remote_description();
     if (desc) {
       RTC_CHECK(desc->ToString(&sdp)) << "got so far: " << sdp;
-      type = desc->type();
+      type = desc->GetType();
     }
   });
   return sdp.empty() ? nullptr : NativeToJavaSessionDescription(jni, sdp, type);

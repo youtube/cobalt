@@ -614,7 +614,7 @@ targets.mixin(
     args = [
         # FieldTrial is disabled on ChromeOS builders but not in this builder.
         # Notify Tast to handle the different UI by that.
-        "tast.setup.FieldTrialConfig=enable",
+        "setup.FieldTrialConfig=enable",
 
         # Tests using the default gaia pool cannot be run by public builders.
         # These variables are fed by private bundles, thus not for public builders.
@@ -1486,6 +1486,36 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "os": "Ubuntu-24.04",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "linux_amd_780m_experimental",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "gpu": "1002:1900-25.2.2",
+            "os": "Ubuntu-24.04",
+            "display_attached": "1",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "linux_amd_890m_experimental",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "gpu": "1002:150e-25.0.7",
+            "os": "Ubuntu-24.04",
+            "display_attached": "1",
+            "pool": "chromium.tests.gpu.experimental",
         },
     ),
 )
@@ -2448,6 +2478,36 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "win11_amd_780m_experimental",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "display_attached": "1",
+            "gpu": "1002:1900-32.0.21025.10016",
+            "os": "Windows-11-26100",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "win11_amd_890m_experimental",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "gpu": "1002:150e-32.0.21025.10016",
+            "os": "Windows-11-26100",
+            "display_attached": "1",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
     name = "win11_amd_rx_7600_stable",
     # We always need this entry to be generated since it is used by
     # //content/test/gpu/find_bad_machines.py.
@@ -2703,12 +2763,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17a5305k",
+        "17a321",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a5305k",
+                name = "xcode_ios_17a321",
                 path = "Xcode.app",
             ),
         ],
@@ -2719,12 +2779,12 @@ targets.mixin(
     name = "xcode_26_main",
     args = [
         "--xcode-build-version",
-        "17a5305k",
+        "17a321",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a5305k",
+                name = "xcode_ios_17a321",
                 path = "Xcode.app",
             ),
         ],

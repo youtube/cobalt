@@ -26,11 +26,11 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
-#include "ipc/ipc_channel_handle.h"
 #include "ipc/ipc_message.h"
 #include "ipc/ipc_message_attachment.h"
 #include "ipc/ipc_message_attachment_set.h"
 #include "ipc/ipc_mojo_param_traits.h"
+#include "mojo/public/cpp/system/message_pipe.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 #if BUILDFLAG(IS_APPLE)
@@ -64,31 +64,6 @@ namespace IPC {
 namespace {
 
 const int kMaxRecursionDepth = 200;
-
-template<typename CharType>
-void LogBytes(const std::vector<CharType>& data, std::string* out) {
-#if BUILDFLAG(IS_WIN)
-  // Windows has a GUI for logging, which can handle arbitrary binary data.
-  for (size_t i = 0; i < data.size(); ++i)
-    out->push_back(data[i]);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-  // On POSIX, we log to stdout, which we assume can display ASCII.
-  static const size_t kMaxBytesToLog = 100;
-  for (size_t i = 0; i < std::min(data.size(), kMaxBytesToLog); ++i) {
-    if (absl::ascii_isprint(static_cast<unsigned char>(data[i]))) {
-      out->push_back(data[i]);
-    } else {
-      out->append(
-          base::StringPrintf("[%02X]", static_cast<unsigned char>(data[i])));
-    }
-  }
-  if (data.size() > kMaxBytesToLog) {
-    out->append(base::StringPrintf(
-        " and %u more bytes",
-        static_cast<unsigned>(data.size() - kMaxBytesToLog)));
-  }
-#endif
-}
 
 template <typename CharType>
 void WriteCharVector(base::Pickle* m, const std::vector<CharType>& p) {
@@ -1096,17 +1071,6 @@ bool ParamTraits<base::UnguessableToken>::Read(const base::Pickle* m,
 
   *r = token.value();
   return true;
-}
-
-void ParamTraits<IPC::ChannelHandle>::Write(base::Pickle* m,
-                                            const param_type& p) {
-  WriteParam(m, p.mojo_handle);
-}
-
-bool ParamTraits<IPC::ChannelHandle>::Read(const base::Pickle* m,
-                                           base::PickleIterator* iter,
-                                           param_type* r) {
-  return ReadParam(m, iter, &r->mojo_handle);
 }
 
 void ParamTraits<Message>::Write(base::Pickle* m, const Message& p) {

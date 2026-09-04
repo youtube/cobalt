@@ -484,6 +484,9 @@ TEST_P(AccountMenuMediatorTest, TestAccountTapedSignoutFailed) {
   OCMExpect([authentication_flow_mock_ startSignIn]);
   [mediator_ accountTappedWithGaiaID:kSecondaryIdentity.gaiaID
                           targetRect:target];
+  // Simulate a double tap. The second tap should be ignored.
+  [mediator_ accountTappedWithGaiaID:kSecondaryIdentity.gaiaID
+                          targetRect:target];
   VerifyMock();
 
   OCMExpect([consumer_mock_ switchingStopped]);
@@ -492,7 +495,8 @@ TEST_P(AccountMenuMediatorTest, TestAccountTapedSignoutFailed) {
   // Simulate AuthenticationFlow failure.
   [authentication_flow_request_helper
       authenticationFlowDidSignInInSameProfileWithResult:
-          SigninCoordinatorResultCanceledByUser];
+          SigninCoordinatorResultCanceledByUser
+                                                identity:nil];
 }
 
 // Tests the result of accountTappedWithGaiaID:targetRect:
@@ -530,6 +534,9 @@ TEST_P(AccountMenuMediatorTest, TestAccountTapedSignInFailed) {
   OCMExpect([authentication_flow_mock_ startSignIn]);
   [mediator_ accountTappedWithGaiaID:kSecondaryIdentity.gaiaID
                           targetRect:target];
+  // Simulate a double tap. The second tap should be ignored.
+  [mediator_ accountTappedWithGaiaID:kSecondaryIdentity.gaiaID
+                          targetRect:target];
 
   // Expect that the consumer unlocks the UI.
   OCMExpect([consumer_mock_ switchingStopped]);
@@ -537,7 +544,8 @@ TEST_P(AccountMenuMediatorTest, TestAccountTapedSignInFailed) {
   OCMExpect([delegate_mock_ signinFinished]);
   [authentication_flow_request_helper
       authenticationFlowDidSignInInSameProfileWithResult:
-          SigninCoordinatorResult::SigninCoordinatorResultInterrupted];
+          SigninCoordinatorResult::SigninCoordinatorResultInterrupted
+                                                identity:nil];
 
   // Checks the user is signed-back in.
   ASSERT_EQ(kPrimaryIdentity, authentication_service_->GetPrimaryIdentity(
@@ -575,6 +583,9 @@ TEST_P(AccountMenuMediatorTest, TestAccountTapedWithSuccessfulSwitch) {
   OCMExpect([authentication_flow_mock_ startSignIn]);
   [mediator_ accountTappedWithGaiaID:kSecondaryIdentity.gaiaID
                           targetRect:target];
+  // Simulate a double tap. The second tap should be ignored.
+  [mediator_ accountTappedWithGaiaID:kSecondaryIdentity.gaiaID
+                          targetRect:target];
   VerifyMock();
   OCMExpect([delegate_mock_
       mediatorWantsToBeDismissed:mediator_
@@ -584,7 +595,8 @@ TEST_P(AccountMenuMediatorTest, TestAccountTapedWithSuccessfulSwitch) {
   OCMExpect([delegate_mock_ signinFinished]);
   [authentication_flow_request_helper
       authenticationFlowDidSignInInSameProfileWithResult:
-          SigninCoordinatorResultSuccess];
+          SigninCoordinatorResultSuccess
+                                                identity:kSecondaryIdentity];
 }
 
 // Tests the result of didTapErrorButton when a passphrase is required.
@@ -606,6 +618,8 @@ TEST_P(AccountMenuMediatorTest, TestTapErrorButtonPassphrase) {
       openPassphraseDialogWithModalPresentation:YES]);
   OCMExpect([consumer_mock_ setUserInteractionsEnabled:NO]);
   [mediator_ didTapErrorButton];
+  // Simulate a double tap. The second tap should be ignored.
+  [mediator_ didTapErrorButton];
   EXPECT_EQ(1, user_actions_.GetActionCount(
                    "Signin_AccountMenu_ErrorButton_Passphrase"));
 }
@@ -619,6 +633,9 @@ TEST_P(AccountMenuMediatorTest, TestDidTapManageYourGoogleAccount) {
     }
   }
   OCMExpect([delegate_mock_ didTapManageYourGoogleAccount]);
+  OCMExpect([consumer_mock_ setUserInteractionsEnabled:NO]);
+  [mediator_ didTapManageYourGoogleAccount];
+  // Simulate a double tap. The second tap should be ignored.
   [mediator_ didTapManageYourGoogleAccount];
 }
 
@@ -631,11 +648,36 @@ TEST_P(AccountMenuMediatorTest, TestDidTapEditAccountList) {
     }
   }
   OCMExpect([delegate_mock_ didTapManageAccounts]);
+  OCMExpect([consumer_mock_ setUserInteractionsEnabled:NO]);
+  [mediator_ didTapManageAccounts];
+
+  // Simulate a double tap. Nothing should occurs on the second one.
   [mediator_ didTapManageAccounts];
 }
 
-// Tests the effect of didTapAddAccount.
+// Tests the effect of didTapAddAccount on iOS26+.
+// The expected behavior depends on iOS version because of a UIKit but up to
+// iOS 18. See crbug.com/395959814.
+TEST_P(AccountMenuMediatorTest, TestDidTapAddAccountiOS26) {
+  if (!@available(iOS 26, *)) {
+    return;
+  }
+  IgnoreAccountListUpdatesWithNoAdditionsOrRemovals();
+  OCMExpect([delegate_mock_ didTapAddAccount]);
+  OCMExpect([consumer_mock_ setUserInteractionsEnabled:NO]);
+  [mediator_ didTapAddAccount];
+  // Simulate a double tap. The second tap should be ignored.
+  [mediator_ didTapAddAccount];
+  OCMExpect([consumer_mock_ switchingStopped]);
+  OCMExpect([consumer_mock_ setUserInteractionsEnabled:YES]);
+  [mediator_ accountMenuIsUsable];
+}
+
+// Tests the effect of didTapAddAccount on iOS 18 and less.
 TEST_P(AccountMenuMediatorTest, TestDidTapAddAccount) {
+  if (@available(iOS 26, *)) {
+    return;
+  }
   if (!@available(iOS 17, *)) {
     if (GetParam() == kWithSeparateProfiles) {
       // Separate profiles are only available in iOS 17+.
@@ -644,9 +686,10 @@ TEST_P(AccountMenuMediatorTest, TestDidTapAddAccount) {
   }
   IgnoreAccountListUpdatesWithNoAdditionsOrRemovals();
   OCMExpect([delegate_mock_ didTapAddAccount]);
-  if (@available(iOS 26, *)) {
-    OCMExpect([consumer_mock_ setUserInteractionsEnabled:NO]);
-  }
+  OCMExpect([delegate_mock_ didTapAddAccount]);
+  [mediator_ didTapAddAccount];
+  // Simulate a double tap. The second tap should be transmitted because the add
+  // account view may have disapperead.
   [mediator_ didTapAddAccount];
   OCMExpect([consumer_mock_ switchingStopped]);
   OCMExpect([consumer_mock_ setUserInteractionsEnabled:YES]);
@@ -671,6 +714,8 @@ TEST_P(AccountMenuMediatorTest, TestSignoutFromTargetRect) {
                    return true;
                  }]]);
   OCMExpect([consumer_mock_ setUserInteractionsEnabled:NO]);
+  [mediator_ signOutFromTargetRect:rect];
+  // Simulate a double tap. The second tap should be ignored.
   [mediator_ signOutFromTargetRect:rect];
   OCMExpect([delegate_mock_
       mediatorWantsToBeDismissed:mediator_
@@ -698,6 +743,8 @@ TEST_P(AccountMenuMediatorTest, TestSignoutAndClose) {
                    return true;
                  }]]);
   OCMExpect([consumer_mock_ setUserInteractionsEnabled:NO]);
+  [mediator_ signOutFromTargetRect:rect];
+  // Simulate a double tap. The second tap should be ignored.
   [mediator_ signOutFromTargetRect:rect];
   [mediator_ disconnect];
   OCMExpect([consumer_mock_ setUserInteractionsEnabled:YES]);

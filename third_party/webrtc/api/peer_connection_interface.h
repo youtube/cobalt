@@ -1126,15 +1126,6 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
                                std::function<void(RTCError)> callback) {}
   virtual bool RemoveIceCandidate(const IceCandidate* candidate) = 0;
 
-  // Removes a group of remote candidates from the ICE agent. Needed mainly for
-  // continual gathering, to avoid an ever-growing list of candidates as
-  // networks come and go. Note that the candidates' transport_name must be set
-  // to the MID of the m= section that generated the candidate.
-  // TODO(bugs.webrtc.org/8395): Use IceCandidate instead of
-  // Candidate, which would avoid the transport_name oddity.
-  [[deprecated("Use IceCandidate version")]]
-  virtual bool RemoveIceCandidates(const std::vector<Candidate>& candidates);
-
   // SetBitrate limits the bandwidth allocated for all RTP streams sent by
   // this PeerConnection. Other limitations might affect these limits and
   // are respected (for example "b=AS" in SDP).
@@ -1314,22 +1305,8 @@ class PeerConnectionObserver {
                                    int /* error_code */,
                                    const std::string& /* error_text */) {}
 
-  // Ice candidates have been removed.
-  [[deprecated("Implement OnIceCandidateRemoved")]]
-  virtual void OnIceCandidatesRemoved(
-      const std::vector<Candidate>& /* candidates */) {}
-
   // Fired when an IceCandidate has been removed.
-  // TODO(tommi): Make pure virtual when `OnIceCandidatesRemoved` can be
-  // removed.
   virtual void OnIceCandidateRemoved(const IceCandidate* candidate) {
-    // Backwards compatibility stub implementation while downstream code is
-    // migrated over to `OnIceCandidateRemoved` and away from
-    // `OnIceCandidatesRemoved`.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    OnIceCandidatesRemoved({candidate->candidate()});
-#pragma clang diagnostic pop
   }
 
   // Called when the ICE connection receiving status changes.

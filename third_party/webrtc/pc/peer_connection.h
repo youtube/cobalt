@@ -237,7 +237,6 @@ class PeerConnection : public PeerConnectionInternal,
   void AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                        std::function<void(RTCError)> callback) override;
   bool RemoveIceCandidate(const IceCandidate* candidate) override;
-  bool RemoveIceCandidates(const std::vector<Candidate>& candidates) override;
 
   RTCError SetBitrate(const BitrateSettings& bitrate) override;
   void ReconfigureBandwidthEstimation(

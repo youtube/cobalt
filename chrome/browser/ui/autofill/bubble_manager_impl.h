@@ -25,9 +25,9 @@ class BubbleManagerImpl : public BubbleManager {
   // BubbleManager:
   void RequestShowController(BubbleControllerBase& controller_to_show,
                              bool force_show) override;
-  void OnBubbleHiddenByController(
-      BubbleControllerBase& controller_to_hide) override;
-  bool HasPendingBubble(const BubbleControllerBase& controller) override;
+  void OnBubbleHiddenByController(BubbleControllerBase& controller_to_hide,
+                                  bool show_next_bubble) override;
+  bool HasPendingBubbleOfSameType(const BubbleType bubble_type) const override;
 
  private:
   struct PendingRequest {
@@ -61,8 +61,7 @@ class BubbleManagerImpl : public BubbleManager {
   void AddToPendingQueue(base::WeakPtr<BubbleControllerBase> controller);
 
   // Hides the currently active bubble to show a higher-priority one.
-  void HideActiveBubbleForPreemption(
-      base::WeakPtr<BubbleControllerBase> preempting_controller);
+  void HideActiveBubbleForPreemption();
 
   // Returns true if the `new_controller` should replace the
   // `active_bubble_controller_`.

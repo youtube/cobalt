@@ -273,6 +273,7 @@ component("base") {
     "containers/to_value_list.h",
     "containers/to_vector.h",
     "containers/unique_ptr_adapters.h",
+    "containers/variant_map.h",
     "containers/vector_buffer.h",
     "critical_closure.h",
     "dcheck_is_on.h",
@@ -3508,6 +3509,7 @@ test("base_unittests") {
     "containers/to_value_list_unittest.cc",
     "containers/to_vector_unittest.cc",
     "containers/unique_ptr_adapters_unittest.cc",
+    "containers/variant_map_unittest.cc",
     "containers/vector_buffer_unittest.cc",
     "cpu_unittest.cc",
     "debug/alias_unittest.cc",
@@ -3768,6 +3770,7 @@ test("base_unittests") {
     "test/memory/dangling_ptr_instrumentation.cc",
     "test/memory/dangling_ptr_instrumentation.h",
     "test/metrics/action_suffix_reader_unittest.cc",
+    "test/metrics/action_variants_reader_unittest.cc",
     "test/metrics/histogram_enum_reader_unittest.cc",
     "test/metrics/histogram_tester_unittest.cc",
     "test/metrics/histogram_variants_reader_unittest.cc",
@@ -4791,9 +4794,11 @@ if (is_android) {
       "android/java/src/org/chromium/base/process_launcher/ChildProcessService.java",
       "android/java/src/org/chromium/base/process_launcher/ChildProcessServiceDelegate.java",
       "android/java/src/org/chromium/base/process_launcher/ChildServiceConnection.java",
+      "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionController.java",
       "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionDelegate.java",
       "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionFactory.java",
       "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionImpl.java",
+      "android/java/src/org/chromium/base/process_launcher/LegacyChildServiceConnectionController.java",
       "android/java/src/org/chromium/base/process_launcher/RebindServiceConnection.java",
     ]
   }
@@ -5528,6 +5533,7 @@ if (is_android) {
   }
 
   android_library("flagged_apis_java") {
+    deps = [ ":service_loader_java" ]
     sources =
         [ "android/java/src/org/chromium/base/AconfigFlaggedApiDelegate.java" ]
   }
@@ -5753,7 +5759,6 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/InMemorySharedPreferences.java",
       "test/android/javatests/src/org/chromium/base/test/util/InMemorySharedPreferencesContext.java",
       "test/android/javatests/src/org/chromium/base/test/util/IntegrationTest.java",
-      "test/android/javatests/src/org/chromium/base/test/util/JniMocker.java",
       "test/android/javatests/src/org/chromium/base/test/util/KeyUtils.java",
       "test/android/javatests/src/org/chromium/base/test/util/LooperUtils.java",
       "test/android/javatests/src/org/chromium/base/test/util/Manual.java",
@@ -5833,7 +5838,6 @@ if (is_android) {
       "//third_party/robolectric/custom_asynctask/java/src/org/chromium/base/task/test/ShadowAsyncTaskBridge.java",
       "test/android/junit/src/org/chromium/base/task/test/BackgroundShadowAsyncTask.java",
       "test/android/junit/src/org/chromium/base/task/test/CustomShadowAsyncTask.java",
-      "test/android/junit/src/org/chromium/base/task/test/PausedExecutorTestRule.java",
       "test/android/junit/src/org/chromium/base/task/test/ShadowPostTask.java",
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricAndroidConfigurer.java",
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricTestListener.java",

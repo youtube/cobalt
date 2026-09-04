@@ -1277,9 +1277,7 @@ class EnterpriseReportingPrivateGetFileSystemInfoTest
     request.options.push_back(GetFakeFileSystemOptionsParam());
     base::Value::List params;
     params.Append(request.ToValue());
-    std::string json_value;
-    base::JSONWriter::Write(params, &json_value);
-    return json_value;
+    return base::WriteJson(params).value_or("");
   }
 
   scoped_refptr<extensions::EnterpriseReportingPrivateGetFileSystemInfoFunction>
@@ -1449,9 +1447,7 @@ class EnterpriseReportingPrivateGetSettingsTest : public UserContextGatedTest {
     request.options.push_back(GetFakeSettingsOptionsParam());
     base::Value::List params;
     params.Append(request.ToValue());
-    std::string json_value;
-    base::JSONWriter::Write(params, &json_value);
-    return json_value;
+    return base::WriteJson(params).value_or("");
   }
 
   scoped_refptr<extensions::EnterpriseReportingPrivateGetSettingsFunction>
@@ -1600,9 +1596,7 @@ std::string GetFakeUserContextJsonParams() {
   auto user_context = GetFakeUserContext();
   base::Value::List params;
   params.Append(user_context.ToValue());
-  std::string json_value;
-  base::JSONWriter::Write(params, &json_value);
-  return json_value;
+  return base::WriteJson(params).value_or("");
 }
 
 // Tests for API enterprise.reportingPrivate.getAvInfo
@@ -1627,7 +1621,6 @@ TEST_F(EnterpriseReportingPrivateGetAvInfoTest, Success) {
   device_signals::AvProduct fake_av_product;
   fake_av_product.display_name = "Fake display name";
   fake_av_product.state = device_signals::AvProductState::kOff;
-  fake_av_product.product_id = "fake product id";
 
   device_signals::AntiVirusSignalResponse av_response;
   av_response.av_products.push_back(fake_av_product);
@@ -1656,7 +1649,6 @@ TEST_F(EnterpriseReportingPrivateGetAvInfoTest, Success) {
   EXPECT_EQ(parsed_av_signal->display_name, fake_av_product.display_name);
   EXPECT_EQ(parsed_av_signal->state,
             enterprise_reporting_private::AntiVirusProductState::kOff);
-  EXPECT_EQ(parsed_av_signal->product_id, fake_av_product.product_id);
 
   histogram_tester_.ExpectUniqueSample(
       "Enterprise.DeviceSignals.Collection.Success", signal_name(), 1);

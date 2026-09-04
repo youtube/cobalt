@@ -160,13 +160,11 @@ class MOJO_SYSTEM_IMPL_EXPORT Channel
         // base::TimeTicks().
         int64_t creation_timeticks_us;
       } v2;
-      NO_UNIQUE_ADDRESS struct {
-      } v2_marker;
     };
 
     static constexpr size_t kMinIpczHeaderSize = offsetof(IpczHeader, v2);
     static bool IsAtLeastV2(const IpczHeader& header) {
-      return header.size >= offsetof(IpczHeader, v2_marker);
+      return header.size >= offsetof(IpczHeader, v2) + sizeof(header.v2);
     }
 
 #if BUILDFLAG(MOJO_USE_APPLE_CHANNEL)
@@ -264,7 +262,9 @@ class MOJO_SYSTEM_IMPL_EXPORT Channel
     size_t num_handles() const;
     bool has_handles() const;
 
-    bool is_legacy_message() const;
+    // Returns true iff the LegacyHeader is in use for this message.
+    virtual bool is_legacy_message() const;
+
     LegacyHeader* legacy_header();
     const LegacyHeader* legacy_header() const;
     Header* header();

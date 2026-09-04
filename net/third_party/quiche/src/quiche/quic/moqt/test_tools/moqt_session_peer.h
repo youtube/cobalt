@@ -87,7 +87,7 @@ class MoqtSessionPeer {
   static void CreateRemoteTrack(MoqtSession* session,
                                 const MoqtSubscribe& subscribe,
                                 const std::optional<uint64_t> track_alias,
-                                SubscribeRemoteTrack::Visitor* visitor) {
+                                SubscribeVisitor* visitor) {
     auto track = std::make_unique<SubscribeRemoteTrack>(subscribe, visitor);
     if (track_alias.has_value()) {
       track->set_track_alias(*track_alias);
@@ -230,7 +230,7 @@ class MoqtSessionPeer {
         ->delivery_timeout_alarm_.get();
   }
 
-  static quic::QuicAlarm* GetSubscribeDoneAlarm(
+  static quic::QuicAlarm* GetPublishDoneAlarm(
       SubscribeRemoteTrack* subscription) {
     return subscription->subscribe_done_alarm_.get();
   }

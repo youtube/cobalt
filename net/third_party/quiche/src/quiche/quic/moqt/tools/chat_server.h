@@ -35,7 +35,7 @@ class ChatServer {
              absl::string_view output_file);
   ~ChatServer();
 
-  class RemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
+  class RemoteTrackVisitor : public SubscribeVisitor {
    public:
     explicit RemoteTrackVisitor(ChatServer* server);
     void OnReply(const moqt::FullTrackName& full_track_name,
@@ -46,7 +46,7 @@ class ChatServer {
                           const PublishedObjectMetadata& metadata,
                           absl::string_view object,
                           bool end_of_message) override;
-    void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+    void OnPublishDone(FullTrackName /*full_track_name*/) override {}
     // TODO(martinduke): Implement this.
     void OnMalformedTrack(const FullTrackName& full_track_name) override {}
 
@@ -64,14 +64,14 @@ class ChatServer {
       it_ = it;
     }
 
-    void AnnounceIfSubscribed(TrackNamespace track_namespace) {
+    void PublishNamespaceIfSubscribed(TrackNamespace track_namespace) {
       for (const TrackNamespace& subscribed_namespace :
            subscribed_namespaces_) {
         if (track_namespace.InNamespace(subscribed_namespace)) {
-          session_->Announce(
+          session_->PublishNamespace(
               track_namespace,
               absl::bind_front(&ChatServer::ChatServerSessionHandler::
-                                   OnOutgoingAnnounceReply,
+                                   OnOutgoingPublishNamespaceReply,
                                this),
               VersionSpecificParameters());
           return;
@@ -79,24 +79,24 @@ class ChatServer {
       }
     }
 
-    void UnannounceIfSubscribed(TrackNamespace track_namespace) {
+    void PublishNamespaceDoneIfSubscribed(TrackNamespace track_namespace) {
       for (const TrackNamespace& subscribed_namespace :
            subscribed_namespaces_) {
         if (track_namespace.InNamespace(subscribed_namespace)) {
-          session_->Unannounce(track_namespace);
+          session_->PublishNamespaceDone(track_namespace);
           return;
         }
       }
     }
 
    private:
-    // Callback for incoming announces.
-    std::optional<MoqtAnnounceErrorReason> OnIncomingAnnounce(
+    // Callback for incoming publish_namespaces.
+    std::optional<MoqtPublishNamespaceErrorReason> OnIncomingPublishNamespace(
         const moqt::TrackNamespace& track_namespace,
         std::optional<VersionSpecificParameters> parameters);
-    void OnOutgoingAnnounceReply(
+    void OnOutgoingPublishNamespaceReply(
         TrackNamespace track_namespace,
-        std::optional<MoqtAnnounceErrorReason> error_message);
+        std::optional<MoqtPublishNamespaceErrorReason> error_message);
 
     MoqtSession* session_;  // Not owned.
     // This design assumes that each server has exactly one username, although

@@ -70,7 +70,7 @@
   NSParameterAssert(nativeDescription);
   std::string sdp;
   nativeDescription->ToString(&sdp);
-  RTCSdpType type = [[self class] typeForStdString:nativeDescription->type()];
+  RTCSdpType type = [[self class] typeForSdpType:nativeDescription->GetType()];
 
   return [self initWithType:type sdp:[NSString stringForStdString:sdp]];
 }
@@ -96,6 +96,21 @@
   } else if (string == webrtc::SessionDescriptionInterface::kAnswer) {
     return RTCSdpTypeAnswer;
   } else if (string == webrtc::SessionDescriptionInterface::kRollback) {
+    return RTCSdpTypeRollback;
+  } else {
+    RTC_DCHECK_NOTREACHED();
+    return RTCSdpTypeOffer;
+  }
+}
+
++ (RTCSdpType)typeForSdpType:(webrtc::SdpType)type {
+  if (type == webrtc::SdpType::kOffer) {
+    return RTCSdpTypeOffer;
+  } else if (type == webrtc::SdpType::kPrAnswer) {
+    return RTCSdpTypePrAnswer;
+  } else if (type == webrtc::SdpType::kAnswer) {
+    return RTCSdpTypeAnswer;
+  } else if (type == webrtc::SdpType::kRollback) {
     return RTCSdpTypeRollback;
   } else {
     RTC_DCHECK_NOTREACHED();

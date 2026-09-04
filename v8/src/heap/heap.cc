@@ -508,7 +508,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return GarbageCollector::MARK_COMPACTOR;
   }
 
-  if (v8_flags.gc_global || ShouldStressCompaction() || !use_new_space()) {
+  DCHECK_IMPLIES(ShouldStressCompaction(), v8_flags.gc_global);
+  if (v8_flags.gc_global || !use_new_space()) {
     *reason = "GC in old space forced by flags";
     return GarbageCollector::MARK_COMPACTOR;
   }
@@ -1345,11 +1346,15 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     gc_flags |= GCFlag::kForced;
   }
 
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags,
-                   PerformHeapLimitCheck::kNo);
+                   perform_heap_limit_check);
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 
     // As long as we are at or above the heap limit, we need another GC to
@@ -1477,13 +1482,26 @@ size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
                   static_cast<uint64_t>(v8_size) * kGlobalMemoryToV8Ratio);
 }
 
+size_t MaximumGlobalMemorySizeFromV8Size(size_t v8_limit,
+                                         size_t physical_memory) {
+  const size_t kGlobalMemoryToV8Ratio = 8;
+  return std::min(static_cast<uint64_t>(
+                      physical_memory > 0 ? physical_memory
+                                          : std::numeric_limits<size_t>::max()),
+                  static_cast<uint64_t>(v8_limit) * kGlobalMemoryToV8Ratio);
+}
+
 }  // anonymous namespace
 
-void Heap::SetOldGenerationAndGlobalMaximumSize(
-    size_t max_old_generation_size) {
+void Heap::SetOldGenerationAndGlobalMaximumSize(size_t max_old_generation_size,
+                                                size_t physical_memory) {
   max_old_generation_size_.store(max_old_generation_size,
                                  std::memory_order_relaxed);
-  max_global_memory_size_ = GlobalMemorySizeFromV8Size(max_old_generation_size);
+  max_global_memory_size_ =
+      v8_flags.external_memory_accounted_in_global_limit
+          ? MaximumGlobalMemorySizeFromV8Size(max_old_generation_size,
+                                              physical_memory)
+          : GlobalMemorySizeFromV8Size(max_old_generation_size);
 }
 
 void Heap::SetOldGenerationAndGlobalAllocationLimit(
@@ -1673,7 +1691,8 @@ void Heap::CollectGarbage(AllocationSpace space,
       if (initial_max_old_generation_size_ < max_old_generation_size() &&
           OldGenerationSizeOfObjects() <
               initial_max_old_generation_size_threshold_) {
-        SetOldGenerationAndGlobalMaximumSize(initial_max_old_generation_size_);
+        SetOldGenerationAndGlobalMaximumSize(initial_max_old_generation_size_,
+                                             physical_memory());
       }
     }
 
@@ -2130,12 +2149,16 @@ bool Heap::CollectionRequested() {
 void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    const GCCallbackFlags gc_callback_flags) {
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
   if (space == NEW_SPACE) {
     DCHECK_EQ(GCFlags(), gc_flags);
 
     for (int i = 0; i < 2; i++) {
       CollectGarbage(NEW_SPACE, gc_reason, gc_callback_flags,
-                     PerformHeapLimitCheck::kNo);
+                     perform_heap_limit_check);
 
       if (!ReachedHeapLimit()) {
         return;
@@ -2146,7 +2169,7 @@ void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
   for (int i = 0; i < 2; i++) {
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
-                   PerformHeapLimitCheck::kNo);
+                   perform_heap_limit_check);
     DCHECK_EQ(GCFlags(), current_gc_flags_);
 
     if (!ReachedHeapLimit()) {
@@ -2584,8 +2607,6 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
         new_old_generation_allocation_limit, new_global_allocation_limit);
   }
 
-  CHECK_EQ(max_global_memory_size_,
-           GlobalMemorySizeFromV8Size(max_old_generation_size_));
   CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
@@ -2632,8 +2653,6 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
                                            new_global_allocation_limit);
 
-  CHECK_EQ(max_global_memory_size_,
-           GlobalMemorySizeFromV8Size(max_old_generation_size_));
   CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
@@ -3573,8 +3592,9 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
   } else if (clear_slots) {
     // Large objects are not swept, so it is not necessary to clear the
     // recorded slot.
-    MemsetTagged(ObjectSlot(new_end), Tagged<Object>(kClearedFreeMemoryValue),
-                 (old_end - new_end) / kTaggedSize);
+    Relaxed_MemsetTagged(ObjectSlot(new_end),
+                         Tagged<Object>(kClearedFreeMemoryValue),
+                         (old_end - new_end) / kTaggedSize);
   }
 
   // Initialize header of the trimmed array. We are storing the new capacity
@@ -4353,8 +4373,10 @@ bool Heap::InvokeNearHeapLimitCallback() {
     size_t heap_limit = callback(data, max_old_generation_size(),
                                  initial_max_old_generation_size_);
     if (heap_limit > max_old_generation_size()) {
-      SetOldGenerationAndGlobalMaximumSize(std::min(
-          heap_limit, AllocatorLimitOnMaxOldGenerationSize(physical_memory())));
+      SetOldGenerationAndGlobalMaximumSize(
+          std::min(heap_limit,
+                   AllocatorLimitOnMaxOldGenerationSize(physical_memory())),
+          physical_memory());
       return true;
     }
   }
@@ -5170,7 +5192,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     max_old_generation_size =
         RoundDown<PageMetadata::kPageSize>(max_old_generation_size);
 
-    SetOldGenerationAndGlobalMaximumSize(max_old_generation_size);
+    SetOldGenerationAndGlobalMaximumSize(
+        max_old_generation_size, constraints.physical_memory_size_in_bytes());
   }
 
   CHECK_IMPLIES(
@@ -6703,6 +6726,18 @@ void Heap::VerifySkippedWriteBarrier(Address object, Address value) {
   } else {
     CHECK(tagged.IsSmi());
   }
+#else
+  UNREACHABLE();
+#endif  // V8_VERIFY_WRITE_BARRIERS
+}
+
+// static
+void Heap::VerifySkippedIndirectWriteBarrier(Address object) {
+#if V8_VERIFY_WRITE_BARRIERS
+  DCHECK(v8_flags.verify_write_barriers);
+  LocalHeap* local_heap = LocalHeap::Current();
+  HeapAllocator* allocator = local_heap->allocator();
+  CHECK(allocator->IsMostRecentYoungAllocation(object));
 #else
   UNREACHABLE();
 #endif  // V8_VERIFY_WRITE_BARRIERS

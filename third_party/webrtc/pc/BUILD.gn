@@ -2277,6 +2277,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api/test/metrics:global_metrics_logger_and_exporter",
       "../api/test/metrics:metric",
       "../api/units:time_delta",
+      "../api/units:timestamp",
       "../api/video_codecs:video_decoder_factory_template",
       "../api/video_codecs:video_decoder_factory_template_dav1d_adapter",
       "../api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",

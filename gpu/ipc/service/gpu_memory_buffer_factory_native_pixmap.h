@@ -17,8 +17,6 @@
 
 namespace gpu {
 
-class VulkanDeviceQueue;
-
 class GPU_IPC_SERVICE_EXPORT GpuMemoryBufferFactoryNativePixmap
     : public GpuMemoryBufferFactory {
  public:
@@ -40,17 +38,7 @@ class GPU_IPC_SERVICE_EXPORT GpuMemoryBufferFactoryNativePixmap
       gfx::BufferUsage usage) override;
 
  private:
-  gfx::GpuMemoryBufferHandle CreateNativeGmbHandleFromNativePixmap(
-      const gfx::Size& size,
-      viz::SharedImageFormat format,
-      gfx::BufferUsage usage,
-      scoped_refptr<gfx::NativePixmap> pixmap);
-
-  VulkanDeviceQueue* GetVulkanDeviceQueue();
-
   scoped_refptr<viz::VulkanContextProvider> vulkan_context_provider_;
-
-  base::WeakPtrFactory<GpuMemoryBufferFactoryNativePixmap> weak_factory_{this};
 };
 
 }  // namespace gpu

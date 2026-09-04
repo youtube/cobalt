@@ -72,8 +72,9 @@ class ExtensionSidePanelManager;
 
 #if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
-class GlicConversationHelper;
+class GlicInstanceHelper;
 class GlicTabIndicatorHelper;
+class GlicSidePanelCoordinator;
 }  // namespace glic
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -252,20 +253,11 @@ class TabFeatures {
     return inactive_window_mouse_event_controller_.get();
   }
 
-  TabResourceUsageTabHelper* resource_usage_helper() {
-    return resource_usage_helper_.get();
-  }
-
   MemorySaverChipTabHelper* memory_saver_chip_helper() {
     return memory_saver_chip_helper_.get();
   }
 
   TabUIHelper* tab_ui_helper() { return tab_ui_helper_.get(); }
-
-  // Note: Temporary until there is a more uniform way to swap out features for
-  // testing.
-  TabResourceUsageTabHelper* SetResourceUsageHelperForTesting(
-      std::unique_ptr<TabResourceUsageTabHelper> resource_usage_helper);
 
   TabUIHelper* SetTabUIHelperForTesting(
       std::unique_ptr<TabUIHelper> tab_ui_helper);
@@ -286,6 +278,12 @@ class TabFeatures {
   AskBeforeHttpDialogController* ask_before_http_dialog_controller() {
     return ask_before_http_dialog_controller_.get();
   }
+
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::GlicSidePanelCoordinator* glic_side_panel_coordinator() {
+    return glic_side_panel_coordinator_.get();
+  }
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
   // Called exactly once to initialize features.
   void Init(TabInterface& tab, Profile* profile);
@@ -400,8 +398,9 @@ class TabFeatures {
       collaboration_messaging_page_action_controller_;
 
 #if BUILDFLAG(ENABLE_GLIC)
-  std::unique_ptr<glic::GlicConversationHelper> glic_conversation_helper_;
+  std::unique_ptr<glic::GlicInstanceHelper> glic_instance_helper_;
   std::unique_ptr<glic::GlicTabIndicatorHelper> glic_tab_indicator_helper_;
+  std::unique_ptr<glic::GlicSidePanelCoordinator> glic_side_panel_coordinator_;
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
   std::unique_ptr<memory_saver::MemorySaverChipController>

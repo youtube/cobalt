@@ -78,6 +78,11 @@ AiMode::AiMode() {
 AiModeOmniboxEntryPoint::AiModeOmniboxEntryPoint() {
   enabled = base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint);
 
+  hide_aim_hint_text =
+      base::FeatureParam<bool>(&omnibox::kAiModeOmniboxEntryPoint,
+                               "HideAimHintText", false)
+          .Get();
+
   hide_aim_hint_text_on_ntp_open =
       base::FeatureParam<bool>(&omnibox::kAiModeOmniboxEntryPoint,
                               "HideAimHintTextOnNtpOpen", false)
@@ -161,7 +166,7 @@ BASE_FEATURE(ContextualSearch::kOpenLensActionUITweaks,
 
 BASE_FEATURE(ContextualSearch::kSuggestionsFulfilledByLensSupported,
              "SuggestionsFulfilledByLensSupported",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(ContextualSearch::kLoadingSuggestionsAnimation,
              "LoadingSuggestionsAnimation",
@@ -778,15 +783,15 @@ BASE_FEATURE(ComposeboxSuggestionLimit::kComposeboxSuggestionLimit,
 ComposeboxSuggestionLimit::ComposeboxSuggestionLimit() {
   enabled = base::FeatureList::IsEnabled(kComposeboxSuggestionLimit);
   max_suggestions = base::FeatureParam<size_t>(&kComposeboxSuggestionLimit,
-                                               "ComposeboxMaxSuggestions", 8)
+                                               "ComposeboxMaxSuggestions", 5)
                         .Get();
   max_aim_suggestions =
       base::FeatureParam<size_t>(&kComposeboxSuggestionLimit,
-                                 "ComposeboxMaxAimSuggestions", 8)
+                                 "ComposeboxMaxAimSuggestions", 5)
           .Get();
   max_contextual_suggestions =
       base::FeatureParam<size_t>(&kComposeboxSuggestionLimit,
-                                 "ComposeboxMaxContextualSuggestions", 8)
+                                 "ComposeboxMaxContextualSuggestions", 5)
           .Get();
 }
 

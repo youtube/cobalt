@@ -17,15 +17,12 @@ import zip_helpers
 
 class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # Ex. 'BASE_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
-  # or 'BASE_FEATURE(ConstantName, ...);'
   # or 'BASE_FEATURE(kConstantName, ...);'
   # or any of the above with STARBOARD_FEATURE in place of BASE_FEATURE
   # would parse as:
   #   ExtractConstantName() -> 'ConstantName'
   #   ExtractValue() -> '"StringNameOfTheFeature"' or '"ConstantName"'
-  # TODO(crbug.com/436274260): Drop support of the old
-  # 'BASE_FEATURE(ConstantName, ...);' format.
-  _FEATURE_RE = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(([^,]+),')
+  _FEATURE_RE = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(\s*(k\w+),')
   _STRING_LITERAL_RE = re.compile(r'"(?:\\"|[^"])*"')
   _constant_name = None  # The name of the current macro.
   _comma_count = 0  # Number of commas seen in the current macro.
@@ -39,9 +36,9 @@ class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
 
     match = self._FEATURE_RE.match(line)
     if match:
-      feature_name = match.group(1).strip()
-      self._constant_name = (feature_name[1:]
-                             if feature_name.startswith('k') else feature_name)
+      # The regex ensures that the feature name starts with 'k'.
+      feature_name = match.group(1)
+      self._constant_name = feature_name[1:]
       return self._constant_name
     return None
 

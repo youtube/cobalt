@@ -27,7 +27,7 @@ namespace rx
 namespace vk
 {
 class Context;
-enum class ImageLayout;
+enum class ImageAccess;
 
 // There are two ways to implement a barrier: Using VkCmdPipelineBarrier or VkCmdWaitEvents. The
 // BarrierType enum will be passed around to indicate which barrier caller want to use.
@@ -131,16 +131,12 @@ enum class EventStage : uint32_t
 using EventStageBitMask = typename angle::PackedEnumBitSet<EventStage, uint64_t>;
 
 using EventStageToVkPipelineStageFlagsMap = angle::PackedEnumMap<EventStage, VkPipelineStageFlags>;
-// Initialize EventStage to VkPipelineStageFlags mapping table.
-void InitializeEventStageToVkPipelineStageFlagsMap(
-    EventStageToVkPipelineStageFlagsMap *map,
-    VkPipelineStageFlags supportedVulkanPipelineStageMask);
 
 // VkCmdWaitEvents requires srcStageMask must be the bitwise OR of the stageMask parameter used in
 // previous calls to vkCmdSetEvent (See VUID-vkCmdWaitEvents-srcStageMask-01158). This mean we must
 // keep the record of what stageMask each event has been used in VkCmdSetEvent call so that we can
 // retrieve that information when we need to wait for the event. Instead of keeping just stageMask
-// here, we keep the ImageLayout for now which gives us more information for debugging.
+// here, we keep the ImageAccess for now which gives us more information for debugging.
 struct EventAndStage
 {
     bool valid() const { return event.valid(); }

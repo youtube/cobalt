@@ -665,8 +665,7 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
   }
 
   // Clear some TLS 1.3 state that no longer needs to be retained.
-  hs->key_shares[0].reset();
-  hs->key_shares[1].reset();
+  hs->key_shares.clear();
   ssl_done_writing_client_hello(hs);
 
   // TLS 1.2 handshakes cannot accept ECH.

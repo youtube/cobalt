@@ -39,7 +39,7 @@
 
   EXPECT_EQ(RTCSdpTypeAnswer,
             [RTC_OBJC_TYPE(RTCSessionDescription)
-                typeForStdString:nativeDescription->type()]);
+                typeForSdpType:nativeDescription->GetType()]);
 
   std::string sdp;
   nativeDescription->ToString(&sdp);

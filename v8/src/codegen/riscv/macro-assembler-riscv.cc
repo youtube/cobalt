@@ -417,6 +417,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
     Register destination, MemOperand field_operand, Register scratch1,
     Register scratch2,
     const std::initializer_list<std::tuple<InstanceType, Label*>>& cases) {
+  ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(destination, scratch1, scratch2));
   Label done;
 
@@ -616,7 +617,8 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   Lwu(destination, field_operand);
   srli(destination, destination, kExternalPointerIndexShift);
   slli(destination, destination, kExternalPointerTableEntrySizeLog2);
-  LoaWord(destination, MemOperand(external_table, destination));
+  AddWord(destination, external_table, destination);
+  LoadWord(destination, MemOperand(destination, 0));
 
   // We don't expect to see empty fields here. If this is ever needed, consider
   // using an dedicated empty value entry for those tags instead (i.e. an entry
@@ -626,13 +628,13 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   // forcing the `And` to allocate a new temp register (which we may not have),
   // reuse the temp register that we used for the external pointer table base.
   Register scratch = external_table;
-  Register scratch = external_table;
   if (tag_range.Size() == 1) {
     // The common and simple case: we expect exactly one tag.
+    static_assert(kExternalPointerShiftedTagMask == 0x7f);
     And(scratch, destination, Operand(kExternalPointerTagMask));
-    srli(destination, Operand(destination), kExternalPointerPayloadShift);
     SbxCheck(eq, AbortReason::kExternalPointerTagMismatch, scratch,
-             Operand(tag_range.first << kExternalPointerTagShift));
+             Operand(tag_range.first));
+    And(destination, destination, Operand(kExternalPointerPayloadMask));
   } else {
     // Not currently supported. Implement once needed.
     DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
@@ -4648,6 +4650,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
 void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
                                             Register r1, const Operand& r2,
                                             bool need_link) {
+  ASM_CODE_COMMENT(this);
   if (COMPRESS_POINTERS_BOOL) {
 #if V8_TARGET_ARCH_RISCV64
     UseScratchRegisterScope temps(this);
@@ -5228,6 +5231,7 @@ void MacroAssembler::CompareRoot(const Register& obj, RootIndex index,
 void MacroAssembler::BranchInstanceTypeWithUniqueCompressedMap(
     Label* target, Condition cc, Register map, Register scratch,
     InstanceType type) {
+  ASM_CODE_COMMENT(this);
   std::optional<RootIndex> expected =
       InstanceTypeChecker::UniqueMapOfInstanceType(type);
   CHECK(expected);
@@ -5466,14 +5470,12 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // trigger GC, since the callee function will return to it.
 
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
-  int kNumInstructions = v8_flags.riscv_c_extension ? 5 : 6;
-  Label start;
+  Label start, end;
 
   // Make 'ra' point to the correct return location, just after the 'jalr t6'
   // instruction that does the call, and store 'ra' at the top of the stack.
   bind(&start);
-  auipc(ra, 0);  // Set 'ra' the current 'pc'.
-  AddWord(ra, ra, kNumInstructions * kInstrSize);
+  LoadAddress(ra, &end);
   StoreWord(ra, MemOperand(sp));      // Reserved in EnterExitFrame.
   AddWord(sp, sp, -kCArgsSlotsSize);  // Preserves stack alignment.
 
@@ -5481,9 +5483,9 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   Mv(t6, target);  // Function pointer in 't6' to conform to ABI for PIC.
   jalr(t6);
 
-  // Make sure the stored 'ra' points to this position. This way, the 'ra'
-  // value we stored on the stack matches the value of 'ra' during the call.
-  DCHECK_EQ(kNumInstructions, InstructionsGeneratedSince(&start));
+  // The 'ra' value we stored on the stack matches the value of 'ra' during the
+  // call.
+  bind(&end);
 }
 
 void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
@@ -7454,7 +7456,11 @@ int MacroAssembler::CallCFunctionHelper(
       AddWord(sp, sp, Operand(stack_passed_arguments * kSystemPointerSize));
     }
     if (kMaxSizeOfMoveAfterFastCall > pc_offset() - before_offset) {
-      nop();
+      // If the RCV extension is enabled, we may have to emit multiple NOPs to
+      // have enough space for patching in the deopt trampoline.
+      do {
+        NOP();
+      } while (pc_offset() - before_offset != kMaxSizeOfMoveAfterFastCall);
     }
     // We assume that with the nop padding, the move instruction uses
     // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,
@@ -7613,15 +7619,8 @@ void MacroAssembler::CallJSFunction(Register function_object,
   SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
            Operand(argument_count));
   Call(code);
-#elif V8_ENABLE_SANDBOX
-  // When the sandbox is enabled, we can directly fetch the entrypoint pointer
-  // from the code pointer table instead of going through the Code object. In
-  // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaCodePointer(
-      code, FieldMemOperand(function_object, JSFunction::kCodeOffset),
-      kJSEntrypointTag);
-  Call(code);
 #else
+  CHECK(!V8_ENABLE_SANDBOX_BOOL);
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
   CallCodeObject(code, kJSEntrypointTag);
@@ -7673,6 +7672,19 @@ void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   CHECK(!V8_ENABLE_SANDBOX_BOOL);
+#ifdef V8_TARGET_ARCH_RISCV64
+#ifdef V8_ENABLE_LEAPTIERING
+  // This implementation is not currently used because callers usually need
+  // to load both entry point and parameter count and then do something with
+  // the latter before the actual call.
+  UNREACHABLE();
+#else
+  Register code = kJavaScriptCallCodeStartRegister;
+  LoadTaggedField(code,
+                  FieldMemOperand(function_object, JSFunction::kCodeOffset));
+  JumpCodeObject(code, kJSEntrypointTag, jump_mode);
+#endif
+#else  // V8_TARGET_ARCH_RISCV32
   Register code = kJavaScriptCallCodeStartRegister;
 #ifdef V8_ENABLE_LEAPTIERING
   Register dispatch_handle = s1;
@@ -7686,6 +7698,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
   JumpCodeObject(code, kJSEntrypointTag, jump_mode);
+#endif
 #endif
 }
 

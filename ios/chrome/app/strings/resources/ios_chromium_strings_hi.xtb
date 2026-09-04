@@ -4,7 +4,6 @@
 <translation id="1000436330784933699">यहां Lens खोला जा सकता है.</translation>
 <translation id="1042296835509784301">इससे Chromium में Password Manager खुलता है.</translation>
 <translation id="1047130070405668746">Chromium चुनें</translation>
-<translation id="1086486568852410168">Google Lens की मदद से खोजें</translation>
 <translation id="1091252999271033193">इसका मतलब है कि Chromium हर बार, साइट के मोबाइल वर्शन का अनुरोध करेगा.</translation>
 <translation id="1115463765356382667">Chromium का ज़्यादा से ज़्यादा फ़ायदा पाने के लिए, यहां सुझाई गई कार्रवाइयों को पूरा करें.</translation>
 <translation id="1185134272377778587">क्रोमियम के बारे में</translation>
@@ -42,6 +41,7 @@
 <translation id="1843424232666537147">क्रोमियम में ऐसी सुविधाएं हैं जो आपको अपने इंटरनेट डेटा को प्रबंधित करने और वेबपृष्ठों को तेज़ी से लोड करने में आपकी सहायता करती हैं. <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" /></translation>
 <translation id="1847960401032164406">Chromium में Maps</translation>
 <translation id="1867772173333403444">4. Chromium चुनें</translation>
+<translation id="1965068424387304464">Chromium की सलाह: पासवर्ड सेव करें</translation>
 <translation id="2006345422933397527">क्रोमियम अपडेट की जांच नहीं कर सका. देखें कि आप इंटरनेट से कनेक्ट हैं या नहीं.</translation>
 <translation id="2042889939382983733">अपना Chromium इतिहास देखें</translation>
 <translation id="2052320862053429062">Chrome समय-समय पर यह जांच करता है कि आपके पासवर्ड, ऑनलाइन पब्लिश हुई सूचियों में शामिल हैं या नहीं. ऐसा करते समय, आपके पासवर्ड और उपयोगकर्ता नाम को एन्क्रिप्ट (सुरक्षित) किया जाता है, ताकि कोई उन्हें देख न सके, यहां तक कि Google भी नहीं.</translation>
@@ -118,6 +118,7 @@ Chromium के अनुभव को बेहतर बनाने के �
 <translation id="3816686541346279443">Chromium आपको पासवर्ड सेव करने का विकल्प देगा.</translation>
 <translation id="3827545470516145620">आपको इस डिवाइस पर मानक सुरक्षा दी जा रही है</translation>
 <translation id="3833326979834193417">Chromium हर दिन अपने-आप सुरक्षा जांच करता है, ताकि आपको डेटा के गलत इस्तेमाल, नुकसान पहुंचाने वाली वेबसाइटों वगैरह से सुरक्षित रखा जा सके. 'सेटिंग' में जाकर, सुरक्षा जांच के बारे में ज़्यादा जानें.</translation>
+<translation id="3837584850181228767">Chromium की सलाह: बेहतर सुरक्षित ब्राउज़िंग की सुविधा इस्तेमाल करें</translation>
 <translation id="3845223911364528001">फ़ाइल अपलोड करने के लिए, Chromium पर वापस जाएं</translation>
 <translation id="3855938650519180865">Chromium में नया क्या है</translation>
 <translation id="3886689467633467988">बुकमार्क वगैरह अपने सभी डिवाइसों पर पाने के लिए, इस साइट और Chromium में साइन इन करें.</translation>

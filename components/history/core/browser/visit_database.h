@@ -103,6 +103,7 @@ class VisitDatabase {
   // results was restricted by `options.max_count`.
   bool GetVisibleVisitsForURL(URLID url_id,
                               const QueryOptions& options,
+                              const VisitQuery404sPolicy policy_for_404s,
                               VisitVector* visits);
 
   // Fills the vector with all visits with times in the given list.
@@ -177,6 +178,7 @@ class VisitDatabase {
   // Returns true if there are more results available, i.e. if the number of
   // results was restricted by `options.max_count`.
   bool GetVisibleVisitsInRange(const QueryOptions& options,
+                               const VisitQuery404sPolicy policy_for_404s,
                                VisitVector* visits);
 
   // Returns the visit ID for the most recent visit of the given URL ID, or 0
@@ -220,6 +222,7 @@ class VisitDatabase {
   // scheme/host/port as `url`, as well as the time of the earliest visit.
   // "User-visible" is defined as in GetVisibleVisitsInRange() above, i.e.
   // excluding redirects and subframes.
+  // Visits with an HTTP response code of 404 are also excluded.
   // This function is only valid for HTTP and HTTPS URLs; all other schemes
   // cause the function to return false.
   bool GetVisibleVisitCountToHost(const GURL& url,

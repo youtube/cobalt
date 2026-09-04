@@ -1162,6 +1162,8 @@ angle::Result FramebufferVk::blitWithCommand(ContextVk *contextVk,
                                              bool flipX,
                                              bool flipY)
 {
+    vk::Renderer *renderer = contextVk->getRenderer();
+
     // Since blitRenderbufferRect is called for each render buffer that needs to be blitted,
     // it should never be the case that both color and depth/stencil need to be blitted at
     // at the same time.
@@ -1183,12 +1185,12 @@ angle::Result FramebufferVk::blitWithCommand(ContextVk *contextVk,
         blitAspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
     }
 
-    vk::CommandBufferAccess access;
-    access.onImageTransferRead(imageAspectMask, srcImage);
-    access.onImageTransferWrite(drawRenderTarget->getLevelIndex(), 1,
-                                drawRenderTarget->getLayerIndex(), 1, imageAspectMask, dstImage);
+    vk::CommandResources resources;
+    resources.onImageTransferRead(imageAspectMask, srcImage);
+    resources.onImageTransferWrite(drawRenderTarget->getLevelIndex(), 1,
+                                   drawRenderTarget->getLayerIndex(), 1, imageAspectMask, dstImage);
     vk::OutsideRenderPassCommandBuffer *commandBuffer;
-    ANGLE_TRY(contextVk->getOutsideRenderPassCommandBuffer(access, &commandBuffer));
+    ANGLE_TRY(contextVk->getOutsideRenderPassCommandBuffer(resources, &commandBuffer));
 
     VkImageBlit blit               = {};
     blit.srcSubresource.aspectMask = blitAspectMask;
@@ -1221,8 +1223,8 @@ angle::Result FramebufferVk::blitWithCommand(ContextVk *contextVk,
                                         &blit.dstOffsets[1]);
     }
 
-    commandBuffer->blitImage(srcImage->getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                             dstImage->getImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+    commandBuffer->blitImage(srcImage->getImage(), srcImage->getCurrentLayout(renderer),
+                             dstImage->getImage(), dstImage->getCurrentLayout(renderer), 1, &blit,
                              gl_vk::GetFilter(filter));
 
     return angle::Result::Continue;
@@ -1825,16 +1827,21 @@ angle::Result FramebufferVk::generateFragmentShadingRateWithCPU(
     const uint32_t foveatedAttachmentHeight,
     const std::vector<gl::FocalPoint> &activeFocalPoints)
 {
+    vk::Renderer *renderer = contextVk->getRenderer();
+
     // Fill in image with fragment shading rate data
-    size_t bufferSize                   = fragmentShadingRateWidth * fragmentShadingRateHeight;
+    const size_t bufferSize = fragmentShadingRateWidth * fragmentShadingRateHeight;
+
     VkBufferCreateInfo bufferCreateInfo = {};
     bufferCreateInfo.sType              = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferCreateInfo.size               = bufferSize;
     bufferCreateInfo.usage              = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferCreateInfo.sharingMode        = VK_SHARING_MODE_EXCLUSIVE;
+
     vk::RendererScoped<vk::BufferHelper> stagingBuffer(contextVk->getRenderer());
     vk::BufferHelper *buffer = &stagingBuffer.get();
     ANGLE_TRY(buffer->init(contextVk, bufferCreateInfo, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+
     uint8_t *mappedBuffer;
     ANGLE_TRY(buffer->map(contextVk, &mappedBuffer));
     uint8_t val = 0;
@@ -1913,12 +1920,12 @@ angle::Result FramebufferVk::generateFragmentShadingRateWithCPU(
     ANGLE_TRY(buffer->flush(contextVk->getRenderer(), 0, buffer->getSize()));
     buffer->unmap(contextVk->getRenderer());
     // copy data from staging buffer to image
-    vk::CommandBufferAccess access;
-    access.onBufferTransferRead(buffer);
-    access.onImageTransferWrite(gl::LevelIndex(0), 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                &mFragmentShadingRateImage);
+    vk::CommandResources resources;
+    resources.onBufferTransferRead(buffer);
+    resources.onImageTransferWrite(gl::LevelIndex(0), 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
+                                   &mFragmentShadingRateImage);
     vk::OutsideRenderPassCommandBuffer *dataUpload;
-    ANGLE_TRY(contextVk->getOutsideRenderPassCommandBuffer(access, &dataUpload));
+    ANGLE_TRY(contextVk->getOutsideRenderPassCommandBuffer(resources, &dataUpload));
     VkBufferImageCopy copy           = {};
     copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     copy.imageSubresource.layerCount = 1;
@@ -1927,7 +1934,7 @@ angle::Result FramebufferVk::generateFragmentShadingRateWithCPU(
     copy.imageExtent.height          = fragmentShadingRateHeight;
     dataUpload->copyBufferToImage(buffer->getBuffer().getHandle(),
                                   mFragmentShadingRateImage.getImage(),
-                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+                                  mFragmentShadingRateImage.getCurrentLayout(renderer), 1, &copy);
 
     return angle::Result::Continue;
 }
@@ -2093,21 +2100,23 @@ angle::Result FramebufferVk::resolveColorWithCommand(ContextVk *contextVk,
                                                      const UtilsVk::BlitResolveParameters &params,
                                                      vk::ImageHelper *srcImage)
 {
-    vk::CommandBufferAccess access;
-    access.onImageTransferRead(VK_IMAGE_ASPECT_COLOR_BIT, srcImage);
+    vk::Renderer *renderer = contextVk->getRenderer();
+
+    vk::CommandResources resources;
+    resources.onImageTransferRead(VK_IMAGE_ASPECT_COLOR_BIT, srcImage);
 
     for (size_t colorIndexGL : mState.getEnabledDrawBuffers())
     {
         RenderTargetVk *drawRenderTarget = mRenderTargetCache.getColors()[colorIndexGL];
         vk::ImageHelper &dstImage        = drawRenderTarget->getImageForWrite();
 
-        access.onImageTransferWrite(drawRenderTarget->getLevelIndex(), 1,
-                                    drawRenderTarget->getLayerIndex(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                    &dstImage);
+        resources.onImageTransferWrite(drawRenderTarget->getLevelIndex(), 1,
+                                       drawRenderTarget->getLayerIndex(), 1,
+                                       VK_IMAGE_ASPECT_COLOR_BIT, &dstImage);
     }
 
     vk::OutsideRenderPassCommandBuffer *commandBuffer;
-    ANGLE_TRY(contextVk->getOutsideRenderPassCommandBuffer(access, &commandBuffer));
+    ANGLE_TRY(contextVk->getOutsideRenderPassCommandBuffer(resources, &commandBuffer));
 
     VkImageResolve resolveRegion                = {};
     resolveRegion.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -2136,7 +2145,7 @@ angle::Result FramebufferVk::resolveColorWithCommand(ContextVk *contextVk,
         resolveRegion.dstSubresource.mipLevel       = levelVk.get();
         resolveRegion.dstSubresource.baseArrayLayer = drawRenderTarget->getLayerIndex();
 
-        srcImage->resolve(&dstImage, resolveRegion, commandBuffer);
+        srcImage->resolve(renderer, &dstImage, resolveRegion, commandBuffer);
 
         perfCounters.resolveImageCommands++;
     }
@@ -4006,11 +4015,11 @@ angle::Result FramebufferVk::flushDepthStencilDeferredClear(ContextVk *contextVk
     // Depth/stencil attachments cannot be 3D.
     ASSERT(!renderTarget->is3DImage());
 
-    vk::CommandBufferAccess access;
-    access.onImageTransferWrite(renderTarget->getLevelIndex(), 1, renderTarget->getLayerIndex(), 1,
-                                image.getAspectFlags(), &image);
+    vk::CommandResources resources;
+    resources.onImageTransferWrite(renderTarget->getLevelIndex(), 1, renderTarget->getLayerIndex(),
+                                   1, image.getAspectFlags(), &image);
     vk::OutsideRenderPassCommandBuffer *commandBuffer;
-    ANGLE_TRY(contextVk->getOutsideRenderPassCommandBuffer(access, &commandBuffer));
+    ANGLE_TRY(contextVk->getOutsideRenderPassCommandBuffer(resources, &commandBuffer));
 
     VkImageSubresourceRange range = {};
     range.aspectMask              = aspect;
@@ -4032,8 +4041,8 @@ angle::Result FramebufferVk::flushDepthStencilDeferredClear(ContextVk *contextVk
         mDeferredClears.reset(vk::kUnpackedStencilIndex);
     }
 
-    commandBuffer->clearDepthStencilImage(image.getImage(), image.getCurrentLayout(), clearValue, 1,
-                                          &range);
+    commandBuffer->clearDepthStencilImage(
+        image.getImage(), image.getCurrentLayout(contextVk->getRenderer()), clearValue, 1, &range);
     return angle::Result::Continue;
 }
 

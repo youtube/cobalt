@@ -17,6 +17,8 @@
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/ice_switch_reason.h"
 #include "p2p/base/ice_transport_internal.h"
@@ -75,7 +77,7 @@ class IceControllerInterface {
     std::vector<const Connection*> connections_to_forget_state_on;
   };
 
-  // This represents the result of a call to SelectConnectionToPing.
+  // This represents the result of a call to GetConnectionToPing.
   struct PingResult {
     PingResult(const Connection* conn, int _recheck_delay_ms)
         : connection(conn ? std::optional<const Connection*>(conn)
@@ -92,12 +94,12 @@ class IceControllerInterface {
     // Connection that we should (optionally) ping.
     const std::optional<const Connection*> connection;
 
-    // The delay before P2PTransportChannel shall call SelectConnectionToPing()
+    // The delay before P2PTransportChannel shall call GetConnectionToPing()
     // again.
     //
     // Since the IceController determines which connection to ping and
     // only returns one connection at a time, the recheck_delay_ms does not have
-    // any obvious implication on bitrate for pings. E.g the recheck_delay_ms
+    // any obvious implication on bitrate for pings. E.g the recheck_delay
     // will be shorter if there are more connections available.
     const int recheck_delay_ms = 0;
   };
@@ -125,11 +127,20 @@ class IceControllerInterface {
 
   // Is there a pingable connection ?
   // This function is used to boot-strap pinging, after this returns true
-  // SelectConnectionToPing() will be called periodically.
+  // GetConnectionToPing() will be called periodically.
   virtual bool HasPingableConnection() const = 0;
 
-  // Select a connection to Ping, or nullptr if none.
-  virtual PingResult SelectConnectionToPing(int64_t last_ping_sent_ms) = 0;
+  // Selects a connection to Ping, or nullptr if none.
+  // TODO: bugs.webrtc.org/42223979 - make pure virtual when implemented by
+  // downstream.
+  virtual PingResult GetConnectionToPing(Timestamp last_ping_sent) {
+    return SelectConnectionToPing(last_ping_sent.ms());
+  }
+  // TODO: bugs.webrtc.org/42223979 - Remove when downstream implementaions are
+  // removed.
+  virtual PingResult SelectConnectionToPing(int64_t last_ping_sent_ms) {
+    return GetConnectionToPing(Timestamp::Millis(last_ping_sent_ms));
+  }
 
   // Compute the "STUN_ATTR_USE_CANDIDATE" for `conn`.
   virtual bool GetUseCandidateAttr(const Connection* conn,

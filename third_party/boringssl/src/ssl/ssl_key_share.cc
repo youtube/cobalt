@@ -445,9 +445,21 @@ constexpr NamedGroup kNamedGroups[] = {
     {NID_MLKEM1024, SSL_GROUP_MLKEM1024, "MLKEM1024", ""},
 };
 
+static_assert(std::size(kNamedGroups) == kNumNamedGroups,
+              "kNamedGroups size mismatch");
+
 }  // namespace
 
 Span<const NamedGroup> NamedGroups() { return kNamedGroups; }
+
+Span<const uint16_t> DefaultSupportedGroupIds() {
+  static const uint16_t kDefaultSupportedGroupIds[] = {
+      SSL_GROUP_X25519,
+      SSL_GROUP_SECP256R1,
+      SSL_GROUP_SECP384R1,
+  };
+  return Span(kDefaultSupportedGroupIds);
+}
 
 UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
   switch (group_id) {

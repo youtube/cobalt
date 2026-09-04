@@ -16,8 +16,9 @@
 
 namespace device {
 
-class OpenXrSpatialPlaneManager;
 class OpenXrSpatialAnchorManager;
+class OpenXrSpatialHitTestManager;
+class OpenXrSpatialPlaneManager;
 
 // Orchestrator class for interfacing with the XR_EXT_SPATIAL_* class of
 // extensions and leveraging them to provide "Scene Understanding" style data.
@@ -31,6 +32,7 @@ class OpenXrSpatialFrameworkManager : public OpenXRSceneUnderstandingManager {
   ~OpenXrSpatialFrameworkManager() override;
 
   // OpenXRSceneUnderstandingManager
+  OpenXrSceneUnderstandingManagerType GetType() const override;
   OpenXrPlaneManager* GetPlaneManager() override;
   OpenXrHitTestManager* GetHitTestManager() override;
   OpenXrAnchorManager* GetAnchorManager() override;
@@ -53,6 +55,7 @@ class OpenXrSpatialFrameworkManager : public OpenXRSceneUnderstandingManager {
   XrSpatialSnapshotEXT discovery_snapshot_ = XR_NULL_HANDLE;
 
   std::unique_ptr<OpenXrSpatialPlaneManager> plane_manager_;
+  std::unique_ptr<OpenXrSpatialHitTestManager> hit_test_manager_;
   std::unique_ptr<OpenXrSpatialAnchorManager> anchor_manager_;
 
   base::WeakPtrFactory<OpenXrSpatialFrameworkManager> weak_ptr_factory_{this};

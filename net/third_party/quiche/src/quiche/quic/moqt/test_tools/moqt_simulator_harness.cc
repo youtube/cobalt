@@ -30,7 +30,7 @@ namespace moqt::test {
 namespace {
 MoqtSessionParameters CreateParameters(quic::Perspective perspective,
                                        MoqtVersion version) {
-  MoqtSessionParameters parameters(perspective, "");
+  MoqtSessionParameters parameters(perspective, "", "");
   parameters.version = version;
   parameters.deliver_partial_objects = false;
   return parameters;
@@ -39,7 +39,7 @@ MoqtSessionParameters CreateParameters(quic::Perspective perspective,
 MoqtSessionCallbacks CreateCallbacks(quic::simulator::Simulator* simulator) {
   return MoqtSessionCallbacks(
       +[] {}, +[](absl::string_view) {}, +[](absl::string_view) {}, +[] {},
-      DefaultIncomingAnnounceCallback,
+      DefaultIncomingPublishNamespaceCallback,
       DefaultIncomingSubscribeNamespaceCallback, simulator->GetClock());
 }
 }  // namespace

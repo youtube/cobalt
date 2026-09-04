@@ -10,7 +10,7 @@
 #import "ios/chrome/browser/aim/prototype/ui/aim_image_cell.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_input_item.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_prototype_animation_context_provider.h"
-#import "ios/chrome/browser/aim/prototype/ui/aim_prototype_view_controller+private.h"
+#import "ios/chrome/browser/aim/prototype/ui/aim_prototype_mutator.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -76,6 +76,10 @@ const CGFloat kGlowEffectWidth = 4.0f;
 }
 
 @interface AIMPrototypeViewController () <UITextViewDelegate>
+
+/// Whether the AI mode is enabled.
+@property(nonatomic, assign) BOOL AIModeEnabled;
+
 @end
 
 @implementation AIMPrototypeViewController {
@@ -93,26 +97,18 @@ const CGFloat kGlowEffectWidth = 4.0f;
   NSLayoutConstraint* _textViewHeightConstraint;
   /// The text view for user input.
   UITextView* _textView;
-  /// The backing view for the animation.
-  UIView* _mainViewForAnimation;
   /// The button to toggle AI mode.
   UIButton* _aimButton;
-  /// Whether the AI mode is enabled.
-  BOOL _aiModeEnabled;
   /// The glow effect around the input plate container.
   UIView<GlowEffect>* _glowEffectView;
 }
 
 /// AIMPrototypeAnimationContextProvider
-@synthesize mainViewForAnimation = _mainViewForAnimation;
 @synthesize inputPlateViewForAnimation = _inputPlateContainerView;
 @synthesize textViewForAnimation = _textView;
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-
-  _mainViewForAnimation = self.view;
-  self.view.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
 
   // Close button
   UIButton* closeButton = [UIButton buttonWithType:UIButtonTypeClose];
@@ -306,12 +302,21 @@ const CGFloat kGlowEffectWidth = 4.0f;
                     aimPrototypeViewControllerDidTapFileButton:weakSelf];
               }];
 
-  plusButton.menu = [UIMenu menuWithTitle:@""
-                                 children:@[
-                                   fileAction,
-                                   galleryAction,
-                                   cameraAction,
-                                 ]];
+  UIAction* attachCurrentTabAction = [UIAction
+      // TODO(crbug.com/40280872): Localize this string.
+      actionWithTitle:@"Attach current tab"
+                image:DefaultSymbolWithPointSize(kNewTabGroupActionSymbol,
+                                                 kSymbolActionPointSize)
+           identifier:nil
+              handler:^(UIAction* action) {
+                [weakSelf.mutator attachCurrentTabContent];
+              }];
+
+  plusButton.menu = [UIMenu
+      menuWithTitle:@""
+           children:@[
+             fileAction, galleryAction, cameraAction, attachCurrentTabAction
+           ]];
 
   _aimButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _aimButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -470,19 +475,7 @@ const CGFloat kGlowEffectWidth = 4.0f;
 }
 
 - (void)aimButtonTapped {
-  _aiModeEnabled = !_aiModeEnabled;
-  [self updateAIMButtonAppearance];
-  [self.mutator setAIModeEnabled:_aiModeEnabled];
-
-  if (_aiModeEnabled && _glowEffectView) {
-    [NSObject cancelPreviousPerformRequestsWithTarget:self
-                                             selector:@selector(stopGlowEffect)
-                                               object:nil];
-    [_glowEffectView startGlow];
-    [self performSelector:@selector(stopGlowEffect)
-               withObject:nil
-               afterDelay:kGlowEffectDuration];
-  }
+  self.AIModeEnabled = !self.AIModeEnabled;
 }
 
 - (void)plusButtonTouchDown {
@@ -498,6 +491,25 @@ const CGFloat kGlowEffectWidth = 4.0f;
 }
 
 #pragma mark - Private
+
+- (void)setAIModeEnabled:(BOOL)AIModeEnabled {
+  if (AIModeEnabled == _AIModeEnabled) {
+    return;
+  }
+  _AIModeEnabled = AIModeEnabled;
+  [self updateAIMButtonAppearance];
+  [self.mutator setAIModeEnabled:_AIModeEnabled];
+
+  if (_AIModeEnabled && _glowEffectView) {
+    [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                             selector:@selector(stopGlowEffect)
+                                               object:nil];
+    [_glowEffectView startGlow];
+    [self performSelector:@selector(stopGlowEffect)
+               withObject:nil
+               afterDelay:kGlowEffectDuration];
+  }
+}
 
 - (UICollectionViewDiffableDataSource<NSString*, AIMInputItem*>*)
     createDataSource {
@@ -532,7 +544,7 @@ const CGFloat kGlowEffectWidth = 4.0f;
   config.imagePadding = 5;
   config.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
 
-  if (_aiModeEnabled) {
+  if (self.AIModeEnabled) {
     config.image =
         DefaultSymbolWithPointSize(kCheckmarkSymbol, kAIMButtonSymbolPointSize);
     config.background.backgroundColor = [UIColor colorNamed:kBlue100Color];

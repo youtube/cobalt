@@ -1794,6 +1794,20 @@ struct WordBinopDeoptOnOverflowOp
   FeedbackSource feedback;
   CheckForMinusZeroMode mode;
 
+  static bool IsCommutative(Kind kind) {
+    switch (kind) {
+      case Kind::kSignedAdd:
+      case Kind::kSignedMul:
+        return true;
+      case Kind::kSignedSub:
+      case Kind::kSignedDiv:
+      case Kind::kSignedMod:
+      case Kind::kUnsignedDiv:
+      case Kind::kUnsignedMod:
+        return false;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects().CanDeopt();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
@@ -1804,8 +1818,14 @@ struct WordBinopDeoptOnOverflowOp
     return InputsRepFactory::PairOf(rep);
   }
 
-  V<Word> left() const { return input<Word>(0); }
-  V<Word> right() const { return input<Word>(1); }
+  template <IsWordT WordType = Word>
+  V<WordType> left() const {
+    return input<WordType>(0);
+  }
+  template <IsWordT WordType = Word>
+  V<WordType> right() const {
+    return input<WordType>(1);
+  }
   V<FrameState> frame_state() const { return input<FrameState>(2); }
 
   WordBinopDeoptOnOverflowOp(V<Word> left, V<Word> right,
@@ -2026,8 +2046,7 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
                          RegisterRepresentation::Word32()});
   }
 
-  template <typename WordT = Word>
-    requires(IsWord<WordT>())
+  template <IsWordT WordT = Word>
   V<WordT> left() const {
     DCHECK(IsValidTypeFor<WordT>(rep));
     return input<WordT>(0);
@@ -5187,6 +5206,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions);
 
+DEFINE_MULTI_SWITCH_INTEGRAL(TruncateJSPrimitiveToUntaggedOp::UntaggedKind, 4)
+
 struct TruncateJSPrimitiveToUntaggedOrDeoptOp
     : FixedArityOperationT<2, TruncateJSPrimitiveToUntaggedOrDeoptOp> {
   enum class UntaggedKind : uint8_t {
@@ -5411,7 +5432,7 @@ struct DebugBreakOp : FixedArityOperationT<0, DebugBreakOp> {
   auto options() const { return std::tuple{}; }
 };
 
-struct DebugPrintOp : FixedArityOperationT<1, DebugPrintOp> {
+struct DebugPrintOp : OperationT<DebugPrintOp> {
   RegisterRepresentation rep;
 
   // We just need to ensure that the debug print stays in the same block and
@@ -5431,12 +5452,32 @@ struct DebugPrintOp : FixedArityOperationT<1, DebugPrintOp> {
     return InputsRepFactory::SingleRep(rep);
   }
 
-  OpIndex input() const { return Base::input(0); }
+  OpIndex value() const { return Base::input(0); }
+  OptionalV<String> label() const {
+    return input_count >= 2 ? Base::input<String>(1)
+                            : OptionalV<String>::Nullopt();
+  }
 
-  DebugPrintOp(OpIndex input, RegisterRepresentation rep)
-      : Base(input), rep(rep) {}
+  DebugPrintOp(OpIndex value, OptionalV<String> label,
+               RegisterRepresentation rep)
+      : Base(1 + label.has_value()), rep(rep) {
+    input(0) = value;
+    if (label.has_value()) {
+      input(1) = label.value();
+    }
+  }
 
   auto options() const { return std::tuple{rep}; }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(value()), mapper.Map(label()), rep);
+  }
+
+  static DebugPrintOp& New(Graph* graph, OpIndex value, OptionalV<String> label,
+                           RegisterRepresentation rep) {
+    return Base::New(graph, 1 + label.has_value(), value, label, rep);
+  }
 };
 
 struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {

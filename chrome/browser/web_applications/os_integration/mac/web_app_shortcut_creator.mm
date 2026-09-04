@@ -87,9 +87,7 @@ OSStatus SecCodeSignerAddSignatureWithErrors(SecCodeSignerRef signer,
 
 namespace web_app {
 
-BASE_FEATURE(kWebAppMaskableIconsOnMac,
-             "WebAppMaskableIconsOnMac",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kWebAppMaskableIconsOnMac, base::FEATURE_ENABLED_BY_DEFAULT);
 
 class WebAppShortcutCopierSyncCallHelper {
   mojo::SyncCallRestrictions::ScopedAllowSyncCall scoped_allow_;
@@ -141,6 +139,25 @@ enum class UpdateSignatureResult {
 void RecordUpdateSignatureResult(UpdateSignatureResult result) {
   base::UmaHistogramEnumeration(
       "Apps.CreateShortcuts.Mac.UpdateSignatureResult", result);
+}
+
+// Result of copying the app shortcut.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class CopyShortcutResult {
+  kSuccess = 0,
+  kFailToLaunchCopier = 1,
+  kFailToSendMojoInvitation = 2,
+  kFailToEstablishMojoConnection = 3,
+  kFailToCallCopyWebAppShortcut = 4,
+  kCopyShortcutFailed = 5,
+  kMaxValue = kCopyShortcutFailed,
+};
+
+// Records the result of copying the app shortcut to UMA.
+void RecordCopyShortcutResult(CopyShortcutResult result) {
+  base::UmaHistogramEnumeration("Apps.CreateShortcuts.Mac.CopyShortcutResult",
+                                result);
 }
 
 #if defined(COMPONENT_BUILD) || defined(ADDRESS_SANITIZER)
@@ -280,6 +297,7 @@ bool CopyStagingBundleToDestination(bool use_ad_hoc_signing_for_web_app_shims,
   base::Process copier_process = base::LaunchProcess(command_line, options);
   if (!copier_process.IsValid()) {
     LOG(ERROR) << "Failed to launch web_app_shortcut_copier.";
+    RecordCopyShortcutResult(CopyShortcutResult::kFailToLaunchCopier);
     return false;
   }
   channel.RemoteProcessLaunchAttempted();
@@ -288,6 +306,7 @@ bool CopyStagingBundleToDestination(bool use_ad_hoc_signing_for_web_app_shims,
       channel.TakeLocalEndpoint(), {}, copier_process.Handle());
   if (!pipe) {
     LOG(ERROR) << "Failed to send Mojo invitation to web_app_shortcut_copier.";
+    RecordCopyShortcutResult(CopyShortcutResult::kFailToSendMojoInvitation);
     return false;
   }
   mojo::PendingRemote<mojom::WebAppShortcutCopier> pending_remote(
@@ -295,6 +314,8 @@ bool CopyStagingBundleToDestination(bool use_ad_hoc_signing_for_web_app_shims,
   if (!pending_remote) {
     LOG(ERROR)
         << "Failed to establish Mojo connection with web_app_shortcut_copier.";
+    RecordCopyShortcutResult(
+        CopyShortcutResult::kFailToEstablishMojoConnection);
     return false;
   }
 
@@ -304,7 +325,13 @@ bool CopyStagingBundleToDestination(bool use_ad_hoc_signing_for_web_app_shims,
   if (!copier->CopyWebAppShortcut(staging_path, dst_app_path, &copy_result)) {
     LOG(ERROR)
         << "Failed to call CopyWebAppShortcut in web_app_shortcut_copier.";
+    RecordCopyShortcutResult(CopyShortcutResult::kFailToCallCopyWebAppShortcut);
     return false;
+  }
+  if (copy_result) {
+    RecordCopyShortcutResult(CopyShortcutResult::kSuccess);
+  } else {
+    RecordCopyShortcutResult(CopyShortcutResult::kCopyShortcutFailed);
   }
   return copy_result;
 }

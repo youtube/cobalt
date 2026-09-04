@@ -36,6 +36,7 @@
 <translation id="1062407476771304334">બદલો</translation>
 <translation id="1063822554756965137">ફાઇલો સફળતાપૂર્વક ડિલીટ કરી હતી</translation>
 <translation id="1064054731605354900">A3x5</translation>
+<translation id="1065369186007547872">Chromeને એવું લાગે છે કે તમને આ સાઇટ પરથી નોટિફિકેશન જોઈતા નથી. તેથી, વિક્ષેપો ઘટાડવા માટે વિનંતીઓ છુપાવેલી છે.</translation>
 <translation id="1066528211000788800">JSON</translation>
 <translation id="1067029985695494416">શોધ એન્જિનની વિગતો</translation>
 <translation id="1068467933609179019">ઑટોમૅટિક રીતે ભરવાની સુવિધાઓના સેટિંગ</translation>
@@ -129,6 +130,7 @@
 <translation id="1212527389003717329">ડાઉનલોડ શરૂ થયું. તેને જોવા માટે |<ph name="ACCELERATOR" />| દબાવી રાખો.</translation>
 <translation id="1215738931000958575">પાસવર્ડ, પાસકી, સરનામાં, ચુકવણી પદ્ધતિઓ અને અન્ય માહિતી ઑટોમૅટિક રીતે ભરવા માટે તમારા Google એકાઉન્ટમાં સાચવેલી માહિતીનો ઉપયોગ કરો</translation>
 <translation id="1219129156119358924">સિસ્ટમ સુરક્ષા</translation>
+<translation id="1219134100826635117">તમારા ઍડમિનિસ્ટ્રેટર દ્વારા આ ક્રિયા બ્લૉક કરવામાં આવી છે</translation>
 <translation id="1222060260947439312">જમણી બાજુની ટ્રે</translation>
 <translation id="1224330468394120478">A3x6</translation>
 <translation id="1225240795350945817">કાર્ડ નંબર:</translation>
@@ -532,7 +534,6 @@
 <translation id="1863257867908022953">ટ્રે 12</translation>
 <translation id="1864927262126810325"><ph name="SOURCE_NAME" /> પરથી</translation>
 <translation id="186539747722034544">કેબલ અને સૅટલાઇટ પ્રદાતાઓ</translation>
-<translation id="1866757068250903512"><ph name="READERNAME" /> નામવાળા પ્રમાણીકરણ ડિવાઇસ અને તેમની સાથે ઉપયોગ કરવામાં આવતા સ્માર્ટ કાર્ડને નિયંત્રિત કરવાની મંજૂરી</translation>
 <translation id="1870473978371099486">ખાનગી ટ્યૂશન સેવાઓ</translation>
 <translation id="1871208020102129563">પ્રૉક્સી નક્કી કરેલા પ્રૉક્સી સર્વરનો ઉપયોગ કરવા માટે સેટ કરેલી છે, .pac સ્ક્રિપ્ટ URL નથી.</translation>
 <translation id="1871284979644508959">જરૂરી ફીલ્ડ</translation>
@@ -639,7 +640,6 @@
 <translation id="2066969741541525119">આગળની સાઇટ તમારી સંસ્થા દ્વારા બ્લૉક કરવામાં આવી છે</translation>
 <translation id="2069913043427250781">વાહન અને ટ્રાફિક સલામતી</translation>
 <translation id="2071156619270205202">આ કાર્ડનો નંબર, વર્ચ્યુઅલ કાર્ડ નંબર તરીકે ઉપયોગ માટેની યોગ્યતા ધરાવતો નથી.</translation>
-<translation id="2071692954027939183">નોટિફિકેશન ઑટોમૅટિક રીતે બ્લૉક કરવામાં આવ્યા હતા કારણ કે તમે સામાન્ય રીતે તેમને મંજૂરી આપતા નથી</translation>
 <translation id="2071852865256799872">તમારી સંસ્થા દ્વારા તમારું બ્રાઉઝર મેનેજ કરવામાં આવે છે અને <ph name="PROFILE_DOMAIN" /> દ્વારા તમારી પ્રોફાઇલ મેનેજ કરવામાં આવે છે</translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
 <translation id="2074733626795553847"><ph name="TOPIC" />ને અનબ્લૉક કરો</translation>
@@ -716,6 +716,7 @@
 <translation id="2173302385160625112">તમારું ઇન્ટરનેટ કનેક્શન ચેક કરો</translation>
 <translation id="2174875517416416684">તમારો વ્યવહાર પૂર્ણ થયો ન હતો. તમારા એકાઉન્ટમાંથી ફંડ લેવામાં આવ્યું નથી.</translation>
 <translation id="2175630235841878061">100MB કરતા વધારે કદની ફાઇલો ડાઉનલોડ કરવા માટે ઉપલબ્ધ નથી</translation>
+<translation id="217631816678106981">પેસ્ટ કરશો નહીં</translation>
 <translation id="2178665390943006934">'Chrome અપડેટ કરો' બટન, તમારા Chrome સેટિંગમાંથી Chrome અપડેટ કરવા માટે સક્રિય કરો</translation>
 <translation id="2178904466768126352">તમે જેની મુલાકાત લેવાનો પ્રયાસ કર્યો હતો તે સાઇટ પરના અટૅક કરનારા લોકો હાનિકારક સૉફ્ટવેર ઇન્સ્ટૉલ કરી શકે છે જે તમારા પાસવર્ડ, ફોટા, મેસેજ કે ક્રેડિટ કાર્ડ નંબર જેવી બાબતો ચોરી કે ડિલીટ કરી શકે છે.</translation>
 <translation id="2179003720612888584"><ph name="SITE_DOMAIN_NAME" /> પર <ph name="SITE_TITLE" /></translation>
@@ -843,6 +844,7 @@
 <translation id="23703388716193220">ગોલ્ફનું સાધન</translation>
 <translation id="2370368710215137370">ફાઇલોના અપલોડના પ્રકારો</translation>
 <translation id="2370739752330685659">કદાચ થોડા સમય પછી</translation>
+<translation id="2371084566192454134">ટૅબ અને ટૅબના ગ્રૂપ</translation>
 <translation id="2374629208601905275">તમારા પ્રદેશના કાયદાના આધારે, Chrome તમને તમારું ડિફૉલ્ટ શોધ એન્જિન પસંદ કરવા માટે કહે છે. આ શોધ એન્જિન તમારા પ્રદેશમાં લોકપ્રિય છે અને તેમને કોઈપણ ક્રમમાં બતાવવામાં આવ્યા છે.</translation>
 <translation id="2376455483361831781">નવું ટેબલ</translation>
 <translation id="2377241607395428273">ગ્રાફિક અને ઍનિમેશન સૉફ્ટવેર</translation>
@@ -938,7 +940,6 @@
 <translation id="2527451058878391043">તમારો CVC તમારા કાર્ડની આગળના ભાગ પર હોય છે. તે તમારા કાર્ડ નંબરની ઉપર જમણી બાજુએ 4-અંકનો કોડ છે.</translation>
 <translation id="2529899080962247600">આ ફીલ્ડમાં <ph name="MAX_ITEMS_LIMIT" /> કરતાં વધારે એન્ટ્રી હોવી જોઈએ નહી. વધારાની તમામ એન્ટ્રી અવગણવામાં આવશે.</translation>
 <translation id="2530042584066815841">માઉસ લૉક અને તેનો ઉપયોગ</translation>
-<translation id="2533649878691950253">આ સાઇટને તમારું ચોક્કસ સ્થાન જાણવાથી બ્લૉક કરવામાં આવી છે, કારણ કે તમે સામાન્ય રીતે આને મંજૂરી આપતા નથી</translation>
 <translation id="253493526287553278">પ્રોમો કોડની વિગતો જુઓ</translation>
 <translation id="2535585790302968248">ખાનગી રીતે બ્રાઉઝ કરવા માટે, નવી છૂપી ટૅબ ખોલો</translation>
 <translation id="2535659140340599600">{COUNT,plural, =1{અને અન્ય 1}one{અને વધુ #}other{અને વધુ #}}</translation>
@@ -1062,6 +1063,7 @@
 <translation id="2731220418440848219">Chromiumમાં તમારા શોધ એન્જિન વિશે વધુ જાણો</translation>
 <translation id="2731382536835015353">44 x 68 ઇંચ</translation>
 <translation id="2734319753272419592">મનગમતા બનાવેલા ડિસ્કાઉન્ટ શોધવા માટે, Googleને તમારા કાર્ટનો ઉપયોગ કરવા દો. જ્યારે ઉપલબ્ધ હોય, ત્યારે તમારા કાર્ટ પર ઑટોમૅટિક રીતે ડિસ્કાઉન્ટ દેખાશે.</translation>
+<translation id="2734797989819862638">કૉપિ કરશો નહીં</translation>
 <translation id="273785062888389088">HVAC અને પર્યાવરણ નિયંત્રણ</translation>
 <translation id="2740531572673183784">બરાબર, સમજાઇ ગયું</translation>
 <translation id="2742128390261873684">હોમ ઑટોમૅશન</translation>
@@ -1624,6 +1626,7 @@
 <translation id="3678529606614285348">એક નવી છુપી વિંડોમાં પેજ ખોલો (Ctrl-Shift-N)</translation>
 <translation id="3678914302246317895"><ph name="OTP_LENGTH" />-અંકનો ચકાસણી કોડ દાખલ કરો</translation>
 <translation id="3681007416295224113">પ્રમાણપત્ર માહિતી</translation>
+<translation id="3681191721636073359">Chromeને એવું લાગે છે કે તમે આ સાઇટ પર તમારા લોકેશનનો ઉપયોગ કરવા માગતા નથી. તેથી, વિક્ષેપો ઘટાડવા માટે વિનંતીઓ છુપાવેલી છે.</translation>
 <translation id="3681421644246505351">Chrome તમારા તાજેતરના બ્રાઉઝિંગ ઇતિહાસના આધારે રુચિઓ સંબંધી વિષયો નોંધે છે.</translation>
 <translation id="3681841880472207951">QuickTime વીડિયો</translation>
 <translation id="3682094733650754138">"સરનામું ભરો" વિકલ્પ પસંદ કરવામાં આવ્યો હતો</translation>
@@ -1744,6 +1747,8 @@
 <translation id="3869939189466884821">તમારી સ્થાનિક ફાઇલો <ph name="MINUTES" /> મિનિટમાં ડિલીટ થઈ જશે</translation>
 <translation id="3872834068356954457">વિજ્ઞાન</translation>
 <translation id="3875783148670536197">મને બતાવો કે કેવી રીતે</translation>
+<translation id="3877603629930976930">શેર કરશો નહીં</translation>
+<translation id="3878445208930547646">આ સાઇટ પરથી કૉપિ કરવાની મંજૂરી નથી</translation>
 <translation id="3879748587602334249">ડાઉનલોડ મેનેજર</translation>
 <translation id="3880456882942693779">આર્ટ અને મનોરંજન</translation>
 <translation id="3880589673277376494">ઇન્ટરનેટ અને ટેલિકોમ</translation>
@@ -2112,6 +2117,7 @@
 <translation id="4466576951214254884">કૉલેજના વિદ્યાર્થીઓને લોન આપતી સેવાઓ</translation>
 <translation id="4467821340016922962">પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળવા અને ડાઉનલોડ જોવા માટે, |<ph name="ACCELERATOR" />| દબાવો</translation>
 <translation id="4473643328224505070">Chromeની સુરક્ષાનું સૌથી ઉચ્ચ લેવલ મેળવવા માટે, <ph name="BEGIN_ENHANCED_PROTECTION_LINK" />વધારેલા સંરક્ષણની સુવિધા ચાલુ કરો<ph name="END_ENHANCED_PROTECTION_LINK" /></translation>
+<translation id="4475299370877036544">આ ક્રિયા કદાચ તમારી સંસ્થાની પૉલિસીઓનું ઉલ્લંઘન કરી શકે છે</translation>
 <translation id="447665707681730621"><ph name="BUBBLE_MESSAGE" />. <ph name="LEARN_MORE_TEXT" /></translation>
 <translation id="4476953670630786061">આ ફોર્મ સુરક્ષિત નથી. ઑટોમૅટિક રીતે ભરવાની સુવિધા બંધ કરવામાં આવી છે.</translation>
 <translation id="4477350412780666475">આગલો ટ્રૅક</translation>
@@ -3657,6 +3663,7 @@
 <translation id="70705239631109039">તમારું કનેક્શન પૂર્ણપણે સુરક્ષિત નથી</translation>
 <translation id="7071122206197538392">નવું તુલનાત્મક ટેબલ</translation>
 <translation id="7075452647191940183">વિનંતી ખૂબ મોટી છે.</translation>
+<translation id="7075896597860500885">આ સાઇટ પરથી કૉપિ કરવાનો સુઝાવ આપવામાં આવતો નથી</translation>
 <translation id="7078665357168027058">RA3</translation>
 <translation id="7079699498125013497">\u0020\u2022\u0020</translation>
 <translation id="7079783554682867524"><ph name="TYPE_1" /> તરફથી (સિંક કરેલા ડિવાઇસ પર બીજી ઘણી બધી)</translation>
@@ -3692,6 +3699,7 @@
 <translation id="7129809579943936035"><ph name="VALUE_PROP" /> <ph name="DETAILS" /></translation>
 <translation id="7130775116821607281">અપલોડ કરવાનું બ્લૉક કરેલું છે</translation>
 <translation id="7132939140423847331">તમારા ઍડમિન દ્વારા આ ડેટાને કૉપિ કરવાથી પ્રતિબંધિત કરવામાં આવ્યો છે.</translation>
+<translation id="7134653428559514680">આ સાઇટ પરથી શેર કરવાનો સુઝાવ આપવામાં આવતો નથી</translation>
 <translation id="7135130955892390533">સ્ટેટસ બતાવો</translation>
 <translation id="7135814714616751706">શૉર્ટકટ શોધો</translation>
 <translation id="7136009930065337683">છૂપા મોડ વિશે વધુ જાણો</translation>
@@ -3780,6 +3788,7 @@
 <translation id="7275334191706090484">મેનેજ કરેલા બુકમાર્ક</translation>
 <translation id="7275808129217605899">આરોગ્યપ્રદ આહાર</translation>
 <translation id="7285654172857511148"><ph name="CHANGE_GOOGLE_PASSWORD_FOCUSED_FRIENDLY_MATCH_TEXT" />, તમારા Google એકાઉન્ટનો પાસવર્ડ બદલવા માટે, પહેલાં Tab અને પછી Enter કી દબાવો</translation>
+<translation id="7286908876112207905">આ કન્ટેન્ટને આ સાઇટ પર પેસ્ટ કરવાની મંજૂરી નથી</translation>
 <translation id="7291578327729322058">ડ્રાઇવિંગ લાઇસન્સ ઉમેરો</translation>
 <translation id="7292031607255951991">પ્રાપ્તકર્તાનું નામ</translation>
 <translation id="7298195798382681320">ભલામણ કરેલ</translation>
@@ -3820,6 +3829,7 @@
 <translation id="7366117520888504990">198 x 275 મિમી</translation>
 <translation id="7366362069757178916">ચુકવણી હૅન્ડલર</translation>
 <translation id="7366594738862061263">Chrome તમારા પાસવર્ડને કેવી રીતે સુરક્ષિત કરે છે તે વિશે જાણો</translation>
+<translation id="7370751048350026847">આ કન્ટેન્ટને આ સાઇટ પર પેસ્ટ કરવાનો સુઝાવ આપવામાં આવતો નથી</translation>
 <translation id="7372526636730851647">ફોટો (ગ્લોસી)</translation>
 <translation id="7372973238305370288">શોધ પરિણામ</translation>
 <translation id="7374461526650987610">પ્રોટોકોલ હેન્ડલર્સ</translation>
@@ -3893,6 +3903,7 @@
 <translation id="745640750744109667">A0x3</translation>
 <translation id="7457071735008326060">કાર્ગો ટ્રક અને ટ્રેલર</translation>
 <translation id="7461924472993315131">પિન કરો</translation>
+<translation id="7463068149674892185">આ ઍક્શનનો સુઝાવ આપવામાં આવતો નથી</translation>
 <translation id="746329643760972486">MacOS</translation>
 <translation id="746412105358554870">JavaScript ઑપ્ટિમાઇઝેશન અને સુરક્ષા</translation>
 <translation id="7465036432780054056"><ph name="EMBEDDED_URL" />ને જાણ થશે કે તમે <ph name="TOP_LEVEL_URL" />ની મુલાકાત લીધી</translation>
@@ -4586,6 +4597,7 @@
 <translation id="8624354461147303341">છૂટ મેળવો</translation>
 <translation id="8634957317623797170">54 x 86 મિમી</translation>
 <translation id="8637362707224133343">તમે બ્રાઉઝ કરી રહ્યાં હો એ દરમિયાન તમને સુરક્ષિત રાખવા માટે Chrome બિલ્ટ ઇન સલામતી સંબંધી સુવિધાઓ ધરાવે છે — જેમ કે Google Safe Browsing, જે સુવિધાએ તમે જેની મુલાકાત લેવાનો પ્રયાસ કર્યો હતો તે સાઇટ પર <ph name="BEGIN_LINK" />તાજેતરમાં ફિશિંગ શોધ્યું<ph name="END_LINK" /> હતું. ફિશિંગ સાઇટ તમને ફસાવવા માટે કોઈ અન્ય સાઇટ હોવાનો ઢોંગ કરે છે.<ph name="NEW_LINE" />ઘણીવાર સામાન્ય રીતે સુરક્ષિત ગણાતી સાઇટ પર પણ અટૅક કરનારા લોકો દ્વારા ચેડાં કરવામાં આવી શકે છે. જો તમે માનતા હો કે આ કોઈ ભૂલ છે અને આ સાઇટ કોઈ રીતે જોખમી નથી, તો <ph name="BEGIN_ERROR_LINK" />અમને જણાવો<ph name="END_ERROR_LINK" />.</translation>
+<translation id="8640996933372643759">અન્ય લોકો સાથે ટૅબ શેર કરવા અને સહયોગ કરવા માટે, તમારે Chromeમાં સાઇન ઇન કરવું જરૂરી છે</translation>
 <translation id="8641131559425911240">એન્વેલોપ (બોન્ડ)</translation>
 <translation id="8643409044755049933">એન્વલપ કાકૂ 3</translation>
 <translation id="8643846627971610148">જ્યારે કોઈ ગ્રૂપ બંધ થાય ત્યારે તે તેમાં કોણ જોડાઈ શકે તેને મર્યાદિત કરે છે</translation>

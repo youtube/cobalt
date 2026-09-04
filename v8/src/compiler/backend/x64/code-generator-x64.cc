@@ -499,6 +499,30 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
   Zone* zone_;
 };
 
+class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedIndirectWriteBarrier(CodeGenerator* gen,
+                                             Register object, Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
+                                                              save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
+
 template <std::memory_order order>
 int EmitStore(MacroAssembler* masm, Operand operand, Register value,
               MachineRepresentation rep) {
@@ -1921,12 +1945,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool =
+          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       if (arch_opcode == kArchStoreSkippedWriteBarrier) {
         EmitTSANAwareStore<std::memory_order_relaxed>(
@@ -1964,6 +1987,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchStoreIndirectSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index++);
@@ -1972,6 +1996,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           static_cast<IndirectPointerTag>(i.InputInt64(index));
       DCHECK(IsValidIndirectPointerTag(tag));
 #endif  // DEBUG
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedIndirectWriteBarrier>(
+          this, object, value);
+      __ jmp(ool->entry());
+      __ bind(ool->exit());
 
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
@@ -7565,66 +7595,22 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   }
 
   if (v8_flags.deopt_every_n_times > 0) {
-    if (isolate() != nullptr) {
-      ExternalReference counter =
-          ExternalReference::stress_deopt_count(isolate());
-      // The following code assumes that `Isolate::stress_deopt_count_` is 8
-      // bytes wide.
-      static constexpr size_t kSizeofRAX = 8;
-      static_assert(
-          sizeof(decltype(*isolate()->stress_deopt_count_address())) ==
-          kSizeofRAX);
+    ExternalReference counter =
+        ExternalReference::Create(IsolateFieldId::kStressDeoptCount);
 
-      __ pushfq();
-      __ pushq(rax);
-      __ load_rax(counter);
-      __ decl(rax);
-      __ j(not_zero, &nodeopt, Label::kNear);
+    // pushfq / popfq to avoid modifying flags.
+    __ pushfq();
+    __ decl(__ ExternalReferenceAsOperand(counter));
+    __ j(not_zero, &nodeopt, Label::kNear);
 
-      __ Move(rax, v8_flags.deopt_every_n_times);
-      __ store_rax(counter);
-      __ popq(rax);
-      __ popfq();
-      __ jmp(tlabel);
+    __ RecordComment("--deopt-every-n-times hit, jump to eager deopt");
+    __ popfq();
+    __ movl(__ ExternalReferenceAsOperand(counter),
+            Immediate(v8_flags.deopt_every_n_times.value()));
+    __ jmp(tlabel);
 
-      __ bind(&nodeopt);
-      __ store_rax(counter);
-      __ popq(rax);
-      __ popfq();
-    } else {
-#if V8_ENABLE_WEBASSEMBLY
-      CHECK(v8_flags.wasm_deopt);
-      CHECK(IsWasm());
-      __ pushfq();
-      __ pushq(rax);
-      __ pushq(rbx);
-      // Load the address of the counter into rbx.
-      __ movq(rbx, Operand(rbp, WasmFrameConstants::kWasmInstanceDataOffset));
-      __ movq(
-          rbx,
-          Operand(rbx, WasmTrustedInstanceData::kStressDeoptCounterOffset - 1));
-      // Load the counter into rax and decrement it.
-      __ movq(rax, Operand(rbx, 0));
-      __ decl(rax);
-      __ j(not_zero, &nodeopt, Label::kNear);
-      // The counter is zero, reset counter.
-      __ Move(rax, v8_flags.deopt_every_n_times);
-      __ movq(Operand(rbx, 0), rax);
-      // Restore registers and jump to deopt label.
-      __ popq(rbx);
-      __ popq(rax);
-      __ popfq();
-      __ jmp(tlabel);
-      // Write back counter and restore registers.
-      __ bind(&nodeopt);
-      __ movq(Operand(rbx, 0), rax);
-      __ popq(rbx);
-      __ popq(rax);
-      __ popfq();
-#else
-      UNREACHABLE();
-#endif
-    }
+    __ bind(&nodeopt);
+    __ popfq();
   }
 
   if (!branch->fallthru) {

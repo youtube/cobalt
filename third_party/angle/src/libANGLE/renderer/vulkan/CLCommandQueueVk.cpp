@@ -501,21 +501,21 @@ angle::Result CLCommandQueueVk::enqueueCopyBuffer(const cl::Buffer &srcBuffer,
     CLBufferVk *srcBufferVk = &srcBuffer.getImpl<CLBufferVk>();
     CLBufferVk *dstBufferVk = &dstBuffer.getImpl<CLBufferVk>();
 
-    vk::CommandBufferAccess access;
+    vk::CommandResources resources;
     if (srcBufferVk->isSubBuffer() && dstBufferVk->isSubBuffer() &&
         (srcBufferVk->getParent() == dstBufferVk->getParent()))
     {
         // this is a self copy
-        access.onBufferSelfCopy(&srcBufferVk->getBuffer());
+        resources.onBufferSelfCopy(&srcBufferVk->getBuffer());
     }
     else
     {
-        access.onBufferTransferRead(&srcBufferVk->getBuffer());
-        access.onBufferTransferWrite(&dstBufferVk->getBuffer());
+        resources.onBufferTransferRead(&srcBufferVk->getBuffer());
+        resources.onBufferTransferWrite(&dstBufferVk->getBuffer());
     }
 
     vk::OutsideRenderPassCommandBuffer *commandBuffer;
-    ANGLE_TRY(getCommandBuffer(access, &commandBuffer));
+    ANGLE_TRY(getCommandBuffer(resources, &commandBuffer));
 
     VkBufferCopy copyRegion = {srcOffset, dstOffset, size};
     // update the offset in the case of sub-buffers
@@ -646,22 +646,24 @@ angle::Result CLCommandQueueVk::copyImageToFromBuffer(CLImageVk &imageVk,
                                                       size_t bufferOffset,
                                                       ImageBufferCopyDirection direction)
 {
-    vk::CommandBufferAccess access;
+    vk::Renderer *renderer = mContext->getRenderer();
+
+    vk::CommandResources resources;
     vk::OutsideRenderPassCommandBuffer *commandBuffer;
     VkImageAspectFlags aspectFlags = imageVk.getImage().getAspectFlags();
     if (direction == ImageBufferCopyDirection::ToBuffer)
     {
-        access.onImageTransferRead(aspectFlags, &imageVk.getImage());
-        access.onBufferTransferWrite(&buffer);
+        resources.onImageTransferRead(aspectFlags, &imageVk.getImage());
+        resources.onBufferTransferWrite(&buffer);
     }
     else
     {
-        access.onImageTransferWrite(gl::LevelIndex(0), 1, 0,
-                                    static_cast<uint32_t>(imageVk.getArraySize()), aspectFlags,
-                                    &imageVk.getImage());
-        access.onBufferTransferRead(&buffer);
+        resources.onImageTransferWrite(gl::LevelIndex(0), 1, 0,
+                                       static_cast<uint32_t>(imageVk.getArraySize()), aspectFlags,
+                                       &imageVk.getImage());
+        resources.onBufferTransferRead(&buffer);
     }
-    ANGLE_TRY(getCommandBuffer(access, &commandBuffer));
+    ANGLE_TRY(getCommandBuffer(resources, &commandBuffer));
 
     VkBufferImageCopy copyRegion = {};
     copyRegion.bufferOffset      = bufferOffset;
@@ -684,7 +686,7 @@ angle::Result CLCommandQueueVk::copyImageToFromBuffer(CLImageVk &imageVk,
     if (direction == ImageBufferCopyDirection::ToBuffer)
     {
         commandBuffer->copyImageToBuffer(imageVk.getImage().getImage(),
-                                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                         imageVk.getImage().getCurrentLayout(renderer),
                                          buffer.getBuffer().getHandle(), 1, &copyRegion);
 
         mComputePassCommands->getCommandBuffer().pipelineBarrier(
@@ -693,9 +695,9 @@ angle::Result CLCommandQueueVk::copyImageToFromBuffer(CLImageVk &imageVk,
     }
     else
     {
-        commandBuffer->copyBufferToImage(buffer.getBuffer().getHandle(),
-                                         imageVk.getImage().getImage(),
-                                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        commandBuffer->copyBufferToImage(
+            buffer.getBuffer().getHandle(), imageVk.getImage().getImage(),
+            imageVk.getImage().getCurrentLayout(renderer), 1, &copyRegion);
 
         mComputePassCommands->getCommandBuffer().pipelineBarrier(
             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &memBarrier,
@@ -1001,20 +1003,22 @@ angle::Result CLCommandQueueVk::enqueueCopyImage(const cl::Image &srcImage,
                                                  const cl::EventPtrs &waitEvents,
                                                  CLEventImpl::CreateFunc *eventCreateFunc)
 {
+    vk::Renderer *renderer = mContext->getRenderer();
+
     std::scoped_lock<std::mutex> sl(mCommandQueueMutex);
     ANGLE_TRY(processWaitlist(waitEvents));
 
     auto srcImageVk = &srcImage.getImpl<CLImageVk>();
     auto dstImageVk = &dstImage.getImpl<CLImageVk>();
 
-    vk::CommandBufferAccess access;
+    vk::CommandResources resources;
     vk::OutsideRenderPassCommandBuffer *commandBuffer;
     VkImageAspectFlags dstAspectFlags = srcImageVk->getImage().getAspectFlags();
     VkImageAspectFlags srcAspectFlags = dstImageVk->getImage().getAspectFlags();
-    access.onImageTransferWrite(gl::LevelIndex(0), 1, 0, 1, dstAspectFlags,
-                                &dstImageVk->getImage());
-    access.onImageTransferRead(srcAspectFlags, &srcImageVk->getImage());
-    ANGLE_TRY(getCommandBuffer(access, &commandBuffer));
+    resources.onImageTransferWrite(gl::LevelIndex(0), 1, 0, 1, dstAspectFlags,
+                                   &dstImageVk->getImage());
+    resources.onImageTransferRead(srcAspectFlags, &srcImageVk->getImage());
+    ANGLE_TRY(getCommandBuffer(resources, &commandBuffer));
 
     VkImageCopy copyRegion    = {};
     copyRegion.extent         = cl_vk::GetExtent(srcImageVk->getExtentForCopy(region));
@@ -1030,9 +1034,10 @@ angle::Result CLCommandQueueVk::enqueueCopyImage(const cl::Image &srcImage,
         ANGLE_TRY(insertBarrier());
     }
 
-    commandBuffer->copyImage(
-        srcImageVk->getImage().getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        dstImageVk->getImage().getImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    commandBuffer->copyImage(srcImageVk->getImage().getImage(),
+                             srcImageVk->getImage().getCurrentLayout(renderer),
+                             dstImageVk->getImage().getImage(),
+                             dstImageVk->getImage().getCurrentLayout(renderer), 1, &copyRegion);
 
     ANGLE_TRY(createEvent(eventCreateFunc, cl::ExecutionStatus::Queued));
 
@@ -1149,7 +1154,7 @@ angle::Result CLCommandQueueVk::enqueueMapImage(const cl::Image &image,
     }
 
     mComputePassCommands->imageRead(mContext, imageVk->getImage().getAspectFlags(),
-                                    vk::ImageLayout::TransferSrc, &imageVk->getImage());
+                                    vk::ImageAccess::TransferSrc, &imageVk->getImage());
 
     if (imageVk->isStagingBufferInitialized() == false)
     {
@@ -1635,7 +1640,7 @@ angle::Result CLCommandQueueVk::addMemoryDependencies(cl::Memory *clMem, MemoryH
         CLImageVk &vkMem = clMem->getImpl<CLImageVk>();
         mComputePassCommands->imageWrite(mContext, gl::LevelIndex(0), 0, 1,
                                          vkMem.getImage().getAspectFlags(),
-                                         vk::ImageLayout::ComputeShaderWrite, &vkMem.getImage());
+                                         vk::ImageAccess::ComputeShaderWrite, &vkMem.getImage());
     }
     if (needsBarrier)
     {
@@ -1647,6 +1652,7 @@ angle::Result CLCommandQueueVk::addMemoryDependencies(cl::Memory *clMem, MemoryH
 
 angle::Result CLCommandQueueVk::processKernelResources(CLKernelVk &kernelVk)
 {
+    vk::Renderer *renderer             = mContext->getRenderer();
     bool podBufferPresent              = false;
     uint32_t podBinding                = 0;
     VkDescriptorType podDescriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1846,9 +1852,10 @@ angle::Result CLCommandQueueVk::processKernelResources(CLKernelVk &kernelVk)
                 // Update image/descriptor info
                 VkDescriptorImageInfo &imageInfo =
                     kernelArgDescSetBuilder.allocDescriptorImageInfo();
+                // TODO: Can't this always be vkMem.getImage().getCurrentLayout(renderer)?
                 imageInfo.imageLayout = arg.type == NonSemanticClspvReflectionArgumentStorageImage
                                             ? VK_IMAGE_LAYOUT_GENERAL
-                                            : vkMem.getImage().getCurrentLayout();
+                                            : vkMem.getImage().getCurrentLayout(renderer);
                 imageInfo.imageView   = vkMem.getImageView().getHandle();
                 imageInfo.sampler     = VK_NULL_HANDLE;
                 VkWriteDescriptorSet &writeDescriptorSet =
@@ -1907,8 +1914,70 @@ angle::Result CLCommandQueueVk::processKernelResources(CLKernelVk &kernelVk)
                 }
                 break;
             }
-            case NonSemanticClspvReflectionArgumentPointerUniform:
             case NonSemanticClspvReflectionArgumentPointerPushConstant:
+            {
+                unsigned char *argPushConstOrigin =
+                    &(kernelVk.getPodArgumentPushConstantsData()[arg.pushConstOffset]);
+                if (static_cast<const cl_mem>(arg.handle) == NULL)
+                {
+                    // If the argument is a buffer object, the arg_value pointer can be NULL or
+                    // point to a NULL value in which case a NULL value will be used as the value
+                    // for the argument declared as a pointer to global or constant memory in the
+                    // kernel.
+                    uint64_t null = 0;
+                    std::memcpy(argPushConstOrigin, &null, arg.handleSize);
+                }
+                else
+                {
+                    cl::Memory *clMem = cl::Buffer::Cast(static_cast<const cl_mem>(arg.handle));
+                    CLBufferVk &vkMem = clMem->getImpl<CLBufferVk>();
+
+                    ANGLE_TRY(addMemoryDependencies(&arg));
+
+                    uint64_t devAddr =
+                        vkMem.getBuffer().getDeviceAddress(mContext) + vkMem.getOffset();
+                    std::memcpy(argPushConstOrigin, &devAddr, arg.handleSize);
+                }
+
+                mComputePassCommands->getCommandBuffer().pushConstants(
+                    kernelVk.getPipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT,
+                    roundDownPow2(arg.pushConstOffset, 4u), roundUpPow2(arg.pushConstantSize, 4u),
+                    argPushConstOrigin);
+
+                break;
+            }
+            case NonSemanticClspvReflectionArgumentPointerUniform:
+            {
+                ASSERT(kernelVk.getPodBuffer()->getSize() >= arg.handleSize + arg.podUniformOffset);
+                if (static_cast<const cl_mem>(arg.handle) == NULL)
+                {
+                    // If the argument is a buffer object, the arg_value pointer can be NULL or
+                    // point to a NULL value in which case a NULL value will be used as the value
+                    // for the argument declared as a pointer to global or constant memory in the
+                    // kernel.
+                    uint64_t null = 0;
+                    ANGLE_TRY(kernelVk.getPodBuffer()->getImpl<CLBufferVk>().copyFrom(
+                        &null, arg.podStorageBufferOffset, arg.handleSize));
+                }
+                else
+                {
+                    cl::Memory *clMem = cl::Buffer::Cast(static_cast<const cl_mem>(arg.handle));
+                    CLBufferVk &vkMem = clMem->getImpl<CLBufferVk>();
+                    ANGLE_TRY(addMemoryDependencies(&arg));
+                    uint64_t devAddr =
+                        vkMem.getBuffer().getDeviceAddress(mContext) + vkMem.getOffset();
+                    ANGLE_TRY(kernelVk.getPodBuffer()->getImpl<CLBufferVk>().copyFrom(
+                        &devAddr, arg.podStorageBufferOffset, arg.handleSize));
+                }
+
+                if (!podBufferPresent)
+                {
+                    podBufferPresent  = true;
+                    podBinding        = arg.descriptorBinding;
+                    podDescriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                }
+                break;
+            }
             default:
             {
                 UNIMPLEMENTED();
@@ -1951,6 +2020,32 @@ angle::Result CLCommandQueueVk::processKernelResources(CLKernelVk &kernelVk)
         writeDescriptorSet.pBufferInfo     = &bufferInfo;
     }
 
+    // Create Module Constant Data Buffer
+    if (devProgramData->reflectionData.pushConstants.contains(
+            NonSemanticClspvReflectionConstantDataPointerPushConstant))
+    {
+        cl::MemoryPtr clMem =
+            kernelVk.getProgram()->getOrCreateModuleConstantDataBuffer(kernelVk.getKernelName());
+        CLBufferVk &vkMem = clMem->getImpl<CLBufferVk>();
+        uint64_t devAddr  = vkMem.getBuffer().getDeviceAddress(mContext) + vkMem.getOffset();
+
+        if (clMem->getFlags().intersects(CL_MEM_READ_WRITE | CL_MEM_WRITE_ONLY))
+        {
+            ANGLE_TRY(addMemoryDependencies(clMem.get(), MemoryHandleAccess::Writeable));
+        }
+        else
+        {
+            ANGLE_TRY(addMemoryDependencies(clMem.get(), MemoryHandleAccess::ReadOnly));
+        }
+
+        const VkPushConstantRange *pushConstantRangePtr =
+            &devProgramData->reflectionData.pushConstants.at(
+                NonSemanticClspvReflectionConstantDataPointerPushConstant);
+        mComputePassCommands->getCommandBuffer().pushConstants(
+            kernelVk.getPipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, pushConstantRangePtr->offset,
+            pushConstantRangePtr->size, &devAddr);
+    }
+
     // process the printf storage buffer
     if (kernelVk.usesPrintf())
     {
@@ -1964,20 +2059,35 @@ angle::Result CLCommandQueueVk::processKernelResources(CLKernelVk &kernelVk)
         // The spec calls out *The first 4 bytes of the buffer should be zero-initialized.*
         memset(mapPointer, 0, 4);
 
-        auto &bufferInfo  = printfDescSetBuilder.allocDescriptorBufferInfo();
-        bufferInfo.range  = clMem->getSize();
-        bufferInfo.offset = clMem->getOffset();
-        bufferInfo.buffer = vkMem.getBuffer().getBuffer().getHandle();
+        if (kernelVk.usesPrintfBufferPointerPushConstant())
+        {
+            const VkPushConstantRange *pushConstantRangePtr =
+                &devProgramData->reflectionData.pushConstants.at(
+                    NonSemanticClspvReflectionPrintfBufferPointerPushConstant);
+            uint64_t devAddr = vkMem.getBuffer().getDeviceAddress(mContext) + vkMem.getOffset();
+            // Push printf push-constant to command buffer
+            mComputePassCommands->getCommandBuffer().pushConstants(
+                kernelVk.getPipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT,
+                pushConstantRangePtr->offset, pushConstantRangePtr->size, &devAddr);
+        }
+        else
+        {
+            auto &bufferInfo  = printfDescSetBuilder.allocDescriptorBufferInfo();
+            bufferInfo.range  = clMem->getSize();
+            bufferInfo.offset = clMem->getOffset();
+            bufferInfo.buffer = vkMem.getBuffer().getBuffer().getHandle();
 
-        auto &writeDescriptorSet           = printfDescSetBuilder.allocWriteDescriptorSet();
-        writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        writeDescriptorSet.pBufferInfo     = &bufferInfo;
-        writeDescriptorSet.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSet.dstSet          = kernelVk.getDescriptorSet(DescriptorSetIndex::Printf);
-        writeDescriptorSet.dstBinding      = kernelVk.getProgram()
-                                            ->getDeviceProgramData(kernelVk.getKernelName().c_str())
-                                            ->reflectionData.printfBufferStorage.binding;
+            auto &writeDescriptorSet           = printfDescSetBuilder.allocWriteDescriptorSet();
+            writeDescriptorSet.descriptorCount = 1;
+            writeDescriptorSet.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            writeDescriptorSet.pBufferInfo     = &bufferInfo;
+            writeDescriptorSet.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writeDescriptorSet.dstSet = kernelVk.getDescriptorSet(DescriptorSetIndex::Printf);
+            writeDescriptorSet.dstBinding =
+                kernelVk.getProgram()
+                    ->getDeviceProgramData(kernelVk.getKernelName().c_str())
+                    ->reflectionData.printfBufferStorage.binding;
+        }
 
         mNeedPrintfHandling = true;
         mPrintfInfos        = kernelVk.getProgram()->getPrintfDescriptors(kernelVk.getKernelName());
@@ -1990,7 +2100,7 @@ angle::Result CLCommandQueueVk::processKernelResources(CLKernelVk &kernelVk)
         {
             mContext->getPerfCounters().writeDescriptorSets =
                 updateDescriptorSetsBuilders[index].flushDescriptorSetUpdates(
-                    mContext->getRenderer()->getDevice());
+                    renderer->getDevice());
 
             VkDescriptorSet descriptorSet = kernelVk.getDescriptorSet(index);
             mComputePassCommands->getCommandBuffer().bindDescriptorSets(
@@ -2301,46 +2411,46 @@ angle::Result CLCommandQueueVk::finishInternal()
 
 // Helper function to insert appropriate memory barriers before accessing the resources in the
 // command buffer.
-angle::Result CLCommandQueueVk::onResourceAccess(const vk::CommandBufferAccess &access)
+angle::Result CLCommandQueueVk::onResourceAccess(const vk::CommandResources &resources)
 {
     // Buffers
-    for (const vk::CommandBufferBufferAccess &bufferAccess : access.getReadBuffers())
+    for (const vk::CommandResourceBuffer &readBuffer : resources.getReadBuffers())
     {
-        if (mComputePassCommands->usesBufferForWrite(*bufferAccess.buffer))
+        if (mComputePassCommands->usesBufferForWrite(*readBuffer.buffer))
         {
             // read buffers only need a new command buffer if previously used for write
             ANGLE_TRY(flushInternal());
         }
 
-        mComputePassCommands->bufferRead(mContext, bufferAccess.accessType, bufferAccess.stage,
-                                         bufferAccess.buffer);
+        mComputePassCommands->bufferRead(mContext, readBuffer.accessType, readBuffer.stage,
+                                         readBuffer.buffer);
     }
 
-    for (const vk::CommandBufferBufferAccess &bufferAccess : access.getWriteBuffers())
+    for (const vk::CommandResourceBuffer &writeBuffer : resources.getWriteBuffers())
     {
-        if (mComputePassCommands->usesBuffer(*bufferAccess.buffer))
+        if (mComputePassCommands->usesBuffer(*writeBuffer.buffer))
         {
             // write buffers always need a new command buffer
             ANGLE_TRY(flushInternal());
         }
 
-        mComputePassCommands->bufferWrite(mContext, bufferAccess.accessType, bufferAccess.stage,
-                                          bufferAccess.buffer);
-        if (bufferAccess.buffer->isHostVisible())
+        mComputePassCommands->bufferWrite(mContext, writeBuffer.accessType, writeBuffer.stage,
+                                          writeBuffer.buffer);
+        if (writeBuffer.buffer->isHostVisible())
         {
             // currently all are host visible so nothing to do
         }
     }
 
-    for (const vk::CommandBufferBufferExternalAcquireRelease &bufferAcquireRelease :
-         access.getExternalAcquireReleaseBuffers())
+    for (const vk::CommandResourceBufferExternalAcquireRelease &bufferAcquireRelease :
+         resources.getExternalAcquireReleaseBuffers())
     {
         mComputePassCommands->retainResourceForWrite(bufferAcquireRelease.buffer);
     }
 
-    for (const vk::CommandBufferResourceAccess &resourceAccess : access.getAccessResources())
+    for (const vk::CommandResourceGeneric &genericResource : resources.getGenericResources())
     {
-        mComputePassCommands->retainResource(resourceAccess.resource);
+        mComputePassCommands->retainResource(genericResource.resource);
     }
 
     return angle::Result::Continue;

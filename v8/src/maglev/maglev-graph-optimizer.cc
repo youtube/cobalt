@@ -38,8 +38,9 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
 }
 }  // namespace
 
-MaglevGraphOptimizer::MaglevGraphOptimizer(Graph* graph)
-    : reducer_(this, graph), empty_known_node_aspects_(graph->zone()) {}
+MaglevGraphOptimizer::MaglevGraphOptimizer(
+    Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor)
+    : reducer_(this, graph), kna_processor_(kna_processor) {}
 
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
@@ -49,8 +50,6 @@ BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
 
 void MaglevGraphOptimizer::PostProcessBasicBlock(BasicBlock* block) {
   reducer_.FlushNodesToBlock();
-  // TODO(victorgomes): Support merging KNAs.
-  empty_known_node_aspects_.ClearAll();
 }
 
 void MaglevGraphOptimizer::PreProcessNode(Node*, const ProcessingState& state) {
@@ -144,6 +143,13 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   // since it does not emit a conversion node.
   if (auto cst = GetConstantWithRepresentation(node, use_repr)) return cst;
   if (node->is_tagged()) return nullptr;
+  // TODO(victorgomes): The GetXXX functions may emit a conversion node that
+  // might eager deopt. We need to find a correct eager deopt frame for them if
+  // current_node_ does not have a deopt info.
+  if (!current_node_->properties().can_eager_deopt() &&
+      !current_node_->properties().is_deopt_checkpoint()) {
+    return nullptr;
+  }
   switch (use_repr) {
     case UseRepresentation::kInt32:
       return reducer_.GetInt32(node);
@@ -461,17 +467,80 @@ ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole() {
-  // TODO(b/424157317): Optimize.
+  ThrowReferenceErrorIfHole* node =
+      current_node()->Cast<ThrowReferenceErrorIfHole>();
+
+  // Avoid the check if we know it is not the hole.
+  ValueNode* value = node->value().node();
+  if (IsConstantNode(value->opcode())) {
+    if (value->IsTheHoleValue()) {
+      ValueNode* input = reducer_.GetConstant(node->name());
+
+      node->OverwriteWith<Throw>();
+      node->Cast<Throw>()->UpdateBitfield(
+          Throw::kThrowAccessedUninitializedVariable,
+          /*has_input*/ true);
+      node->change_input(0, input);
+
+      // TODO(dmercadier): insert an Abort and cut the current basic block.
+      return ProcessResult::kContinue;
+    }
+
+    // Not the hole; removing.
+    return ProcessResult::kRemove;
+  }
+
+  // TODO(b/424157317): Optimize further.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole() {
-  // TODO(b/424157317): Optimize.
+  ThrowSuperNotCalledIfHole* node =
+      current_node()->Cast<ThrowSuperNotCalledIfHole>();
+
+  // Avoid the check if we know it is not the hole.
+  ValueNode* value = node->value().node();
+  if (IsConstantNode(value->opcode())) {
+    if (value->IsTheHoleValue()) {
+      node->OverwriteWith<Throw>();
+      node->Cast<Throw>()->UpdateBitfield(Throw::kThrowSuperNotCalled,
+                                          /*has_input*/ false);
+      node->change_input(0, reducer_.GetSmiConstant(0));
+
+      // TODO(dmercadier): insert an Abort and cut the current basic block.
+      return ProcessResult::kContinue;
+    }
+
+    // Not the hole; removing.
+    return ProcessResult::kRemove;
+  }
+
+  // TODO(b/424157317): Optimize further.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole() {
-  // TODO(b/424157317): Optimize.
+  ThrowSuperAlreadyCalledIfNotHole* node =
+      current_node()->Cast<ThrowSuperAlreadyCalledIfNotHole>();
+
+  // Avoid the check if we know it is not the hole.
+  ValueNode* value = node->value().node();
+  if (IsConstantNode(value->opcode())) {
+    if (!value->IsTheHoleValue()) {
+      node->OverwriteWith<Throw>();
+      node->Cast<Throw>()->UpdateBitfield(Throw::kThrowSuperAlreadyCalledError,
+                                          /*has_input*/ false);
+      node->change_input(0, reducer_.GetSmiConstant(0));
+
+      // TODO(dmercadier): insert an Abort and cut the current basic block.
+      return ProcessResult::kContinue;
+    }
+
+    // Value is the hole; removing.
+    return ProcessResult::kRemove;
+  }
+
+  // TODO(b/424157317): Optimize further.
   return ProcessResult::kContinue;
 }
 
@@ -1110,7 +1179,6 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagFloat64() {
     }                                                                        \
     return ProcessResult::kContinue;                                         \
   }
-UNTAGGING_CASE(CheckedSmiUntag, Int32, Number)
 UNTAGGING_CASE(UnsafeSmiUntag, Int32, Number)
 UNTAGGING_CASE(CheckedNumberToInt32, Int32, Number)
 UNTAGGING_CASE(TruncateCheckedNumberOrOddballToInt32, TruncatedInt32,
@@ -1122,6 +1190,24 @@ UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
 UNTAGGING_CASE(CheckedNumberOrOddballToHoleyFloat64, HoleyFloat64,
                NumberOrOddball)
 #undef UNTAGGING_CASE
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag() {
+  if (ValueNode* input = GetUntaggedValueWithRepresentation(
+          GetInputAt(0), UseRepresentation::kInt32, NodeType::kNumber)) {
+    if (SmiValuesAre31Bits()) {
+      // When the graph builder introduced the CheckedSmiUntag, it also recorded
+      // in the alternatives that its input was a known Smi from this point on.
+      // This information could have been later used to avoid Smi checks when
+      // using this input in contexts that require Smis (like storing the length
+      // of an array for instance). We can thus bypass the CheckedSmiUntag, but
+      // still need to keep a CheckSmi.
+      // TODO(dmercadier): during graph building, record whether the "CheckSmi"
+      // part of CheckSmiUntag is useful or not.
+      reducer_.AddNewNode<CheckedSmiSizedInt32>({input});
+    }
+    return ReplaceWith(input);
+  }
+  return ProcessResult::kContinue;
+}
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToFloat64() {
   // TODO(b/424157317): Optimize.
@@ -1679,6 +1765,11 @@ ProcessResult MaglevGraphOptimizer::VisitDeopt() {
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitThrow() {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitSwitch() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
@@ -1779,7 +1870,20 @@ ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitJumpLoop() {
-  // TODO(b/424157317): Optimize.
+  // We need to unwrap backedges of loop phis (since it's possible that they
+  // weren't identities when the loop header was visited initially, but they
+  // later became Identities while visiting the loop's body).
+  BasicBlock* loop_header = current_node()->Cast<JumpLoop>()->target();
+  if (!loop_header->has_phi()) return ProcessResult::kContinue;
+
+  for (Phi* phi : *loop_header->phis()) {
+    for (int i = 0; i < phi->input_count(); i++) {
+      ValueNode* input = phi->input(i).node();
+      if (!input) continue;
+      phi->change_input(i, input->UnwrapIdentities());
+    }
+  }
+
   return ProcessResult::kContinue;
 }
 

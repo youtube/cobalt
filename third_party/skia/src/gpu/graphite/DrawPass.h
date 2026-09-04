@@ -13,6 +13,13 @@
 #include "include/private/base/SkTArray.h"
 #include "src/gpu/graphite/DrawCommands.h"
 #include "src/gpu/graphite/GraphicsPipelineDesc.h"
+#include "src/gpu/graphite/GraphicsPipelineHandle.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <utility>
 
 struct SkImageInfo;
 
@@ -22,6 +29,7 @@ class CommandBuffer;
 class DrawList;
 class FloatStorageManager;
 class GraphicsPipeline;
+class Recorder;
 struct RenderPassDesc;
 class ResourceProvider;
 class RuntimeEffectDictionary;
@@ -46,6 +54,16 @@ enum class StoreOp : uint8_t;
 class DrawPass {
 public:
     ~DrawPass();
+
+    // Create a DrawPass that renders the DrawList into `target` with the given load/store ops and
+    // clear color.
+    static std::unique_ptr<DrawPass> Make(Recorder*,
+                                          std::unique_ptr<DrawList>,
+                                          sk_sp<TextureProxy> target,
+                                          const SkImageInfo& targetInfo,
+                                          std::pair<LoadOp, StoreOp>,
+                                          std::array<float, 4> clearColor,
+                                          const DstReadStrategy dstReadStrategy);
 
     // Defined relative to the top-left corner of the surface the DrawPass renders to, and is
     // contained within its dimensions.
@@ -83,7 +101,7 @@ public:
     [[nodiscard]] bool addResourceRefs(ResourceProvider*, CommandBuffer*);
 
 private:
-    friend class DrawList; // For the constructor
+    class SortKey;
 
     DrawPass(sk_sp<TextureProxy> target,
              std::pair<LoadOp, StoreOp> ops,
@@ -98,13 +116,16 @@ private:
     std::pair<LoadOp, StoreOp> fOps;
     std::array<float, 4> fClearColor;
 
-    // The pipelines are referenced by index in BindGraphicsPipeline, but that will index into a
-    // an array of actual GraphicsPipelines.
+    // The pipelines are referenced by index in BindGraphicsPipeline, but that will index into
+    // an array of actual GraphicsPipelines (i.e., fFullPipelines).
     skia_private::TArray<GraphicsPipelineDesc> fPipelineDescs;
 
     // These resources all get instantiated during prepareResources.
-    skia_private::TArray<sk_sp<GraphicsPipeline>> fFullPipelines;
+    skia_private::TArray<GraphicsPipelineHandle> fPipelineHandles;
     skia_private::TArray<sk_sp<TextureProxy>> fSampledTextures;
+
+    // These get resolved (from the GraphicsPipelineHandles) in prepareResources
+    skia_private::TArray<sk_sp<GraphicsPipeline>> fFullPipelines;
 
     sk_sp<FloatStorageManager> fFloatStorageManager;
 

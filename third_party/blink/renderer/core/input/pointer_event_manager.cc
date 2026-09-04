@@ -554,8 +554,9 @@ WebInputEventResult PointerEventManager::DispatchTouchPointerEvent(
     if (result != WebInputEventResult::kNotHandled &&
         pointer_event->type() == event_type_names::kPointerdown &&
         pointer_event->isPrimary()) {
-      touch_ids_for_canceled_pointerdowns_.push_back(
-          web_pointer_event.unique_touch_event_id);
+      pointer_event_target.target_frame->GetEventHandler()
+          .AppendTouchIdForCanceledPointerDown(
+              web_pointer_event.unique_touch_event_id);
     }
   }
   return result;
@@ -615,8 +616,21 @@ WebInputEventResult PointerEventManager::HandlePointerEvent(
     const Vector<WebPointerEvent>& predicted_events) {
   if (event.GetType() == WebInputEvent::Type::kPointerRawUpdate) {
     if (!frame_->GetEventHandlerRegistry().HasEventHandlers(
-            EventHandlerRegistry::kPointerRawUpdateEvent))
+            EventHandlerRegistry::kPointerRawUpdateEvent)) {
       return WebInputEventResult::kHandledSystem;
+    }
+
+    bool is_secure_context =
+        frame_->GetDocument()->domWindow() &&
+        frame_->GetDocument()->domWindow()->IsSecureContext();
+    if (!is_secure_context) {
+      UseCounter::Count(frame_->GetDocument(),
+                        WebFeature::kPointerRawUpdateEventsInInsecureContext);
+      if (RuntimeEnabledFeatures::
+              PointerRawUpdateOnlyInSecureContextEnabled()) {
+        return WebInputEventResult::kHandledSystem;
+      }
+    }
 
     // If the page has pointer lock active and the event was from
     // mouse use the locked target as the target.
@@ -1057,9 +1071,22 @@ WebInputEventResult PointerEventManager::SendMousePointerEvent(
           EventHandlerRegistry::kPointerRawUpdateEvent)) {
     // This is a chorded button move event. We need to also send a
     // pointerrawupdate for it.
-    DispatchPointerEvent(
-        effective_target,
-        pointer_event_factory_.CreatePointerRawUpdateEvent(pointer_event));
+
+    bool is_secure_context =
+        frame_->GetDocument()->domWindow() &&
+        frame_->GetDocument()->domWindow()->IsSecureContext();
+
+    if (!is_secure_context) {
+      UseCounter::Count(frame_->GetDocument(),
+                        WebFeature::kPointerRawUpdateEventsInInsecureContext);
+    }
+
+    if (!RuntimeEnabledFeatures::PointerRawUpdateOnlyInSecureContextEnabled() ||
+        is_secure_context) {
+      DispatchPointerEvent(
+          effective_target,
+          pointer_event_factory_.CreatePointerRawUpdateEvent(pointer_event));
+    }
   }
 
   WebInputEventResult result =
@@ -1327,6 +1354,11 @@ Element* PointerEventManager::GetMouseCaptureTarget() {
   if (pending_pointer_capture_target_.Contains(PointerEventFactory::kMouseId))
     return pending_pointer_capture_target_.at(PointerEventFactory::kMouseId);
   return nullptr;
+}
+
+void PointerEventManager::AppendTouchIdForCanceledPointerDown(
+    uint32_t unique_touch_event_id) {
+  touch_ids_for_canceled_pointerdowns_.push_back(unique_touch_event_id);
 }
 
 bool PointerEventManager::IsActive(const PointerId pointer_id) const {

@@ -27,6 +27,13 @@
 #include "internal.h"
 
 
+namespace {
+
+struct EVP_PKEY_ALG_EC : public EVP_PKEY_ALG {
+  // ec_group returns the |EC_GROUP| for this algorithm.
+  const EC_GROUP *(*ec_group)();
+};
+
 static int eckey_pub_encode(CBB *out, const EVP_PKEY *key) {
   const EC_KEY *ec_key = reinterpret_cast<const EC_KEY *>(key->pkey);
   const EC_GROUP *group = EC_KEY_get0_group(ec_key);
@@ -57,7 +64,7 @@ static evp_decode_result_t eckey_pub_decode(const EVP_PKEY_ALG *alg,
   // See RFC 5480, section 2.
 
   // Check that |params| matches |alg|. Only the namedCurve form is allowed.
-  const EC_GROUP *group = alg->ec_group();
+  const EC_GROUP *group = static_cast<const EVP_PKEY_ALG_EC*>(alg)->ec_group();
   if (ec_key_parse_curve_name(params, bssl::Span(&group, 1)) == nullptr) {
     if (ERR_equals(ERR_peek_last_error(), ERR_LIB_EC, EC_R_UNKNOWN_GROUP)) {
       ERR_clear_error();
@@ -102,7 +109,7 @@ static evp_decode_result_t eckey_priv_decode(const EVP_PKEY_ALG *alg,
                                              EVP_PKEY *out, CBS *params,
                                              CBS *key) {
   // See RFC 5915.
-  const EC_GROUP *group = alg->ec_group();
+  const EC_GROUP *group = static_cast<const EVP_PKEY_ALG_EC*>(alg)->ec_group();
   if (ec_key_parse_parameters(params, bssl::Span(&group, 1)) == nullptr) {
     if (ERR_equals(ERR_peek_last_error(), ERR_LIB_EC, EC_R_UNKNOWN_GROUP)) {
       ERR_clear_error();
@@ -243,6 +250,8 @@ static int eckey_opaque(const EVP_PKEY *pkey) {
   return EC_KEY_is_opaque(ec_key);
 }
 
+}  // namespace
+
 const EVP_PKEY_ASN1_METHOD ec_asn1_meth = {
     EVP_PKEY_EC,
     // 1.2.840.10045.2.1
@@ -278,37 +287,24 @@ const EVP_PKEY_ASN1_METHOD ec_asn1_meth = {
 };
 
 const EVP_PKEY_ALG *EVP_pkey_ec_p224(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&ec_asn1_meth,
-      /*ec_group=*/&EC_group_p224,
-  };
+  static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_p224};
   return &kAlg;
 }
 
 const EVP_PKEY_ALG *EVP_pkey_ec_p256(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&ec_asn1_meth,
-      /*ec_group=*/&EC_group_p256,
-  };
+  static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_p256};
   return &kAlg;
 }
 
 const EVP_PKEY_ALG *EVP_pkey_ec_p384(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&ec_asn1_meth,
-      /*ec_group=*/&EC_group_p384,
-  };
+  static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_p384};
   return &kAlg;
 }
 
 const EVP_PKEY_ALG *EVP_pkey_ec_p521(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&ec_asn1_meth,
-      /*ec_group=*/&EC_group_p521,
-  };
+  static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_p521};
   return &kAlg;
 }
-
 
 int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key) {
   if (EVP_PKEY_assign_EC_KEY(pkey, key)) {

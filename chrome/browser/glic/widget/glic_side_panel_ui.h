@@ -10,6 +10,7 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_ui_embedder.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -21,17 +22,22 @@ namespace glic {
 
 class GlicInstance;
 
-// A stub implementation of GlicUiEmbedder for side panel UIs.
-class GlicSidePanelUi : public GlicUiEmbedder, public Host::Delegate {
+// Implementation of GlicUiEmbedder for side panel UIs.
+class GlicSidePanelUi : public GlicUiEmbedder,
+                        public Host::Delegate,
+                        public GlicSidePanelCoordinator::StateObserver {
  public:
-  GlicSidePanelUi(base::WeakPtr<tabs::TabInterface> tab,
+  GlicSidePanelUi(Profile* profile,
+                  base::WeakPtr<tabs::TabInterface> tab,
                   GlicInstance& instance);
   ~GlicSidePanelUi() override;
 
   // GlicUiEmbedder:
   Host::Delegate* GetHostDelegate() override;
   void Show() override;
+  void Close() override;
   std::unique_ptr<views::View> CreateView() override;
+  std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
 
   // Host::Delegate:
   const mojom::PanelState& GetPanelState() const override;
@@ -46,9 +52,16 @@ class GlicSidePanelUi : public GlicUiEmbedder, public Host::Delegate {
   void SetMinimumWidgetSize(const gfx::Size& size) override;
   bool IsShowing() const override;
 
+  // GlicSidePanelCoordinator::StateObserver
+  void VisibilityChanged(bool visible) override;
+
  private:
+  base::ScopedObservation<GlicSidePanelCoordinator,
+                          GlicSidePanelCoordinator::StateObserver>
+      coordinator_observation_{this};
   mojom::PanelState panel_state_;
 
+  raw_ptr<Profile> profile_;
   base::WeakPtr<tabs::TabInterface> tab_;
   // Owns this.
   raw_ref<GlicInstance> instance_;

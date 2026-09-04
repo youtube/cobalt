@@ -44,14 +44,6 @@ namespace {
 constexpr char kDummyAddress[] = "0.0.0.0";
 constexpr int kDummyPort = 9;
 
-// Remove this method when the deprecated constructor that calls it has been
-// removed.
-SdpType SdpTypeFromStringOrDie(const std::string& type) {
-  auto sdp_type = SdpTypeFromString(type);
-  RTC_CHECK(sdp_type.has_value());
-  return sdp_type.value();
-}
-
 // Update the connection address for the MediaContentDescription based on the
 // candidates.
 void UpdateConnectionAddress(
@@ -111,18 +103,18 @@ void UpdateConnectionAddress(
   }
   media_desc->set_connection_address(connection_addr);
 }
-}  // namespace
 
-SessionDescriptionInterface* CreateSessionDescription(const std::string& type,
-                                                      const std::string& sdp,
-                                                      SdpParseError* error) {
-  std::optional<SdpType> maybe_type = SdpTypeFromString(type);
-  if (!maybe_type) {
-    return nullptr;
+std::vector<IceCandidateCollection> CloneCandidateCollection(
+    const std::vector<IceCandidateCollection>& original) {
+  std::vector<IceCandidateCollection> ret;
+  ret.reserve(original.size());
+  for (const auto& collection : original) {
+    ret.push_back(collection.Clone());
   }
-
-  return CreateSessionDescription(*maybe_type, sdp, error).release();
+  return ret;
 }
+
+}  // namespace
 
 std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     SdpType type,
@@ -160,51 +152,31 @@ std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
 
 JsepSessionDescription::JsepSessionDescription(SdpType type) : type_(type) {}
 
-JsepSessionDescription::JsepSessionDescription(const std::string& type)
-    : JsepSessionDescription(SdpTypeFromStringOrDie(type)) {}
-
 JsepSessionDescription::JsepSessionDescription(
     SdpType type,
     std::unique_ptr<SessionDescription> description,
     absl::string_view session_id,
-    absl::string_view session_version)
+    absl::string_view session_version,
+    std::vector<IceCandidateCollection> candidates)
     : description_(std::move(description)),
       session_id_(session_id),
       session_version_(session_version),
-      type_(type) {
+      type_(type),
+      candidate_collection_(std::move(candidates)) {
   RTC_DCHECK(description_ || type == SdpType::kRollback);
+  RTC_DCHECK(candidate_collection_.empty() ||
+             candidate_collection_.size() == number_of_mediasections());
   candidate_collection_.resize(number_of_mediasections());
 }
 
 JsepSessionDescription::~JsepSessionDescription() {}
 
-bool JsepSessionDescription::Initialize(
-    std::unique_ptr<SessionDescription> description,
-    const std::string& session_id,
-    const std::string& session_version) {
-  if (!description)
-    return false;
-
-  session_id_ = session_id;
-  session_version_ = session_version;
-  description_ = std::move(description);
-  candidate_collection_.resize(number_of_mediasections());
-  return true;
-}
-
 std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
     const {
-  auto new_description = std::make_unique<JsepSessionDescription>(
+  return std::make_unique<JsepSessionDescription>(
       GetType(), description_.get() ? description_->Clone() : nullptr,
-      session_id_, session_version_);
-  RTC_DCHECK_EQ(new_description->candidate_collection_.size(),
-                candidate_collection_.size());
-  for (size_t i = 0; i < candidate_collection_.size(); ++i) {
-    RTC_DCHECK(new_description->candidate_collection_[i].empty());
-    new_description->candidate_collection_[i].Append(
-        candidate_collection_[i].Clone());
-  }
-  return new_description;
+      session_id_, session_version_,
+      CloneCandidateCollection(candidate_collection_));
 }
 
 bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {

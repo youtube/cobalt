@@ -355,6 +355,16 @@ bool IsSelectableArea(PDFiumPage::Area area) {
   return area == PDFiumPage::TEXT_AREA || IsLinkArea(area);
 }
 
+int GetCharIndexBasedOnCharBounds(int char_index,
+                                  const gfx::PointF& point,
+                                  const PdfRect& bounds) {
+  // TODO(crbug.com/443275584): Handle vertical text.
+  if (point.x() < bounds.AsGfxRectF().CenterPoint().x()) {
+    return char_index;
+  }
+  return char_index + 1;
+}
+
 // These values are intended for the JS to handle, and it doesn't have access
 // to the PDFDEST_VIEW_* defines.
 std::string ConvertViewIntToViewString(unsigned long view_int) {
@@ -448,8 +458,8 @@ std::string GetXYZParamsString(FPDF_DEST dest, PDFiumPage* page) {
 
   // Generate a string of the parameters
   if (has_x_coord) {
-    // Handle out-of-range page coordinates and convert in-page coordinates to
-    // in-screen coordinates.
+    // Handle out-of-range PDF coordinates and convert PDF coordinates to screen
+    // coordinates.
     xyz_params =
         base::NumberToString(page->PreProcessAndTransformInPageCoordX(x)) + ",";
   } else {
@@ -492,9 +502,9 @@ void SetFitRParamsInScreenCoords(PDFiumPage* page, base::span<float> params) {
   params[3] = point_2.y();
 }
 
-// A helper function that transforms the in-page coordinates in `params` to
-// in-screen coordinates depending on the view's fit type. `params` is both an
-// input and a output parameter.
+// A helper function that transforms the PDF coordinates in `params` to screen
+// coordinates depending on the view's fit type. `params` is an in-out
+// parameter.
 void ParamsTransformPageToScreen(unsigned long view_fit_type,
                                  PDFiumPage* page,
                                  base::span<float> params) {
@@ -751,7 +761,7 @@ void PDFiumEngine::Paint(const gfx::Rect& rect,
     int index = visible_pages_[i];
     // Convert the current page's rectangle to screen rectangle.  We do this
     // instead of the reverse (converting the dirty rectangle from screen to
-    // page coordinates) because then we'd have to convert back to screen
+    // PDF coordinates) because then we'd have to convert back to screen
     // coordinates, and the rounding errors sometime leave pixels dirty or even
     // move the text up or down a pixel when zoomed.
     gfx::Rect page_rect_in_screen = GetPageScreenRect(index);
@@ -1408,9 +1418,9 @@ void PDFiumEngine::PrintEnd() {
 PDFiumEngine::PointData PDFiumEngine::GetPointData(const gfx::PointF& point) {
   PointData point_data;
   int page = -1;
-  const gfx::Point point_in_page = DeviceToScreen(point);
+  const gfx::Point screen_point = DeviceToScreen(point);
   for (int visible_page : visible_pages_) {
-    if (pages_[visible_page]->rect().Contains(point_in_page)) {
+    if (pages_[visible_page]->rect().Contains(screen_point)) {
       page = visible_page;
       break;
     }
@@ -1428,8 +1438,9 @@ PDFiumEngine::PointData PDFiumEngine::GetPointData(const gfx::PointF& point) {
   }
 
   point_data.page_index = page;
-  PDFiumPage::Area result = pages_[page]->GetCharIndex(
-      point_in_page, GetCurrentOrientation(), &point_data.char_index,
+  point_data.pdf_point = DeviceToPdf(page, point);
+  PDFiumPage::Area result = pages_[page]->GetCharInfo(
+      point_data.pdf_point, &point_data.char_index, &point_data.char_bounds,
       &point_data.form_type, &point_data.target);
   point_data.area =
       (client_->IsPrintPreview() && result == PDFiumPage::WEBLINK_AREA)
@@ -1502,12 +1513,12 @@ void PDFiumEngine::OnTextOrLinkAreaClickInternal(const PointData& point_data,
   }
 
   if (click_count == 1) {
-    OnSingleClick(point_data.page_index, point_data.char_index);
+    int char_index = GetCharIndexBasedOnCharBounds(
+        point_data.char_index, point_data.pdf_point, point_data.char_bounds);
+    OnSingleClick(point_data.page_index, char_index);
+
     if (caret_) {
-      // TODO(crbug.com/437807126): Handle corner case of clicking to the right
-      // of the last char on a page.
-      caret_->SetChar(
-          PageCharacterIndex(point_data.page_index, point_data.char_index));
+      caret_->SetChar(PageCharacterIndex(point_data.page_index, char_index));
     }
   } else if (click_count >= 2) {
     OnMultipleClick(click_count, point_data.page_index, point_data.char_index);
@@ -1538,9 +1549,6 @@ bool PDFiumEngine::OnLeftMouseDown(const blink::WebMouseEvent& event) {
   if (point_data.page_index != -1) {
     UpdateFocusElementType(FocusElementType::kPage);
     last_focused_page_ = point_data.page_index;
-    double page_x;
-    double page_y;
-    DeviceToPage(point_data.page_index, point, &page_x, &page_y);
 
     if (point_data.form_type != FPDF_FORMFIELD_UNKNOWN) {
       // FORM_OnLButton*() will trigger a callback to
@@ -1557,10 +1565,12 @@ bool PDFiumEngine::OnLeftMouseDown(const blink::WebMouseEvent& event) {
     FPDF_PAGE page = pages_[point_data.page_index]->GetPage();
 
     if (click_count == 1) {
-      FORM_OnLButtonDown(form(), page, event.GetModifiers(), page_x, page_y);
+      FORM_OnLButtonDown(form(), page, event.GetModifiers(),
+                         point_data.pdf_point.x(), point_data.pdf_point.y());
     } else if (click_count == 2) {
-      FORM_OnLButtonDoubleClick(form(), page, event.GetModifiers(), page_x,
-                                page_y);
+      FORM_OnLButtonDoubleClick(form(), page, event.GetModifiers(),
+                                point_data.pdf_point.x(),
+                                point_data.pdf_point.y());
     }
     if (point_data.form_type != FPDF_FORMFIELD_UNKNOWN) {
       return true;  // Return now before we get into the selection code.
@@ -1588,12 +1598,11 @@ bool PDFiumEngine::OnMiddleMouseDown(const blink::WebMouseEvent& event) {
   DCHECK_EQ(blink::WebPointerProperties::Button::kMiddle, event.button);
 
   SetMouseLeftButtonDown(false);
-  mouse_middle_button_down_ = true;
   mouse_middle_button_last_position_ = event.PositionInWidget();
 
   ClearTextSelection();
 
-  auto point_data = GetPointData(mouse_middle_button_last_position_);
+  auto point_data = GetPointData(mouse_middle_button_last_position_.value());
   mouse_down_state_.Set(point_data.area, point_data.target);
 
   // Decide whether to open link or not based on user action in mouse up and
@@ -1621,20 +1630,18 @@ bool PDFiumEngine::OnRightMouseDown(const blink::WebMouseEvent& event) {
   bool is_form_text_area =
       IsFormTextArea(point_data.area, point_data.form_type);
 
-  double page_x = -1;
-  double page_y = -1;
   FPDF_PAGE page = nullptr;
   if (is_form_text_area) {
     DCHECK_NE(point_data.page_index, -1);
 
-    DeviceToPage(point_data.page_index, point, &page_x, &page_y);
     page = pages_[point_data.page_index]->GetPage();
   }
 
   // Handle the case when focus starts inside a form text area.
   if (focus_field_type_ == FocusFieldType::kText) {
     if (is_form_text_area) {
-      FORM_OnFocus(form(), page, 0, page_x, page_y);
+      FORM_OnFocus(form(), page, 0, point_data.pdf_point.x(),
+                   point_data.pdf_point.y());
     } else {
       // Transition out of a form text area.
       KillFormFocus();
@@ -1645,7 +1652,8 @@ bool PDFiumEngine::OnRightMouseDown(const blink::WebMouseEvent& event) {
   // Handle the case when focus starts outside a form text area and transitions
   // into a form text area.
   if (is_form_text_area) {
-    FORM_OnFocus(form(), page, 0, page_x, page_y);
+    FORM_OnFocus(form(), page, 0, point_data.pdf_point.x(),
+                 point_data.pdf_point.y());
     return true;
   }
 
@@ -1715,7 +1723,7 @@ bool PDFiumEngine::OnMouseUp(const blink::WebMouseEvent& event) {
   if (event.button == blink::WebPointerProperties::Button::kLeft) {
     SetMouseLeftButtonDown(false);
   } else if (event.button == blink::WebPointerProperties::Button::kMiddle) {
-    mouse_middle_button_down_ = false;
+    mouse_middle_button_last_position_.reset();
   }
 
   const gfx::PointF& point = event.PositionInWidget();
@@ -1753,11 +1761,9 @@ bool PDFiumEngine::OnMouseUp(const blink::WebMouseEvent& event) {
   }
 
   if (point_data.page_index != -1) {
-    double page_x;
-    double page_y;
-    DeviceToPage(point_data.page_index, point, &page_x, &page_y);
     FORM_OnLButtonUp(form(), pages_[point_data.page_index]->GetPage(),
-                     event.GetModifiers(), page_x, page_y);
+                     event.GetModifiers(), point_data.pdf_point.x(),
+                     point_data.pdf_point.y());
   }
 
   if (!selecting_) {
@@ -1783,11 +1789,8 @@ bool PDFiumEngine::OnMouseMove(const blink::WebMouseEvent& event) {
         DetermineCursorType(point_data.area, point_data.form_type));
 
     if (point_data.page_index != -1) {
-      double page_x;
-      double page_y;
-      DeviceToPage(point_data.page_index, point, &page_x, &page_y);
       FORM_OnMouseMove(form(), pages_[point_data.page_index]->GetPage(), 0,
-                       page_x, page_y);
+                       point_data.pdf_point.x(), point_data.pdf_point.y());
     }
 
     UpdateLinkUnderCursor(GetLinkAtPosition(point));
@@ -1800,13 +1803,14 @@ bool PDFiumEngine::OnMouseMove(const blink::WebMouseEvent& event) {
       SetFormSelectedText(form(), pages_[last_focused_page_]->GetPage());
     }
 
-    if (kViewerImplementedPanning && mouse_middle_button_down_) {
+    if (kViewerImplementedPanning &&
+        mouse_middle_button_last_position_.has_value()) {
       // Subtract (origin - destination) so delta is already the delta for
       // moving the page, rather than the delta the mouse moved.
       // `event.movement_x` and `event.movement_y` do not work here, as small
       // mouse movements are considered zero.
-      gfx::Vector2d page_position_delta =
-          gfx::ToRoundedVector2d(mouse_middle_button_last_position_ - point);
+      gfx::Vector2d page_position_delta = gfx::ToRoundedVector2d(
+          mouse_middle_button_last_position_.value() - point);
       if (page_position_delta.x() != 0 || page_position_delta.y() != 0) {
         client_->ScrollBy(page_position_delta);
         mouse_middle_button_last_position_ = point;
@@ -1831,12 +1835,13 @@ bool PDFiumEngine::OnMouseMove(const blink::WebMouseEvent& event) {
   }
 
   SelectionChangeInvalidator selection_invalidator(this);
-  return ExtendSelection(point_data.page_index, point_data.char_index);
+  return ExtendSelection(point_data);
 }
 
 ui::mojom::CursorType PDFiumEngine::DetermineCursorType(PDFiumPage::Area area,
                                                         int form_type) const {
-  if (kViewerImplementedPanning && mouse_middle_button_down_) {
+  if (kViewerImplementedPanning &&
+      mouse_middle_button_last_position_.has_value()) {
     return ui::mojom::CursorType::kHand;
   }
 
@@ -1878,20 +1883,21 @@ ui::mojom::CursorType PDFiumEngine::DetermineCursorType(PDFiumPage::Area area,
 void PDFiumEngine::OnMouseEnter(const blink::WebMouseEvent& event) {
   if (event.GetModifiers() &
       blink::WebInputEvent::Modifiers::kMiddleButtonDown) {
-    if (!mouse_middle_button_down_) {
-      mouse_middle_button_down_ = true;
+    if (!mouse_middle_button_last_position_.has_value()) {
       mouse_middle_button_last_position_ = event.PositionInWidget();
     }
   } else {
-    if (mouse_middle_button_down_) {
-      mouse_middle_button_down_ = false;
-    }
+    mouse_middle_button_last_position_.reset();
   }
 }
 
-bool PDFiumEngine::ExtendSelection(int page_index, int char_index) {
-  DCHECK_GE(page_index, 0);
-  DCHECK_GE(char_index, 0);
+bool PDFiumEngine::ExtendSelection(const PointData& point_data) {
+  DCHECK_GE(point_data.page_index, 0);
+  DCHECK_GE(point_data.char_index, 0);
+
+  const int page_index = point_data.page_index;
+  const int char_index = GetCharIndexBasedOnCharBounds(
+      point_data.char_index, point_data.pdf_point, point_data.char_bounds);
 
   // Check if the user has decreased their selection area and we need to remove
   // pages from `selection_`.
@@ -1913,11 +1919,13 @@ bool PDFiumEngine::ExtendSelection(int page_index, int char_index) {
     int count = char_index - last_char_index;
     if (count >= 0) {
       // Selecting forward.
-      ++count;
+      selection_.back().SetCharCount(count);
     } else {
-      --count;
+      // CreateBackwards() expects a positive count, so flip the negative value.
+      count = -count;
+      selection_.back() = PDFiumRange::CreateBackwards(pages_[page_index].get(),
+                                                       char_index, count);
     }
-    selection_.back().SetCharCount(count);
   } else if (last_page_index < page_index) {
     // Selecting into the next page.
 
@@ -1937,13 +1945,15 @@ bool PDFiumEngine::ExtendSelection(int page_index, int char_index) {
     int count = pages_[last_page_index]->GetCharCount();
     selection_[last_selection_index].SetCharCount(count - last_char_index);
     selection_.push_back(PDFiumRange(pages_[page_index].get(), /*char_index=*/0,
-                                     /*char_count=*/char_index + 1));
+                                     /*char_count=*/char_index));
   } else {
     // Selecting into the previous page.
-    // The selection's char_index is 0-based, so the character count is one
-    // more than the index. The character count needs to be negative to
-    // indicate a backwards selection.
-    selection_.back().SetCharCount(-last_char_index - 1);
+    // `last_page_index` has already been adjusted previously to either include
+    // the current character or not, so use it as-is.
+    // This selection needs to be backwards.
+    selection_.back() = PDFiumRange::CreateBackwards(
+        pages_[last_page_index].get(), /*char_index=*/0,
+        /*char_count=*/last_char_index);
 
     // First make sure that there are no gaps in selection, i.e. if mousedown on
     // page three but we only get mousemove over page one, we want page two.
@@ -1953,9 +1963,9 @@ bool PDFiumEngine::ExtendSelection(int page_index, int char_index) {
       }
     }
 
-    int count = pages_[page_index]->GetCharCount();
-    selection_.emplace_back(pages_[page_index].get(), count - 1,
-                            char_index - count);
+    int char_count = pages_[page_index]->GetCharCount() - char_index;
+    selection_.push_back(PDFiumRange::CreateBackwards(pages_[page_index].get(),
+                                                      char_index, char_count));
   }
 
   return true;
@@ -2787,9 +2797,9 @@ std::optional<PDFiumEngine::NamedDestination> PDFiumEngine::GetNamedDestination(
   unsigned long view_int =
       FPDFDest_GetView(dest, &result.num_params, result.params.data());
 
-  // FPDFDest_GetView() gets the in-page coordinates directly from the PDF
-  // document. The in-page coordinates need to be transformed into in-screen
-  // coordinates before getting sent to the viewport.
+  // FPDFDest_GetView() gets the PDF coordinates directly from the PDF document.
+  // The PDF coordinates need to be transformed into screen coordinates before
+  // getting sent to the viewport.
   PDFiumPage* page_ptr = pages_[page].get();
   ParamsTransformPageToScreen(view_int, page_ptr, result.params);
 
@@ -3914,24 +3924,22 @@ bool PDFiumEngine::MouseDownState::Matches(
   return true;
 }
 
-void PDFiumEngine::DeviceToPage(int page_index,
-                                const gfx::PointF& device_point,
-                                double* page_x,
-                                double* page_y) {
-  *page_x = 0;
-  *page_y = 0;
-
-  gfx::Point point_in_page = DeviceToScreen(device_point);
+gfx::PointF PDFiumEngine::DeviceToPdf(int page_index,
+                                      const gfx::PointF& device_point) {
+  gfx::Point screen_point = DeviceToScreen(device_point);
 
   PDFiumPage* page = pages_[page_index].get();
   const gfx::Rect& page_rect = page->rect();
-  point_in_page -= page_rect.OffsetFromOrigin();
+  screen_point -= page_rect.OffsetFromOrigin();
 
+  double page_x = 0;
+  double page_y = 0;
   FPDF_BOOL ret = FPDF_DeviceToPage(
       page->GetPage(), 0, 0, page_rect.width(), page_rect.height(),
-      ToPDFiumRotation(GetCurrentOrientation()), point_in_page.x(),
-      point_in_page.y(), page_x, page_y);
+      ToPDFiumRotation(GetCurrentOrientation()), screen_point.x(),
+      screen_point.y(), &page_x, &page_y);
   DCHECK(ret);
+  return gfx::PointF(page_x, page_y);
 }
 
 gfx::Point PDFiumEngine::DeviceToScreen(const gfx::PointF& device_point) const {
@@ -4383,7 +4391,7 @@ void PDFiumEngine::MoveRangeSelectionExtent(const gfx::Point& extent) {
 
   SelectionChangeInvalidator selection_invalidator(this);
   if (range_selection_direction_ == RangeSelectionDirection::Right) {
-    ExtendSelection(point_data.page_index, point_data.char_index);
+    ExtendSelection(point_data);
     return;
   }
 
@@ -4396,8 +4404,7 @@ void PDFiumEngine::MoveRangeSelectionExtent(const gfx::Point& extent) {
 
   // This should always succeeed because the range selection base should have
   // already been selected.
-  point_data = GetPointData(gfx::PointF(range_selection_base_));
-  ExtendSelection(point_data.page_index, point_data.char_index);
+  ExtendSelection(GetPointData(gfx::PointF(range_selection_base_)));
 }
 
 void PDFiumEngine::SetSelectionBounds(const gfx::Point& base,
@@ -4920,7 +4927,7 @@ bool PDFiumEngine::ExtendSelectionByPoint(const gfx::PointF& point) {
   }
 
   SelectionChangeInvalidator selection_invalidator(this);
-  return ExtendSelection(point_data.page_index, point_data.char_index);
+  return ExtendSelection(point_data);
 }
 
 gfx::Transform PDFiumEngine::GetCanonicalToPdfTransform(int page_index) {

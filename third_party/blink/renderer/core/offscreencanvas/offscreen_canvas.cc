@@ -272,7 +272,16 @@ scoped_refptr<Image> OffscreenCanvas::GetSourceImageForCanvas(
     *status = kZeroSizeCanvasSourceImageStatus;
     return nullptr;
   }
-  scoped_refptr<StaticBitmapImage> image = context_->GetImage(reason);
+  scoped_refptr<StaticBitmapImage> image;
+  if (IsWebGL() || IsWebGPU()) {
+    // Because WebGL/WebGPU sources always require copying the back buffer,
+    // we use PaintRenderingResultsToSnapshot instead of GetImage in order to
+    // keep a cached copy of the backing in the canvas's resource provider.
+    image = RenderingContext()->PaintRenderingResultsToSnapshot(kBackBuffer,
+                                                                reason);
+  } else {
+    image = RenderingContext()->GetImage(reason);
+  }
   if (!image) {
     image = CreateTransparentImage();
   }
@@ -326,6 +335,13 @@ ScriptPromise<Blob> OffscreenCanvas::convertToBlob(
   if (!OriginClean()) {
     error_msg << "Tainted " << object_name << " may not be exported.";
     exception_state.ThrowSecurityError(error_msg.str().c_str());
+    return EmptyPromise();
+  }
+
+  if (RuntimeEnabledFeatures::BlockCanvasReadbackEnabled(
+          GetExecutionContext())) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
+                                      String(kBlockCanvasReadbackErrorMessage));
     return EmptyPromise();
   }
 

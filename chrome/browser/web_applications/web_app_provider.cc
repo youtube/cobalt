@@ -85,9 +85,7 @@ enum class WebappInstallSource;
 namespace web_app {
 
 #if BUILDFLAG(IS_MAC)
-BASE_FEATURE(kDiyAppIconsMaskedOnMacUpdate,
-             "DiyAppIconsMaskedOnMacUpdate",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kDiyAppIconsMaskedOnMacUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // static
@@ -339,7 +337,6 @@ void WebAppProvider::Shutdown() {
   manifest_update_manager_->Shutdown();
   iwa_update_manager_->Shutdown();
   install_manager_->Shutdown();
-  isolated_web_app_policy_manager_->Shutdown();
   web_app_policy_manager_->Shutdown();
   icon_manager_->Shutdown();
   install_finalizer_->Shutdown();

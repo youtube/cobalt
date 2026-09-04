@@ -35,6 +35,7 @@
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/p2p_constants.h"
@@ -70,39 +71,25 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
 
+namespace webrtc {
+namespace {
+
 using ::testing::Eq;
 using ::testing::IsNull;
 using ::testing::IsTrue;
 using ::testing::NotNull;
-using ::webrtc::AsyncListenSocket;
-using webrtc::AsyncPacketSocket;
-using webrtc::ByteBufferReader;
-using webrtc::ByteBufferWriter;
-using ::webrtc::CreateEnvironment;
-using ::webrtc::Environment;
-using ::webrtc::IceCandidateType;
-using ::webrtc::NAT_ADDR_RESTRICTED;
-using ::webrtc::NAT_OPEN_CONE;
-using ::webrtc::NAT_PORT_RESTRICTED;
-using ::webrtc::NAT_SYMMETRIC;
-using ::webrtc::NATType;
-using webrtc::PacketSocketFactory;
-using ::webrtc::Socket;
-using ::webrtc::SocketAddress;
-
-namespace webrtc {
-namespace {
 
 constexpr int kDefaultTimeout = 3000;
 constexpr int kShortTimeout = 1000;
-constexpr int kMaxExpectedSimulatedRtt = 200;
+constexpr TimeDelta kMaxExpectedSimulatedRtt = TimeDelta::Millis(200);
+constexpr TimeDelta kEpsilon = TimeDelta::Millis(1);
 const SocketAddress kLocalAddr1("192.168.1.2", 0);
 const SocketAddress kLocalAddr2("192.168.1.3", 0);
 const SocketAddress kLinkLocalIPv6Addr("fe80::aabb:ccff:fedd:eeff", 0);
@@ -273,7 +260,7 @@ static void SendPingAndReceiveResponse(Connection* lconn,
                                        TestPort* rport,
                                        ScopedFakeClock* clock,
                                        int64_t ms) {
-  lconn->Ping(TimeMillis());
+  lconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -314,11 +301,14 @@ class TestChannel : public sigslot::has_slots<> {
     IceMode remote_ice_mode =
         (ice_mode_ == ICEMODE_FULL) ? ICEMODE_LITE : ICEMODE_FULL;
     conn_->set_use_candidate_attr(remote_ice_mode == ICEMODE_FULL);
-    conn_->SignalStateChange.connect(this,
-                                     &TestChannel::OnConnectionStateChange);
-    conn_->SignalDestroyed.connect(this, &TestChannel::OnDestroyed);
-    conn_->SignalReadyToSend.connect(this,
-                                     &TestChannel::OnConnectionReadyToSend);
+    conn_->SubscribeStateChange([this](Connection* connection) {
+      OnConnectionStateChange(connection);
+    });
+    conn_->SubscribeDestroyed(
+        this, [this](Connection* connection) { OnDestroyed(connection); });
+    conn_->SubscribeReadyToSend([this](Connection* connection) {
+      OnConnectionReadyToSend(connection);
+    });
     connection_ready_to_send_ = false;
   }
 
@@ -330,19 +320,20 @@ class TestChannel : public sigslot::has_slots<> {
   }
   void AcceptConnection(const Candidate& remote_candidate) {
     if (conn_) {
-      conn_->SignalDestroyed.disconnect(this);
+      conn_->UnsubscribeDestroyed(this);
       conn_ = nullptr;
     }
     ASSERT_TRUE(remote_request_.get() != nullptr);
     Candidate c = remote_candidate;
     c.set_address(remote_address_);
     conn_ = port_->CreateConnection(c, Port::ORIGIN_MESSAGE);
-    conn_->SignalDestroyed.connect(this, &TestChannel::OnDestroyed);
+    conn_->SubscribeDestroyed(
+        this, [this](Connection* connection) { OnDestroyed(connection); });
     conn_->SendStunBindingResponse(remote_request_.get());
     remote_request_.reset();
   }
-  void Ping() { Ping(0); }
-  void Ping(int64_t now) { conn_->Ping(now); }
+  void Ping() { conn_->Ping(); }
+  void Ping(Timestamp now) { conn_->Ping(now); }
   void Stop() {
     if (conn_) {
       port_->DestroyConnection(conn_);
@@ -436,7 +427,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
         nat_socket_factory1_(&nat_factory1_),
         nat_socket_factory2_(&nat_factory2_),
         stun_server_(TestStunServer::Create(ss_.get(), kStunAddr, main_)),
-        turn_server_(&main_, ss_.get(), kTurnUdpIntAddr, kTurnUdpExtAddr),
+        turn_server_(env_, &main_, ss_.get(), kTurnUdpIntAddr, kTurnUdpExtAddr),
         username_(CreateRandomString(ICE_UFRAG_LENGTH)),
         password_(CreateRandomString(ICE_PWD_LENGTH)),
         role_conflict_(false),
@@ -650,7 +641,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
 
   std::unique_ptr<NATServer> CreateNatServer(const SocketAddress& addr,
                                              NATType type) {
-    return std::make_unique<NATServer>(type, main_, ss_.get(), addr, addr,
+    return std::make_unique<NATServer>(env_, type, main_, ss_.get(), addr, addr,
                                        main_, ss_.get(), addr);
   }
   static const char* StunName(NATType type) {
@@ -934,8 +925,10 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
 
   VirtualSocketServer* vss() { return ss_.get(); }
 
+  const Environment& env() const { return env_; }
+
  private:
-  const Environment env_ = CreateEnvironment();
+  const Environment env_ = CreateTestEnvironment();
   // When a "create port" helper method is called with an IP, we create a
   // Network with that IP and add it to this list. Using a list instead of a
   // vector so that when it grows, pointers aren't invalidated.
@@ -1462,22 +1455,22 @@ TEST_F(PortTest, TestConnectionDead) {
               IsRtcOk());
 
   // Test case that the connection has never received anything.
-  int64_t before_created = TimeMillis();
+  Timestamp before_created = env().clock().CurrentTime();
   ch1.CreateConnection(GetCandidate(ch2.port()));
-  int64_t after_created = TimeMillis();
+  Timestamp after_created = env().clock().CurrentTime();
   Connection* conn = ch1.conn();
   ASSERT_NE(conn, nullptr);
   // It is not dead if it is after kMinConnectionLifetime but not pruned.
-  conn->UpdateState(after_created + kMinConnectionLifetime.ms() + 1);
+  conn->UpdateState(after_created + kMinConnectionLifetime + kEpsilon);
   Thread::Current()->ProcessMessages(0);
   EXPECT_TRUE(ch1.conn() != nullptr);
   // It is not dead if it is before kMinConnectionLifetime and pruned.
-  conn->UpdateState(before_created + kMinConnectionLifetime.ms() - 1);
+  conn->UpdateState(before_created + kMinConnectionLifetime - kEpsilon);
   conn->Prune();
   Thread::Current()->ProcessMessages(0);
   EXPECT_TRUE(ch1.conn() != nullptr);
   // It will be dead after kMinConnectionLifetime and pruned.
-  conn->UpdateState(after_created + kMinConnectionLifetime.ms() + 1);
+  conn->UpdateState(after_created + kMinConnectionLifetime + kEpsilon);
   EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -1487,16 +1480,16 @@ TEST_F(PortTest, TestConnectionDead) {
   ch1.CreateConnection(GetCandidate(ch2.port()));
   conn = ch1.conn();
   ASSERT_NE(conn, nullptr);
-  int64_t before_last_receiving = TimeMillis();
+  Timestamp before_last_receiving = env().clock().CurrentTime();
   conn->ReceivedPing();
-  int64_t after_last_receiving = TimeMillis();
+  Timestamp after_last_receiving = env().clock().CurrentTime();
   // The connection will be dead after kDeadConnectionReceiveTimeout
-  conn->UpdateState(before_last_receiving + kDeadConnectionReceiveTimeout.ms() -
-                    1);
+  conn->UpdateState(before_last_receiving + kDeadConnectionReceiveTimeout -
+                    kEpsilon);
   Thread::Current()->ProcessMessages(100);
   EXPECT_TRUE(ch1.conn() != nullptr);
-  conn->UpdateState(after_last_receiving + kDeadConnectionReceiveTimeout.ms() +
-                    1);
+  conn->UpdateState(after_last_receiving + kDeadConnectionReceiveTimeout +
+                    kEpsilon);
   EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -1526,14 +1519,14 @@ TEST_F(PortTest, TestConnectionDeadWithDeadConnectionTimeout) {
   conn->SetIceFieldTrials(&field_trials);
 
   ASSERT_NE(conn, nullptr);
-  int64_t before_last_receiving = TimeMillis();
+  Timestamp before_last_receiving = env().clock().CurrentTime();
   conn->ReceivedPing();
-  int64_t after_last_receiving = TimeMillis();
+  Timestamp after_last_receiving = env().clock().CurrentTime();
   // The connection will be dead after 90s
-  conn->UpdateState(before_last_receiving + 90000 - 1);
+  conn->UpdateState(before_last_receiving + TimeDelta::Seconds(90) - kEpsilon);
   Thread::Current()->ProcessMessages(100);
   EXPECT_TRUE(ch1.conn() != nullptr);
-  conn->UpdateState(after_last_receiving + 90000 + 1);
+  conn->UpdateState(after_last_receiving + TimeDelta::Seconds(90) + kEpsilon);
   EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -1572,16 +1565,16 @@ TEST_F(PortTest, TestConnectionDeadOutstandingPing) {
 
   ASSERT_NE(conn, nullptr);
   conn->ReceivedPing();
-  int64_t send_ping_timestamp = TimeMillis();
+  Timestamp send_ping_timestamp = env().clock().CurrentTime();
   conn->Ping(send_ping_timestamp);
 
   // The connection will be dead 30s after the ping was sent.
-  conn->UpdateState(send_ping_timestamp + kDeadConnectionReceiveTimeout.ms() -
-                    1);
+  conn->UpdateState(send_ping_timestamp + kDeadConnectionReceiveTimeout -
+                    kEpsilon);
   Thread::Current()->ProcessMessages(100);
   EXPECT_TRUE(ch1.conn() != nullptr);
-  conn->UpdateState(send_ping_timestamp + kDeadConnectionReceiveTimeout.ms() +
-                    1);
+  conn->UpdateState(send_ping_timestamp + kDeadConnectionReceiveTimeout +
+                    kEpsilon);
   EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -1614,7 +1607,7 @@ TEST_F(PortTest, TestLoopbackCall) {
   ASSERT_FALSE(lport->Candidates().empty());
   Connection* conn =
       lport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
-  conn->Ping(0);
+  conn->Ping();
 
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
@@ -1636,7 +1629,7 @@ TEST_F(PortTest, TestLoopbackCall) {
   // Creating a different connection as `conn` is receiving.
   Connection* conn1 =
       lport->CreateConnection(lport->Candidates()[1], Port::ORIGIN_MESSAGE);
-  conn1->Ping(0);
+  conn1->Ping();
 
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
@@ -1690,7 +1683,7 @@ TEST_F(PortTest, TestIceRoleConflict) {
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
-  rconn->Ping(0);
+  rconn->Ping();
 
   ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
@@ -1812,7 +1805,7 @@ TEST_F(PortTest, TestDisableInterfaceOfTcpPort) {
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   ASSERT_NE(lconn, nullptr);
   socket->NotifyConnect(socket);
-  lconn->Ping(0);
+  lconn->Ping();
 
   // Now disconnect the client socket...
   socket->NotifyClosedForTest(1);
@@ -1821,7 +1814,7 @@ TEST_F(PortTest, TestDisableInterfaceOfTcpPort) {
   socket_factory.set_next_client_tcp_socket(nullptr);
 
   // Test that Ping() does not cause SEGV.
-  lconn->Ping(0);
+  lconn->Ping();
 }
 
 void PortTest::TestCrossFamilyPorts(int type) {
@@ -2006,7 +1999,7 @@ TEST_F(PortTest, TestSendStunMessage) {
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
-  lconn->Ping(0);
+  lconn->Ping();
 
   // Check that it's a proper BINDING-REQUEST.
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
@@ -2110,9 +2103,9 @@ TEST_F(PortTest, TestSendStunMessage) {
   // and (incremented) RETRANSMIT_COUNT attributes.
   rport->Reset();
   rport->set_send_retransmit_count_attribute(true);
-  rconn->Ping(0);
-  rconn->Ping(0);
-  rconn->Ping(0);
+  rconn->Ping();
+  rconn->Ping();
+  rconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -2146,8 +2139,8 @@ TEST_F(PortTest, TestSendStunMessage) {
   EXPECT_EQ(1U, lconn->stats().sent_ping_responses);
   EXPECT_EQ(1U, lconn->stats().recv_ping_requests);
   // Ping after receiver the first response
-  rconn->Ping(0);
-  rconn->Ping(0);
+  rconn->Ping();
+  rconn->Ping();
   EXPECT_EQ(5U, rconn->stats().sent_ping_requests_total);
   EXPECT_EQ(3U, rconn->stats().sent_ping_requests_before_first_response);
 
@@ -2185,7 +2178,7 @@ TEST_F(PortTest, TestNomination) {
 
   // Send ping (including the nomination value) from `lconn` to `rconn`. This
   // should set the remote nomination of `rconn`.
-  lconn->Ping(0);
+  lconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -2270,7 +2263,7 @@ TEST_F(PortTest, TestUseCandidateAttribute) {
   ASSERT_FALSE(rport->Candidates().empty());
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
-  lconn->Ping(0);
+  lconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -2325,7 +2318,7 @@ TEST_F(PortTest, TestNetworkCostChange) {
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
   test_network->set_type(ADAPTER_TYPE_CELLULAR);
-  lconn->Ping(0);
+  lconn->Ping();
   // The rconn's remote candidate cost is kNetworkCostLow, but the ping
   // contains an attribute of network cost of kNetworkCostHigh. Once the
   // message is handled in rconn, The rconn's remote candidate will have cost
@@ -2363,7 +2356,7 @@ TEST_F(PortTest, TestNetworkInfoAttribute) {
   rport->PrepareAddress();
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
-  lconn->Ping(0);
+  lconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -2383,7 +2376,7 @@ TEST_F(PortTest, TestNetworkInfoAttribute) {
   test_network->set_id(rnetwork_id);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
-  rconn->Ping(0);
+  rconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -2672,7 +2665,7 @@ TEST_F(PortTest,
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
 
   // Send request.
-  lconn->Ping(0);
+  lconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -2721,7 +2714,7 @@ TEST_F(PortTest,
   WriteStunMessage(*in_msg, &buf);
   lconn->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
       buf.Data(), buf.Length(), /*packet_time_us=*/-1));
-  EXPECT_EQ(0u, lconn->last_ping_received());
+  EXPECT_EQ(lconn->LastPingReceived(), Timestamp::Zero());
 }
 
 // Test handling of STUN binding indication messages . STUN binding
@@ -2760,7 +2753,7 @@ TEST_F(PortTest, TestHandleStunBindingIndication) {
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
-  rconn->Ping(0);
+  rconn->Ping();
 
   ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
@@ -2775,14 +2768,14 @@ TEST_F(PortTest, TestHandleStunBindingIndication) {
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
   EXPECT_EQ(STUN_BINDING_RESPONSE, lport->last_stun_msg()->type());
-  int64_t last_ping_received1 = lconn->last_ping_received();
+  Timestamp last_ping_received1 = lconn->LastPingReceived();
 
   // Adding a delay of 100ms.
   Thread::Current()->ProcessMessages(100);
   // Pinging lconn using stun indication message.
   lconn->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
       buf->Data(), buf->Length(), /*packet_time_us=*/-1));
-  int64_t last_ping_received2 = lconn->last_ping_received();
+  Timestamp last_ping_received2 = lconn->LastPingReceived();
   EXPECT_GT(last_ping_received2, last_ping_received1);
 }
 
@@ -2929,7 +2922,7 @@ TEST_F(PortTest, TestCandidateFoundation) {
   // Running a second turn server, to get different base IP address.
   SocketAddress kTurnUdpIntAddr2("99.99.98.4", STUN_SERVER_PORT);
   SocketAddress kTurnUdpExtAddr2("99.99.98.5", 0);
-  TestTurnServer turn_server2(Thread::Current(), vss(), kTurnUdpIntAddr2,
+  TestTurnServer turn_server2(env(), Thread::Current(), vss(), kTurnUdpIntAddr2,
                               kTurnUdpExtAddr2);
   auto turnport3 = CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_UDP,
                                   PROTO_UDP, kTurnUdpIntAddr2);
@@ -2942,7 +2935,7 @@ TEST_F(PortTest, TestCandidateFoundation) {
 
   // Start a TCP turn server, and check that two turn candidates have
   // different foundations if their relay protocols are different.
-  TestTurnServer turn_server3(Thread::Current(), vss(), kTurnTcpIntAddr,
+  TestTurnServer turn_server3(env(), Thread::Current(), vss(), kTurnTcpIntAddr,
                               kTurnUdpExtAddr, PROTO_TCP);
   auto turnport4 =
       CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_TCP, PROTO_UDP);
@@ -3144,10 +3137,11 @@ TEST_F(PortTest, TestWritableState) {
   // full writability and 5 pings went unresponded to. We'll accomplish the
   // latter by sending pings but not pumping messages.
   for (uint32_t i = 1; i <= kConnectionWriteConnectFailures; ++i) {
-    ch1.Ping(i);
+    ch1.Ping(Timestamp::Millis(i));
   }
-  int unreliable_timeout_delay =
-      kConnectionWriteConnectTimeout.ms() + kMaxExpectedSimulatedRtt;
+  Timestamp unreliable_timeout_delay = Timestamp::Zero() +
+                                       kConnectionWriteConnectTimeout +
+                                       kMaxExpectedSimulatedRtt;
   ch1.conn()->UpdateState(unreliable_timeout_delay);
   EXPECT_EQ(Connection::STATE_WRITE_UNRELIABLE, ch1.conn()->write_state());
 
@@ -3164,10 +3158,9 @@ TEST_F(PortTest, TestWritableState) {
   // Wait long enough for a full timeout (past however long we've already
   // waited).
   for (uint32_t i = 1; i <= kConnectionWriteConnectFailures; ++i) {
-    ch1.Ping(unreliable_timeout_delay + i);
+    ch1.Ping(unreliable_timeout_delay + TimeDelta::Millis(i));
   }
-  ch1.conn()->UpdateState(unreliable_timeout_delay +
-                          kConnectionWriteTimeout.ms() +
+  ch1.conn()->UpdateState(unreliable_timeout_delay + kConnectionWriteTimeout +
                           kMaxExpectedSimulatedRtt);
   EXPECT_EQ(Connection::STATE_WRITE_TIMEOUT, ch1.conn()->write_state());
 
@@ -3220,26 +3213,26 @@ TEST_F(PortTest, TestWritableStateWithConfiguredThreshold) {
                          .clock = &clock}),
               IsRtcOk());
 
-  ch1.conn()->set_unwritable_timeout(1000);
+  ch1.conn()->SetUnwritableTimeout(TimeDelta::Seconds(1));
   ch1.conn()->set_unwritable_min_checks(3);
   // Send two checks.
-  ch1.Ping(1);
-  ch1.Ping(2);
+  ch1.Ping(Timestamp::Millis(1));
+  ch1.Ping(Timestamp::Millis(2));
   // We have not reached the timeout nor have we sent the minimum number of
   // checks to change the state to Unreliable.
-  ch1.conn()->UpdateState(999);
+  ch1.conn()->UpdateState(Timestamp::Seconds(1) - kEpsilon);
   EXPECT_EQ(Connection::STATE_WRITABLE, ch1.conn()->write_state());
   // We have not sent the minimum number of checks without responses.
-  ch1.conn()->UpdateState(1000 + kMaxExpectedSimulatedRtt);
+  ch1.conn()->UpdateState(Timestamp::Seconds(1) + kMaxExpectedSimulatedRtt);
   EXPECT_EQ(Connection::STATE_WRITABLE, ch1.conn()->write_state());
   // Last ping after which the candidate pair should become Unreliable after
   // timeout.
-  ch1.Ping(3);
+  ch1.Ping(Timestamp::Millis(3));
   // We have not reached the timeout.
-  ch1.conn()->UpdateState(999);
+  ch1.conn()->UpdateState(Timestamp::Seconds(1) - kEpsilon);
   EXPECT_EQ(Connection::STATE_WRITABLE, ch1.conn()->write_state());
   // We should be in the state Unreliable now.
-  ch1.conn()->UpdateState(1000 + kMaxExpectedSimulatedRtt);
+  ch1.conn()->UpdateState(Timestamp::Seconds(1) + kMaxExpectedSimulatedRtt);
   EXPECT_EQ(Connection::STATE_WRITE_UNRELIABLE, ch1.conn()->write_state());
 
   ch1.Stop();
@@ -3266,9 +3259,9 @@ TEST_F(PortTest, TestTimeoutForNeverWritable) {
 
   // Attempt to go directly to write timeout.
   for (uint32_t i = 1; i <= kConnectionWriteConnectFailures; ++i) {
-    ch1.Ping(i);
+    ch1.Ping(Timestamp::Millis(i));
   }
-  ch1.conn()->UpdateState(kConnectionWriteTimeout.ms() +
+  ch1.conn()->UpdateState(Timestamp::Zero() + kConnectionWriteTimeout +
                           kMaxExpectedSimulatedRtt);
   EXPECT_EQ(Connection::STATE_WRITE_TIMEOUT, ch1.conn()->write_state());
 }
@@ -4096,8 +4089,9 @@ class ConnectionTest : public PortTest {
       conn = rport_->CreateConnection(lport_->Candidates()[0],
                                       Port::ORIGIN_MESSAGE);
     }
-    conn->SignalStateChange.connect(this,
-                                    &ConnectionTest::OnConnectionStateChange);
+    conn->SubscribeStateChange([this](Connection* connection) {
+      OnConnectionStateChange(connection);
+    });
     return conn;
   }
 
@@ -4109,7 +4103,7 @@ class ConnectionTest : public PortTest {
         lconn->PortForTest() == lport_.get() ? lport_.get() : rport_.get();
     TestPort* rport =
         rconn->PortForTest() == rport_.get() ? rport_.get() : lport_.get();
-    lconn->Ping(TimeMillis());
+    lconn->Ping();
     ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
                 IsRtcOk());
@@ -4261,7 +4255,7 @@ TEST_F(ConnectionTest, SendReceiveGoogDelta) {
       // DeltaAckReceived
       [](RTCErrorOr<const StunUInt64Attribute*> error_or__ack) {});
 
-  lconn->Ping(TimeMillis(), std::move(delta));
+  lconn->Ping(env().clock().CurrentTime(), std::move(delta));
   ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());
@@ -4303,7 +4297,7 @@ TEST_F(ConnectionTest, SendGoogDeltaNoReply) {
         EXPECT_FALSE(error_or_ack.ok());
       });
 
-  lconn->Ping(TimeMillis(), std::move(delta));
+  lconn->Ping(env().clock().CurrentTime(), std::move(delta));
   ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
               IsRtcOk());

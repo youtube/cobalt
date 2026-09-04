@@ -32,7 +32,6 @@ enum class IsolateFieldId : uint8_t;
     "Address of the InterpreterEntryTrampoline instruction start")             \
   V(interpreter_dispatch_counters, "Interpreter::dispatch_counters")           \
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
-  V(stress_deopt_count, "Isolate::stress_deopt_count_address()")               \
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
   V(isolate_root, "Isolate::isolate_root()")                                   \
   V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
@@ -253,8 +252,11 @@ enum class IsolateFieldId : uint8_t;
     "simple_name_dictionary_lookup_forwarded_string")                          \
   V(simple_name_dictionary_find_insertion_entry_forwarded_string,              \
     "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
+  V(verify_skipped_indirect_write_barrier,                                     \
+    "Heap::VerifySkippedIndirectWriteBarrier")                                 \
   V(verify_skipped_write_barrier, "Heap::VerifySkippedWriteBarrier")           \
   IF_WASM(V, wasm_start_stack, "wasm_start_stack")                             \
+  IF_WASM(V, wasm_suspender_has_js_frames, "wasm_suspender_has_js_frames")     \
   IF_WASM(V, wasm_suspend_stack, "wasm_suspend_stack")                         \
   IF_WASM(V, wasm_resume_jspi_stack, "wasm_resume_jspi_stack")                 \
   IF_WASM(V, wasm_resume_wasmfx_stack, "wasm_resume_wasmfx_stack")             \
@@ -611,7 +613,9 @@ class ExternalReference {
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
   static V8_EXPORT_PRIVATE ExternalReference Create(Runtime::FunctionId id);
-  static ExternalReference Create(IsolateFieldId id);
+  static ExternalReference Create(IsolateFieldId id) {
+    return ExternalReference{id};
+  }
   static V8_EXPORT_PRIVATE ExternalReference
   Create(Address address, Type type = ExternalReference::BUILTIN_CALL);
 

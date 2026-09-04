@@ -117,7 +117,7 @@ class JsepSessionDescriptionTest : public ::testing::Test {
 
 TEST_F(JsepSessionDescriptionTest, CloneDefault) {
   auto new_desc = jsep_desc_->Clone();
-  EXPECT_EQ(jsep_desc_->type(), new_desc->type());
+  EXPECT_EQ(jsep_desc_->GetType(), new_desc->GetType());
   std::string old_desc_string;
   std::string new_desc_string;
   EXPECT_TRUE(jsep_desc_->ToString(&old_desc_string));
@@ -132,7 +132,7 @@ TEST_F(JsepSessionDescriptionTest, CloneRollback) {
       absl::StrCat(CreateRandomId64()), absl::StrCat(CreateRandomId64()));
   EXPECT_EQ(jsep_desc->GetType(), SdpType::kRollback);
   auto new_desc = jsep_desc->Clone();
-  EXPECT_EQ(jsep_desc->type(), new_desc->type());
+  EXPECT_EQ(jsep_desc->GetType(), new_desc->GetType());
   EXPECT_EQ(jsep_desc->session_id(), new_desc->session_id());
   EXPECT_EQ(jsep_desc->session_version(), new_desc->session_version());
 }
@@ -156,7 +156,7 @@ TEST_F(JsepSessionDescriptionTest, CloneWithCandidates) {
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v4_video));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v6_video));
   auto new_desc = jsep_desc_->Clone();
-  EXPECT_EQ(jsep_desc_->type(), new_desc->type());
+  EXPECT_EQ(jsep_desc_->GetType(), new_desc->GetType());
   ASSERT_EQ(jsep_desc_->number_of_mediasections(),
             new_desc->number_of_mediasections());
   for (size_t i = 0; i < jsep_desc_->number_of_mediasections(); ++i) {

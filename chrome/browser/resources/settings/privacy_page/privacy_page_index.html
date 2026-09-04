@@ -132,6 +132,16 @@
     </settings-site-settings-page>
   </template>
 
+  <template is="dom-if" if="[[enableSafeBrowsingSubresourceFilter_]]">
+    <template is="dom-if" if="[[renderView_(
+        routes_.SITE_SETTINGS_ADS, currentRoute, inSearchMode)]]">
+      <settings-ads-page slot="view" id="siteSettingsAds"
+          data-parent-view-id="old"
+          route-path$="[[routes_.SITE_SETTINGS_ADS.path]]">
+      </settings-ads-page>
+    </template>
+  </template>
+
   <template is="dom-if" if="[[renderView_(
       routes_.SITE_SETTINGS_ALL, currentRoute, inSearchMode)]]">
     <all-sites slot="view" id="siteSettingsAll" data-parent-view-id="old"
@@ -144,6 +154,14 @@
     <settings-ar-page slot="view" id="siteSettingsAr" data-parent-view-id="old"
         route-path$="[[routes_.SITE_SETTINGS_AR.path]]">
     </settings-ar-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_AUTO_VERIFY, currentRoute, inSearchMode)]]">
+    <settings-anti-abuse-page slot="view" id="siteSettingsAutoVerify"
+        data-parent-view-id="old"
+        route-path$="[[routes_.SITE_SETTINGS_AUTO_VERIFY.path]]">
+    </settings-anti-abuse-page>
   </template>
 
   <template is="dom-if" if="[[autoPictureInPictureEnabled_]]">
@@ -181,6 +199,17 @@
     </settings-background-sync-page>
   </template>
 
+  <template is="dom-if" if="[[enableWebBluetoothNewPermissionsBackend_]]">
+    <template is="dom-if" if="[[renderView_(
+        routes_.SITE_SETTINGS_BLUETOOTH_DEVICES, currentRoute, inSearchMode)]]">
+      <settings-bluetooth-devices-page slot="view"
+          id="siteSettingsBluetoothDevices"
+          route-path$="[[routes_.SITE_SETTINGS_BLUETOOTH_DEVICES.path]]"
+          data-parent-view-id="old">
+      </settings-bluetooth-devices-page>
+    </template>
+  </template>
+
   <template is="dom-if" if="[[enableExperimentalWebPlatformFeatures_]]">
     <template is="dom-if" if="[[renderView_(
         routes_.SITE_SETTINGS_BLUETOOTH_SCANNING, currentRoute, inSearchMode)]]">
@@ -189,6 +218,15 @@
           route-path$="[[routes_.SITE_SETTINGS_BLUETOOTH_SCANNING.path]]">
       </settings-bluetooth-scanning-page>
     </template>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_CAMERA, currentRoute, inSearchMode)]]">
+      <settings-camera-page slot="view" id="siteSettingsCamera"
+          data-parent-view-id="old"
+          route-path$="[[routes_.SITE_SETTINGS_CAMERA.path]]">
+      </settings-camera-page>
+    </settings-subpage>
   </template>
 
   <template is="dom-if" if="[[capturedSurfaceControlEnabled_]]">
@@ -207,6 +245,17 @@
         id="siteSettingsClipboard" data-parent-view-id="old"
         route-path$="[[routes_.SITE_SETTINGS_CLIPBOARD.path]]">
     </settings-clipboard-page>
+  </template>
+
+  <template is="dom-if" if="[[enableFederatedIdentityApiContentSetting_]]">
+    <template is="dom-if" if="[[renderView_(
+        routes_.SITE_SETTINGS_FEDERATED_IDENTITY_API, currentRoute, inSearchMode)]]">
+      <settings-federated-identity-api-page slot="view"
+          id="siteSettingsFederatedIdentityApi"
+          route-path$="[[routes_.SITE_SETTINGS_FEDERATED_IDENTITY_API.path]]"
+          data-parent-view-id="old">
+      </settings-federated-identity-api-page>
+    </template>
   </template>
 
   <template is="dom-if" if="[[enableHandTrackingContentSetting_]]">
@@ -230,6 +279,14 @@
   </template>
 
   <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_HID_DEVICES, currentRoute, inSearchMode)]]">
+    <settings-hid-devices-page slot="view" id="siteSettingsHidDevices"
+        route-path$="[[routes_.SITE_SETTINGS_HID_DEVICES.path]]"
+        data-parent-view-id="old">
+    </settings-hid-devices-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
       routes_.SITE_SETTINGS_IDLE_DETECTION, currentRoute, inSearchMode)]]">
     <settings-idle-detection-page slot="view" id="siteSettingsIdleDetection"
         route-path$="[[routes_.SITE_SETTINGS_IDLE_DETECTION.path]]"
@@ -238,11 +295,36 @@
   </template>
 
   <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_IMAGES, currentRoute, inSearchMode)]]">
+    <settings-images-page slot="view" id="siteSettingsImages"
+        route-path$="[[routes_.SITE_SETTINGS_IMAGES.path]]"
+        data-parent-view-id="old">
+    </settings-images-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_MIXEDSCRIPT, currentRoute, inSearchMode)]]">
+    <settings-insecure-content-page slot="view"
+        id="siteSettingsMixedscript"
+        route-path$="[[routes_.SITE_SETTINGS_MIXEDSCRIPT.path]]"
+        data-parent-view-id="old">
+    </settings-insecure-content-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
       routes_.SITE_SETTINGS_JAVASCRIPT, currentRoute, inSearchMode)]]">
     <settings-javascript-page slot="view"
         id="siteSettingsJavascript" data-parent-view-id="old"
         route-path$="[[routes_.SITE_SETTINGS_JAVASCRIPT.path]]">
     </settings-javascript-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER, currentRoute, inSearchMode)]]">
+    <settings-v8-page slot="view" id="siteSettingsJavascriptOptimizer"
+      data-parent-view-id="old" prefs="{{prefs}}"
+      route-path$="[[routes_.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER.path]]">
+    </settings-v8-page>
   </template>
 
   <template is="dom-if" if="[[enableKeyboardLockPrompt_]]">
@@ -280,6 +362,14 @@
         data-parent-view-id="old" prefs="{{prefs}}"
         route-path$="[[routes_.SITE_SETTINGS_LOCATION.path]]">
     </settings-location-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_MICROPHONE, currentRoute, inSearchMode)]]">
+    <settings-microphone-page slot="view"
+        id="siteSettingsMicrophone" data-parent-view-id="old"
+        route-path$="[[routes_.SITE_SETTINGS_MICROPHONE.path]]">
+    </settings-microphone-page>
   </template>
 
   <template is="dom-if" if="[[renderView_(
@@ -325,11 +415,48 @@
   </template>
 
   <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_PROTECTED_CONTENT, currentRoute, inSearchMode)]]">
+    <settings-protected-content-page slot="view"
+        id="siteSettingsProtectedContent" data-parent-view-id="old"
+        prefs="{{prefs}}"
+        route-path$="[[routes_.SITE_SETTINGS_PROTECTED_CONTENT.path]]">
+    </settings-protected-content-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
       routes_.SITE_SETTINGS_SENSORS, currentRoute, inSearchMode)]]">
     <settings-sensors-page slot="view"
         id="siteSettingsSensors" data-parent-view-id="old"
         route-path$="[[routes_.SITE_SETTINGS_SENSORS.path]]">
     </settings-sensors-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_SERIAL_PORTS, currentRoute, inSearchMode)]]">
+    <settings-serial-ports-page slot="view"
+        id="siteSettingsSerialPorts" data-parent-view-id="old"
+        route-path$="[[routes_.SITE_SETTINGS_SERIAL_PORTS.path]]">
+    </settings-serial-ports-page>
+  </template>
+
+<if expr="is_chromeos">
+  <template is="dom-if" if="[[enableSmartCardReadersContentSetting_]]">
+    <template is="dom-if" if="[[renderView_(
+        routes_.SITE_SETTINGS_SMART_CARD_READERS, currentRoute, inSearchMode)]]">
+      <settings-smart-card-readers-page slot="view"
+          id="siteSettingsSmartCardReaders" data-parent-view-id="old"
+          route-path$="[[routes_.SITE_SETTINGS_SMART_CARD_READERS.path]]">
+      </settings-smart-card-readers-page>
+    </template>
+  </template>
+</if>
+
+  <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_SOUND, currentRoute, inSearchMode)]]">
+    <settings-sound-page slot="view"
+        id="siteSettingsSound" data-parent-view-id="old"
+        prefs="{{prefs}}" route-path$="[[routes_.SITE_SETTINGS_SOUND.path]]">
+    </settings-sound-page>
   </template>
 
   <template is="dom-if" if="[[renderView_(
@@ -341,11 +468,27 @@
   </template>
 
   <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_SITE_DETAILS, currentRoute, inSearchMode)]]">
+    <site-details slot="view" id="siteSettingsSiteDetails"
+        data-parent-view-id="old"
+        route-path$="[[routes_.SITE_SETTINGS_SITE_DETAILS.path]]">
+    </site-details>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
       routes_.SITE_SETTINGS_STORAGE_ACCESS, currentRoute, inSearchMode)]]">
     <settings-storage-access-page slot="view" id="siteSettingsStorageAccess"
         data-parent-view-id="old"
         route-path$="[[routes_.SITE_SETTINGS_STORAGE_ACCESS.path]]">
     </settings-storage-access-page>
+  </template>
+
+  <template is="dom-if" if="[[renderView_(
+      routes_.SITE_SETTINGS_USB_DEVICES, currentRoute, inSearchMode)]]">
+    <settings-usb-devices-page slot="view" id="siteSettingsUsbDevices"
+        route-path$="[[routes_.SITE_SETTINGS_USB_DEVICES.path]]"
+        data-parent-view-id="old">
+    </settings-usb-devices-page>
   </template>
 
   <template is="dom-if" if="[[renderView_(

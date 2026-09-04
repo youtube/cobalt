@@ -122,6 +122,11 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
                        GLsizei width,
                        GLsizei height) override;
 
+  void CopySharedImage(const gpu::Mailbox& source_mailbox,
+                       const gpu::Mailbox& dest_mailbox,
+                       const gfx::Rect& source_rect,
+                       const gfx::Rect& dest_rect) override;
+
   void WritePixels(const gpu::Mailbox& dest_mailbox,
                    int dst_x_offset,
                    int dst_y_offset,
@@ -237,7 +242,7 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
                                  GLuint64* params);
 
   // ClientFontManager::Client implementation.
-  void* MapFontBuffer(uint32_t size) override;
+  base::span<uint8_t> MapFontBuffer(uint32_t size) override;
 
   void set_max_inlined_entry_size_for_testing(uint32_t max_size) {
     max_inlined_entry_size_ = max_size;

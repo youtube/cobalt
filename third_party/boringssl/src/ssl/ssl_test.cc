@@ -61,7 +61,9 @@
 
 
 using testing::ElementsAre;
+using testing::ElementsAreArray;
 using testing::Key;
+using testing::Not;
 
 BSSL_NAMESPACE_BEGIN
 
@@ -534,6 +536,7 @@ static const char *kBadCurvesLists[] = {
     "P-256:RSA",
     "X25519:P-256:",
     ":X25519:P-256",
+    "X25519:X25519",
 };
 
 static std::string CipherListToString(SSL_CTX *ctx) {
@@ -661,6 +664,61 @@ TEST(SSLTest, CurveRules) {
 
     EXPECT_FALSE(SSL_CTX_set1_groups_list(ctx.get(), rule));
     ERR_clear_error();
+  }
+}
+
+TEST(SSLTest, DefaultCurves) {
+  const uint16_t kDefaults[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+                                SSL_GROUP_SECP384R1};
+
+  // Test the group ID APIs.
+  {
+    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+    ASSERT_TRUE(ctx);
+    // The new context is populated with the default group list.
+    EXPECT_THAT(ctx->supported_group_list, ElementsAreArray(kDefaults));
+
+    // Set some other list to check that it is set away from the default.
+    const uint16_t kArbitraryGroupIds[] = {SSL_GROUP_X25519};
+    ASSERT_TRUE(SSL_CTX_set1_group_ids(ctx.get(), kArbitraryGroupIds,
+                                       std::size(kArbitraryGroupIds)));
+    EXPECT_THAT(ctx->supported_group_list, Not(ElementsAreArray(kDefaults)));
+
+    bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
+    ASSERT_TRUE(ssl);
+    EXPECT_THAT(ssl->config->supported_group_list,
+                Not(ElementsAreArray(kDefaults)));
+
+    // Setting an empty list restores the defaults.
+    ASSERT_TRUE(SSL_set1_group_ids(ssl.get(), nullptr, 0));
+    EXPECT_THAT(ssl->config->supported_group_list, ElementsAreArray(kDefaults));
+    ASSERT_TRUE(SSL_CTX_set1_group_ids(ctx.get(), nullptr, 0));
+    EXPECT_THAT(ctx->supported_group_list, ElementsAreArray(kDefaults));
+  }
+
+  // Test the NID APIs.
+  {
+    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+    ASSERT_TRUE(ctx);
+    // The new context is populated with the default group list.
+    EXPECT_THAT(ctx->supported_group_list, ElementsAreArray(kDefaults));
+
+    // Set some other list to check that it is set away from the default.
+    const int kArbitraryNids[] = {NID_X9_62_prime256v1};
+    ASSERT_TRUE(SSL_CTX_set1_groups(ctx.get(), kArbitraryNids,
+                                    std::size(kArbitraryNids)));
+    EXPECT_THAT(ctx->supported_group_list, Not(ElementsAreArray(kDefaults)));
+
+    bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
+    ASSERT_TRUE(ssl);
+    EXPECT_THAT(ssl->config->supported_group_list,
+                Not(ElementsAreArray(kDefaults)));
+
+    // Setting an empty list restores the defaults.
+    ASSERT_TRUE(SSL_set1_groups(ssl.get(), nullptr, 0));
+    EXPECT_THAT(ssl->config->supported_group_list, ElementsAreArray(kDefaults));
+    ASSERT_TRUE(SSL_CTX_set1_groups(ctx.get(), nullptr, 0));
+    EXPECT_THAT(ctx->supported_group_list, ElementsAreArray(kDefaults));
   }
 }
 
@@ -6481,10 +6539,13 @@ TEST(SSLTest, ApplyHandoffRemovesUnsupportedCurves) {
       0x02, 0x00, 0x17,
   };
 
-  // The zero length means that the default list of groups is used.
-  EXPECT_EQ(0u, server->config->supported_group_list.size());
+  // The default list of groups is used before applying the handoff.
+  EXPECT_THAT(server->config->supported_group_list,
+              ElementsAreArray({SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+                                SSL_GROUP_SECP384R1}));
   ASSERT_TRUE(SSL_apply_handoff(server.get(), handoff));
   EXPECT_EQ(1u, server->config->supported_group_list.size());
+  EXPECT_EQ(SSL_GROUP_SECP256R1, server->config->supported_group_list[0]);
 }
 
 TEST(SSLTest, ZeroSizedWiteFlushesHandshakeMessages) {
@@ -9986,6 +10047,16 @@ TEST(SSLTest, InvalidGroups) {
   static const int kInvalidNIDs[] = {NID_rsaEncryption};
   EXPECT_FALSE(
       SSL_CTX_set1_groups(ctx.get(), kInvalidNIDs, std::size(kInvalidNIDs)));
+
+  // Duplicates are not allowed.
+  static const uint16_t kDuplicateIDs[] = {SSL_GROUP_X25519_MLKEM768,
+                                           SSL_GROUP_X25519, SSL_GROUP_X25519};
+  EXPECT_FALSE(SSL_CTX_set1_group_ids(ctx.get(), kDuplicateIDs,
+                                      std::size(kDuplicateIDs)));
+  static const int kDuplicateNIDs[] = {NID_X25519, NID_X9_62_prime256v1,
+                                       NID_X25519};
+  EXPECT_FALSE(SSL_CTX_set1_groups(ctx.get(), kDuplicateNIDs,
+                                   std::size(kDuplicateNIDs)));
 }
 
 TEST(SSLTest, NameLists) {

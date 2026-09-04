@@ -35,7 +35,7 @@
 #include "src/gpu/graphite/RuntimeEffectDictionary.h"
 #include "src/gpu/graphite/geom/Geometry.h"
 #include "src/gpu/graphite/precompile/PaintOptionsPriv.h"
-#include "tools/gpu/GrContextFactory.h"
+#include "tools/ganesh/GrContextFactory.h"
 #include "tools/graphite/ContextFactory.h"
 
 using namespace skgpu::graphite;
@@ -328,8 +328,7 @@ void fuzz_graphite(Fuzz* fuzz, Context* context, int depth = 9) {
     fuzz->next(&temp);
     Coverage coverage = coverageOptions[temp % 3];
 
-    PaintParams paintParams = PaintParams(recorder->priv().caps(),
-                                          paint,
+    PaintParams paintParams = PaintParams(paint,
                                           /* primitiveBlender= */ nullptr,
                                           /* nonMSAAClip= */ {},
                                           /* clipShader= */ nullptr,

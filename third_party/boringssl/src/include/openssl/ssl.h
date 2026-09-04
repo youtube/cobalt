@@ -2531,15 +2531,17 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
 #define SSL_GROUP_MLKEM1024 0x0202
 
 // SSL_CTX_set1_group_ids sets the preferred groups for |ctx| to |group_ids|.
-// Each element of |group_ids| should be one of the |SSL_GROUP_*| constants. It
+// Each element of |group_ids| should be a unique one of the |SSL_GROUP_*|
+// constants. If |group_ids| is empty, a default list will be set instead. It
 // returns one on success and zero on failure.
 OPENSSL_EXPORT int SSL_CTX_set1_group_ids(SSL_CTX *ctx,
                                           const uint16_t *group_ids,
                                           size_t num_group_ids);
 
 // SSL_set1_group_ids sets the preferred groups for |ssl| to |group_ids|. Each
-// element of |group_ids| should be one of the |SSL_GROUP_*| constants. It
-// returns one on success and zero on failure.
+// element of |group_ids| should be a unique one of the |SSL_GROUP_*| constants.
+// If |group_ids| is empty, a default list will be set instead. It returns one
+// on success and zero on failure.
 OPENSSL_EXPORT int SSL_set1_group_ids(SSL *ssl, const uint16_t *group_ids,
                                       size_t num_group_ids);
 
@@ -2573,25 +2575,29 @@ OPENSSL_EXPORT size_t SSL_get_all_group_names(const char **out, size_t max_out);
 // library.
 
 // SSL_CTX_set1_groups sets the preferred groups for |ctx| to be |groups|. Each
-// element of |groups| should be a |NID_*| constant from nid.h. It returns one
-// on success and zero on failure.
+// element of |groups| should be a unique |NID_*| constant from nid.h. If
+// |groups| is empty, a default list will be set instead. It returns one on
+// success and zero on failure.
 OPENSSL_EXPORT int SSL_CTX_set1_groups(SSL_CTX *ctx, const int *groups,
                                        size_t num_groups);
 
 // SSL_set1_groups sets the preferred groups for |ssl| to be |groups|. Each
-// element of |groups| should be a |NID_*| constant from nid.h. It returns one
-// on success and zero on failure.
+// element of |groups| should be a unique |NID_*| constant from nid.h. If
+// |groups| is empty, a default list will be set instead. It returns one on
+// success and zero on failure.
 OPENSSL_EXPORT int SSL_set1_groups(SSL *ssl, const int *groups,
                                    size_t num_groups);
 
-// SSL_CTX_set1_groups_list decodes |groups| as a colon-separated list of group
-// names (e.g. "X25519" or "P-256") and sets |ctx|'s preferred groups to the
-// result. It returns one on success and zero on failure.
+// SSL_CTX_set1_groups_list decodes |groups| as a non-empty colon-separated list
+// of group names (e.g. "X25519" or "P-256") and sets |ctx|'s preferred groups
+// to the result. The list must not contain duplicates. It returns one on
+// success and zero on failure.
 OPENSSL_EXPORT int SSL_CTX_set1_groups_list(SSL_CTX *ctx, const char *groups);
 
-// SSL_set1_groups_list decodes |groups| as a colon-separated list of group
-// names (e.g. "X25519" or "P-256") and sets |ssl|'s preferred groups to the
-// result. It returns one on success and zero on failure.
+// SSL_set1_groups_list decodes |groups| as a non-empty colon-separated list of
+// group names (e.g. "X25519" or "P-256") and sets |ssl|'s preferred groups to
+// the result. The list must not contain duplicates. It returns one on success
+// and zero on failure.
 OPENSSL_EXPORT int SSL_set1_groups_list(SSL *ssl, const char *groups);
 
 // SSL_get_negotiated_group returns the NID of the group used by |ssl|'s most
@@ -6469,6 +6475,7 @@ BSSL_NAMESPACE_END
 #define SSL_R_UNSUPPORTED_CREDENTIAL_LIST 327
 #define SSL_R_INVALID_TRUST_ANCHOR_LIST 328
 #define SSL_R_INVALID_CERTIFICATE_PROPERTY_LIST 329
+#define SSL_R_DUPLICATE_GROUP 330
 #define SSL_R_SSLV3_ALERT_CLOSE_NOTIFY 1000
 #define SSL_R_SSLV3_ALERT_UNEXPECTED_MESSAGE 1010
 #define SSL_R_SSLV3_ALERT_BAD_RECORD_MAC 1020

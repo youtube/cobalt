@@ -167,7 +167,8 @@ class BasicPortAllocatorTestBase : public ::testing::Test,
         nat_factory_(vss_.get(), kNatUdpAddr, kNatTcpAddr),
         nat_socket_factory_(new BasicPacketSocketFactory(&nat_factory_)),
         stun_server_(TestStunServer::Create(fss_.get(), kStunAddr, thread_)),
-        turn_server_(Thread::Current(),
+        turn_server_(env_,
+                     Thread::Current(),
                      fss_.get(),
                      kTurnUdpIntAddr,
                      kTurnUdpExtAddr),
@@ -486,9 +487,9 @@ class BasicPortAllocatorTestBase : public ::testing::Test,
 
   void ResetWithStunServer(const SocketAddress& stun_server, bool with_nat) {
     if (with_nat) {
-      nat_server_.reset(new NATServer(
-          NAT_OPEN_CONE, thread_, vss_.get(), kNatUdpAddr, kNatTcpAddr, thread_,
-          vss_.get(), SocketAddress(kNatUdpAddr.ipaddr(), 0)));
+      nat_server_ = std::make_unique<NATServer>(
+          env_, NAT_OPEN_CONE, thread_, vss_.get(), kNatUdpAddr, kNatTcpAddr,
+          thread_, vss_.get(), SocketAddress(kNatUdpAddr.ipaddr(), 0));
     } else {
       nat_socket_factory_ =
           std::make_unique<BasicPacketSocketFactory>(fss_.get());

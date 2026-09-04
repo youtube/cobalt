@@ -812,6 +812,8 @@ if (is_linux || is_chromeos || is_win) {
     sources = [ "turnserver/turnserver_main.cc" ]
     deps = [
       ":read_auth_file",
+      "../api/environment",
+      "../api/environment:environment_factory",
       "../p2p:basic_packet_socket_factory",
       "../p2p:p2p_server_utils",
       "../p2p:port_interface",
@@ -821,6 +823,7 @@ if (is_linux || is_chromeos || is_win) {
       "../rtc_base:socket_address",
       "../rtc_base:socket_server",
       "../rtc_base:threading",
+      "//third_party/abseil-cpp/absl/memory",
       "//third_party/abseil-cpp/absl/strings",
     ]
   }

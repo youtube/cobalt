@@ -834,12 +834,8 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithBoundSessionCredentialsEnabled,
 
   // Check that the bound token was requested and added to the token service.
   SendRefreshTokenResponse();
-  EXPECT_TRUE(
-      GetIdentityManager()->HasAccountWithRefreshToken(GetMainAccountID()));
-  EXPECT_FALSE(
-      GetIdentityManager()
-          ->GetWrappedBindingKeyOfRefreshTokenForAccount(GetMainAccountID())
-          .empty());
+  EXPECT_TRUE(GetIdentityManager()->HasAccountWithBoundRefreshToken(
+      GetMainAccountID()));
 }
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
@@ -1488,9 +1484,7 @@ class DiceBrowserTestWithSyncOptinScreen : public DiceBrowserTest {
  public:
   DiceBrowserTestWithSyncOptinScreen() {
     feature_list_.InitWithFeatures(
-        /*enabled_features=*/{switches::kEnableHistorySyncOptin,
-                              switches::kEnableHistorySyncOptinFromTabHelper,
-                              syncer::kReplaceSyncPromosWithSignInPromos},
+        /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos},
         /*disabled_features=*/{});
   }
 

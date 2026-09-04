@@ -532,7 +532,7 @@ def _ToTraceEventRewrittenPath(jar_dir, path):
   return os.path.join(jar_dir, path)
 
 
-def _WriteLintJson(params, lint_json, javac_config, manifest_config):
+def _CreateLintConfig(params, javac_config, manifest_config):
   # Collect all sources and resources at the apk/bundle_module level.
   aars = set()
   srcjars = set()
@@ -586,8 +586,7 @@ def _WriteLintJson(params, lint_json, javac_config, manifest_config):
   config['srcjars'] = sorted(srcjars)
   config['resource_sources'] = sorted(resource_sources)
   config['resource_zips'] = sorted(resource_zips)
-
-  build_utils.WriteJson(config, lint_json, only_if_changed=True)
+  return config
 
 
 def main():
@@ -652,11 +651,24 @@ def main():
       manifest.CheckInstrumentationElements(manifest.GetPackageName())
 
   main_config = {}
-  turbine_config = {}
-  manifest_config = {}
+  # Separate to prevent APK / bundle-related values from invalidating
+  # compile_java.py, and to minimize the .json that compile_java.py needs to
+  # parse.
   javac_config = {}
+  # Separate to prevent transitive classpath changes invalidating turbine.py.
+  turbine_config = {}
+  # Separate because so few targets enable lint.
+  lint_config = {}
+  # Separate to prevent keys other than extra_android_manifests from
+  # invalidating merge_manifest.py.
+  manifest_config = {}
+  # Separate to prevent .java changes invalidating compile_resources.py, and
+  # new resource targets from invalidating java compiles.
   res_config = {}
+  # Separate to prevent .java changes invalidating create_r_java.py, and new
+  # resource targets from invalidating java compiles.
   rtxt_config = {}
+  # Separate to save targets that don't need it from having to parse it.
   targets_config = {}
 
   if is_apk:
@@ -671,9 +683,14 @@ def main():
 
   if has_classpath:
     tv = _TransitiveValuesBuilder(params).Build()
+    sdk_deps = params.deps().of_type('system_java_library')
 
-    main_config['javac_full_classpath'] = (list(tv.all_unprocessed_jars) +
-                                           list(tv.all_input_jars_paths))
+    javac_full_classpath = (list(tv.all_unprocessed_jars) +
+                            list(tv.all_input_jars_paths))
+
+    if params.needs_full_javac_classpath():
+      main_config['javac_full_classpath'] = javac_full_classpath
+      main_config['sdk_jars'] = sdk_deps.collect('unprocessed_jar_path')
 
     if params.collects_processed_classpath():
       main_config['processed_classpath'] = list(tv.all_processed_jars)
@@ -689,11 +706,6 @@ def main():
     if params.needs_transitive_rtxt():
       rtxt_config['dependency_rtxt_files'] = (
           params.resource_deps().collect('rtxt_path'))
-
-    sdk_deps = params.deps().of_type('system_java_library')
-    main_config['sdk_jars'] = sdk_deps.collect('unprocessed_jar_path')
-    sdk_interface_jars = sdk_deps.collect('interface_jar_path')
-    main_config['sdk_interface_jars'] = sdk_interface_jars
 
     if proguard_enabled or target_type == 'dist_aar':
       main_config['proguard_all_configs'] = sorted(tv.proguard_configs)
@@ -717,7 +729,7 @@ def main():
     turbine_config['processor_classes'] = sorted(
         processor_deps.collect('main_class'))
 
-    # Duplicate so that turbine.py does not need to read another .json.
+    sdk_interface_jars = sdk_deps.collect('interface_jar_path')
     turbine_config['sdk_interface_jars'] = sdk_interface_jars
 
     javac_config['javac_full_interface_classpath'] = (
@@ -901,57 +913,33 @@ def main():
 
     # Used by check_for_missing_direct_deps.py to give better error message
     # when missing deps are found. Both javac_full_classpath_targets and
-    # javac_full_classpath must be in identical orders, as they get passed as
-    # separate arrays and then paired up based on index.
+    # javac_full_interface_classpath must be in identical orders, as they get
+    # passed as separate arrays and then paired up based on index.
     targets_config['javac_full_classpath_targets'] = [
-        jar_to_target[x] for x in main_config['javac_full_classpath']
+        jar_to_target[x] for x in javac_full_classpath
     ]
 
-  if path := params.get('lint_json'):
-    _WriteLintJson(params, path, javac_config, manifest_config)
+  if params.get('enable_lint'):
+    lint_config = _CreateLintConfig(params, javac_config, manifest_config)
 
-  # Separate to prevent .java changes invalidating compile_resources.py, and
-  # new resource targets from invalidating java compiles.
-  if res_config:
-    path = build_config_path.replace('.build_config.json',
-                                     '.res.build_config.json')
-    build_utils.WriteJson(res_config, path, only_if_changed=True)
+  # Depfiles expect output order to match the order in GN.
+  outputs = [
+      (main_config, '.build_config.json'),
+      (javac_config, '.javac.build_config.json'),
+      (turbine_config, '.turbine.build_config.json'),
+      (lint_config, '.lint.build_config.json'),
+      (manifest_config, '.manifest.build_config.json'),
+      (res_config, '.res.build_config.json'),
+      (rtxt_config, '.rtxt.build_config.json'),
+      (targets_config, '.targets.build_config.json'),
+  ]
 
-  # Separate to prevent .java changes invalidating create_r_java.py, and new
-  # resource targets from invalidating java compiles.
-  if rtxt_config:
-    path = build_config_path.replace('.build_config.json',
-                                     '.rtxt.build_config.json')
-    build_utils.WriteJson(rtxt_config, path, only_if_changed=True)
-
-  # Separate to prevent transitive classpath changes invalidating turbine.py.
-  if turbine_config:
-    path = build_config_path.replace('.build_config.json',
-                                     '.turbine.build_config.json')
-    build_utils.WriteJson(turbine_config, path, only_if_changed=True)
-
-  # Separate to prevent APK / bundle-related values from invalidating
-  # compile_java.py, and to minimize the .json that compile_java.py needs to
-  # parse.
-  if javac_config:
-    path = build_config_path.replace('.build_config.json',
-                                     '.javac.build_config.json')
-    build_utils.WriteJson(javac_config, path, only_if_changed=True)
-
-  # Separate to prevent keys other than extra_android_manifests from
-  # invalidating merge_manifest.py.
-  if manifest_config:
-    path = build_config_path.replace('.build_config.json',
-                                     '.manifest.build_config.json')
-    build_utils.WriteJson(manifest_config, path, only_if_changed=True)
-
-  # Separate to save targets that don't need it from having to parse it.
-  if targets_config:
-    path = build_config_path.replace('.build_config.json',
-                                     '.targets.build_config.json')
-    build_utils.WriteJson(targets_config, path, only_if_changed=True)
-
-  build_utils.WriteJson(main_config, build_config_path, only_if_changed=True)
+  first_output = None
+  for config, extension in outputs:
+    if config:
+      path = build_config_path.replace('.build_config.json', extension)
+      first_output = first_output or path
+      build_utils.WriteJson(config, path, only_if_changed=True)
 
   if options.depfile:
     all_inputs = params_json_util.all_read_file_paths()
@@ -961,7 +949,7 @@ def main():
       all_inputs.append(path)
     if path := params.get('secondary_abi_shared_libraries_runtime_deps_file'):
       all_inputs.append(path)
-    action_helpers.write_depfile(options.depfile, build_config_path, all_inputs)
+    action_helpers.write_depfile(options.depfile, first_output, all_inputs)
 
 
 if __name__ == '__main__':

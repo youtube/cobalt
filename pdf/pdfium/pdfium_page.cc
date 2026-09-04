@@ -1069,39 +1069,36 @@ PDFiumPage::Area PDFiumPage::GetLinkTarget(FPDF_LINK link, LinkTarget* target) {
   }
 }
 
-PDFiumPage::Area PDFiumPage::GetCharIndex(const gfx::Point& point,
-                                          PageOrientation orientation,
-                                          int* char_index,
-                                          int* form_type,
-                                          LinkTarget* target) {
-  if (!available_)
-    return NONSELECTABLE_AREA;
-
-  gfx::Point device_point = point - rect_.OffsetFromOrigin();
-  double new_x;
-  double new_y;
-  if (!FPDF_DeviceToPage(GetPage(), 0, 0, rect_.width(), rect_.height(),
-                         ToPDFiumRotation(orientation), device_point.x(),
-                         device_point.y(), &new_x, &new_y)) {
+PDFiumPage::Area PDFiumPage::GetCharInfo(const gfx::PointF& point,
+                                         int* char_index,
+                                         PdfRect* char_bounds,
+                                         int* form_type,
+                                         LinkTarget* target) {
+  if (!available_) {
     return NONSELECTABLE_AREA;
   }
 
   // hit detection tolerance, in points.
   constexpr double kTolerance = 20.0;
-  int rv = FPDFText_GetCharIndexAtPos(GetTextPage(), new_x, new_y, kTolerance,
-                                      kTolerance);
-  *char_index = rv;
+  *char_index = FPDFText_GetCharIndexAtPos(GetTextPage(), point.x(), point.y(),
+                                           kTolerance, kTolerance);
+  if (*char_index >= 0) {
+    FPDF_BOOL rv = FPDFText_GetLooseCharBox(GetTextPage(), *char_index,
+                                            &FsRectFFromPdfRect(*char_bounds));
+    CHECK(rv);
+  }
 
-  FPDF_LINK link = FPDFLink_GetLinkAtPoint(GetPage(), new_x, new_y);
-  int control =
-      FPDFPage_HasFormFieldAtPoint(engine_->form(), GetPage(), new_x, new_y);
+  FPDF_LINK link = FPDFLink_GetLinkAtPoint(GetPage(), point.x(), point.y());
+  int control = FPDFPage_HasFormFieldAtPoint(engine_->form(), GetPage(),
+                                             point.x(), point.y());
 
   // If there is a control and link at the same point, figure out their z-order
   // to determine which is on top.
   if (link && control > FPDF_FORMFIELD_UNKNOWN) {
     int control_z_order = FPDFPage_FormFieldZOrderAtPoint(
-        engine_->form(), GetPage(), new_x, new_y);
-    int link_z_order = FPDFLink_GetLinkZOrderAtPoint(GetPage(), new_x, new_y);
+        engine_->form(), GetPage(), point.x(), point.y());
+    int link_z_order =
+        FPDFLink_GetLinkZOrderAtPoint(GetPage(), point.x(), point.y());
     DCHECK_NE(control_z_order, link_z_order);
     if (control_z_order > link_z_order) {
       *form_type = control;
@@ -1113,22 +1110,25 @@ PDFiumPage::Area PDFiumPage::GetCharIndex(const gfx::Point& point,
     // In that case, GetLinkTarget() will return NONSELECTABLE_AREA
     // and we should proceed with area detection.
     Area area = GetLinkTarget(link, target);
-    if (area != NONSELECTABLE_AREA)
+    if (area != NONSELECTABLE_AREA) {
       return area;
+    }
   } else if (link) {
     // We don't handle all possible link types of the PDF. For example,
     // launch actions, cross-document links, etc.
     // See identical block above.
     Area area = GetLinkTarget(link, target);
-    if (area != NONSELECTABLE_AREA)
+    if (area != NONSELECTABLE_AREA) {
       return area;
+    }
   } else if (control > FPDF_FORMFIELD_UNKNOWN) {
     *form_type = control;
     return FormTypeToArea(*form_type);
   }
 
-  if (rv < 0)
+  if (*char_index < 0) {
     return NONSELECTABLE_AREA;
+  }
 
   return GetLink(*char_index, target) != -1 ? WEBLINK_AREA : TEXT_AREA;
 }
@@ -1169,7 +1169,7 @@ PDFiumPage::Area PDFiumPage::GetDestinationTarget(FPDF_DEST destination,
   GetPageDestinationTarget(destination, &x, &y, &target->zoom);
 
   // The page where a destination exists can be different from the page that it
-  // targets. Calculating the in-page coordinates should be based on the target
+  // targets. Calculating the PDF coordinates should be based on the target
   // page's size.
   PDFiumPage* target_page = engine_->GetPage(target->page);
   if (!target_page)

@@ -175,12 +175,27 @@ ConnectionContext::ConnectionContext(
     // this isn't necessary.
     worker_thread_->BlockingCall([&] { media_engine_->Init(); });
   }
+
+  blocking_media_engine_destruction_ =
+      env.field_trials().IsEnabled("WebRTC-SynchronousDestructors");
 }
 
 ConnectionContext::~ConnectionContext() {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   // `media_engine_` requires destruction to happen on the worker thread.
-  worker_thread_->PostTask([media_engine = std::move(media_engine_)] {});
+  if (blocking_media_engine_destruction_) {
+    // The media engine shares its Environment with objects that may outlive
+    // the ConnectionContext if this call is not blocking. If Environment is
+    // destroyed when ConnectionContext's destruction completes, this may
+    // cause Use-After-Free.
+    //
+    // The plan is to address the problem with a new Terminate(callback) method,
+    // which is referenced in webrtc:443588673, but pending this one can
+    // control this with field trial `WebRTC-SynchronousDestructors`.
+    worker_thread_->BlockingCall([&] { media_engine_ = nullptr; });
+  } else {
+    worker_thread_->PostTask([media_engine = std::move(media_engine_)] {});
+  }
 
   // Make sure `worker_thread()` and `signaling_thread()` outlive
   // `default_socket_factory_` and `default_network_manager_`.

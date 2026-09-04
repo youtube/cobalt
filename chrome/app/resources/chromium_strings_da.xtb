@@ -96,6 +96,7 @@
 <translation id="2185166961232948079">Chromium – Login på netværk – <ph name="PAGE_TITLE" /></translation>
 <translation id="2190166659037789668">Fejl ved søgning efter opdatering: <ph name="UPDATE_CHECK_ERROR" />.</translation>
 <translation id="2199210295479376551">Fjern kontoen fra Chromium</translation>
+<translation id="2210502920229141283">Øg sikkerheden på farten med Udvidet beskyttet browsing i Chromium til iOS</translation>
 <translation id="2210682093923538346">Farligt website. Chromium har fjernet notifikationer.</translation>
 <translation id="2236949375853147973">Min aktivitet</translation>
 <translation id="2238130810669087193">For at kunne se dine adresser m.m. på alle dine enheder skal du logge ind i Chromium. Denne adresse gemmes på din Google-konto, når du er logget ind.</translation>
@@ -104,6 +105,7 @@
 <translation id="2307973900865360088">Behold på applinje</translation>
 <translation id="2313870531055795960">Tjekker webadresser ift. en liste over usikre websites, der er gemt i Chromium. Hvis et website forsøger at stjæle din adgangskode, eller hvis du downloader en skadelig fil, sender Chromium muligvis også webadresser og bl.a. mindre mængder sideindhold til Beskyttet browsing.</translation>
 <translation id="2343156876103232566">Hvis du vil sende et nummer fra denne enhed til din Android-telefon, skal du logge ind på Chromium på begge enheder.</translation>
+<translation id="2356070529366658676">Spørg</translation>
 <translation id="2359808026110333948">Fortsæt</translation>
 <translation id="2361918034042471035">Udvidelsen "<ph name="EXTENSION_NAME" />" vil have dig til at logge ind i Chromium</translation>
 <translation id="236943522426971115">Deaktiver, at Chromium-apps kører i baggrunden</translation>
@@ -154,6 +156,7 @@
 <translation id="2928420929544864228">Installationen er fuldført.</translation>
 <translation id="2933336679234709858">Dine data krypteres med din adgangssætning. Angiv adgangssætningen for at bruge og gemme Chromium-data på din Google-konto.</translation>
 <translation id="2945997411976714835">Installationsfejl: Installationsprocessen kunne ikke startes.</translation>
+<translation id="2948852018303413228">Log hurtigere ind på websites ved hjælp af gemte adgangskoder til Chromium i iOS</translation>
 <translation id="2970426615109535079">Din organisation administrerer Chromium</translation>
 <translation id="2977470724722393594">Chromium er opdateret</translation>
 <translation id="2977506796191543575">Hvis et website forsøger at stjæle din adgangskode, eller hvis du downloader en skadelig fil, sender Chromium muligvis også webadresser, bl.a. mindre mængder sideindhold, til Beskyttet browsing</translation>
@@ -178,6 +181,9 @@
 <translation id="3155163173539279776">Genstart Chromium</translation>
 <translation id="3161522574479303604">Alle sprog</translation>
 <translation id="3179665906251668410">Åbn linket i et Chromium-inko&amp;gnitovindue</translation>
+<translation id="3183357154200327217">Et andet program på din computer har tilføjet et tema, som kan ændre måden, Chromium fungerer på.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="3185330573522821672">Tilpas din nye Chromium-profil</translation>
 <translation id="3224847870593914902">Hvis du vil fjerne din Google-konto fra Chromium, skal du logge ud af Chromium på siden Indstillinger</translation>
 <translation id="3234316605225071811">Senere kan Chromium spørge, om du vil bruge gemte oplysninger til automatisk at udfylde formularer</translation>
@@ -242,6 +248,9 @@
 <translation id="4036079820698952681">Hjælp med at gøre Chromium bedre ved at rapportere de <ph name="BEGIN_LINK" />aktuelle indstillinger<ph name="END_LINK" />.</translation>
 <translation id="4050175100176540509">Vigtige sikkerhedsforbedringer og nye funktioner er tilgængelige i den seneste version.</translation>
 <translation id="4055805654398742145">Adgangs­kode­admin­istrator</translation>
+<translation id="4061696872429826774">Et andet program på din computer har tilføjet en udvidelse, som kan ændre måden, Chromium fungerer på.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="4095980151185649725">{COUNT,plural, =1{Din organisation lukker automatisk Chromium, når den ikke bruges i 1 minut. Browserdataene slettes. Disse kan omfatte historik, autofyld og downloads.}one{Din organisation lukker automatisk Chromium, når den ikke bruges i # minut. Browserdataene slettes. Disse kan omfatte historik, autofyld og downloads.}other{Din organisation lukker automatisk Chromium, når den ikke bruges i # minutter. Browserdataene slettes. Disse kan omfatte historik, autofyld og downloads.}}</translation>
 <translation id="4118474109249235144">Inkognitotilstand i Chromium</translation>
 <translation id="4122186850977583290">Gå til siden Om Chromium</translation>
@@ -401,6 +410,9 @@
 <translation id="6174920971222007286">Denne fil kan være skadelig<ph name="LINE_BREAK" />Chromium kan tjekke denne download for dig, hvis du angiver adgangskoden. Oplysninger om filen sendes til Google Beskyttet browsing, men filens indhold og adgangskoden forbliver på din enhed.</translation>
 <translation id="6182736845697986886">Installationen mislykkedes på grund af en intern fejl i opdateringsserveren.</translation>
 <translation id="6183079672144801177">Sørg for, at du er logget ind på Chromium på din <ph name="TARGET_DEVICE_NAME" />, og prøv derefter at sende igen.</translation>
+<translation id="6204922163963157461">Et andet program på din computer har tilføjet en app, som kan ændre måden, Chromium fungerer på.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6212496753309875659">Computeren har allerede en nyere version af Chromium. Hvis softwaren ikke virker, skal du afinstallere Chromium og prøve igen.</translation>
 <translation id="6219195342503754812">{0,plural, =0{Chromium genstarter nu}=1{Chromium genstarter om 1 sekund}one{Chromium genstarter om # sekund}other{Chromium genstarter om # sekunder}}</translation>
 <translation id="6239161312595354541">Stil Billedsøgning spørgsmål om denne video</translation>
@@ -550,6 +562,7 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="7888981273428720788">Angiv Chromium som standardbrowser</translation>
 <translation id="7934340546140346950">Chromium opgraderer automatisk usikre forbindelser til HTTPS, når det er muligt</translation>
 <translation id="7937630085815544518">Du loggede ind på Chromium som <ph name="USER_EMAIL_ADDRESS" />. Brug den samme konto til at logge ind igen.</translation>
+<translation id="7953047982688951904">Download Chromium på din telefon for at tilføje et ekstra lag beskyttelse, når du er på farten</translation>
 <translation id="7975919845073681630">Dette er en sekundær installation af Chromium, og den kan ikke gøres til din standardbrowser.</translation>
 <translation id="7997934263947464652">Udvidelser, apps og temaer fra ukendte kilder kan skade din enhed. Chromium anbefaler, at de kun installeres via <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="8004582292198964060">Browser</translation>

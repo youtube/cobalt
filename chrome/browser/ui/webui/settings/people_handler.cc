@@ -83,6 +83,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
+#include "chromeos/constants/pref_names.h"
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -670,7 +671,8 @@ void PeopleHandler::HandleStartSyncingWithEmail(const base::Value::List& args) {
   // TODO(crbug.com/419203245): Update the UI for this button and the conditions
   // under which it appears when it triggers the History Sync Optin, instead of
   // the Sync Consent screen.
-  if (base::FeatureList::IsEnabled(switches::kEnableHistorySyncOptin)) {
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
     if (signin_util::ShouldShowHistorySyncOptinScreen(*profile_.get())) {
       const signin::IdentityManager* identity_manager =
           IdentityManagerFactory::GetForProfile(profile_);
@@ -686,7 +688,7 @@ void PeopleHandler::HandleStartSyncingWithEmail(const base::Value::List& args) {
       }
       browser->GetFeatures()
           .signin_view_controller()
-          ->ShowModalHistorySyncOptInDialog();
+          ->ShowModalHistorySyncOptInDialog(base::DoNothing());
     }
     return;
   }
@@ -1255,8 +1257,9 @@ base::Value::Dict PeopleHandler::GetSyncStatusDictionary() const {
                   service && service->HasUnrecoverableError());
 #if BUILDFLAG(IS_CHROMEOS)
   if (ash::features::IsFloatingSsoAllowed()) {
-    sync_status.Set("syncCookiesSupported", profile_->GetPrefs()->GetBoolean(
-                                                prefs::kFloatingSsoEnabled));
+    sync_status.Set(
+        "syncCookiesSupported",
+        profile_->GetPrefs()->GetBoolean(chromeos::prefs::kFloatingSsoEnabled));
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
   return sync_status;

@@ -362,6 +362,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       mojom::RestrictedUDPSocketParamsPtr params,
       mojo::PendingReceiver<mojom::RestrictedUDPSocket> receiver,
       mojo::PendingRemote<mojom::UDPSocketListener> listener,
+      bool allow_multicast,
       mojom::NetworkContext::CreateRestrictedUDPSocketCallback callback)
       override;
   void CreateTCPServerSocket(
@@ -885,7 +886,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   std::unique_ptr<ip_protection::IpProtectionCore> ip_protection_core_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
-  // Used only when network::features::kCompressionDictionaryTransportBackend is
+  // Used only when network::features::kCompressionDictionaryTransport is
   // enabled.
   // Note: `url_request_context_owner_` indirectly holds a pointer to
   // `shared_dictionary_manager_` via URLRequestContext and HttpCache and

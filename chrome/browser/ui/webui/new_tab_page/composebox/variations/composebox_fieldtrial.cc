@@ -145,9 +145,7 @@ bool IsNtpComposeboxEnabled(Profile* profile) {
   return base::FeatureList::IsEnabled(kNtpComposebox);
 }
 
-BASE_FEATURE(kNtpComposebox,
-             "NtpComposebox",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kNtpComposebox, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<std::string> kConfigParam(&kNtpComposebox,
                                                    "ConfigParam",
@@ -169,6 +167,10 @@ const base::FeatureParam<bool> kShowComposeboxTypedSuggest(
 const base::FeatureParam<bool> kShowContextMenu(&kNtpComposebox,
                                                 "ShowContextMenu",
                                                 false);
+const base::FeatureParam<int> kContextMenuMaxTabSuggestions(
+    &kNtpComposebox,
+    "ContextMenuMaxTabSuggestions",
+    5);
 
 FeatureConfig::FeatureConfig() : config(GetNTPComposeboxConfig()) {}
 

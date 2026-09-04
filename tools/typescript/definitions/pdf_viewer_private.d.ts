@@ -58,6 +58,10 @@ declare global {
         fileSizeBytes?: number;
         uploadedBytes?: number;
         fileMetadata?: string;
+        fileName?: string;
+        parentFolderName?: string;
+        accountEmail?: string;
+        accountIsManaged?: boolean;
       }
       // </if>
 

@@ -741,6 +741,16 @@
       status: "experimental",
     },
     {
+      // No status because this blink runtime feature doesn't work by itself.
+      // It's controlled by the corresponding Chromium feature,
+      // fingerprinting_protection_interventions::features::kBlockCanvasReadback
+      // through modified_runtime_features and setting its status in the browser
+      // process.
+      name: "BlockCanvasReadback",
+      browser_process_read_write_access: true,
+      base_feature: "none",
+    },
+    {
       name: "BlockingFocusWithoutUserActivation",
       status: "experimental",
     },
@@ -837,12 +847,12 @@
     },
     {
       // https://github.com/WICG/html-in-canvas/blob/main/README.md
-      // Note the API name has changed to `drawHTML`.
+      // Note the API name has changed to `drawElementImage`.
       name: "CanvasDrawElement",
       status: "test",
     },
     {
-      // Remove the restriction that drawHTML can only draw immediate children
+      // Remove the restriction that drawElementImage can only draw immediate children
       // of the canvas, and allow drawing canvas descendants.
       name: "CanvasDrawElementInSubtree",
       depends_on: ["CanvasDrawElement"],
@@ -865,16 +875,6 @@
     {
       name: "CanvasHDR",
       status: "experimental",
-    },
-    {
-      // No status because this blink runtime feature doesn't work by itself.
-      // It's controlled by the corresponding Chromium feature,
-      // fingerprinting_protection_interventions::features::kCanvasNoise through
-      // modified_runtime_features and setting its status in the browser
-      // process.
-      name: "CanvasInterventions",
-      browser_process_read_write_access: true,
-      base_feature: "none",
     },
     {
       // crbug.com/389726691.
@@ -1054,11 +1054,6 @@
     },
     {
       name: "CompressionDictionaryTransport",
-      base_feature: "none",
-      public: true,
-    },
-    {
-      name: "CompressionDictionaryTransportBackend",
       base_feature: "none",
       public: true,
     },
@@ -1275,9 +1270,9 @@
       status: "experimental",
     },
     {
-      // https://github.com/w3c/csswg-drafts/issues/8376#issuecomment-2751161553
+      // https://drafts.csswg.org/css-conditional-5/#typedef-style-range
       name: "CSSContainerStyleQueriesRange",
-      status: "test",
+      status: "stable",
     },
     {
       // https://drafts.csswg.org/css-borders-4/#corner-shaping
@@ -1417,6 +1412,13 @@
     {
       name: "CSSLineClampLineBreakingEllipsis",
       depends_on: ["CSSLineClamp"],
+    },
+    {
+      // Allows pseudo-element selectors within logical combination pseudo-
+      // classes, e.g. :is(div::before).
+      //
+      // https://crbug.com/444386484
+      name: "CSSLogicalCombinationPseudo",
     },
     {
       name: "CSSMarkerNestedPseudoElement",
@@ -1970,6 +1972,12 @@
       base_feature: "none",
     },
     // Enables the ability to use Document Policy header to control feature
+    // NetworkEfficiencyGuardrails. https://chromestatus.com/feature/5156240166223872
+    {
+      name: "DocumentPolicyNetworkEfficiencyGuardrails",
+      status: "experimental",
+    },
+    // Enables the ability to use Document Policy header to control feature
     // SyncXHR.
     {
       name: "DocumentPolicySyncXHR",
@@ -1990,12 +1998,6 @@
     // controls visibility.
     {
       name: "DynamicSafeAreaInsets",
-      status: {"Android": "stable"},
-    },
-    // Dynamically change the safe area insets as browser controls scrolls.
-    {
-      name: "DynamicSafeAreaInsetsOnScroll",
-      depends_on: ["DynamicSafeAreaInsets"],
       status: {"Android": "stable"},
     },
     {
@@ -2623,6 +2625,10 @@
       status: "stable",
     },
     {
+      name: "HitTestBorderRadiusForStackingContext",
+      status: "stable",
+    },
+    {
       name: "HrefTranslate",
       depends_on: ["TranslateService"],
       origin_trial_feature_name: "HrefTranslate",
@@ -2872,6 +2878,13 @@
       base_feature: "none",
     },
     {
+      // Fixes a bug after find-in-page tries to return focus to
+      // the page. This change shipped in M142, and this flag can
+      // be removed in M144.
+      name: "KeyboardFocusabilityAfterFindInPage",
+      status: "stable",
+    },
+    {
       name: "LangAttributeAwareFormControlUI",
       settable_from_internals: true,
     },
@@ -2925,10 +2938,6 @@
       // Stop emitting U+FFFC Object Replacement Character for out-of-flow
       // objects such as floating or out-of-flow positioned. crbgu.com/40658609
       name: "LineBreakOofNoOrc",
-      status: "stable",
-    },
-    {
-      name: "ListItemWithCounterSetNotSetExplicitValue",
       status: "stable",
     },
     {
@@ -3122,12 +3131,6 @@
       name: "MediaPlaybackWhileNotVisiblePermissionPolicy",
       status: "test",
       origin_trial_feature_name: "MediaPlaybackWhileNotVisiblePermissionPolicy",
-    },
-    {
-      name: "MediaPreviewsOptOut",
-      base_feature: "none",
-      origin_trial_feature_name: "MediaPreviewsOptOutPersistent",
-      origin_trial_allows_third_party: true,
     },
     {
       name: "MediaQueryNavigationControls",
@@ -3692,6 +3695,11 @@
       name: "PointerLockOnAndroid",
     },
     {
+      // https://crbug.com/404479704
+      name: "PointerRawUpdateOnlyInSecureContext",
+      status: "experimental",
+    },
+    {
       name: "PositionOutsideTabSpanCheckSiblingNode",
       status: "stable",
     },
@@ -4207,6 +4215,20 @@
       status: "stable",
     },
     {
+      // HTML event loop invoking 'Run snapshot post-layout state steps' from
+      // the CSSOM View per spec proposal.
+      name: "RunSnapshotPostLayoutStateSteps",
+    },
+    {
+      // This flag is for fixing validation error
+      // for valid email address using IDN.
+      // This may ship in M142, and this flag can be
+      // removed in M144 pending no issues.
+      // See https://issues.chromium.org/issues/429490608
+      name: "SanitizeIDNEmailFormInput",
+      status: "stable",
+    },
+    {
       // Spec: https://wicg.github.io/sanitizer-api/
       // Tracking bug: crbug.com/356601280
       name: "SanitizerAPI",
@@ -4415,6 +4437,8 @@
       // (dropdown) select element modes the same between mobile and desktop.
       // Without this flag, mobile will always use MenuList and desktop always
       // makes <select multiple> a ListBox.
+      // https://chromestatus.com/feature/5412736871825408
+      // https://issues.chromium.org/issues/439964654
       name: "SelectMobileDesktopParity",
       status: "experimental",
     },
@@ -4626,13 +4650,6 @@
     {
       name: "SpeakerSelection",
       status: "experimental",
-    },
-    // Enables spec-compliant suffix matching for JSON MIME types
-    // (e.g., text/html+json, image/svg+json) by allowing *+json patterns.
-    // https://chromestatus.com/feature/5470594816278528
-    {
-      name: "SpecCompliantJsonMimeTypes",
-      status: "stable",
     },
     // This is a flag that re-enables some deprecated/removed "special rules"
     // that apply to the styles of an <h1> element nested within <article>,
@@ -5480,15 +5497,6 @@
       origin_trial_os: ["win", "mac", "linux", "chromeos"],
       base_feature: "none",
       public: true,
-    },
-    // Methods for deserializing WebAuthn requests from JSON/serializing
-    // responses into JSON.
-    // https://w3c.github.io/webauthn/#dom-publickeycredential-tojson
-    // https://w3c.github.io/webauthn/#sctn-parseCreationOptionsFromJSON
-    // https://w3c.github.io/webauthn/#sctn-parseRequestOptionsFromJSON
-    {
-      name: "WebAuthenticationJSONSerialization",
-      status: "stable",
     },
     {
       name: "WebAuthenticationRemoteDesktopSupport",

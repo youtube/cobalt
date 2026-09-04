@@ -1176,7 +1176,7 @@ config("features") {
       defines += [
         # TODO(442942399): Re-enable after bug has been addressed.
         # "V8_CONTIGUOUS_COMPRESSED_RO_SPACE",
-        # "V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB=${v8_contiguous_compressed_ro_space_size_mb}",
+        "V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB=${v8_contiguous_compressed_ro_space_size_mb}",
       ]
     } else {
       defines += [ "V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES" ]
@@ -3377,6 +3377,22 @@ v8_header_set("v8_flags") {
   ]
 }
 
+if (v8_enable_temporal_support) {
+  # In cases where we aren't using ICU4C (e.g. v8_enable_i18n_support=false),
+  # we "bake" in a zoneinfo64.res binary for Temporal
+  action("make_temporal_zoneinfo_cpp") {
+    script = "tools/include-file-as-bytes.py"
+    inputs = [  get_label_info("//third_party/icu/", "dir") + "/tzres/zoneinfo64.res" ]
+    outputs =
+        [ "$target_gen_dir/src/builtins/builtins-temporal-zoneinfo64-data.cc" ]
+    args = [
+      rebase_path(inputs[0], root_build_dir),
+      rebase_path(outputs[0], root_build_dir),
+      "zoneinfo64_static_data",
+    ]
+  }
+}
+
 v8_header_set("v8_internal_headers") {
   configs = [ ":internal_config" ]
 
@@ -3677,6 +3693,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/runtime-call-descriptors.h",
     "src/compiler/turboshaft/select-lowering-reducer.h",
     "src/compiler/turboshaft/sidetable.h",
+    "src/compiler/turboshaft/simplified-optimization-reducer.h",
     "src/compiler/turboshaft/simplify-tf-loops.h",
     "src/compiler/turboshaft/snapshot-table-opindex.h",
     "src/compiler/turboshaft/snapshot-table.h",
@@ -4419,6 +4436,7 @@ v8_header_set("v8_internal_headers") {
     sources += [
       "src/objects/js-temporal-objects-inl.h",
       "src/objects/js-temporal-objects.h",
+      "src/objects/js-temporal-zoneinfo64.h",
     ]
   }
 
@@ -4465,6 +4483,8 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-interpreter-frame-state.h",
       "src/maglev/maglev-ir-inl.h",
       "src/maglev/maglev-ir.h",
+      "src/maglev/maglev-kna-processor.h",
+      "src/maglev/maglev-known-node-aspects.h",
       "src/maglev/maglev-phi-representation-selector.h",
       "src/maglev/maglev-pipeline-statistics.h",
       "src/maglev/maglev-post-hoc-optimizations-processors.h",
@@ -4557,7 +4577,6 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/jump-table-assembler.h",
       "src/wasm/leb-helper.h",
       "src/wasm/local-decl-encoder.h",
-      "src/wasm/memory-tracing.h",
       "src/wasm/module-compiler.h",
       "src/wasm/module-decoder-impl.h",
       "src/wasm/module-decoder.h",
@@ -4606,6 +4625,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-serialization.h",
       "src/wasm/wasm-subtyping.h",
       "src/wasm/wasm-tier.h",
+      "src/wasm/wasm-tracing.h",
       "src/wasm/wasm-value.h",
       "src/wasm/well-known-imports.h",
       "src/wasm/wrappers-inl.h",
@@ -5237,6 +5257,7 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-inlining.cc",
     "src/maglev/maglev-interpreter-frame-state.cc",
     "src/maglev/maglev-ir.cc",
+    "src/maglev/maglev-known-node-aspects.cc",
     "src/maglev/maglev-phi-representation-selector.cc",
     "src/maglev/maglev-truncation.cc",
   ]
@@ -5953,6 +5974,7 @@ v8_source_set("v8_base_without_compiler") {
     sources += [
       "src/builtins/builtins-temporal.cc",
       "src/objects/js-temporal-objects.cc",
+      "src/objects/js-temporal-zoneinfo64.cc",
     ]
   }
 
@@ -5979,6 +6001,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-inlining.cc",
       "src/maglev/maglev-interpreter-frame-state.cc",
       "src/maglev/maglev-ir.cc",
+      "src/maglev/maglev-known-node-aspects.cc",
       "src/maglev/maglev-phi-representation-selector.cc",
       "src/maglev/maglev-pipeline-statistics.cc",
       "src/maglev/maglev-regalloc.cc",
@@ -6081,6 +6104,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-result.cc",
       "src/wasm/wasm-serialization.cc",
       "src/wasm/wasm-subtyping.cc",
+      "src/wasm/wasm-tracing.cc",
       "src/wasm/well-known-imports.cc",
     ]
     if (v8_wasm_random_fuzzers) {
@@ -6461,6 +6485,14 @@ v8_source_set("v8_base_without_compiler") {
       "$v8_zlib_path",
       "$v8_zlib_path/google:compression_utils_portable",
     ]
+  }
+
+  # In i18n mode, we can use ICU4C to load ICU4C's builtin zoneinfo64.res data
+  # In non-i18n mode, we need to copy that into the binary
+  if (v8_enable_temporal_support && !v8_enable_i18n_support) {
+    sources +=
+        [ "$target_gen_dir/src/builtins/builtins-temporal-zoneinfo64-data.cc" ]
+    deps += [ ":make_temporal_zoneinfo_cpp" ]
   }
 
   if (v8_postmortem_support) {

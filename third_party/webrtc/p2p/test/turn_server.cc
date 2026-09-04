@@ -22,6 +22,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "api/packet_socket_factory.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -44,7 +45,6 @@
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 namespace {
@@ -86,8 +86,9 @@ static void InitErrorResponse(int code,
       STUN_ATTR_ERROR_CODE, code, std::string(reason)));
 }
 
-TurnServer::TurnServer(TaskQueueBase* thread)
-    : thread_(thread),
+TurnServer::TurnServer(const Environment& env, TaskQueueBase* thread)
+    : env_(env),
+      thread_(thread),
       nonce_key_(CreateRandomString(kNonceKeySize)),
       auth_hook_(nullptr),
       redirect_hook_(nullptr),
@@ -95,25 +96,14 @@ TurnServer::TurnServer(TaskQueueBase* thread)
 
 TurnServer::~TurnServer() {
   RTC_DCHECK_RUN_ON(thread_);
-  for (InternalSocketMap::iterator it = server_sockets_.begin();
-       it != server_sockets_.end(); ++it) {
-    AsyncPacketSocket* socket = it->first;
-    delete socket;
-  }
-
-  for (ServerSocketMap::iterator it = server_listen_sockets_.begin();
-       it != server_listen_sockets_.end(); ++it) {
-    Socket* socket = it->first;
-    delete socket;
-  }
 }
 
-void TurnServer::AddInternalSocket(AsyncPacketSocket* socket,
-                                   ProtocolType proto) {
+void TurnServer::AddInternalSocket(std::unique_ptr<AsyncPacketSocket> socket,
+                                   ProtocolType protocol) {
   RTC_DCHECK_RUN_ON(thread_);
-  RTC_DCHECK(server_sockets_.end() == server_sockets_.find(socket));
-  server_sockets_[socket] = proto;
-  socket->RegisterReceivedPacketCallback(
+  auto [it, inserted] = server_sockets_.emplace(std::move(socket), protocol);
+  RTC_DCHECK(inserted);
+  it->first->RegisterReceivedPacketCallback(
       [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
         RTC_DCHECK_RUN_ON(thread_);
         OnInternalPacket(socket, packet);
@@ -121,16 +111,17 @@ void TurnServer::AddInternalSocket(AsyncPacketSocket* socket,
 }
 
 void TurnServer::AddInternalServerSocket(
-    Socket* socket,
-    ProtocolType proto,
+    std::unique_ptr<Socket> socket,
+    ProtocolType protocol,
     std::unique_ptr<SSLAdapterFactory> ssl_adapter_factory) {
   RTC_DCHECK_RUN_ON(thread_);
-
-  RTC_DCHECK(server_listen_sockets_.end() ==
-             server_listen_sockets_.find(socket));
-  server_listen_sockets_[socket] = {
-      .proto = proto, .ssl_adapter_factory = std::move(ssl_adapter_factory)};
-  socket->SignalReadEvent.connect(this, &TurnServer::OnNewInternalConnection);
+  auto [iter, inserted] = server_listen_sockets_.emplace(
+      std::move(socket),
+      ServerSocketInfo{.proto = protocol,
+                       .ssl_adapter_factory = std::move(ssl_adapter_factory)});
+  RTC_DCHECK(inserted);
+  iter->first->SignalReadEvent.connect(this,
+                                       &TurnServer::OnNewInternalConnection);
 }
 
 void TurnServer::SetExternalSocketFactory(PacketSocketFactory* factory,
@@ -142,39 +133,38 @@ void TurnServer::SetExternalSocketFactory(PacketSocketFactory* factory,
 
 void TurnServer::OnNewInternalConnection(Socket* socket) {
   RTC_DCHECK_RUN_ON(thread_);
-  RTC_DCHECK(server_listen_sockets_.find(socket) !=
-             server_listen_sockets_.end());
-  AcceptConnection(socket);
-}
-
-void TurnServer::AcceptConnection(Socket* server_socket) {
-  RTC_DCHECK_RUN_ON(thread_);
+  auto iter = server_listen_sockets_.find(socket);
+  RTC_DCHECK(iter != server_listen_sockets_.end());
 
   // Check if someone is trying to connect to us.
   SocketAddress accept_addr;
-  Socket* accepted_socket = server_socket->Accept(&accept_addr);
+  std::unique_ptr<Socket> accepted_socket =
+      absl::WrapUnique(socket->Accept(&accept_addr));
   if (accepted_socket != nullptr) {
-    const ServerSocketInfo& info = server_listen_sockets_[server_socket];
+    const ServerSocketInfo& info = iter->second;
     if (info.ssl_adapter_factory) {
-      SSLAdapter* ssl_adapter =
-          info.ssl_adapter_factory->CreateAdapter(accepted_socket);
+      std::unique_ptr<SSLAdapter> ssl_adapter = absl::WrapUnique(
+          info.ssl_adapter_factory->CreateAdapter(accepted_socket.release()));
       ssl_adapter->StartSSL("");
-      accepted_socket = ssl_adapter;
+      accepted_socket = std::move(ssl_adapter);
     }
-    AsyncStunTCPSocket* tcp_socket = new AsyncStunTCPSocket(accepted_socket);
+    auto tcp_socket =
+        std::make_unique<AsyncStunTCPSocket>(env_, std::move(accepted_socket));
 
     tcp_socket->SubscribeCloseEvent(this,
                                     [this](AsyncPacketSocket* s, int err) {
                                       OnInternalSocketClose(s, err);
                                     });
     // Finally add the socket so it can start communicating with the client.
-    AddInternalSocket(tcp_socket, info.proto);
+    AddInternalSocket(std::move(tcp_socket), info.proto);
   }
 }
 
 void TurnServer::OnInternalSocketClose(AsyncPacketSocket* socket, int err) {
   RTC_DCHECK_RUN_ON(thread_);
-  DestroyInternalSocket(socket);
+  if (auto iter = server_sockets_.find(socket); iter != server_sockets_.end()) {
+    DestroyInternalSocket(iter);
+  }
 }
 
 void TurnServer::OnInternalPacket(AsyncPacketSocket* socket,
@@ -184,7 +174,7 @@ void TurnServer::OnInternalPacket(AsyncPacketSocket* socket,
   if (packet.payload().size() < TURN_CHANNEL_HEADER_SIZE) {
     return;
   }
-  InternalSocketMap::iterator iter = server_sockets_.find(socket);
+  auto iter = server_sockets_.find(socket);
   RTC_DCHECK(iter != server_sockets_.end());
   TurnServerConnection conn(packet.source_address(), iter->second, socket);
   uint16_t msg_type = GetBE16(packet.payload().data());
@@ -416,7 +406,8 @@ bool TurnServer::ValidateNonce(absl::string_view nonce) const {
   }
 
   // Validate the timestamp.
-  return TimeDelta::Millis(TimeMillis() - then) < kNonceTimeout;
+  return TimeDelta::Millis(env_.clock().TimeInMilliseconds() - then) <
+         kNonceTimeout;
 }
 
 TurnServerAllocation* TurnServer::FindAllocation(TurnServerConnection* conn) {
@@ -427,17 +418,17 @@ TurnServerAllocation* TurnServer::FindAllocation(TurnServerConnection* conn) {
 TurnServerAllocation* TurnServer::CreateAllocation(TurnServerConnection* conn,
                                                    int proto,
                                                    absl::string_view key) {
-  AsyncPacketSocket* external_socket =
-      (external_socket_factory_)
-          ? external_socket_factory_->CreateUdpSocket(external_addr_, 0, 0)
-          : nullptr;
+  std::unique_ptr<AsyncPacketSocket> external_socket =
+      (external_socket_factory_) ? external_socket_factory_->CreateUdpSocket(
+                                       env_, external_addr_, 0, 0)
+                                 : nullptr;
   if (!external_socket) {
     return nullptr;
   }
 
   // The Allocation takes ownership of the socket.
-  TurnServerAllocation* allocation =
-      new TurnServerAllocation(this, thread_, *conn, external_socket, key);
+  TurnServerAllocation* allocation = new TurnServerAllocation(
+      this, thread_, *conn, std::move(external_socket), key);
   allocations_[*conn].reset(allocation);
   return allocation;
 }
@@ -462,7 +453,7 @@ void TurnServer::SendErrorResponseWithRealmAndNonce(TurnServerConnection* conn,
   TurnMessage resp(GetStunErrorResponseTypeOrZero(*msg), msg->transaction_id());
   InitErrorResponse(code, reason, &resp);
 
-  int64_t timestamp = TimeMillis();
+  int64_t timestamp = env_.clock().TimeInMilliseconds();
   if (ts_for_next_nonce_) {
     timestamp = ts_for_next_nonce_;
     ts_for_next_nonce_ = 0;
@@ -507,32 +498,28 @@ void TurnServer::Send(TurnServerConnection* conn, const ByteBufferWriter& buf) {
 void TurnServer::DestroyAllocation(TurnServerAllocation* allocation) {
   // Removing the internal socket if the connection is not udp.
   AsyncPacketSocket* socket = allocation->conn()->socket();
-  InternalSocketMap::iterator iter = server_sockets_.find(socket);
+  auto iter = server_sockets_.find(socket);
   // Skip if the socket serving this allocation is UDP, as this will be shared
   // by all allocations.
   // Note: We may not find a socket if it's a TCP socket that was closed, and
   // the allocation is only now timing out.
   if (iter != server_sockets_.end() && iter->second != PROTO_UDP) {
-    DestroyInternalSocket(socket);
+    DestroyInternalSocket(iter);
   }
 
   allocations_.erase(*(allocation->conn()));
 }
 
-void TurnServer::DestroyInternalSocket(AsyncPacketSocket* socket) {
-  InternalSocketMap::iterator iter = server_sockets_.find(socket);
-  if (iter != server_sockets_.end()) {
-    AsyncPacketSocket* server_socket = iter->first;
-    server_socket->UnsubscribeCloseEvent(this);
-    server_socket->DeregisterReceivedPacketCallback();
-    server_sockets_.erase(iter);
-    std::unique_ptr<AsyncPacketSocket> socket_to_delete =
-        absl::WrapUnique(server_socket);
-    // We must destroy the socket async to avoid invalidating the sigslot
-    // callback list iterator inside a sigslot callback. (In other words,
-    // deleting an object from within a callback from that object).
-    thread_->PostTask([socket_to_delete = std::move(socket_to_delete)] {});
-  }
+void TurnServer::DestroyInternalSocket(ServerSocketMap::iterator iter) {
+  RTC_DCHECK(iter != server_sockets_.end());
+  auto node = server_sockets_.extract(iter);
+  AsyncPacketSocket* server_socket = node.key().get();
+  server_socket->UnsubscribeCloseEvent(this);
+  server_socket->DeregisterReceivedPacketCallback();
+  // We must destroy the socket async to avoid invalidating the callback list
+  // iterator. (In other words, deleting an object from within a callback from
+  // that object).
+  thread_->PostTask([node = std::move(node)] {});
 }
 
 TurnServerConnection::TurnServerConnection(const SocketAddress& src,
@@ -559,15 +546,16 @@ std::string TurnServerConnection::ToString() const {
   return ost.Release();
 }
 
-TurnServerAllocation::TurnServerAllocation(TurnServer* server,
-                                           TaskQueueBase* thread,
-                                           const TurnServerConnection& conn,
-                                           AsyncPacketSocket* socket,
-                                           absl::string_view key)
+TurnServerAllocation::TurnServerAllocation(
+    TurnServer* server,
+    TaskQueueBase* thread,
+    const TurnServerConnection& conn,
+    std::unique_ptr<AsyncPacketSocket> server_socket,
+    absl::string_view key)
     : server_(server),
       thread_(thread),
       conn_(conn),
-      external_socket_(socket),
+      external_socket_(std::move(server_socket)),
       key_(key) {
   external_socket_->RegisterReceivedPacketCallback(
       [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {

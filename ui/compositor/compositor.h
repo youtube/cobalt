@@ -55,7 +55,7 @@
 #include "ui/gfx/display_color_spaces.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/vector2d.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/gfx/overlay_transform.h"
 
 namespace base {
@@ -609,7 +609,7 @@ class COMPOSITOR_EXPORT Compositor : public base::PowerSuspendObserver,
   mojo::AssociatedRemote<viz::mojom::DisplayPrivate> display_private_;
   mojo::AssociatedRemote<viz::mojom::ExternalBeginFrameController>
       external_begin_frame_controller_;
-  raw_ptr<ExternalBeginFrameControllerClientFactory>
+  raw_ptr<ExternalBeginFrameControllerClientFactory, DanglingUntriaged>
       external_begin_frame_controler_client_factory_;
 
   // Used to hold on to IssueExternalBeginFrame(NoAck) arguments if

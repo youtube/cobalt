@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-generator.h"
 
+#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -21,13 +22,16 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class BytecodeGeneratorTest : public TestWithContext,
-                              public testing::WithParamInterface<std::string> {
+class BytecodeGeneratorTest
+    : public TestWithContext,
+      public testing::WithParamInterface<std::filesystem::path> {
  public:
   BytecodeGeneratorTest() : printer_(isolate()) {}
   static void SetUpTestSuite() {
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.enable_lazy_source_positions = false;
+    i::v8_flags.lazy = false;
+    i::v8_flags.flush_bytecode = false;
     i::v8_flags.function_context_cells = false;
     TestWithContext::SetUpTestSuite();
   }
@@ -52,9 +56,9 @@ struct GoldenFile {
   std::vector<GoldenCase> cases;
 };
 
-GoldenFile LoadGoldenFile(const std::string& golden_filename) {
+GoldenFile LoadGoldenFile(const std::filesystem::path& golden_path) {
   GoldenFile ret;
-  std::ifstream file((kGoldenFileDirectory + golden_filename).c_str());
+  std::ifstream file(golden_path);
   CHECK(file.is_open());
 
   BytecodeExpectationsParser parser(&file);
@@ -107,7 +111,7 @@ static inline std::string trim(std::string* str) {
 }
 
 void CompareTexts(const std::string& generated, const std::string& expected,
-                  std::string golden_file, int start_line) {
+                  std::filesystem::path golden_file, int start_line) {
   std::istringstream generated_stream(generated);
   std::istringstream expected_stream(expected);
   std::string generated_line;
@@ -132,11 +136,16 @@ void CompareTexts(const std::string& generated, const std::string& expected,
     trim(&generated_line);
     trim(&expected_line);
     EXPECT_EQ(expected_line, generated_line)
-        << "Inputs differ at " << kGoldenFileDirectory << golden_file << ":"
-        << line_number << "\n";
+        << "Inputs differ at " << golden_file << ":" << line_number << "\n";
 
     line_number++;
   } while (true);
+}
+
+TEST(BytecodeGeneratorInitTest, HasGoldenFiles) {
+  std::vector<std::filesystem::path> golden_files =
+      CollectGoldenFiles(kGoldenFileDirectory);
+  CHECK(!golden_files.empty());
 }
 
 TEST_P(BytecodeGeneratorTest, ExpectationNonEmpty) {
@@ -165,10 +174,11 @@ INSTANTIATE_TEST_SUITE_P(
     testing::ValuesIn(CollectGoldenFiles(kGoldenFileDirectory)),
     // Print the golden file's filename, without the
     // extension, as the test value.
-    [](const testing::TestParamInfo<std::string>& info) {
-      std::string file = info.param;
-      CHECK(file.ends_with(".golden"));
-      return file.substr(0, file.length() - strlen(".golden"));
+    [](const testing::TestParamInfo<std::filesystem::path>& info) {
+      std::filesystem::path file = info.param;
+      // A CHECK_EQ here breaks the macro expansion somehow.
+      CHECK(".golden" == file.extension().string());
+      return file.stem().string();
     });
 
 }  // namespace interpreter

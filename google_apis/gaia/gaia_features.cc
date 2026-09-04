@@ -8,19 +8,11 @@
 
 namespace gaia::features {
 
-// Enables binary format parsing in the /ListAccounts Gaia call. The endpoint
-// response depends on the presence of laf=b64bin parameter in the called url.
-BASE_FEATURE(kListAccountsUsesBinaryFormat,
-             "ListAccountsUsesBinaryFormat",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Switches account capabilities fetch to the "getAllVisible" URL that fetches
 // all capabilities visible to Chrome instead of asking for a hardcoded list of
 // capabilities that might be only partially available.
 // Consult https://crbug.com/436151197 before enabling.
-COMPONENT_EXPORT(GOOGLE_APIS)
 BASE_FEATURE(kGetAccountCapabilitiesUsesGetAllVisibleUrl,
-             "GetAccountCapabilitiesUsesGetAllVisibleUrl",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace gaia::features

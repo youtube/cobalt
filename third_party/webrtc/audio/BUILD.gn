@@ -238,6 +238,7 @@ if (rtc_include_tests) {
       "../rtc_base:timeutils",
       "../system_wrappers",
       "../test:audio_codec_mocks",
+      "../test:create_test_environment",
       "../test:create_test_field_trials",
       "../test:mock_transport",
       "../test:rtp_test_utils",

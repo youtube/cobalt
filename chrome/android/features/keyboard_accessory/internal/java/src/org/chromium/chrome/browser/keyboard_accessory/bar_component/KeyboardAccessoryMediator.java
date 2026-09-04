@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.keyboard_accessory.bar_component;
 
+import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ANIMATE_SUGGESTIONS_FROM_TOP;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ANIMATION_LISTENER;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BAR_ITEMS;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DISABLE_ANIMATIONS_FOR_TESTING;
@@ -26,7 +27,6 @@ import org.chromium.base.TraceEvent;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.keyboard_accessory.AccessoryAction;
 import org.chromium.chrome.browser.keyboard_accessory.KeyboardAccessoryVisualStateProvider;
-import org.chromium.chrome.browser.keyboard_accessory.ManualFillingMetricsRecorder;
 import org.chromium.chrome.browser.keyboard_accessory.R;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryCoordinator.BarVisibilityDelegate;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryCoordinator.TabSwitchingDelegate;
@@ -39,6 +39,7 @@ import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.Action;
 import org.chromium.chrome.browser.keyboard_accessory.data.Provider;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetCoordinator;
+import org.chromium.chrome.browser.keyboard_accessory.utils.ManualFillingMetricsRecorder;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.AutofillDelegate;
 import org.chromium.components.autofill.AutofillSuggestion;
@@ -105,30 +106,28 @@ class KeyboardAccessoryMediator
     }
 
     /**
-     * Creates an observer object that refreshes the accessory bar items when a connected provider
-     * notifies it about new {@link AutofillSuggestion}s. It ensures the delegate receives
-     * interactions with the view representing a suggestion.
+     * Replaces existing {@link AutofillSuggestion} items in the accessory bar with a new list.
      *
-     * @param delegate A {@link AutofillDelegate}.
-     * @return A {@link Provider.Observer} accepting only {@link AutofillSuggestion}s.
+     * <p>This method retains any existing non-suggestion items, converts the new suggestions into
+     * bar items (using the delegate for interactions), and re-adds standard items like the sheet
+     * opener and dismiss button (if applicable). Finally, it updates the model.
+     *
+     * @param suggestions The new list of {@link AutofillSuggestion}s to display.
+     * @param delegate The {@link AutofillDelegate} to handle interactions with the new suggestion
+     *     views.
      */
-    Provider.Observer<List<AutofillSuggestion>> createAutofillSuggestionsObserver(
-            AutofillDelegate delegate) {
-        return (@AccessoryAction int typeId, List<AutofillSuggestion> suggestions) -> {
-            assert typeId == AccessoryAction.AUTOFILL_SUGGESTION
-                    : "Autofill suggestions observer received wrong data: " + typeId;
-            List<BarItem> retainedItems = collectItemsToRetain(AccessoryAction.AUTOFILL_SUGGESTION);
-            retainedItems.addAll(toBarItems(suggestions, delegate));
-            retainedItems.add(retainedItems.size(), mModel.get(SHEET_OPENER_ITEM));
-            // TODO(crbug.com/441006939): Show dismiss on first launch too.
-            if (mIsLargeFormFactorSupplier.get()
-                    && ChromeFeatureList.isEnabled(
-                            ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP)) {
-                retainedItems.add(retainedItems.size(), mModel.get(DISMISS_ITEM));
-            }
-            mModel.get(BAR_ITEMS).set(retainedItems);
-            mModel.set(HAS_SUGGESTIONS, barHasSuggestions());
-        };
+    void setSuggestions(List<AutofillSuggestion> suggestions, AutofillDelegate delegate) {
+        List<BarItem> retainedItems = collectItemsToRetain(AccessoryAction.AUTOFILL_SUGGESTION);
+        retainedItems.addAll(toBarItems(suggestions, delegate));
+        retainedItems.add(retainedItems.size(), mModel.get(SHEET_OPENER_ITEM));
+        // TODO(crbug.com/441006939): Show dismiss on first launch too.
+        if (mIsLargeFormFactorSupplier.get()
+                && ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP)) {
+            retainedItems.add(retainedItems.size(), mModel.get(DISMISS_ITEM));
+        }
+        mModel.get(BAR_ITEMS).set(retainedItems);
+        mModel.set(HAS_SUGGESTIONS, barHasSuggestions());
     }
 
     private boolean barHasSuggestions() {
@@ -324,6 +323,7 @@ class KeyboardAccessoryMediator
                 || propertyKey == SHOW_SWIPING_IPH
                 || propertyKey == HAS_SUGGESTIONS
                 || propertyKey == HAS_STICKY_LAST_ITEM
+                || propertyKey == ANIMATE_SUGGESTIONS_FROM_TOP
                 || propertyKey == ANIMATION_LISTENER) {
             return;
         }
@@ -375,6 +375,10 @@ class KeyboardAccessoryMediator
 
     void setHasStickyLastItem(boolean hasStickyLastItem) {
         mModel.set(HAS_STICKY_LAST_ITEM, hasStickyLastItem);
+    }
+
+    void setAnimateSuggestionsFromTop(boolean animateSuggestionsFromTop) {
+        mModel.set(ANIMATE_SUGGESTIONS_FROM_TOP, animateSuggestionsFromTop);
     }
 
     boolean isShown() {

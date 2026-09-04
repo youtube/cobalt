@@ -37,6 +37,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (RTCSdpType)typeForStdString:(const std::string &)string;
 
++ (RTCSdpType)typeForSdpType:(webrtc::SdpType)type;
+
 @end
 
 NS_ASSUME_NONNULL_END

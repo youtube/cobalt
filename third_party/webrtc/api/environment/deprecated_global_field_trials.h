@@ -10,6 +10,7 @@
 #ifndef API_ENVIRONMENT_DEPRECATED_GLOBAL_FIELD_TRIALS_H_
 #define API_ENVIRONMENT_DEPRECATED_GLOBAL_FIELD_TRIALS_H_
 
+#include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -21,6 +22,10 @@ namespace webrtc {
 class DeprecatedGlobalFieldTrials : public FieldTrialsRegistry {
  public:
   static void Set(const char* field_trials);
+
+  std::unique_ptr<FieldTrialsView> CreateCopy() const override {
+    return std::make_unique<DeprecatedGlobalFieldTrials>();
+  }
 
  private:
   std::string GetValue(absl::string_view key) const override;

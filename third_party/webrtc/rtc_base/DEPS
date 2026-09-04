@@ -44,7 +44,4 @@ specific_include_rules = {
   "base64_rust\.cc": [
     "+third_party/rust/chromium_crates_io/vendor/cxx-v1/include/cxx.h",
   ],
-  "random\.cc": [
-    "+absl/random/random.h",
-  ],
 }

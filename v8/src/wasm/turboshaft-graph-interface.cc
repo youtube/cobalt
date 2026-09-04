@@ -26,13 +26,13 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/inlining-tree.h"
 #include "src/wasm/jump-table-assembler.h"
-#include "src/wasm/memory-tracing.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-tracing.h"
 
 namespace v8::internal::wasm {
 
@@ -44,7 +44,6 @@ using compiler::MemoryAccessKind;
 using compiler::Operator;
 using compiler::TrapId;
 using TSBlock = compiler::turboshaft::Block;
-using compiler::turboshaft::BuiltinCallDescriptor;
 using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
 using compiler::turboshaft::ConstantOp;
@@ -83,6 +82,7 @@ using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::WordPtr;
 using compiler::turboshaft::WordRepresentation;
+using compiler::turboshaft::deprecated::BuiltinCallDescriptor;
 
 namespace {
 
@@ -5118,15 +5118,16 @@ class TurboshaftGraphBuildingInterface
     }
   }
 
-  void RefGetDesc(FullDecoder* decoder, const Value& ref_val, Value* result) {
-    const ValueType type = ref_val.type;
-    const StructType* struct_type =
-        decoder->module_->struct_type(type.ref_index());
+  void RefGetDesc(FullDecoder* decoder, ModuleTypeIndex struct_index,
+                  const Value& ref_val, Value* result) {
+    // We need {struct_index} because it's guaranteed to be a valid index of
+    // a type that has a descriptor, whereas {ref_val.type} could be "null".
+    const StructType* struct_type = decoder->module_->struct_type(struct_index);
     result->op = __ StructGet(
-        V<WasmStructNullable>::Cast(ref_val.op), struct_type, type.ref_index(),
+        V<WasmStructNullable>::Cast(ref_val.op), struct_type, struct_index,
         StructGetOp::kDescFieldIndex, true /* "signed" is default */,
-        type.is_nullable() ? compiler::kWithNullCheck
-                           : compiler::kWithoutNullCheck,
+        ref_val.type.is_nullable() ? compiler::kWithNullCheck
+                                   : compiler::kWithoutNullCheck,
         {});
   }
 

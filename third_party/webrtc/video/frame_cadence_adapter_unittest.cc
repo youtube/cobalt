@@ -338,6 +338,45 @@ TEST(FrameCadenceAdapterTest, RepeatsFramesDelayed) {
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
 }
 
+TEST(FrameCadenceAdapterTest, SetsIsRepeatFrameFlag) {
+  MockCallback callback;
+  GlobalSimulatedTimeController time_controller(Timestamp::Millis(47892223));
+  FieldTrials no_field_trials = CreateTestFieldTrials();
+  auto adapter = CreateAdapter(no_field_trials, time_controller.GetClock());
+  adapter->Initialize(&callback);
+  adapter->SetZeroHertzModeEnabled(
+      FrameCadenceAdapterInterface::ZeroHertzModeParams{});
+  adapter->OnConstraintsChanged(
+      VideoTrackSourceConstraints{.min_fps = 0, .max_fps = 1});
+
+  // Send one frame, expect is_repeat_frame to be false.
+  auto frame = CreateFrameWithTimestamps(&time_controller);
+  adapter->OnFrame(frame);
+  EXPECT_CALL(callback, OnFrame)
+      .WillOnce(Invoke([&](Timestamp, bool, const VideoFrame& frame) {
+        EXPECT_FALSE(frame.is_repeat_frame());
+      }));
+  time_controller.AdvanceTime(TimeDelta::Seconds(1));
+  Mock::VerifyAndClearExpectations(&callback);
+
+  // Expect the repeated frame to have is_repeat_frame set to true.
+  EXPECT_CALL(callback, OnFrame)
+      .WillOnce(Invoke([&](Timestamp, bool, const VideoFrame& frame) {
+        EXPECT_TRUE(frame.is_repeat_frame());
+      }));
+  time_controller.AdvanceTime(TimeDelta::Seconds(1));
+  Mock::VerifyAndClearExpectations(&callback);
+
+  // Send a new frame, expect is_repeat_frame to be false again.
+  auto new_frame = CreateFrameWithTimestamps(&time_controller);
+  adapter->OnFrame(new_frame);
+  EXPECT_CALL(callback, OnFrame)
+      .WillOnce(Invoke([&](Timestamp, bool, const VideoFrame& frame) {
+        EXPECT_FALSE(frame.is_repeat_frame());
+      }));
+  time_controller.AdvanceTime(TimeDelta::Seconds(1));
+}
+
 TEST(FrameCadenceAdapterTest,
      RepeatsFramesWithoutTimestampsWithUnsetTimestamps) {
   // Logic in the frame cadence adapter avoids modifying frame NTP and render

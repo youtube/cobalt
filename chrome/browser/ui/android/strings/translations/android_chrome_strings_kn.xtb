@@ -3,6 +3,7 @@
 <translationbundle lang="kn">
 <translation id="1010283278930414892">ಈ ಸಾಧನದಲ್ಲಿ ಯಾವುದೇ ಸೇವ್ ಮಾಡಲಾದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳಿಲ್ಲ</translation>
 <translation id="1011749477052068769">ಇಲ್ಲಿಗೆ ಮೂವ್ ಮಾಡಿ</translation>
+<translation id="1014083013111769343">ರೀಡಿಂಗ್ ಮೋಡ್ ಆದ್ಯತೆಗಳನ್ನು ಪೂರ್ಣ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ</translation>
 <translation id="1014147525163127655">ಈ ಸಾಧನದಲ್ಲಿ <ph name="ORIGIN" /> ಗಾಗಿ ಯಾವುದೇ ಪಾಸ್‌ಕೀಗಳಿಲ್ಲ</translation>
 <translation id="1016498331642356377">ನಿಮ್ಮ ಧ್ವನಿಯ ಮೂಲಕ ತ್ವರಿತವಾಗಿ ಹುಡುಕಿ. ಈ ಶಾರ್ಟ್‌ಕಟ್ ಅನ್ನು ಎಡಿಟ್ ಮಾಡಲು ಸ್ಪರ್ಶಿಸಿ ಮತ್ತು ಒತ್ತಿ ಹಿಡಿಯಿರಿ.</translation>
 <translation id="1028699632127661925"><ph name="DEVICE_NAME" /> ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ...</translation>
@@ -136,7 +137,7 @@
 <translation id="1628019612362412531">{NUM_SELECTED,plural, =1{ಆಯ್ಕೆಮಾಡಲಾದ 1 ಐಟಂ ತೆಗೆದುಹಾಕಿ}one{ಆಯ್ಕೆಮಾಡಲಾದ # ಐಟಂಗಳನ್ನು ತೆಗೆದುಹಾಕಿ}other{ಆಯ್ಕೆಮಾಡಲಾದ # ಐಟಂಗಳನ್ನು ತೆಗೆದುಹಾಕಿ}}</translation>
 <translation id="1639239467298939599">ಲೋಡ್ ಆಗುತ್ತಿದೆ</translation>
 <translation id="1641113438599504367">ಸುರಕ್ಷಿತ ಬ್ರೌಸಿಂಗ್</translation>
-<translation id="164269334534774161">ನೀವು <ph name="CREATION_TIME" /> ದಿನಾಂಕದಿಂದ ಈ ಪುಟದ ಆಫ್‌ಲೈನ್‌ ನಕಲನ್ನು ವೀಕ್ಷಿಸುತ್ತಿರುವಿರಿ</translation>
+<translation id="164269334534774161">ನೀವು <ph name="CREATION_TIME" /> ದಿನಾಂಕದಿಂದ ಈ ಪುಟದ ಆಫ್‌ಲೈನ್‌ ಕಾಪಿಯನ್ನು ವೀಕ್ಷಿಸುತ್ತಿರುವಿರಿ</translation>
 <translation id="1644574205037202324">ಇತಿಹಾಸ</translation>
 <translation id="1645262572857218659"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ಮೂಲಕ ಸೈನ್‌ ಇನ್‌ ಮಾಡಿ</translation>
 <translation id="1671236975893690980">ಡೌನ್‌ಲೋಡ್ ಬಾಕಿ ಉಳಿದಿದೆ...</translation>
@@ -207,6 +208,7 @@
 <translation id="197288927597451399">ಇರಿಸಿ</translation>
 <translation id="1973912524893600642">ಡೇಟಾವನ್ನು ಇರಿಸಿಕೊಳ್ಳಿ</translation>
 <translation id="1974060860693918893">ಸುಧಾರಿತ</translation>
+<translation id="1982274314082047220">ರೀಡಿಂಗ್ ಮೋಡ್, ಆದ್ಯತೆಗಳಿಗಾಗಿ ಮೇಲಕ್ಕೆ ಸ್ವೈಪ್ ಮಾಡಿ</translation>
 <translation id="1984087999855033707">ಫೋನ್ ಸಂಖ್ಯೆ</translation>
 <translation id="1984417487208496350">ಸುರಕ್ಷತೆ ಇಲ್ಲ (ಇದನ್ನು ನಾವು ಶಿಫಾರಸು ಮಾಡುವುದಿಲ್ಲ)</translation>
 <translation id="1986685561493779662">ಹೆಸರು ಈಗಾಗಲೇ ಅಸ್ತಿತ್ವದಲ್ಲಿದೆ</translation>
@@ -307,7 +309,6 @@
 <translation id="2496180316473517155">ಬ್ರೌಸಿಂಗ್ ಇತಿಹಾಸ</translation>
 <translation id="2497852260688568942">ನಿಮ್ಮ ನಿರ್ವಾಹಕರು ಸಿಂಕ್ ಅನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದ್ದಾರೆ</translation>
 <translation id="250020030759455918">ನಿಮ್ಮ <ph name="SITE_NAME" /> ಸೈನ್-ಇನ್ ಸ್ಥಿತಿ, ಬ್ರೌಸಿಂಗ್ ಡೇಟಾ ಮತ್ತು ಸೈಟ್ ಡೇಟಾವನ್ನು Chrome ನಲ್ಲಿ ನೋಡುವಿರಿ</translation>
-<translation id="2502798195266898572">ರೀಡಿಂಗ್ ಮೋಡ್ ಕೆಳಭಾಗದ ಶೀಟ್ ಅನ್ನು ಪೂರ್ಣ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" /> ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗುತ್ತಿದೆ…</translation>
 <translation id="2512234228327349533">ಖರೀದಿ ಆಯ್ಕೆಗಳನ್ನು ಹುಡುಕಿ</translation>
 <translation id="2513403576141822879">ಗೌಪ್ಯತೆ, ಸುರಕ್ಷತೆ ಮತ್ತು ಡೇಟಾ ಸಂಗ್ರಹಕ್ಕೆ ಸಂಬಂಧಿಸಿದ ಹೆಚ್ಚಿನ ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಗಾಗಿ <ph name="BEGIN_LINK" />ಸಿಂಕ್ ಮತ್ತು Google ಸೇವೆಗಳನ್ನು<ph name="END_LINK" /> ನೋಡಿ</translation>
@@ -321,7 +322,7 @@
 <translation id="2532336938189706096">ವೆಬ್ ವೀಕ್ಷಣೆ</translation>
 <translation id="253498598929009420">ಸೈಟ್‌ಗೆ ನಿಮ್ಮ ಸ್ಕ್ರೀನ್‌ ವಿಷಯಗಳನ್ನು ನೋಡಲು ಸಾಧ್ಯವಾಗುತ್ತದೆ</translation>
 <translation id="2535807170289627159">ಎಲ್ಲಾ ಟ್ಯಾಬ್‌ಗಳು</translation>
-<translation id="2536728043171574184">ಈ ಪುಟದ ಆಫ್‌ಲೈನ್ ನಕಲನ್ನು ವೀಕ್ಷಿಸಲಾಗುತ್ತಿದೆ</translation>
+<translation id="2536728043171574184">ಈ ಪುಟದ ಆಫ್‌ಲೈನ್ ಕಾಪಿಯನ್ನು ವೀಕ್ಷಿಸಲಾಗುತ್ತಿದೆ</translation>
 <translation id="2539002604555291451">ಸ್ಯಾನ್ಸ್ ಸೆರಿಫ್</translation>
 <translation id="2542548955756682219"><ph name="TAB_TITLE" />, ಟ್ಯಾಬ್</translation>
 <translation id="2546283357679194313">ಕುಕೀಗಳು ಮತ್ತು ಸೈಟ್ ಡೇಟಾ</translation>
@@ -429,6 +430,7 @@
 <translation id="2992473221983447149">ಚಿತ್ರದ ವಿವರಣೆಗಳು</translation>
 <translation id="2996291259634659425">ಪಾಸ್‌ಫ್ರೇಸ್ ರಚಿಸಿ</translation>
 <translation id="2996809686854298943">URL ಅಗತ್ಯವಿದೆ</translation>
+<translation id="3024215143424744261">ರೀಡಿಂಗ್ ಮೋಡ್ ಆದ್ಯತೆಗಳನ್ನು ಮುಚ್ಚಲಾಗಿದೆ</translation>
 <translation id="3026955690410463085">ಲಿಂಕ್ ಸೇರಿಸಿ</translation>
 <translation id="3027644380269727216">ಸೈಟ್‌ ಒಂದರಲ್ಲಿನ ನಿಮ್ಮ ಚಟುವಟಿಕೆಯನ್ನು ಆಧರಿಸಿ. ಈ ಸೆಟ್ಟಿಂಗ್ ಆನ್ ಆಗಿದೆ.</translation>
 <translation id="3027950907978057636"><ph name="APP_LABEL" /> ನಿಂದ</translation>
@@ -1127,13 +1129,11 @@
 <translation id="6255809143828972562">Chrome ನಲ್ಲಿನ ಟೂಲ್‌ಗಳ ಮೂಲಕ ನೀವು ಸುರಕ್ಷಿತವಾಗಿ ಬ್ರೌಸ್ ಮಾಡಬಹುದು ಮತ್ತು ನಿಯಂತ್ರಣದಲ್ಲಿರಬಹುದು</translation>
 <translation id="6264376385120300461">ಹೇಗಿದ್ದರೂ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ</translation>
 <translation id="6264485186158353794">ಸುರಕ್ಷತೆಗೆ ಹಿಂದಿರುಗಿ</translation>
-<translation id="6267063201726531683">ರೀಡಿಂಗ್ ಮೋಡ್ ಕೆಳಭಾಗದ ಶೀಟ್</translation>
 <translation id="6277522088822131679">ಪುಟವನ್ನು ಮುದ್ರಿಸುವಲ್ಲಿ ಸಮಸ್ಯೆ ಕಂಡುಬಂದಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="6278428485366576908">ಥೀಮ್</translation>
 <translation id="6291294824436685757">ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಅಳಿಸಿ; ಅಳಿಸಲು ಡೇಟಾವನ್ನು ಆಯ್ಕೆಮಾಡಿ</translation>
 <translation id="6295158916970320988">ಎಲ್ಲಾ ಸೈಟ್‌ಗಳು</translation>
 <translation id="629730747756840877">ಖಾತೆ</translation>
-<translation id="6300697579369314762">ರೀಡಿಂಗ್ ಮೋಡ್ ಕೆಳಭಾಗದ ಶೀಟ್ ಅನ್ನು ಅರ್ಧ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ</translation>
 <translation id="6301526076346731664">ಡೆವಲಪರ್ ಟೂಲ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</translation>
 <translation id="6303969859164067831">ಸೈನ್ ಔಟ್ ಮಾಡಿ ಮತ್ತು ಸಿಂಕ್ ಆಫ್ ಮಾಡಿ</translation>
 <translation id="6307241780749477694">ಈ ಸಾಧನದಲ್ಲಿ ನಿಮ್ಮ ಎಲ್ಲಾ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಪಡೆಯುವುದಕ್ಕಾಗಿ ಇದು ನೀವೇ ಎಂಬುದನ್ನು ದೃಢೀಕರಿಸಿ</translation>
@@ -1313,6 +1313,7 @@
 <translation id="696447261358045621">ಅಜ್ಞಾತ ಮೋಡ್‌‌ ಅನ್ನು ತೊರೆಯಿರಿ</translation>
 <translation id="6965382102122355670">ಸರಿ</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{ಹಂಚಿಕೊಂಡ ಟ್ಯಾಬ್ ಗುಂಪುಗಳಲ್ಲಿನ ಹೊಸ ಚಟುವಟಿಕೆಯೊಂದಿಗೆ <ph name="TABS_COUNT_ONE" /> ಟ್ಯಾಬ್ ಅನ್ನು ನೋಡಿ}one{ಹಂಚಿಕೊಂಡ ಟ್ಯಾಬ್ ಗುಂಪುಗಳಲ್ಲಿನ ಹೊಸ ಚಟುವಟಿಕೆಯೊಂದಿಗೆ <ph name="TABS_COUNT_MANY" /> ಟ್ಯಾಬ್‌ಗಳನ್ನು ನೋಡಿ}other{ಹಂಚಿಕೊಂಡ ಟ್ಯಾಬ್ ಗುಂಪುಗಳಲ್ಲಿನ ಹೊಸ ಚಟುವಟಿಕೆಯೊಂದಿಗೆ <ph name="TABS_COUNT_MANY" /> ಟ್ಯಾಬ್‌ಗಳನ್ನು ನೋಡಿ}}</translation>
+<translation id="6971555615916967190">ರೀಡಿಂಗ್ ಮೋಡ್ ಆದ್ಯತೆಗಳನ್ನು ಅರ್ಧ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ</translation>
 <translation id="6971862865055170158">ಅನುಮೋದಿಸಬೇಡಿ</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />, ಹೊಸ ಅಥವಾ ಅಪ್‌ಡೇಟ್‌ ಮಾಡಿದ ಟ್ಯಾಬ್</translation>
 <translation id="6976811588313110624">ಹೊಸ ಶಾರ್ಟ್‌ಕಟ್ ಸೇರಿಸಿ.</translation>
@@ -1352,7 +1353,6 @@
 <translation id="71503698506017927">ಪಾಸ್‌ಫ್ರೇಸ್ ಎನ್‌ಕ್ರಿಪ್ಶನ್ Google Pay ಗೆ ಸಂಬಂಧಿಸಿದ ಪಾವತಿ ವಿಧಾನಗಳು ಮತ್ತು ವಿಳಾಸಗಳನ್ನು ಒಳಗೊಂಡಿರುವುದಿಲ್ಲ.
 
 ಈ ಸೆಟ್ಟಿಂಗ್ ಅನ್ನು ಬದಲಾಯಿಸಲು, <ph name="BEGIN_LINK" />ನಿಮ್ಮ ಖಾತೆಯಲ್ಲಿರುವ Chrome ಡೇಟಾವನ್ನು ಅಳಿಸಿ<ph name="END_LINK" />.</translation>
-<translation id="7151332203500147130">ರೀಡಿಂಗ್ ಮೋಡ್ ಕೆಳಭಾಗದ ಶೀಟ್ ಅನ್ನು ಮುಚ್ಚಲಾಗಿದೆ</translation>
 <translation id="7165972437814027679">Chrome ಕೆಲವು ಫೈಲ್‌ಗಳನ್ನು ಏಕೆ ನಿರ್ಬಂಧಿಸುತ್ತದೆ ಎಂಬುದರ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> ಹೆಸರಿನಲ್ಲಿ ಸೈನ್ ಇನ್ ಮಾಡಲಾಗಿದೆ. ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯುತ್ತದೆ.</translation>
 <translation id="7173114856073700355">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</translation>

@@ -95,6 +95,8 @@ struct AlgorithmInfo {
 static const std::map<std::string, AlgorithmInfo> kAllAlgorithms = {
     {"RSA", {EVP_pkey_rsa(), EVP_PKEY_RSA, true}},
     {"RSA-PSS-SHA-256", {EVP_pkey_rsa_pss_sha256(), EVP_PKEY_RSA_PSS, false}},
+    {"RSA-PSS-SHA-384", {EVP_pkey_rsa_pss_sha384(), EVP_PKEY_RSA_PSS, false}},
+    {"RSA-PSS-SHA-512", {EVP_pkey_rsa_pss_sha512(), EVP_PKEY_RSA_PSS, false}},
     {"EC-P-224", {EVP_pkey_ec_p224(), EVP_PKEY_EC, true}},
     {"EC-P-256", {EVP_pkey_ec_p256(), EVP_PKEY_EC, true}},
     {"EC-P-384", {EVP_pkey_ec_p384(), EVP_PKEY_EC, true}},

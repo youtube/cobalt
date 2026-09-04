@@ -137,7 +137,7 @@ public:
      * Creates a path from arc params using the semantics of SkCanvas::drawArc. This function
      * assumes empty ovals and zero sweeps have already been filtered out.
      */
-    static void CreateDrawArcPath(SkPath* path, const SkArc& arc, bool isFillNoPathEffect);
+    static SkPath CreateDrawArcPath(const SkArc& arc, bool isFillNoPathEffect);
 
     /**
      * Determines whether an arc produced by CreateDrawArcPath will be convex. Assumes a non-empty
@@ -448,7 +448,7 @@ public:
             builder.conicWeights(),
             builder.computeBounds(),
             builder.fillType(),
-            builder.fConvexity == SkPathConvexity::kConvex,
+            SkPathConvexity_IsConvex(builder.fConvexity),
             SkTo<uint8_t>(builder.fSegmentMask),
         };
     }

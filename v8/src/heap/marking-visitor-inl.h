@@ -353,7 +353,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
           JSFunction::kDispatchHandleOffset));
   if (handle != kNullJSDispatchHandle) {
     Tagged<HeapObject> obj =
-        IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
+        IsolateGroup::current()->js_dispatch_table()->GetCodeForGC(handle);
     // TODO(saelo): maybe factor out common code with VisitIndirectPointer
     // into a helper routine?
     SynchronizePageAccess(obj);
@@ -651,7 +651,8 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     Tagged<HeapObject> key = Cast<HeapObject>(table->KeyAt(i, kRelaxedLoad));
 
     SynchronizePageAccess(key);
-    concrete_visitor()->RecordSlot(table, key_slot, key);
+    concrete_visitor()->template RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(
+        table, key_slot, key);
     concrete_visitor()->AddWeakReferenceForReferenceSummarizer(table, key);
 
     ObjectSlot value_slot =

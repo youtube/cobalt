@@ -364,7 +364,13 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyPageIndex) {
           "runMochaSuite('PrivacyPageIndex Main')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyPageIndexSiteSettings) {
+// TODO(crbug.com/444408606): Tests take too long to run in Linux dbg bots.
+#if (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
+#define MAYBE_PrivacyPageIndexSiteSettings DISABLED_PrivacyPageIndexSiteSettings
+#else
+#define MAYBE_PrivacyPageIndexSiteSettings PrivacyPageIndexSiteSettings
+#endif  // BUILDFLAG(IS_LINUX)
+IN_PROC_BROWSER_TEST_F(SettingsTest, MAYBE_PrivacyPageIndexSiteSettings) {
   RunTest("settings/privacy_page_index_test.js",
           "runMochaSuite('PrivacyPageIndex SiteSettings')");
 }
@@ -1310,12 +1316,6 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyPageTest,
                        DISABLED_HappinessTrackingSurveys) {
   RunTest("settings/privacy_page_test.js",
           "runMochaSuite('HappinessTrackingSurveys')");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsPrivacyPageTest,
-                       EnableWebBluetoothNewPermissionsBackend) {
-  RunTest("settings/privacy_page_test.js",
-          "runMochaSuite('EnableWebBluetoothNewPermissionsBackend')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsPrivacyPageTest,

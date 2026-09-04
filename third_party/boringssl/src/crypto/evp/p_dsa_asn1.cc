@@ -235,10 +235,7 @@ const EVP_PKEY_ASN1_METHOD dsa_asn1_meth = {
 };
 
 const EVP_PKEY_ALG *EVP_pkey_dsa(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&dsa_asn1_meth,
-      /*ec_group=*/nullptr,
-  };
+  static const EVP_PKEY_ALG kAlg = {&dsa_asn1_meth};
   return &kAlg;
 }
 

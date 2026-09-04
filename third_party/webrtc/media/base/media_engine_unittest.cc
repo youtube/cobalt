@@ -40,7 +40,7 @@ class MockRtpHeaderExtensionQueryInterface
  public:
   MOCK_METHOD(std::vector<RtpHeaderExtensionCapability>,
               GetRtpHeaderExtensions,
-              (),
+              (const FieldTrialsView*),
               (const, override));
 };
 
@@ -60,7 +60,7 @@ TEST(MediaEngineTest, ReturnsNotStoppedHeaderExtensions) {
        RtpHeaderExtensionCapability("uri5", 5,
                                     RtpTransceiverDirection::kRecvOnly)});
   EXPECT_CALL(mock, GetRtpHeaderExtensions).WillOnce(Return(extensions));
-  EXPECT_THAT(GetDefaultEnabledRtpHeaderExtensions(mock),
+  EXPECT_THAT(GetDefaultEnabledRtpHeaderExtensions(mock, nullptr),
               ElementsAre(Field(&RtpExtension::uri, StrEq("uri1")),
                           Field(&RtpExtension::uri, StrEq("uri2")),
                           Field(&RtpExtension::uri, StrEq("uri4")),
@@ -74,7 +74,7 @@ class MostlyMockVoiceEngineInterface : public VoiceEngineInterface {
  public:
   MOCK_METHOD(std::vector<RtpHeaderExtensionCapability>,
               GetRtpHeaderExtensions,
-              (),
+              (const FieldTrialsView*),
               (const, override));
   MOCK_METHOD(void, Init, (), (override));
   MOCK_METHOD(scoped_refptr<AudioState>, GetAudioState, (), (const, override));

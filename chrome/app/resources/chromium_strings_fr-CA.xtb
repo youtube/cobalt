@@ -97,6 +97,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="2185166961232948079">Chromium – Connexion au réseau – <ph name="PAGE_TITLE" /></translation>
 <translation id="2190166659037789668">Erreur de vérification de la mise à jour : <ph name="UPDATE_CHECK_ERROR" />.</translation>
 <translation id="2199210295479376551">Retirer le compte de Chromium</translation>
+<translation id="2210502920229141283">Restez en sécurité lorsque vous êtes en déplacement grâce à la navigation sécurisée améliorée sur Chromium pour iOS</translation>
 <translation id="2210682093923538346">Site dangereux. Chromium a supprimé les notifications.</translation>
 <translation id="2236949375853147973">Mon activité</translation>
 <translation id="2238130810669087193">Pour obtenir vos adresses et bien plus encore sur tous vos appareils, connectez-vous à Chromium. Cette adresse sera enregistrée dans votre compte Google après votre connexion.</translation>
@@ -105,6 +106,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="2307973900865360088">Garder dans le Dock</translation>
 <translation id="2313870531055795960">Il vérifie les URL en fonction d'une liste de sites non sécuritaires stockée dans Chromium. Si un site tente de voler votre mot de passe ou si vous téléchargez un fichier dangereux, Chromium peut également envoyer les URL concernées, y compris des extraits du contenu de pages, à la navigation sécurisée.</translation>
 <translation id="2343156876103232566">Pour envoyer un numéro d'ici vers votre téléphone Android, connectez-vous à Chromium sur vos deux appareils.</translation>
+<translation id="2356070529366658676">Demander</translation>
 <translation id="2359808026110333948">Continuer</translation>
 <translation id="2361918034042471035">L'extension « <ph name="EXTENSION_NAME" /> » souhaite que vous vous connectiez à Chromium</translation>
 <translation id="236943522426971115">Désactiver l'exécution de Chromium en arrière-plan pour les applis</translation>
@@ -155,6 +157,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="2928420929544864228">Installation terminée.</translation>
 <translation id="2933336679234709858">Vos données sont chiffrées avec votre phrase de passe. Entrez-la pour utiliser et enregistrer les données Chromium dans votre compte Google.</translation>
 <translation id="2945997411976714835">Erreur d'installation : le processus d'installation n'a pas pu démarrer.</translation>
+<translation id="2948852018303413228">Connectez-vous plus rapidement aux sites à l'aide des mots de passe enregistrés pour Chromium sur iOS</translation>
 <translation id="2970426615109535079">Votre organisation gère Chromium</translation>
 <translation id="2977470724722393594">Chromium est à jour</translation>
 <translation id="2977506796191543575">Si un site tente de voler votre mot de passe ou si vous téléchargez un fichier dangereux, Chromium peut également envoyer les URL concernées, y compris des extraits du contenu de pages, à la navigation sécurisée</translation>
@@ -179,6 +182,9 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="3155163173539279776">Relancer Chromium</translation>
 <translation id="3161522574479303604">Toutes les langues</translation>
 <translation id="3179665906251668410">Ouvrir le lien dans une fenêtre de navi&amp;gation privée Chromium</translation>
+<translation id="3183357154200327217">Un autre programme sur votre ordinateur a ajouté un thème qui pourrait modifier le fonctionnement de Chromium.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="3185330573522821672">Personnaliser votre nouveau profil Chromium</translation>
 <translation id="3224847870593914902">Pour retirer votre compte Google de Chromium, déconnectez-vous de Chromium sur la page Paramètres</translation>
 <translation id="3234316605225071811">Plus tard, Chromium pourrait vous demander si vous voulez utiliser les renseignements enregistrés pour remplir automatiquement les formulaires à votre place.</translation>
@@ -243,6 +249,9 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="4036079820698952681">Aidez-nous à améliorer Chromium en nous signalant les <ph name="BEGIN_LINK" />paramètres actuels<ph name="END_LINK" /></translation>
 <translation id="4050175100176540509">La dernière version propose d'importantes améliorations de la sécurité ainsi que de nouvelles fonctionnalités.</translation>
 <translation id="4055805654398742145">Gestionnaire de mots de passe</translation>
+<translation id="4061696872429826774">Un autre programme sur votre ordinateur a ajouté une extension qui pourrait modifier le fonctionnement de Chromium.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="4095980151185649725">{COUNT,plural, =1{Votre organisation ferme automatiquement Chromium lorsqu'il n'est pas utilisé pendant 1 minute. Les données de navigation sont supprimées. Cela peut inclure l'historique, le remplissage automatique et les téléchargements.}one{Votre organisation ferme automatiquement Chromium lorsqu'il n'est pas utilisé pendant # minutes. Les données de navigation sont supprimées. Cela peut inclure l'historique, le remplissage automatique et les téléchargements.}other{Votre organisation ferme automatiquement Chromium lorsqu'il n'est pas utilisé pendant # minutes. Les données de navigation sont supprimées. Cela peut inclure l'historique, le remplissage automatique et les téléchargements.}}</translation>
 <translation id="4118474109249235144">Navigation privée Chromium</translation>
 <translation id="4122186850977583290">Accéder à la page À propos de Chromium</translation>
@@ -402,6 +411,9 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="6174920971222007286">Ce fichier peut être dangereux<ph name="LINE_BREAK" />Chromium peut vérifier ce téléchargement pour vous si vous fournissez le mot de passe. Les informations sur le fichier sont envoyées à la Navigation sécurisée Google, mais le contenu du fichier et le mot de passe restent sur votre appareil.</translation>
 <translation id="6182736845697986886">Échec de l'installation en raison d'une erreur interne du serveur de mise à jour.</translation>
 <translation id="6183079672144801177">Assurez-vous d'être connecté à Chromium sur votre <ph name="TARGET_DEVICE_NAME" />, puis essayez de l'envoyer à nouveau.</translation>
+<translation id="6204922163963157461">Un autre programme sur votre ordinateur a ajouté une appli qui pourrait modifier le fonctionnement de Chromium.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6212496753309875659">Cet ordinateur dispose déjà d'une version plus récente de Chromium. Si le logiciel ne fonctionne pas, veuillez le désinstaller, puis réessayer.</translation>
 <translation id="6219195342503754812">{0,plural, =0{Chromium va redémarrer maintenant}=1{Chromium redémarrera dans 1 seconde}one{Chromium redémarrera dans # seconde}other{Chromium redémarrera dans # secondes}}</translation>
 <translation id="6239161312595354541">Poser des questions à la recherche d'images à propos de cette vidéo</translation>
@@ -551,6 +563,7 @@ Chromium est incapable de récupérer vos paramètres.</translation>
 <translation id="7888981273428720788">Définir Chromium comme navigateur par défaut</translation>
 <translation id="7934340546140346950">Chromium met automatiquement à niveau les connexions non sécurisées vers HTTPS lorsque cela est possible</translation>
 <translation id="7937630085815544518">Vous étiez connecté à Chromium en tant que <ph name="USER_EMAIL_ADDRESS" />. Veuillez utiliser le même compte pour vous reconnecter.</translation>
+<translation id="7953047982688951904">Téléchargez Chromium sur votre téléphone pour ajouter une couche de protection supplémentaire lorsque vous êtes en déplacement</translation>
 <translation id="7975919845073681630">Cette installation de Chromium est secondaire. Celui-ci ne peut donc pas servir de navigateur par défaut.</translation>
 <translation id="7997934263947464652">Les extensions, les applications et les thèmes provenant de sources inconnues peuvent endommager votre appareil. Chromium recommande de les installer uniquement à partir de <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="8004582292198964060">Navigateur</translation>

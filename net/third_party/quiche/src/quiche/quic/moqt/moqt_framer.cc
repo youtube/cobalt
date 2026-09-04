@@ -220,7 +220,10 @@ void SessionParametersToKeyValuePairList(
   if (!parameters.using_webtrans &&
       parameters.perspective == quic::Perspective::IS_CLIENT) {
     out.insert(SetupParameter::kPath, parameters.path);
+    out.insert(SetupParameter::kAuthority, parameters.authority);
   }
+  out.insert(SetupParameter::kMoqtImplementation,
+             parameters.moqt_implementation);
   if (parameters.max_request_id > 0) {
     out.insert(SetupParameter::kMaxRequestId, parameters.max_request_id);
   }
@@ -270,12 +273,13 @@ void VersionSpecificParametersToKeyValuePairList(
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     const MoqtObject& message, MoqtDataStreamType message_type,
-    bool is_first_in_stream) {
+    std::optional<uint64_t> previous_object_in_stream) {
   if (!ValidateObjectMetadata(message, /*is_datagram=*/false)) {
     QUICHE_BUG(QUICHE_BUG_serialize_object_header_01)
         << "Object metadata is invalid";
     return quiche::QuicheBuffer();
   }
+  bool is_first_in_stream = !previous_object_in_stream.has_value();
   // Not all fields will be written to the wire. Keep optional ones in
   // std::optional so that they can be excluded.
   // Three fields are always optional.
@@ -300,11 +304,23 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
         WireVarInt62(message.payload_length),
         WireOptional<WireVarInt62>(object_status));
   }
+  if (previous_object_in_stream.has_value() &&
+      message.object_id <= *previous_object_in_stream) {
+    QUICHE_BUG(QUICHE_BUG_serialize_object_header_02)
+        << "Object ID is not increasing";
+    return quiche::QuicheBuffer();
+  }
   // Subgroup headers have more optional fields.
   QUICHE_CHECK(message_type.IsSubgroup());
   std::optional<uint64_t> group_id =
-      is_first_in_stream ? std::optional<uint64_t>(message.group_id)
-                         : std::nullopt;
+      previous_object_in_stream.has_value()
+          ? std::nullopt
+          : std::optional<uint64_t>(message.group_id);
+  uint64_t object_id = message.object_id;
+  if (!is_first_in_stream) {
+    // The value is actually an object ID delta, not the absolute object ID.
+    object_id -= (*previous_object_in_stream + 1);
+  }
   std::optional<uint64_t> subgroup_id =
       (is_first_in_stream && message_type.IsSubgroupPresent())
           ? std::optional<uint64_t>(message.subgroup_id)
@@ -321,8 +337,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
       WireOptional<WireVarInt62>(track_alias),
       WireOptional<WireVarInt62>(group_id),
       WireOptional<WireVarInt62>(subgroup_id),
-      WireOptional<WireUint8>(publisher_priority),
-      WireVarInt62(message.object_id),
+      WireOptional<WireUint8>(publisher_priority), WireVarInt62(object_id),
       WireOptional<WireStringWithVarInt62Length>(extension_headers),
       WireVarInt62(message.payload_length),
       WireOptional<WireVarInt62>(object_status));
@@ -341,9 +356,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
     return quiche::QuicheBuffer();
   }
   MoqtDatagramType datagram_type(
-      /*has_status=*/payload.empty(), !message.extension_headers.empty(),
-      !payload.empty() &&
-          message.object_status == MoqtObjectStatus::kEndOfGroup);
+      !payload.empty(), !message.extension_headers.empty(),
+      message.object_status == MoqtObjectStatus::kEndOfGroup,
+      message.object_id == 0);
+  std::optional<uint64_t> object_id =
+      datagram_type.has_object_id() ? std::optional<uint64_t>(message.object_id)
+                                    : std::nullopt;
   std::optional<absl::string_view> extensions =
       datagram_type.has_extension()
           ? std::optional<absl::string_view>(message.extension_headers)
@@ -357,7 +375,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
                       : std::optional<absl::string_view>(payload);
   return Serialize(
       WireVarInt62(datagram_type.value()), WireVarInt62(message.track_alias),
-      WireVarInt62(message.group_id), WireVarInt62(message.object_id),
+      WireVarInt62(message.group_id), WireOptional<WireVarInt62>(object_id),
       WireUint8(message.publisher_priority),
       WireOptional<WireStringWithVarInt62Length>(extensions),
       WireOptional<WireVarInt62>(object_status),
@@ -486,10 +504,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribe(
                                  WireVarInt62(message.request_id));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeSubscribeDone(
-    const MoqtSubscribeDone& message) {
+quiche::QuicheBuffer MoqtFramer::SerializePublishDone(
+    const MoqtPublishDone& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kSubscribeDone, WireVarInt62(message.request_id),
+      MoqtMessageType::kPublishDone, WireVarInt62(message.request_id),
       WireVarInt62(message.status_code), WireVarInt62(message.stream_count),
       WireStringWithVarInt62Length(message.error_reason));
 }
@@ -513,46 +531,46 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
       WireBoolean(message.forward), WireKeyValuePairList(parameters));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeAnnounce(
-    const MoqtAnnounce& message) {
+quiche::QuicheBuffer MoqtFramer::SerializePublishNamespace(
+    const MoqtPublishNamespace& message) {
   KeyValuePairList parameters;
   VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
   if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kAnnounce)) {
+                                         MoqtMessageType::kPublishNamespace)) {
     QUICHE_BUG(QUICHE_BUG_invalid_parameters)
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
   }
-  return SerializeControlMessage(MoqtMessageType::kAnnounce,
+  return SerializeControlMessage(MoqtMessageType::kPublishNamespace,
                                  WireVarInt62(message.request_id),
                                  WireTrackNamespace(message.track_namespace),
                                  WireKeyValuePairList(parameters));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeAnnounceOk(
-    const MoqtAnnounceOk& message) {
-  return SerializeControlMessage(MoqtMessageType::kAnnounceOk,
+quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceOk(
+    const MoqtPublishNamespaceOk& message) {
+  return SerializeControlMessage(MoqtMessageType::kPublishNamespaceOk,
                                  WireVarInt62(message.request_id));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeAnnounceError(
-    const MoqtAnnounceError& message) {
+quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceError(
+    const MoqtPublishNamespaceError& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kAnnounceError, WireVarInt62(message.request_id),
+      MoqtMessageType::kPublishNamespaceError, WireVarInt62(message.request_id),
       WireVarInt62(message.error_code),
       WireStringWithVarInt62Length(message.error_reason));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeUnannounce(
-    const MoqtUnannounce& message) {
-  return SerializeControlMessage(MoqtMessageType::kUnannounce,
+quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceDone(
+    const MoqtPublishNamespaceDone& message) {
+  return SerializeControlMessage(MoqtMessageType::kPublishNamespaceDone,
                                  WireTrackNamespace(message.track_namespace));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeAnnounceCancel(
-    const MoqtAnnounceCancel& message) {
+quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceCancel(
+    const MoqtPublishNamespaceCancel& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kAnnounceCancel,
+      MoqtMessageType::kPublishNamespaceCancel,
       WireTrackNamespace(message.track_namespace),
       WireVarInt62(message.error_code),
       WireStringWithVarInt62Length(message.error_reason));

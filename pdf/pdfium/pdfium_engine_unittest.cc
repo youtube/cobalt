@@ -15,6 +15,7 @@
 #include "base/functional/callback.h"
 #include "base/hash/md5.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_move_support.h"
@@ -78,6 +79,9 @@ using ::testing::Pair;
 using ::testing::Return;
 using ::testing::StrictMock;
 
+constexpr char kSelectTextExpectedText[] =
+    "Hello, world!\nGoodbye, world!\nHello, world!\nGoodbye, world!";
+
 MATCHER_P2(LayoutWithSize, width, height, "") {
   return arg.size() == gfx::Size(width, height);
 }
@@ -112,6 +116,14 @@ blink::WebMouseEvent CreateMoveWebMouseEventToPosition(
       .SetType(blink::WebInputEvent::Type::kMouseMove)
       .SetPosition(position)
       .Build();
+}
+
+std::string GetPlatformTextExpectation(std::string expectation) {
+#if BUILDFLAG(IS_WIN)
+  base::ReplaceSubstringsAfterOffset(&expectation, /*start_offset=*/0, "\n",
+                                     "\r\n");
+#endif
+  return expectation;
 }
 
 class MockTestClient : public TestClient {
@@ -789,368 +801,6 @@ TEST_P(PDFiumEngineTest, HandleInputEventRawKeyDown) {
   EXPECT_TRUE(engine->HandleInputEvent(raw_key_down_event));
 }
 
-namespace {
-#if BUILDFLAG(IS_WIN)
-constexpr char kSelectTextExpectedText[] =
-    "Hello, world!\r\nGoodbye, world!\r\nHello, world!\r\nGoodbye, world!";
-#else
-constexpr char kSelectTextExpectedText[] =
-    "Hello, world!\nGoodbye, world!\nHello, world!\nGoodbye, world!";
-#endif
-}  // namespace
-
-TEST_P(PDFiumEngineTest, SelectText) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  EXPECT_TRUE(engine->HasPermission(DocumentPermission::kCopy));
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  engine->SelectAll();
-  EXPECT_EQ(kSelectTextExpectedText, engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextBackwards) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kSecondPageBeginPosition(100, 420);
-  constexpr gfx::PointF kFirstPageEndPosition(100, 120);
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateLeftClickWebMouseEventAtPosition(kSecondPageBeginPosition)));
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateMoveWebMouseEventToPosition(kFirstPageEndPosition)));
-
-#if BUILDFLAG(IS_WIN)
-  constexpr char kExpectedText[] = "bye, world!\r\nHello, world!\r\nGoodby";
-#else
-  constexpr char kExpectedText[] = "bye, world!\nHello, world!\nGoodby";
-#endif
-  EXPECT_EQ(kExpectedText, engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithCopyRestriction) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine = InitializeEngine(
-      &client, FILE_PATH_LITERAL("hello_world2_with_copy_restriction.pdf"));
-  ASSERT_TRUE(engine);
-
-  EXPECT_FALSE(engine->HasPermission(DocumentPermission::kCopy));
-
-  // The copy restriction should not affect the text selection hehavior.
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  engine->SelectAll();
-  EXPECT_EQ(kSelectTextExpectedText, engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectCroppedText) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world_cropped.pdf"));
-  ASSERT_TRUE(engine);
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  engine->SelectAll();
-#if BUILDFLAG(IS_WIN)
-  constexpr char kExpectedText[] = "world!\r\n";
-#else
-  constexpr char kExpectedText[] = "world!\n";
-#endif
-  EXPECT_EQ(kExpectedText, engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithDoubleClick) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kPosition(100, 120);
-  SimulateMultiClick(*engine, kPosition, 2);
-  EXPECT_EQ("Goodbye", engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithTripleClick) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kPosition(100, 120);
-  SimulateMultiClick(*engine, kPosition, 3);
-  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithFourClicks) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kPosition(100, 120);
-  SimulateMultiClick(*engine, kPosition, 4);
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-#else
-  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
-#endif
-}
-
-TEST_P(PDFiumEngineTest, SelectTextFiveClicks) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kPosition(100, 120);
-  SimulateMultiClick(*engine, kPosition, 5);
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ("Goodbye", engine->GetSelectedText());
-#else
-  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
-#endif
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithSixClicks) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kPosition(100, 120);
-  SimulateMultiClick(*engine, kPosition, 6);
-  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithMouse) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kStartPosition(50, 110);
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateLeftClickWebMouseEventAtPosition(kStartPosition)));
-
-  constexpr gfx::PointF kEndPosition(100, 110);
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateMoveWebMouseEventToPosition(kEndPosition)));
-
-  EXPECT_EQ("Goodb", engine->GetSelectedText());
-}
-
-#if BUILDFLAG(IS_MAC)
-TEST_P(PDFiumEngineTest, CtrlLeftClickShouldNotSelectTextOnMac) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  // In https://crbug.com/339681892, these are the events PDFiumEngine sees.
-  constexpr gfx::PointF kStartPosition(50, 110);
-  MouseEventBuilder builder;
-  builder.CreateLeftClickAtPosition(kStartPosition)
-      .SetModifiers(blink::WebInputEvent::Modifiers::kControlKey);
-  EXPECT_FALSE(engine->HandleInputEvent(builder.Build()));
-
-  constexpr gfx::PointF kEndPosition(100, 110);
-  EXPECT_FALSE(engine->HandleInputEvent(
-      CreateMoveWebMouseEventToPosition(kEndPosition)));
-
-  EXPECT_EQ("", engine->GetSelectedText());
-}
-#else
-TEST_P(PDFiumEngineTest, CtrlLeftClickSelectTextOnNonMac) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kStartPosition(50, 110);
-  MouseEventBuilder builder;
-  builder.CreateLeftClickAtPosition(kStartPosition)
-      .SetModifiers(blink::WebInputEvent::Modifiers::kControlKey);
-  EXPECT_TRUE(engine->HandleInputEvent(builder.Build()));
-
-  constexpr gfx::PointF kEndPosition(100, 110);
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateMoveWebMouseEventToPosition(kEndPosition)));
-
-  EXPECT_EQ("Goodb", engine->GetSelectedText());
-}
-#endif  // BUILDFLAG(IS_MAC)
-
-TEST_P(PDFiumEngineTest, SelectLinkAreaWithNoText) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("link_annots.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  constexpr gfx::PointF kStartPosition(90, 120);
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateLeftClickWebMouseEventAtPosition(kStartPosition)));
-
-  constexpr gfx::PointF kMiddlePosition(100, 230);
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateMoveWebMouseEventToPosition(kMiddlePosition)));
-
-#if BUILDFLAG(IS_WIN)
-  constexpr char kExpectedText[] = "Link Annotations - Page 1\r\nL";
-#else
-  constexpr char kExpectedText[] = "Link Annotations - Page 1\nL";
-#endif
-  EXPECT_EQ(kExpectedText, engine->GetSelectedText());
-
-  constexpr gfx::PointF kEndPosition(430, 230);
-  EXPECT_FALSE(engine->HandleInputEvent(
-      CreateMoveWebMouseEventToPosition(kEndPosition)));
-
-  // This is still `kExpectedText` because of the unit test's uncanny ability to
-  // move the mouse to `kEndPosition` in one move.
-  EXPECT_EQ(kExpectedText, engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextAcrossEmptyPage) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine = InitializeEngine(
-      &client, FILE_PATH_LITERAL("multi_page_hello_world_with_empty_page.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  static constexpr gfx::PointF kStartPosition(80, 200);
-  static constexpr gfx::PointF kEndPosition(95, 765);
-
-  // Forward selection.
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateLeftClickWebMouseEventAtPosition(kStartPosition)));
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateMoveWebMouseEventToPosition(kEndPosition)));
-#if BUILDFLAG(IS_WIN)
-  static constexpr char kExpectedForwardSelection[] = "world!\r\nGoodbye,";
-#else
-  static constexpr char kExpectedForwardSelection[] = "world!\nGoodbye,";
-#endif
-  EXPECT_EQ(kExpectedForwardSelection, engine->GetSelectedText());
-
-  // Backward selection.
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateLeftClickWebMouseEventAtPosition(kEndPosition)));
-  EXPECT_TRUE(engine->HandleInputEvent(
-      CreateMoveWebMouseEventToPosition(kStartPosition)));
-#if BUILDFLAG(IS_WIN)
-  static constexpr char kExpectedBackwardSelection[] = "world!\r\nGoodbye,";
-#else
-  static constexpr char kExpectedBackwardSelection[] = "world!\nGoodbye,";
-#endif
-  EXPECT_EQ(kExpectedBackwardSelection, engine->GetSelectedText());
-
-  // Select all.
-  engine->SelectAll();
-#if BUILDFLAG(IS_WIN)
-  static constexpr char kExpectedAllSelection[] =
-      "Hello, world!\r\nGoodbye, world!";
-#else
-  static constexpr char kExpectedAllSelection[] =
-      "Hello, world!\nGoodbye, world!";
-#endif
-  EXPECT_EQ(kExpectedAllSelection, engine->GetSelectedText());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithDoubleClickOnEmptyPage) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  constexpr gfx::PointF kPosition(100, 100);
-  EXPECT_TRUE(engine->HandleInputEvent(MouseEventBuilder()
-                                           .CreateLeftClickAtPosition(kPosition)
-                                           .SetClickCount(2)
-                                           .Build()));
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithDoubleClickAtEndOfPage) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  constexpr gfx::PointF kPosition(195, 130);
-  EXPECT_TRUE(engine->HandleInputEvent(MouseEventBuilder()
-                                           .CreateLeftClickAtPosition(kPosition)
-                                           .SetClickCount(2)
-                                           .Build()));
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-}
-
 TEST_P(PDFiumEngineTest, GetPageText) {
   TestClient client;
   std::unique_ptr<PDFiumEngine> engine =
@@ -1198,18 +848,6 @@ TEST_P(PDFiumEngineTest, LinkDisabledInPrintPreview) {
       CreateLeftClickWebMouseEventAtPosition(kMiddlePosition)));
   EXPECT_FALSE(engine->HandleInputEvent(
       CreateLeftClickWebMouseUpEventAtPosition(kMiddlePosition)));
-}
-
-TEST_P(PDFiumEngineTest, SelectTextWithNonPrintableCharacter) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("bug_1357385.pdf"));
-  ASSERT_TRUE(engine);
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  engine->SelectAll();
-  EXPECT_EQ("Hello, world!", engine->GetSelectedText());
 }
 
 TEST_P(PDFiumEngineTest, RotateAfterSelectedText) {
@@ -1289,26 +927,6 @@ TEST_P(PDFiumEngineTest, SetFormHighlight) {
   EXPECT_CALL(client, FormFieldFocusChange(
                           PDFiumEngineClient::FocusFieldType::kNoFocus));
   engine->SetFormHighlight(false);
-}
-
-TEST_P(PDFiumEngineTest, ClearTextSelection) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
-  ASSERT_TRUE(engine);
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-
-  // Update the plugin size so that all the text is visible by
-  // `SelectionChangeInvalidator`.
-  engine->PluginSizeUpdated({500, 500});
-
-  // Select text.
-  engine->SelectAll();
-  EXPECT_EQ(kSelectTextExpectedText, engine->GetSelectedText());
-
-  // Clear selected text.
-  engine->ClearTextSelection();
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
 }
 
 TEST_P(PDFiumEngineTest, GetScreenRectsForCaret) {
@@ -1394,6 +1012,370 @@ TEST_P(PDFiumEngineTest, IsSynthesizedNewline) {
 }
 
 INSTANTIATE_TEST_SUITE_P(All, PDFiumEngineTest, testing::Bool());
+
+class PDFiumEngineSelectionTest : public PDFiumEngineTest {
+ public:
+  static constexpr gfx::PointF kHelloWorldStartPosition{35.0f, 110.0f};
+  static constexpr gfx::PointF kHelloWorldEndPosition{100.0f, 110.0f};
+
+  void TearDown() override {
+    // Reset `engine_` before PDFium gets uninitialized.
+    engine_.reset();
+    PDFiumEngineTest::TearDown();
+  }
+
+  [[nodiscard]] PDFiumEngine* CreateEngine(
+      const base::FilePath::CharType* test_filename) {
+    engine_ = InitializeEngine(&client_, test_filename);
+    if (engine_) {
+      // Plugin size chosen so all pages of the document are visible.
+      engine_->PluginSizeUpdated({1024, 4096});
+
+      EXPECT_THAT(engine_->GetSelectedText(), IsEmpty());
+    }
+    return engine_.get();
+  }
+
+  // Select from `point1` to `point2` and then select in the reverse order.
+  // Only returns one of the two selection results since they should be the
+  // same.
+  std::string DoForwardBackwardSelections(const gfx::PointF& point1,
+                                          const gfx::PointF& point2) {
+    EXPECT_TRUE(engine_->HandleInputEvent(
+        CreateLeftClickWebMouseEventAtPosition(point1)));
+    EXPECT_TRUE(
+        engine_->HandleInputEvent(CreateMoveWebMouseEventToPosition(point2)));
+    std::string direction1_text = engine_->GetSelectedText();
+
+    EXPECT_TRUE(engine_->HandleInputEvent(
+        CreateLeftClickWebMouseEventAtPosition(point2)));
+    EXPECT_TRUE(
+        engine_->HandleInputEvent(CreateMoveWebMouseEventToPosition(point1)));
+    std::string direction2_text = engine_->GetSelectedText();
+    EXPECT_EQ(direction1_text, direction2_text);
+    return direction1_text;
+  }
+
+ private:
+  std::unique_ptr<PDFiumEngine> engine_;
+  TestClient client_;
+};
+
+TEST_P(PDFiumEngineSelectionTest, SelectText) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  EXPECT_TRUE(engine->HasPermission(DocumentPermission::kCopy));
+
+  engine->SelectAll();
+  EXPECT_EQ(GetPlatformTextExpectation(kSelectTextExpectedText),
+            engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextBackwards) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kSecondPageBeginPosition(105, 420);
+  constexpr gfx::PointF kFirstPageEndPosition(85, 120);
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateLeftClickWebMouseEventAtPosition(kSecondPageBeginPosition)));
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateMoveWebMouseEventToPosition(kFirstPageEndPosition)));
+
+  constexpr char kExpectedText[] = "bye, world!\nHello, world!\nGoodby";
+  EXPECT_EQ(GetPlatformTextExpectation(kExpectedText),
+            engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithCopyRestriction) {
+  PDFiumEngine* engine =
+      CreateEngine(FILE_PATH_LITERAL("hello_world2_with_copy_restriction.pdf"));
+  ASSERT_TRUE(engine);
+
+  // The copy restriction should not affect the text selection hehavior.
+  EXPECT_FALSE(engine->HasPermission(DocumentPermission::kCopy));
+
+  engine->SelectAll();
+  EXPECT_EQ(GetPlatformTextExpectation(kSelectTextExpectedText),
+            engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectCroppedText) {
+  PDFiumEngine* engine =
+      CreateEngine(FILE_PATH_LITERAL("hello_world_cropped.pdf"));
+  ASSERT_TRUE(engine);
+
+  engine->SelectAll();
+  constexpr char kExpectedText[] = "world!\n";
+  EXPECT_EQ(GetPlatformTextExpectation(kExpectedText),
+            engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithDoubleClick) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kPosition(100, 120);
+  SimulateMultiClick(*engine, kPosition, 2);
+  EXPECT_EQ("Goodbye", engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithTripleClick) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kPosition(100, 120);
+  SimulateMultiClick(*engine, kPosition, 3);
+  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithFourClicks) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kPosition(100, 120);
+  SimulateMultiClick(*engine, kPosition, 4);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+#else
+  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
+#endif
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextFiveClicks) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kPosition(100, 120);
+  SimulateMultiClick(*engine, kPosition, 5);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  EXPECT_EQ("Goodbye", engine->GetSelectedText());
+#else
+  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
+#endif
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithSixClicks) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kPosition(100, 120);
+  SimulateMultiClick(*engine, kPosition, 6);
+  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithMouse) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateLeftClickWebMouseEventAtPosition(kHelloWorldStartPosition)));
+
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateMoveWebMouseEventToPosition(kHelloWorldEndPosition)));
+
+  EXPECT_EQ("Goodb", engine->GetSelectedText());
+}
+
+#if BUILDFLAG(IS_MAC)
+TEST_P(PDFiumEngineSelectionTest, CtrlLeftClickShouldNotSelectTextOnMac) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  // In https://crbug.com/339681892, these are the events PDFiumEngine sees.
+  MouseEventBuilder builder;
+  builder.CreateLeftClickAtPosition(kHelloWorldStartPosition)
+      .SetModifiers(blink::WebInputEvent::Modifiers::kControlKey);
+  EXPECT_FALSE(engine->HandleInputEvent(builder.Build()));
+
+  EXPECT_FALSE(engine->HandleInputEvent(
+      CreateMoveWebMouseEventToPosition(kHelloWorldEndPosition)));
+
+  EXPECT_EQ("", engine->GetSelectedText());
+}
+#else
+TEST_P(PDFiumEngineSelectionTest, CtrlLeftClickSelectTextOnNonMac) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  MouseEventBuilder builder;
+  builder.CreateLeftClickAtPosition(kHelloWorldStartPosition)
+      .SetModifiers(blink::WebInputEvent::Modifiers::kControlKey);
+  EXPECT_TRUE(engine->HandleInputEvent(builder.Build()));
+
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateMoveWebMouseEventToPosition(kHelloWorldEndPosition)));
+
+  EXPECT_EQ("Goodb", engine->GetSelectedText());
+}
+#endif  // BUILDFLAG(IS_MAC)
+
+TEST_P(PDFiumEngineSelectionTest, SelectLinkAreaWithNoText) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("link_annots.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kStartPosition(90, 120);
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateLeftClickWebMouseEventAtPosition(kStartPosition)));
+
+  constexpr gfx::PointF kMiddlePosition(120, 230);
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateMoveWebMouseEventToPosition(kMiddlePosition)));
+
+  constexpr char kExpectedText[] = "Link Annotations - Page 1\nL";
+  EXPECT_EQ(GetPlatformTextExpectation(kExpectedText),
+            engine->GetSelectedText());
+
+  constexpr gfx::PointF kEndPosition(430, 230);
+  EXPECT_FALSE(engine->HandleInputEvent(
+      CreateMoveWebMouseEventToPosition(kEndPosition)));
+
+  // This is still `kExpectedText` because of the unit test's uncanny ability to
+  // move the mouse to `kEndPosition` in one move.
+  EXPECT_EQ(GetPlatformTextExpectation(kExpectedText),
+            engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextOneChar) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  static constexpr gfx::PointF kStartPosition(158, 120);
+  static constexpr gfx::PointF kEndPosition(161, 120);
+  std::string result =
+      DoForwardBackwardSelections(kStartPosition, kEndPosition);
+  EXPECT_EQ("r", result);
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextTwoChar) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  static constexpr gfx::PointF kStartPosition(158, 120);
+  static constexpr gfx::PointF kEndPosition(167, 120);
+  std::string result =
+      DoForwardBackwardSelections(kStartPosition, kEndPosition);
+  EXPECT_EQ("rl", result);
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextAcrossLine) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  // Click and drag to the right.
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateLeftClickWebMouseEventAtPosition({159, 120})));
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateMoveWebMouseEventToPosition({159.5f, 120.0f})));
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({163, 120})));
+  EXPECT_EQ("r", engine->GetSelectedText());
+
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({167, 120})));
+  EXPECT_EQ("rl", engine->GetSelectedText());
+
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({172, 120})));
+  EXPECT_EQ("rl", engine->GetSelectedText());
+
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({176, 120})));
+  EXPECT_EQ("rld", engine->GetSelectedText());
+
+  // Click and drag to the left.
+  EXPECT_TRUE(engine->HandleInputEvent(
+      CreateLeftClickWebMouseEventAtPosition({159.5f, 120.0f})));
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({159, 120})));
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({146, 120})));
+  EXPECT_EQ("o", engine->GetSelectedText());
+
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({145, 120})));
+  EXPECT_EQ("o", engine->GetSelectedText());
+
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({137, 120})));
+  EXPECT_EQ("wo", engine->GetSelectedText());
+
+  EXPECT_TRUE(
+      engine->HandleInputEvent(CreateMoveWebMouseEventToPosition({130, 120})));
+  EXPECT_EQ("wo", engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextAcrossEmptyPage) {
+  PDFiumEngine* engine = CreateEngine(
+      FILE_PATH_LITERAL("multi_page_hello_world_with_empty_page.pdf"));
+  ASSERT_TRUE(engine);
+
+  static constexpr gfx::PointF kStartPosition(80, 200);
+  static constexpr gfx::PointF kEndPosition(95, 765);
+  std::string result =
+      DoForwardBackwardSelections(kStartPosition, kEndPosition);
+  EXPECT_EQ(GetPlatformTextExpectation("world!\nGoodbye,"), result);
+
+  // Select all.
+  engine->SelectAll();
+  static constexpr char kExpectedAllSelection[] =
+      "Hello, world!\nGoodbye, world!";
+  EXPECT_EQ(GetPlatformTextExpectation(kExpectedAllSelection),
+            engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithDoubleClickOnEmptyPage) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kPosition(100, 100);
+  EXPECT_TRUE(engine->HandleInputEvent(MouseEventBuilder()
+                                           .CreateLeftClickAtPosition(kPosition)
+                                           .SetClickCount(2)
+                                           .Build()));
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithDoubleClickAtEndOfPage) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr gfx::PointF kPosition(195, 130);
+  EXPECT_TRUE(engine->HandleInputEvent(MouseEventBuilder()
+                                           .CreateLeftClickAtPosition(kPosition)
+                                           .SetClickCount(2)
+                                           .Build()));
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+}
+
+TEST_P(PDFiumEngineSelectionTest, SelectTextWithNonPrintableCharacter) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("bug_1357385.pdf"));
+  ASSERT_TRUE(engine);
+
+  engine->SelectAll();
+  EXPECT_EQ("Hello, world!", engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineSelectionTest, ClearTextSelection) {
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  // Select text.
+  engine->SelectAll();
+  EXPECT_EQ(GetPlatformTextExpectation(kSelectTextExpectedText),
+            engine->GetSelectedText());
+
+  // Clear selected text.
+  engine->ClearTextSelection();
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+}
+
+INSTANTIATE_TEST_SUITE_P(All, PDFiumEngineSelectionTest, testing::Bool());
 
 using PDFiumEngineDrawSelectionTest = PDFiumDrawSelectionTestBase;
 
@@ -2207,7 +2189,8 @@ TEST_P(PDFiumEngineReadOnlyTest, UnselectText) {
   // Select text before going into read-only mode.
   EXPECT_FALSE(engine->IsReadOnly());
   engine->SelectAll();
-  EXPECT_EQ(kSelectTextExpectedText, engine->GetSelectedText());
+  EXPECT_EQ(GetPlatformTextExpectation(kSelectTextExpectedText),
+            engine->GetSelectedText());
 
   // Setting read-only mode should unselect the text.
   engine->SetReadOnly(true);
@@ -2335,18 +2318,36 @@ class PDFiumEngineInkTextSelectionTest : public PDFiumEngineInkTest {
   static constexpr PdfRect kGoodbyeWorldExpectedRectPage0{20.0f, 96.416f,
                                                           136.496f, 115.12f};
 #endif  // BUILDFLAG(IS_WIN)
-  static constexpr gfx::PointF kStartTextPositionPage0{50.0f, 110.0f};
+  static constexpr gfx::PointF kStartTextPositionPage0{35.0f, 110.0f};
   static constexpr gfx::PointF kNonTextPositionPage0{5.0f, 5.0f};
+
+  void TearDown() override {
+    // Reset `engine_` before PDFium gets uninitialized.
+    engine_.reset();
+    PDFiumEngineInkTest::TearDown();
+  }
+
+  [[nodiscard]] PDFiumEngine* CreateEngine(
+      const base::FilePath::CharType* test_filename) {
+    engine_ = InitializeEngine(&client_, test_filename);
+    if (engine_) {
+      // Plugin size chosen so all pages of the document are visible.
+      engine_->PluginSizeUpdated({1024, 4096});
+
+      EXPECT_THAT(engine_->GetSelectedText(), IsEmpty());
+      EXPECT_THAT(engine_->GetSelectionRectMap(), IsEmpty());
+    }
+    return engine_.get();
+  }
+
+ private:
+  std::unique_ptr<PDFiumEngine> engine_;
+  TestClient client_;
 };
 
 TEST_P(PDFiumEngineInkTextSelectionTest, ExtendSelectionByNonTextPoint) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
   ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
 
   // Test point not on a page.
   EXPECT_FALSE(engine->ExtendSelectionByPoint({-30.0f, -30.0f}));
@@ -2356,21 +2357,13 @@ TEST_P(PDFiumEngineInkTextSelectionTest, ExtendSelectionByNonTextPoint) {
 }
 
 TEST_P(PDFiumEngineInkTextSelectionTest, ExtendSelectionByPoint) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
   ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-  EXPECT_THAT(engine->GetSelectionRectMap(), IsEmpty());
 
   engine->OnTextOrLinkAreaClick(kStartTextPositionPage0, /*click_count=*/1);
 
   constexpr gfx::PointF kEndPosition(100.0f, 110.0f);
-  EXPECT_TRUE(engine->ExtendSelectionByPoint((kEndPosition)));
+  EXPECT_TRUE(engine->ExtendSelectionByPoint(kEndPosition));
 
   EXPECT_EQ("Goodb", engine->GetSelectedText());
 #if BUILDFLAG(IS_WIN)
@@ -2385,28 +2378,17 @@ TEST_P(PDFiumEngineInkTextSelectionTest, ExtendSelectionByPoint) {
 }
 
 TEST_P(PDFiumEngineInkTextSelectionTest, ExtendSelectionByPointMultiPage) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
   ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-  EXPECT_THAT(engine->GetSelectionRectMap(), IsEmpty());
 
   engine->OnTextOrLinkAreaClick(kStartTextPositionPage0, /*click_count=*/1);
 
   constexpr gfx::PointF kEndPosition(75.0f, 480.0f);
-  EXPECT_TRUE(engine->ExtendSelectionByPoint((kEndPosition)));
+  EXPECT_TRUE(engine->ExtendSelectionByPoint(kEndPosition));
 
-#if BUILDFLAG(IS_WIN)
-  constexpr char kExpectedText[] = "Goodbye, world!\r\nHello, ";
-#else
   constexpr char kExpectedText[] = "Goodbye, world!\nHello, ";
-#endif  // BUILDFLAG(IS_WIN)
-  EXPECT_EQ(kExpectedText, engine->GetSelectedText());
+  EXPECT_EQ(GetPlatformTextExpectation(kExpectedText),
+            engine->GetSelectedText());
 
 #if BUILDFLAG(IS_WIN)
   constexpr PdfRect kExpectedRectPage1{20.0f, 46.328f, 52.664f, 62.48f};
@@ -2421,16 +2403,8 @@ TEST_P(PDFiumEngineInkTextSelectionTest, ExtendSelectionByPointMultiPage) {
 }
 
 TEST_P(PDFiumEngineInkTextSelectionTest, OnTextOrLinkAreaClickWithDoubleClick) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
   ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-  EXPECT_THAT(engine->GetSelectionRectMap(), IsEmpty());
 
   engine->OnTextOrLinkAreaClick(kStartTextPositionPage0, /*click_count=*/2);
 
@@ -2447,13 +2421,9 @@ TEST_P(PDFiumEngineInkTextSelectionTest, OnTextOrLinkAreaClickWithDoubleClick) {
 }
 
 TEST_P(PDFiumEngineInkTextSelectionTest, IsSelectableTextOrLinkAreaText) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("form_text_fields.pdf"));
+  PDFiumEngine* engine =
+      CreateEngine(FILE_PATH_LITERAL("form_text_fields.pdf"));
   ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
 
   // Non-text position.
   EXPECT_FALSE(engine->IsSelectableTextOrLinkArea(kNonTextPositionPage0));
@@ -2466,29 +2436,16 @@ TEST_P(PDFiumEngineInkTextSelectionTest, IsSelectableTextOrLinkAreaText) {
 }
 
 TEST_P(PDFiumEngineInkTextSelectionTest, IsSelectableTextOrLinkAreaLink) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("link_annots.pdf"));
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("link_annots.pdf"));
   ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
 
   // Link position.
   EXPECT_TRUE(engine->IsSelectableTextOrLinkArea({155.0f, 230.0f}));
 }
 
 TEST_P(PDFiumEngineInkTextSelectionTest, OnTextOrLinkAreaClickWithTripleClick) {
-  TestClient client;
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  PDFiumEngine* engine = CreateEngine(FILE_PATH_LITERAL("hello_world2.pdf"));
   ASSERT_TRUE(engine);
-
-  // Plugin size chosen so all pages of the document are visible.
-  engine->PluginSizeUpdated({1024, 4096});
-
-  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-  EXPECT_THAT(engine->GetSelectionRectMap(), IsEmpty());
 
   engine->OnTextOrLinkAreaClick(kStartTextPositionPage0, /*click_count=*/3);
 
@@ -3003,7 +2960,7 @@ TEST_P(PDFiumEngineCaretTest, TextClick) {
 
   // The "b" in "Goodbye, world!".
   EXPECT_TRUE(engine->HandleInputEvent(
-      CreateLeftClickWebMouseEventAtPosition(gfx::PointF(92, 118))));
+      CreateLeftClickWebMouseEventAtPosition(gfx::PointF(85, 118))));
 
   DrawCaretAndCompareWithPlatformExpectations(*engine, /*page_index=*/0,
                                               "hello_world_caret_1.png");

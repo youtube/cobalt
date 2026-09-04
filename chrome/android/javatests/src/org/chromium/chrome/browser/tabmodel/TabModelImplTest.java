@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -1339,11 +1341,70 @@ public class TabModelImplTest {
         }
     }
 
+    @Test
+    @SmallTest
+    public void testPinTab_TryPinningExistingPinnedTab() {
+        createTabs(2);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    Tab tab0 = mTabModelJni.getTabAt(0);
+                    Tab tab1 = mTabModelJni.getTabAt(1);
+                    Tab tab2 = mTabModelJni.getTabAt(2);
+
+                    // Pin tab1. Order should be tab1, tab0, tab2
+                    mTabModelJni.pinTab(tab1.getId());
+                    assertTrue(tab1.getIsPinned());
+                    assertEquals(0, mTabModelJni.indexOf(tab1));
+                    assertEquals(1, mTabModelJni.indexOf(tab0));
+                    assertEquals(2, mTabModelJni.indexOf(tab2));
+
+                    // Pin tab1 again. Order should not change.
+                    mTabModelJni.pinTab(tab1.getId());
+
+                    // Pin tab2. It should move to right place
+                    mTabModelJni.pinTab(tab2.getId());
+                    assertTrue(tab2.getIsPinned());
+                    assertEquals(0, mTabModelJni.indexOf(tab1));
+                    assertEquals(1, mTabModelJni.indexOf(tab2));
+                    assertEquals(2, mTabModelJni.indexOf(tab0));
+
+                    // Clean-up.
+                    mTabModelJni.unpinTab(tab1.getId());
+                    mTabModelJni.unpinTab(tab2.getId());
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testUnpinTab_AlreadyUnpinned() {
+        createTabs(2);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    Tab tab0 = mTabModelJni.getTabAt(0);
+                    Tab tab1 = mTabModelJni.getTabAt(1);
+                    Tab tab2 = mTabModelJni.getTabAt(2);
+
+                    // tab1 is not pinned.
+                    assertFalse(tab1.getIsPinned());
+
+                    // Unpin tab1. Order should not change.
+                    mTabModelJni.unpinTab(tab1.getId());
+                    assertEquals(0, mTabModelJni.indexOf(tab0));
+                    assertEquals(1, mTabModelJni.indexOf(tab1));
+                    assertEquals(2, mTabModelJni.indexOf(tab2));
+                });
+    }
+
     private void assertMoveTabToIndex(
             int oldIndex, int newIndex, int expectedIndex, boolean movingInsideGroup) {
         Tab oldIndexTab = mTabModelJni.getTabAt(oldIndex);
-        assert movingInsideGroup || oldIndexTab.getTabGroupId() == null
-                : "This is not a single tab movement";
+        assertWithMessage("This is not a single tab movement")
+                .that(movingInsideGroup || oldIndexTab.getTabGroupId() == null)
+                .isTrue();
         if (ENABLE_DEBUG_LOGGING) {
             logTabModelStructure(mTabModelJni, "Before move");
             Log.i(

@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include <stddef.h>
 
 #include <array>
 #include <set>
+#include <string_view>
 #include <vector>
 
 #include "base/base_switches.h"
@@ -226,7 +222,8 @@ class SessionRestoreTest : public InProcessBrowserTest {
 #if BUILDFLAG(IS_CHROMEOS)
     const testing::TestInfo* const test_info =
         testing::UnitTest::GetInstance()->current_test_info();
-    if (strcmp(test_info->name(), "NoSessionRestoreNewWindowChromeOS") != 0) {
+    if (std::string_view(test_info->name()) !=
+        "NoSessionRestoreNewWindowChromeOS") {
       // Undo the effect of kBrowserAliveWithNoWindows in defaults.cc so that we
       // can get these test to work without quitting.
       SessionServiceTestHelper helper(browser()->profile());
@@ -416,7 +413,7 @@ class SmartSessionRestoreTest : public SessionRestoreTest {
 
  protected:
   static const size_t kExpectedNumTabs;
-  static const char* const kUrls[];
+  static const std::array<const char*, 6> kUrls;
 
  private:
   testing::ScopedAlwaysLoadSessionRestoreTestPolicy test_policy_;
@@ -425,7 +422,7 @@ class SmartSessionRestoreTest : public SessionRestoreTest {
 // static
 const size_t SmartSessionRestoreTest::kExpectedNumTabs = 6;
 // static
-const char* const SmartSessionRestoreTest::kUrls[] = {
+const std::array<const char*, 6> SmartSessionRestoreTest::kUrls = {
     "https://google.com/1", "https://google.com/2", "https://google.com/3",
     "https://google.com/4", "https://google.com/5", "https://google.com/6"};
 
@@ -586,10 +583,9 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, NoSessionRestoreNewWindowChromeOS) {
   CloseBrowserSynchronously(browser());
 
   // Create a new window, which should open NTP.
-  ui_test_utils::BrowserChangeObserver new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   chrome::NewWindow(incognito_browser);
-  Browser* new_browser = new_browser_observer.Wait();
+  Browser* new_browser = browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(new_browser);
   EXPECT_NE(new_browser, incognito_browser);
 
@@ -689,8 +685,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
   // there is no guarantee that the SessionID for the tab has remained the same.
   base::Time timestamp;
   int http_status_code = 0;
-  ui_test_utils::BrowserChangeObserver browser_change_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   for (const auto& tab_ptr : window->tabs) {
     const sessions::tab_restore::Tab& tab = *tab_ptr;
     // If this tab held url2, then restore this single tab.
@@ -718,7 +713,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
       service->entries().front().get());
   EXPECT_EQ(2U, window->tabs.size());
 
-  Browser* restored_browser = browser_change_observer.Wait();
+  Browser* restored_browser = browser_created_observer.Wait();
   // Make sure that the restored tab was restored with the correct
   // timestamp and status code.
   content::WebContents* contents =
@@ -842,13 +837,12 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreForeignTab) {
   tab_content = nullptr;
   {
     content::CreateAndLoadWebContentsObserver observer;
-    ui_test_utils::BrowserChangeObserver new_browser_observer(
-        nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+    ui_test_utils::BrowserCreatedObserver browser_created_observer;
     tab_content = SessionRestore::RestoreForeignSessionTab(
         browser()->tab_strip_model()->GetActiveWebContents(), tab,
         WindowOpenDisposition::NEW_WINDOW);
     observer.Wait();
-    new_browser = new_browser_observer.Wait();
+    new_browser = browser_created_observer.Wait();
     ui_test_utils::WaitForBrowserSetLastActive(new_browser);
     EXPECT_NE(new_browser, browser());
   }
@@ -1801,9 +1795,8 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
   restore_observer.Wait();
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
 
-  ui_test_utils::BrowserChangeObserver browser_removed_observer(
-      params.browser,
-      ui_test_utils::BrowserChangeObserver::ChangeType::kRemoved);
+  ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer(
+      params.browser);
 
   // Have the page trigger closing the browser.
   ASSERT_TRUE(
@@ -1812,7 +1805,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
 
   // Wait for the browser to close as a result of the single tab closing
   // itself.
-  browser_removed_observer.Wait();
+  browser_destroyed_observer.Wait();
 
   ui_test_utils::AllBrowserTabAddedWaiter tab_waiter;
   SessionRestoreTestHelper restore_observer2;
@@ -2369,10 +2362,9 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreAllBrowsers) {
   Browser* first_profile_browser_one = browser();
   // Open the second browser with the first profile and verify it becomes the
   // active browser window.
-  ui_test_utils::BrowserChangeObserver new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   chrome::NewWindow(first_profile_browser_one);
-  Browser* first_profile_browser_two = new_browser_observer.Wait();
+  Browser* first_profile_browser_two = browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(first_profile_browser_two);
   EXPECT_NE(first_profile_browser_one, first_profile_browser_two);
 
@@ -2388,11 +2380,8 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreAllBrowsers) {
 
   // Open the second browser window for the second profile and verify it becomes
   // the active browser window.
-  ui_test_utils::BrowserChangeObserver second_profile_new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
   chrome::NewWindow(second_profile_browser_one);
-  Browser* second_profile_browser_two =
-      second_profile_new_browser_observer.Wait();
+  Browser* second_profile_browser_two = browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(second_profile_browser_two);
   EXPECT_NE(second_profile_browser_one, second_profile_browser_two);
 

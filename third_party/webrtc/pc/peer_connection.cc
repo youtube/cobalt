@@ -1581,13 +1581,6 @@ bool PeerConnection::RemoveIceCandidate(const IceCandidate* candidate) {
   return sdp_handler_->RemoveIceCandidate(candidate);
 }
 
-bool PeerConnection::RemoveIceCandidates(
-    const std::vector<Candidate>& candidates) {
-  TRACE_EVENT0("webrtc", "PeerConnection::RemoveIceCandidates");
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  return sdp_handler_->RemoveIceCandidates(candidates);
-}
-
 RTCError PeerConnection::SetBitrate(const BitrateSettings& bitrate) {
   if (!worker_thread()->IsCurrent()) {
     return worker_thread()->BlockingCall([&]() { return SetBitrate(bitrate); });
@@ -2085,13 +2078,7 @@ void PeerConnection::OnIceCandidatesRemoved(
     return;
   }
 
-  for (Candidate candidate : candidates) {  // Get a copy to set the transport.
-    // For backwards compatibility reasons, all candidate instances still need
-    // to have the transport_name() property set to the `mid`.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    candidate.set_transport_name(mid);
-#pragma clang diagnostic pop
+  for (const Candidate& candidate : candidates) {
     IceCandidate c(mid, -1, candidate);
     RunWithObserver([&](auto o) { o->OnIceCandidateRemoved(&c); });
   }

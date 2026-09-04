@@ -162,17 +162,16 @@ webapps::AppId InstallWebAppFromPageAndCloseAppBrowser(Browser* browser,
   chrome::AddTabAt(browser, app_url, /*index=*/-1,
                    /*foreground=*/true);
 
-  ui_test_utils::BrowserChangeObserver observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   webapps::AppId app_id = InstallWebAppFromPage(browser, app_url);
 
-  Browser* app_browser = observer.Wait();
+  Browser* app_browser = browser_created_observer.Wait();
   DCHECK_NE(app_browser, browser);
   DCHECK(AppBrowserController::IsForWebApp(app_browser, app_id));
-  ui_test_utils::BrowserChangeObserver on_close(
-      app_browser, ui_test_utils::BrowserChangeObserver::ChangeType::kRemoved);
+  ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer(
+      app_browser);
   chrome::CloseWindow(app_browser);
-  on_close.Wait();
+  browser_destroyed_observer.Wait();
 
   return app_id;
 }

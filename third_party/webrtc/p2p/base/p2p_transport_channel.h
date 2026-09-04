@@ -157,7 +157,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   // From IceAgentInterface
   void OnStartedPinging() override;
-  int64_t GetLastPingSentMs() const override;
+  Timestamp GetLastPingSent() const override;
   void UpdateConnectionStates() override;
   void UpdateState() override;
   void SendPingRequest(const Connection* connection) override;
@@ -241,10 +241,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   std::optional<std::reference_wrapper<StunDictionaryWriter>>
   GetDictionaryWriter() override {
     return stun_dict_writer_;
-  }
-
-  const FieldTrialsView* field_trials() const override {
-    return &env_.field_trials();
   }
 
   void ResetDtlsStunPiggybackCallbacks() override;

@@ -10,17 +10,14 @@
 #include <tuple>
 #include <vector>
 
-#include "base/containers/contains.h"
-#include "base/files/file_path.h"
-#include "base/files/file_util.h"
 #include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/unguessable_token.h"
 #include "components/ip_protection/common/ip_protection_data_types.h"
-#include "components/ip_protection/common/masked_domain_list.h"
 #include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
 #include "net/base/features.h"
+#include "net/base/ip_address.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/schemeful_site.h"
 #include "services/network/public/cpp/features.h"
@@ -37,14 +34,14 @@ using ::masked_domain_list::ResourceOwner;
 using ::testing::Eq;
 
 struct MatchTest {
-  std::string name;
-  std::string req;
-  std::string top;
+  std::string_view name;
+  std::string_view req;
+  std::string_view top;
   bool matches;
   bool matches_with_bypass;
 };
 
-const std::vector<MatchTest> kMatchTests = {
+constexpr MatchTest kMatchTests[] = {
     MatchTest{
         "ExcludedFromResource",
         "experiment.com",
@@ -543,6 +540,6 @@ INSTANTIATE_TEST_SUITE_P(All,
                          MaskedDomainListManagerMatchTest,
                          testing::ValuesIn(kMatchTests),
                          [](const testing::TestParamInfo<MatchTest>& info) {
-                           return info.param.name;
+                           return std::string(info.param.name);
                          });
 }  // namespace ip_protection

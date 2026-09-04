@@ -41,11 +41,11 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft13 = 0xff00000d,
+  kDraft14 = 0xff00000e,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft13;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft14;
 inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
@@ -83,16 +83,19 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   MoqtSessionParameters() = default;
   explicit MoqtSessionParameters(quic::Perspective perspective)
       : perspective(perspective), using_webtrans(true) {}
-  MoqtSessionParameters(quic::Perspective perspective, std::string path)
+  MoqtSessionParameters(quic::Perspective perspective, std::string path,
+                        std::string authority)
       : perspective(perspective),
         using_webtrans(false),
-        path(std::move(path)) {}
+        path(std::move(path)),
+        authority(std::move(authority)) {}
   MoqtSessionParameters(quic::Perspective perspective, std::string path,
-                        uint64_t max_request_id)
+                        std::string authority, uint64_t max_request_id)
       : perspective(perspective),
         using_webtrans(true),
         path(std::move(path)),
-        max_request_id(max_request_id) {}
+        max_request_id(max_request_id),
+        authority(std::move(authority)) {}
   MoqtSessionParameters(quic::Perspective perspective, uint64_t max_request_id)
       : perspective(perspective), max_request_id(max_request_id) {}
   bool operator==(const MoqtSessionParameters& other) const = default;
@@ -101,12 +104,14 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   bool deliver_partial_objects = false;
   quic::Perspective perspective = quic::Perspective::IS_SERVER;
   bool using_webtrans = true;
-  std::string path = "";
+  std::string path;
   uint64_t max_request_id = kDefaultInitialMaxRequestId;
   uint64_t max_auth_token_cache_size = kDefaultMaxAuthTokenCacheSize;
   bool support_object_acks = false;
   // TODO(martinduke): Turn authorization_token into structured data.
   std::vector<AuthToken> authorization_token;
+  std::string authority;
+  std::string moqt_implementation = "Google QUICHE MOQT draft 14";
 };
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
@@ -193,32 +198,46 @@ class QUICHE_EXPORT MoqtDataStreamType {
 
 class QUICHE_EXPORT MoqtDatagramType {
  public:
-  MoqtDatagramType(bool has_status, bool has_extension, bool end_of_group)
+  // The arguments here are properties of the object. The constructor creates
+  // the appropriate type given those properties and the spec restrictions.
+  MoqtDatagramType(bool payload, bool extension, bool end_of_group,
+                   bool zero_object_id)
       : value_(0) {
-    if (has_extension) {
+    // Avoid illegal types. Status cannot coexist with the zero-object-id flag
+    // or the end-of-group flag.
+    if (!payload && !end_of_group) {
+      // The only way to express non-normal, non-end-of-group with no payload is
+      // with an explicit status, so we cannot utilize object ID compression.
+      zero_object_id = false;
+    } else if (zero_object_id) {
+      // zero-object-id saves a byte; no-payload does not.
+      payload = true;
+    } else if (!payload) {
+      // If it's an empty end-of-group object, use the explict status because
+      // it's more readable.
+      end_of_group = false;
+    }
+    if (extension) {
       value_ |= 0x01;
     }
     if (end_of_group) {
       value_ |= 0x02;
     }
-    if (has_status) {
+    if (zero_object_id) {
       value_ |= 0x04;
     }
-    if (value_ > 0x5) {
-      QUICHE_BUG(Moqt_invalid_datagram_type)
-          << "Invalid datagram type: " << value_;
-      // Clear the end of group bit.
-      value_ &= 0x5;
-      return;
+    if (!payload) {
+      value_ |= 0x20;
     }
   }
   static std::optional<MoqtDatagramType> FromValue(uint64_t value) {
-    if (value <= 5) {
+    if (value <= 7 || value == 0x20 || value == 0x21) {
       return MoqtDatagramType(value);
     }
     return std::nullopt;
   }
-  bool has_status() const { return value_ & 0x04; }
+  bool has_status() const { return value_ & 0x20; }
+  bool has_object_id() const { return !(value_ & 0x04); }
   bool end_of_group() const { return value_ & 0x02; }
   bool has_extension() const { return value_ & 0x01; }
   uint64_t value() const { return value_; }
@@ -235,13 +254,13 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kSubscribe = 0x03,
   kSubscribeOk = 0x04,
   kSubscribeError = 0x05,
-  kAnnounce = 0x06,
-  kAnnounceOk = 0x7,
-  kAnnounceError = 0x08,
-  kUnannounce = 0x09,
+  kPublishNamespace = 0x06,
+  kPublishNamespaceOk = 0x7,
+  kPublishNamespaceError = 0x08,
+  kPublishNamespaceDone = 0x09,
   kUnsubscribe = 0x0a,
-  kSubscribeDone = 0x0b,
-  kAnnounceCancel = 0x0c,
+  kPublishDone = 0x0b,
+  kPublishNamespaceCancel = 0x0c,
   kTrackStatus = 0x0d,
   kTrackStatusOk = 0x0e,
   kTrackStatusError = 0x0f,
@@ -307,6 +326,8 @@ enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kMaxRequestId = 0x2,
   kAuthorizationToken = 0x3,
   kMaxAuthTokenCacheSize = 0x4,
+  kAuthority = 0x5,
+  kMoqtImplementation = 0x7,
 
   // QUICHE-specific extensions.
   // Indicates support for OACK messages.
@@ -347,15 +368,16 @@ struct VersionSpecificParameters {
   bool operator==(const VersionSpecificParameters& other) const = default;
 };
 
-// Used for SUBSCRIBE_ERROR, ANNOUNCE_ERROR, ANNOUNCE_CANCEL,
+// Used for SUBSCRIBE_ERROR, PUBLISH_NAMESPACE_ERROR, PUBLISH_NAMESPACE_CANCEL,
 // SUBSCRIBE_NAMESPACE_ERROR, and FETCH_ERROR.
 enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kInternalError = 0x0,
   kUnauthorized = 0x1,
   kTimeout = 0x2,
   kNotSupported = 0x3,
-  kTrackDoesNotExist = 0x4,        // SUBSCRIBE_ERROR and FETCH_ERROR only.
-  kUninterested = 0x4,             // ANNOUNCE_ERROR and ANNOUNCE_CANCEL only.
+  kTrackDoesNotExist = 0x4,  // SUBSCRIBE_ERROR and FETCH_ERROR only.
+  kUninterested =
+      0x4,  // PUBLISH_NAMESPACE_ERROR and PUBLISH_NAMESPACE_CANCEL only.
   kNamespacePrefixUnknown = 0x4,   // SUBSCRIBE_NAMESPACE_ERROR only.
   kInvalidRange = 0x5,             // SUBSCRIBE_ERROR and FETCH_ERROR only.
   kNamespacePrefixOverlap = 0x5,   // SUBSCRIBE_NAMESPACE_ERROR only.
@@ -367,11 +389,13 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kExpiredAuthToken = 0x12,
 };
 
-struct MoqtSubscribeErrorReason {
+struct MoqtRequestError {
   RequestErrorCode error_code;
   std::string reason_phrase;
 };
-using MoqtAnnounceErrorReason = MoqtSubscribeErrorReason;
+// TODO(martinduke): These are deprecated. Replace them in the code.
+using MoqtSubscribeErrorReason = MoqtRequestError;
+using MoqtPublishNamespaceErrorReason = MoqtSubscribeErrorReason;
 
 class TrackNamespace {
  public:
@@ -680,7 +704,7 @@ struct QUICHE_EXPORT MoqtUnsubscribe {
   uint64_t request_id;
 };
 
-enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
+enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
   kInternalError = 0x0,
   kUnauthorized = 0x1,
   kTrackEnded = 0x2,
@@ -691,9 +715,9 @@ enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
   kMalformedTrack = 0x7,
 };
 
-struct QUICHE_EXPORT MoqtSubscribeDone {
+struct QUICHE_EXPORT MoqtPublishDone {
   uint64_t request_id;
-  SubscribeDoneCode status_code;
+  PublishDoneCode status_code;
   uint64_t stream_count;
   std::string error_reason;
 };
@@ -707,27 +731,27 @@ struct QUICHE_EXPORT MoqtSubscribeUpdate {
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtAnnounce {
+struct QUICHE_EXPORT MoqtPublishNamespace {
   uint64_t request_id;
   TrackNamespace track_namespace;
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtAnnounceOk {
+struct QUICHE_EXPORT MoqtPublishNamespaceOk {
   uint64_t request_id;
 };
 
-struct QUICHE_EXPORT MoqtAnnounceError {
+struct QUICHE_EXPORT MoqtPublishNamespaceError {
   uint64_t request_id;
   RequestErrorCode error_code;
   std::string error_reason;
 };
 
-struct QUICHE_EXPORT MoqtUnannounce {
+struct QUICHE_EXPORT MoqtPublishNamespaceDone {
   TrackNamespace track_namespace;
 };
 
-struct QUICHE_EXPORT MoqtAnnounceCancel {
+struct QUICHE_EXPORT MoqtPublishNamespaceCancel {
   TrackNamespace track_namespace;
   RequestErrorCode error_code;
   std::string error_reason;

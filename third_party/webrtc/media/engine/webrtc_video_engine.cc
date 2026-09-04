@@ -858,7 +858,13 @@ std::vector<Codec> WebRtcVideoEngine::LegacyRecvCodecs(bool include_rtx) const {
 }
 
 std::vector<RtpHeaderExtensionCapability>
-WebRtcVideoEngine::GetRtpHeaderExtensions() const {
+WebRtcVideoEngine::GetRtpHeaderExtensions(
+    const webrtc::FieldTrialsView* field_trials) const {
+  // Use field trials from PeerConnection `field_trials` or from
+  // PeerConnectionFactory `trials_`.
+  const webrtc::FieldTrialsView& trials =
+      (field_trials != nullptr ? *field_trials : trials_);
+
   std::vector<RtpHeaderExtensionCapability> result;
   // id is *not* incremented for non-default extensions, UsedIds needs to
   // resolve conflicts.
@@ -880,21 +886,20 @@ WebRtcVideoEngine::GetRtpHeaderExtensions() const {
     result.emplace_back(uri, id, RtpTransceiverDirection::kStopped);
   }
   result.emplace_back(RtpExtension::kGenericFrameDescriptorUri00, id,
-                      trials_.IsEnabled("WebRTC-GenericDescriptorAdvertised")
+                      trials.IsEnabled("WebRTC-GenericDescriptorAdvertised")
                           ? RtpTransceiverDirection::kSendRecv
                           : RtpTransceiverDirection::kStopped);
   result.emplace_back(RtpExtension::kDependencyDescriptorUri, id,
-                      trials_.IsEnabled("WebRTC-DependencyDescriptorAdvertised")
+                      trials.IsEnabled("WebRTC-DependencyDescriptorAdvertised")
                           ? RtpTransceiverDirection::kSendRecv
                           : RtpTransceiverDirection::kStopped);
-  result.emplace_back(
-      RtpExtension::kVideoLayersAllocationUri, id,
-      trials_.IsEnabled("WebRTC-VideoLayersAllocationAdvertised")
-          ? RtpTransceiverDirection::kSendRecv
-          : RtpTransceiverDirection::kStopped);
+  result.emplace_back(RtpExtension::kVideoLayersAllocationUri, id,
+                      trials.IsEnabled("WebRTC-VideoLayersAllocationAdvertised")
+                          ? RtpTransceiverDirection::kSendRecv
+                          : RtpTransceiverDirection::kStopped);
 
   // VideoFrameTrackingId is a test-only extension.
-  if (trials_.IsEnabled("WebRTC-VideoFrameTrackingIdAdvertised")) {
+  if (trials.IsEnabled("WebRTC-VideoFrameTrackingIdAdvertised")) {
     result.emplace_back(RtpExtension::kVideoFrameTrackingIdUri, id,
                         RtpTransceiverDirection::kSendRecv);
   }

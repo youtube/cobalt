@@ -16,10 +16,10 @@
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_failed_fetch.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -30,9 +30,9 @@ namespace moqt {
 
 namespace {
 
-constexpr quic::QuicTimeDelta kMinSubscribeDoneTimeout =
+constexpr quic::QuicTimeDelta kMinPublishDoneTimeout =
     quic::QuicTimeDelta::FromSeconds(1);
-constexpr quic::QuicTimeDelta kMaxSubscribeDoneTimeout =
+constexpr quic::QuicTimeDelta kMaxPublishDoneTimeout =
     quic::QuicTimeDelta::FromSeconds(10);
 
 }  // namespace
@@ -61,24 +61,24 @@ void SubscribeRemoteTrack::OnStreamClosed() {
   if (subscribe_done_alarm_ == nullptr) {
     return;
   }
-  MaybeSetSubscribeDoneAlarm();
+  MaybeSetPublishDoneAlarm();
 }
 
-void SubscribeRemoteTrack::OnSubscribeDone(
+void SubscribeRemoteTrack::OnPublishDone(
     uint64_t stream_count, const quic::QuicClock* clock,
     std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm) {
   total_streams_ = stream_count;
   clock_ = clock;
   subscribe_done_alarm_ = std::move(subscribe_done_alarm);
-  MaybeSetSubscribeDoneAlarm();
+  MaybeSetPublishDoneAlarm();
 }
 
-void SubscribeRemoteTrack::MaybeSetSubscribeDoneAlarm() {
+void SubscribeRemoteTrack::MaybeSetPublishDoneAlarm() {
   if (currently_open_streams_ == 0 && total_streams_.has_value() &&
       clock_ != nullptr) {
     quic::QuicTimeDelta timeout =
-        std::min(delivery_timeout_, kMaxSubscribeDoneTimeout);
-    timeout = std::max(timeout, kMinSubscribeDoneTimeout);
+        std::min(delivery_timeout_, kMaxPublishDoneTimeout);
+    timeout = std::max(timeout, kMinPublishDoneTimeout);
     subscribe_done_alarm_->Set(clock_->ApproximateNow() + timeout);
   }
 }
@@ -169,11 +169,20 @@ void UpstreamFetch::OnStreamOpened(CanReadCallback can_read_callback) {
 
 bool UpstreamFetch::LocationIsValid(Location location, MoqtObjectStatus status,
                                     bool end_of_message) {
-  if (no_more_objects_) {
-    return false;
+  if (end_of_track_.has_value()) {
+    // Cannot exceed or change end_of_track_.
+    if (location > end_of_track_) {
+      return false;
+    }
+    if (status == MoqtObjectStatus::kEndOfTrack && location != *end_of_track_) {
+      return false;
+    }
   }
   if (end_of_message && status == MoqtObjectStatus::kEndOfTrack) {
-    no_more_objects_ = true;
+    if (highest_location_.has_value() && location < *highest_location_) {
+      return false;
+    }
+    end_of_track_ = location;
   }
   bool last_group_is_finished = last_group_is_finished_;
   last_group_is_finished_ =
@@ -181,6 +190,11 @@ bool UpstreamFetch::LocationIsValid(Location location, MoqtObjectStatus status,
   std::optional<Location> last_location = last_location_;
   if (end_of_message) {
     last_location_ = location;
+    if (!highest_location_.has_value()) {
+      highest_location_ = location;
+    } else {
+      highest_location_ = std::max(*highest_location_, location);
+    }
   }
   if (!last_location.has_value()) {
     return true;

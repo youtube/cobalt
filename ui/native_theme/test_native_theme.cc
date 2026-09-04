@@ -11,7 +11,7 @@ TestNativeTheme::~TestNativeTheme() = default;
 
 gfx::Size TestNativeTheme::GetPartSize(Part part,
                                        State state,
-                                       const ExtraParams& extra) const {
+                                       const ExtraParams& extra_params) const {
   return gfx::Size();
 }
 
@@ -20,10 +20,11 @@ void TestNativeTheme::Paint(cc::PaintCanvas* canvas,
                             Part part,
                             State state,
                             const gfx::Rect& rect,
-                            const ExtraParams& extra,
-                            ColorScheme color_scheme,
-                            bool in_forced_colors,
-                            const std::optional<SkColor>& accent_color) const {}
+                            const ExtraParams& extra_params,
+                            bool forced_colors,
+                            PreferredColorScheme color_scheme,
+                            PreferredContrast contrast,
+                            std::optional<SkColor> accent_color) const {}
 
 bool TestNativeTheme::SupportsNinePatch(Part part) const {
   return false;
@@ -37,21 +38,9 @@ gfx::Rect TestNativeTheme::GetNinePatchAperture(Part part) const {
   return gfx::Rect();
 }
 
-bool TestNativeTheme::ShouldUseDarkColors() const {
-  return dark_mode_;
-}
-
-void TestNativeTheme::SetDarkMode(bool dark_mode) {
-  dark_mode_ = dark_mode;
-  set_preferred_color_scheme(CalculatePreferredColorScheme());
-}
-
-void TestNativeTheme::AddColorSchemeNativeThemeObserver(
-    NativeTheme* theme_to_update) {
-  color_scheme_observer_ =
-      std::make_unique<ui::NativeTheme::ColorSchemeNativeThemeObserver>(
-          theme_to_update);
-  AddObserver(color_scheme_observer_.get());
+void TestNativeTheme::SetPreferredColorScheme(
+    PreferredColorScheme color_scheme) {
+  set_preferred_color_scheme(color_scheme);
 }
 
 }  // namespace ui

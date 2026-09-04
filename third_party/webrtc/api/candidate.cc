@@ -128,11 +128,10 @@ std::string Candidate::ToStringInternal(bool sensitive) const {
       sensitive ? address_.ToSensitiveString() : address_.ToString();
   std::string related_address = sensitive ? related_address_.ToSensitiveString()
                                           : related_address_.ToString();
-  ost << "Cand[" << transport_name_ << ":" << foundation_ << ":" << component_
-      << ":" << protocol_ << ":" << priority_ << ":" << address << ":"
-      << type_name() << ":" << related_address << ":" << username_ << ":"
-      << password_ << ":" << network_id_ << ":" << network_cost_ << ":"
-      << generation_ << "]";
+  ost << "Cand[:" << foundation_ << ":" << component_ << ":" << protocol_ << ":"
+      << priority_ << ":" << address << ":" << type_name() << ":"
+      << related_address << ":" << username_ << ":" << password_ << ":"
+      << network_id_ << ":" << network_cost_ << ":" << generation_ << "]";
   return ost.Release();
 }
 
@@ -188,11 +187,16 @@ bool Candidate::operator==(const Candidate& o) const {
          network_type_ == o.network_type_ && generation_ == o.generation_ &&
          foundation_ == o.foundation_ &&
          related_address_ == o.related_address_ && tcptype_ == o.tcptype_ &&
-         transport_name_ == o.transport_name_ && network_id_ == o.network_id_;
+         network_id_ == o.network_id_;
 }
 
 bool Candidate::operator!=(const Candidate& o) const {
   return !(*this == o);
+}
+
+Candidate Candidate::ToSanitizedCopy(bool use_hostname_address,
+                                     bool filter_related_address) const {
+  return ToSanitizedCopy(use_hostname_address, filter_related_address, false);
 }
 
 Candidate Candidate::ToSanitizedCopy(bool use_hostname_address,

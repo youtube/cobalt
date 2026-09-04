@@ -45,6 +45,7 @@
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/numerics/event_based_exponential_moving_average.h"
 #include "rtc_base/rate_tracker.h"
+#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
@@ -159,10 +160,22 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   ConnectionInfo stats();
 
   sigslot::signal1<Connection*> SignalStateChange;
+  void SubscribeStateChange(
+      absl::AnyInvocable<void(Connection* connection)> callback) {
+    state_change_trampoline_.Subscribe(std::move(callback));
+  }
 
   // Sent when the connection has decided that it is no longer of value.  It
   // will delete itself immediately after this call.
   sigslot::signal1<Connection*> SignalDestroyed;
+  void SubscribeDestroyed(
+      void* tag,
+      absl::AnyInvocable<void(Connection* connection)> callback) {
+    destroyed_trampoline_.Subscribe(tag, std::move(callback));
+  }
+  void UnsubscribeDestroyed(void* tag) {
+    destroyed_trampoline_.Unsubscribe(tag);
+  }
 
   // The connection can send and receive packets asynchronously.  This matches
   // the interface of AsyncPacketSocket, which may use UDP or TCP under the
@@ -181,6 +194,10 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   void DeregisterReceivedPacketCallback();
 
   sigslot::signal1<Connection*> SignalReadyToSend;
+  void SubscribeReadyToSend(
+      absl::AnyInvocable<void(Connection* connection)> callback) {
+    ready_to_send_trampoline_.Subscribe(std::move(callback));
+  }
 
   // Called when a packet is received on this connection.
   void OnReadPacket(const ReceivedIpPacket& packet);
@@ -327,6 +344,10 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   // This signal will be fired if this connection is nominated by the
   // controlling side.
   sigslot::signal1<Connection*> SignalNominated;
+  void SubscribeNominated(
+      absl::AnyInvocable<void(Connection* connection)> callback) {
+    nominated_trampoline_.Subscribe(std::move(callback));
+  }
 
   IceCandidatePairState state() const;
 
@@ -617,6 +638,14 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
       const StunMessage* msg,
       const StunRequest* original_request);
   DtlsStunPiggybackCallbacks dtls_stun_piggyback_callbacks_;
+  SignalTrampoline<Connection, &Connection::SignalStateChange>
+      state_change_trampoline_;
+  SignalTrampoline<Connection, &Connection::SignalDestroyed>
+      destroyed_trampoline_;
+  SignalTrampoline<Connection, &Connection::SignalReadyToSend>
+      ready_to_send_trampoline_;
+  SignalTrampoline<Connection, &Connection::SignalNominated>
+      nominated_trampoline_;
 };
 
 // ProxyConnection defers all the interesting work to the port.

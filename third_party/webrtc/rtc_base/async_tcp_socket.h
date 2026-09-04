@@ -85,10 +85,7 @@ class AsyncTCPSocket : public AsyncTCPSocketBase {
  public:
   AsyncTCPSocket(const Environment& env,
                  absl_nonnull std::unique_ptr<Socket> socket);
-  // TODO: bugs.webrtc.org/42223992 - Delete or deprecate constructor below when
-  // WebRTC is updated to use constructor that provides Environment.
-  explicit AsyncTCPSocket(Socket* socket);
-  ~AsyncTCPSocket() override {}
+  ~AsyncTCPSocket() override = default;
 
   AsyncTCPSocket(const AsyncTCPSocket&) = delete;
   AsyncTCPSocket& operator=(const AsyncTCPSocket&) = delete;
@@ -101,17 +98,20 @@ class AsyncTCPSocket : public AsyncTCPSocketBase {
 
 class AsyncTcpListenSocket : public AsyncListenSocket {
  public:
-  explicit AsyncTcpListenSocket(std::unique_ptr<Socket> socket);
+  AsyncTcpListenSocket(const Environment& env, std::unique_ptr<Socket> socket);
 
   State GetState() const override;
   SocketAddress GetLocalAddress() const override;
 
-  virtual void HandleIncomingConnection(Socket* socket);
+ protected:
+  const Environment& env() const { return env_; }
 
  private:
   // Called by the underlying socket
   void OnReadEvent(Socket* socket);
+  virtual void HandleIncomingConnection(std::unique_ptr<Socket> socket);
 
+  const Environment env_;
   std::unique_ptr<Socket> socket_;
 };
 

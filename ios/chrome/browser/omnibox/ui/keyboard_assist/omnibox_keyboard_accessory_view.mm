@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/omnibox/ui/keyboard_assist/omnibox_assistive_keyboard_views.h"
 #import "ios/chrome/browser/omnibox/ui/keyboard_assist/omnibox_assistive_keyboard_views_utils.h"
+#import "ios/chrome/browser/omnibox/ui/omnibox_text_input.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/search_engines/model/search_engines_util.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -28,8 +29,6 @@ namespace {
 // should be shown.
 constexpr base::TimeDelta kLensButtonIPHDelay = base::Seconds(1);
 
-#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
-
 // The glass effect view height.
 constexpr CGFloat kGlassEffectViewHeight = 58;
 
@@ -40,9 +39,6 @@ constexpr CGFloat kCornerRadius = 24;
 constexpr CGFloat kShadowRadius = 16.0;
 constexpr CGFloat kShadowVerticalOffset = 4.0;
 constexpr CGFloat kShadowOpacity = 0.12;
-
-#endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
-        // __IPHONE_26_0
 
 }  // namespace
 
@@ -59,7 +55,7 @@ constexpr CGFloat kShadowOpacity = 0.12;
 @property(nonatomic, weak) UIStackView* searchStackView;
 
 // The text field that this view is an accessory to.
-@property(nonatomic, weak) UITextField* textField;
+@property(nonatomic, weak) UIResponder* responder;
 
 // IPH bubble handler for displaying IPH bubbles relating to the omnibox.
 @property(nonatomic, weak) id<HelpCommands> helpHandler;
@@ -84,7 +80,7 @@ constexpr CGFloat kShadowOpacity = 0.12;
                        delegate:(id<OmniboxAssistiveKeyboardDelegate>)delegate
                     pasteTarget:(id<UIPasteConfigurationSupporting>)pasteTarget
              templateURLService:(TemplateURLService*)templateURLService
-                      textField:(UITextField*)textField
+                      responder:(UIResponder*)responder
                     helpHandler:(id<HelpCommands>)helpHandler {
   self = [super initWithFrame:CGRectZero
                inputViewStyle:UIInputViewStyleKeyboard];
@@ -92,7 +88,7 @@ constexpr CGFloat kShadowOpacity = 0.12;
     _buttonTitles = buttonTitles;
     _delegate = delegate;
     _pasteTarget = pasteTarget;
-    _textField = textField;
+    _responder = responder;
     self.translatesAutoresizingMaskIntoConstraints = NO;
     // When the glass effect is enabled, the view's height is explicitly managed
     // by a height constraint, so self-sizing must be disabled. For the default
@@ -111,7 +107,6 @@ constexpr CGFloat kShadowOpacity = 0.12;
 }
 
 - (UIView*)contentView {
-#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26, *)) {
     if (_effectView) {
       return _effectView.contentView;
@@ -153,8 +148,7 @@ constexpr CGFloat kShadowOpacity = 0.12;
     AddSameConstraints(_effectView, _effectView.contentView);
     return _effectView.contentView;
   }
-#endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
-        // __IPHONE_26_0
+
   // Pre-iOS 26, no glass effect is used, so views are added directly to this
   // view.
   return self;
@@ -294,7 +288,7 @@ constexpr CGFloat kShadowOpacity = 0.12;
 
 - (void)didMoveToWindow {
   [super didMoveToWindow];
-  if (!self.window || ![self.textField isFirstResponder]) {
+  if (!self.window || ![self.responder isFirstResponder]) {
     return;
   }
   if (self.templateURLService) {

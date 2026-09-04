@@ -780,9 +780,8 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, OpenInChrome) {
     EXPECT_EQ(1, browser()->tab_strip_model()->count());
     ASSERT_EQ(2u, chrome::GetBrowserCount(browser()->profile()));
 
-    ui_test_utils::BrowserChangeObserver on_close(
-        app_browser,
-        ui_test_utils::BrowserChangeObserver::ChangeType::kRemoved);
+    ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer(
+        app_browser);
     chrome::ExecuteCommand(app_browser, IDC_OPEN_IN_CHROME);
 
     // The browser frame is closed next event loop so it's still safe to access
@@ -791,7 +790,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, OpenInChrome) {
 
     // Wait until the browser actually gets closed. This invalidates
     // |app_browser|.
-    on_close.Wait();
+    browser_destroyed_observer.Wait();
     EXPECT_EQ(2, browser()->tab_strip_model()->count());
     EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
     EXPECT_EQ(
@@ -2112,12 +2111,11 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ReparentDisplayBrowserApp) {
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_EQ(tab_contents->GetLastCommittedURL(), app_url);
 
-  ui_test_utils::BrowserChangeObserver new_app_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   EXPECT_EQ(GetAppMenuCommandState(IDC_OPEN_IN_PWA_WINDOW, browser()),
             kEnabled);
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_OPEN_IN_PWA_WINDOW));
-  ui_test_utils::WaitForBrowserSetLastActive(new_app_browser_observer.Wait());
+  ui_test_utils::WaitForBrowserSetLastActive(browser_created_observer.Wait());
 
   BrowserWindowInterface* const app_browser =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
@@ -2325,10 +2323,9 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, DISABLED_NewAppWindow) {
 
   EXPECT_EQ(browser_list->size(), 2U);
 
-  ui_test_utils::BrowserChangeObserver browser_change_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   EXPECT_TRUE(chrome::ExecuteCommand(app_browser, IDC_NEW_WINDOW));
-  Browser* const new_browser = browser_change_observer.Wait();
+  Browser* const new_browser = browser_created_observer.Wait();
 
   EXPECT_EQ(new_browser, GetLastActiveBrowserWindowInterfaceWithAnyProfile());
   EXPECT_EQ(browser_list->size(), 3U);

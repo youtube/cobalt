@@ -477,6 +477,7 @@ rtc_source_set("packet_socket_factory") {
   deps = [
     ":async_dns_resolver",
     "../rtc_base:async_packet_socket",
+    "../rtc_base:checks",
     "../rtc_base:socket_address",
     "../rtc_base:ssl",
     "../rtc_base/system:rtc_export",
@@ -1720,6 +1721,7 @@ rtc_source_set("field_trials_view") {
   visibility = [ "*" ]
   sources = [ "field_trials_view.h" ]
   deps = [
+    "../rtc_base:checks",
     "../rtc_base/system:rtc_export",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",

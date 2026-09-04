@@ -25,12 +25,14 @@ ProcessLock ProcessLock::CreateAllowAnySite(
       cross_origin_isolation_key.has_value()
           ? AgentClusterKey::CreateWithCrossOriginIsolationKey(
                 SiteInfo::GetOriginForUnlockedProcess(),
-                cross_origin_isolation_key.value())
-          : AgentClusterKey::CreateSiteKeyed(GURL());
+                cross_origin_isolation_key.value(),
+                AgentClusterKey::OACStatus::kSiteKeyedByDefault)
+          : AgentClusterKey::CreateSiteKeyed(
+                GURL(), AgentClusterKey::OACStatus::kSiteKeyedByDefault);
 
   return ProcessLock(SiteInfo(
       agent_cluster_key,
-      /*site_url=*/GURL(), AgentClusterKey::OACStatus::kSiteKeyedByDefault,
+      /*site_url=*/GURL(),
       /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
       storage_partition_config, web_exposed_isolation_info,
       web_exposed_isolation_level, /*is_guest=*/false,
@@ -43,16 +45,8 @@ ProcessLock ProcessLock::CreateAllowAnySite(
 ProcessLock ProcessLock::Create(const IsolationContext& isolation_context,
                                 const UrlInfo& url_info) {
   DCHECK(url_info.storage_partition_config.has_value());
-  if (BrowserThread::CurrentlyOn(BrowserThread::UI))
-    return ProcessLock(SiteInfo::Create(isolation_context, url_info));
-
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
-
-  // On the IO thread we need to use a special SiteInfo creation method because
-  // we cannot properly compute some SiteInfo fields on that thread.
-  // ProcessLocks must always match no matter which thread they were created on,
-  // but the SiteInfo objects used to create them may not always match.
-  return ProcessLock(SiteInfo::CreateOnIOThread(isolation_context, url_info));
+  CHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
+  return ProcessLock(SiteInfo::Create(isolation_context, url_info));
 }
 
 // static

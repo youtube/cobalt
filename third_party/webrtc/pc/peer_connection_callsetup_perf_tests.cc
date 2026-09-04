@@ -10,7 +10,6 @@
 
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -30,13 +29,13 @@
 #include "api/test/metrics/metric.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/transport_description.h"
 #include "pc/sdp_utils.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "pc/test/peer_connection_test_wrapper.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
@@ -196,12 +195,12 @@ TEST_P(PeerConnectionDataChannelOpenTest, OpenAtCaller) {
 
   auto dc = local_pc_wrapper->CreateDataChannel("test", {});
   Negotiate(local_pc_wrapper, remote_pc_wrapper, role);
-  uint64_t start_time = TimeNanos();
+  Timestamp start_time = env_.clock().CurrentTime();
   EXPECT_TRUE(WaitForDataChannelOpen(dc));
-  uint64_t open_time = TimeNanos();
-  uint64_t setup_time = open_time - start_time;
+  Timestamp open_time = env_.clock().CurrentTime();
+  TimeDelta setup_time = open_time - start_time;
 
-  double setup_time_millis = setup_time / kNumNanosecsPerMillisec;
+  double setup_time_millis = setup_time.ms<double>();
   std::string test_description =
       "emulate_server=" + absl::StrCat(skip_candidates_from_caller) +
       "/dtls_role=" + role_string + "/trials=" + trials;

@@ -643,4 +643,32 @@ TEST(TestUpdateRectScale, CropAndScaleByHalf) {
   EXPECT_EQ(scaled, VideoFrame::UpdateRect({42, 22, 56, 106}));
 }
 
+TEST(TestVideoFrame, IsRepeatFrame) {
+  // Defaults to false.
+  VideoFrame frame1 = VideoFrame::Builder()
+                          .set_video_frame_buffer(I420Buffer::Create(10, 10))
+                          .set_rotation(kVideoRotation_0)
+                          .set_timestamp_ms(123)
+                          .build();
+  EXPECT_FALSE(frame1.is_repeat_frame());
+
+  // Set to true.
+  VideoFrame frame2 = VideoFrame::Builder()
+                          .set_video_frame_buffer(I420Buffer::Create(10, 10))
+                          .set_rotation(kVideoRotation_0)
+                          .set_timestamp_ms(456)
+                          .set_is_repeat_frame(true)
+                          .build();
+  EXPECT_TRUE(frame2.is_repeat_frame());
+
+  // Set to false.
+  VideoFrame frame3 = VideoFrame::Builder()
+                          .set_video_frame_buffer(I420Buffer::Create(10, 10))
+                          .set_rotation(kVideoRotation_0)
+                          .set_timestamp_ms(789)
+                          .set_is_repeat_frame(false)
+                          .build();
+  EXPECT_FALSE(frame3.is_repeat_frame());
+}
+
 }  // namespace webrtc

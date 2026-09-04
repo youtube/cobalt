@@ -4,7 +4,6 @@
 <translation id="1000436330784933699">Lens-ді осы жерден аша аласыз.</translation>
 <translation id="1042296835509784301">Chromium-нен "Password Manager" бөлімін ашады.</translation>
 <translation id="1047130070405668746">Chromium браузерін таңдаңыз.</translation>
-<translation id="1086486568852410168">Google Lens арқылы іздеу</translation>
 <translation id="1091252999271033193">Chromium браузерін әрдайым телефонда ашу қажет болады.</translation>
 <translation id="1115463765356382667">Chromium браузерін барынша тиімді пайдалану үшін төменде ұсынылған әрекеттерді орындаңыз.</translation>
 <translation id="1185134272377778587">Chromium туралы ақпарат</translation>
@@ -43,6 +42,7 @@
 <ph name="BEGIN_LINK" />Толығырақ<ph name="END_LINK" /></translation>
 <translation id="1847960401032164406">Chromium-дағы Maps</translation>
 <translation id="1867772173333403444">4. Chromium браузерін таңдаңыз.</translation>
+<translation id="1965068424387304464">Chromium-мен жұмыс істеу бойынша кеңес: құпия сөздерді сақтаңыз</translation>
 <translation id="2006345422933397527">Chromium жаңа нұсқалардың бар-жоғын тексере алмады. Интернет байланысын тексеріп көріңіз.</translation>
 <translation id="2042889939382983733">Chromium тарихын көру</translation>
 <translation id="2052320862053429062">Chromium браузері құпия сөздеріңізді онлайн жарияланған тізімдермен салыстырып тексеріп тұрады. Тексеру кезінде құпия сөздер мен пайдаланушылар аты шифрланады. Сондықтан оларды ешкім, тіпті Google да оқи алмайды.</translation>
@@ -119,6 +119,7 @@ Chromium тәжірибесін жақсарту үшін деректерді �
 <translation id="3816686541346279443">Chromium құпия сөзіңізді сақтауды ұсынады.</translation>
 <translation id="3827545470516145620">Бұл құрылғыда стандартты қауіпсіздік жүйесі қолданылады</translation>
 <translation id="3833326979834193417">Chromium деректерге рұқсатсыз қол сұғудан, қауіпті веб-сайттар мен басқа да зиян әрекеттерден қорғау үшін қауіпсіздік тексерісін күнде автоматты түрде жүргізеді. Қауіпсіздік тексерісі туралы толық ақпаратты параметрлерден қарасаңыз болады.</translation>
+<translation id="3837584850181228767">Chromium-мен жұмыс істеу бойынша кеңес: Күшейтілген Safe Browsing</translation>
 <translation id="3845223911364528001">Файлды жүктеп салу үшін Chromium-ге оралыңыз.</translation>
 <translation id="3855938650519180865">Chromium-дегі жаңалықтар</translation>
 <translation id="3886689467633467988">Барлық құрылғыда бетбелгілер мен т.б. алу үшін осы сайт пен Chromium-ге кіріңіз.</translation>

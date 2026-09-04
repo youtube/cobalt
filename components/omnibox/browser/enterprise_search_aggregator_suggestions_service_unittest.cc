@@ -71,7 +71,7 @@ class EnterpriseSearchAggregatorSuggestionsServiceTest : public testing::Test {
                 identity_test_env_.identity_manager(),
                 shared_url_loader_factory_)) {
     // Set up a variation.
-    variations::AssociateGoogleVariationID(
+    variations::AssociateGoogleVariationIDForTesting(
         variations::GOOGLE_WEB_PROPERTIES_ANY_CONTEXT, "trial name",
         "group name", kVariationID);
     base::FieldTrialList::CreateFieldTrial("trial name", "group name")
@@ -92,7 +92,7 @@ class EnterpriseSearchAggregatorSuggestionsServiceTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
-  variations::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
       variations::VariationsIdsProvider::Mode::kUseSignedInState};
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
@@ -130,8 +130,7 @@ TEST_F(EnterpriseSearchAggregatorSuggestionsServiceTest,
   experiment_ids_list.Append(kEnterpriseSearchAggregatorExperimentId);
   root.Set("experimentIds", std::move(experiment_ids_list));
 
-  std::string test_request_body;
-  base::JSONWriter::Write(root, &test_request_body);
+  std::string test_request_body = base::WriteJson(root).value_or("");
   const std::u16string query = u"test";
   const GURL test_endpoint = GURL("https://fake_url.com");
 
@@ -199,8 +198,7 @@ TEST_F(EnterpriseSearchAggregatorSuggestionsServiceTest,
   experiment_ids_list.Append(kEnterpriseSearchAggregatorExperimentId);
   root.Set("experimentIds", std::move(experiment_ids_list));
 
-  std::string test_request_body;
-  base::JSONWriter::Write(root, &test_request_body);
+  std::string test_request_body = base::WriteJson(root).value_or("");
   const std::u16string query = u"test";
   const GURL test_endpoint = GURL("https://fake_url.com");
 

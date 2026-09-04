@@ -98,6 +98,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="2185166961232948079">Chromium - Şəbəkəyə Giriş - <ph name="PAGE_TITLE" /></translation>
 <translation id="2190166659037789668">Yeniləmə yoxlaması xətası: <ph name="UPDATE_CHECK_ERROR" />.</translation>
 <translation id="2199210295479376551">Hesabı Chromium-dan silin</translation>
+<translation id="2210502920229141283">iOS üçün Chromium-da Qabaqcıl Güvənli Baxış ilə yolda daha təhlükəsiz olun</translation>
 <translation id="2210682093923538346">Təhlükəli sayt. Chromium bildirişləri sildi.</translation>
 <translation id="2236949375853147973">Fəaliyyətim</translation>
 <translation id="2238130810669087193">Ünvanları və s. datanı bütün cihazlarınızda əldə etmək üçün Chromium-a daxil olun. Daxil olduqdan sonra bu ünvan Google Hesabında yadda saxlanılacaq.</translation>
@@ -106,6 +107,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="2307973900865360088">Dokda saxlayın</translation>
 <translation id="2313870531055795960">URL'ləri Chromium'da saxlanılan təhlükəli saytların siyahısı ilə yoxlayır Sayt parolunuzu oğurlamağa çalışdıqda və ya zərərli fayl endirdiyinizdə Chromium səhifə məzmunundan kiçik nümunələr də daxil olmaqla, URL'ləri Təhlükəsiz Baxışa göndərə bilər.</translation>
 <translation id="2343156876103232566">Buradan Android telefonunuza nömrə göndərmək üçün hər iki cihazda Chromium'a daxil olun.</translation>
+<translation id="2356070529366658676">Soruşun</translation>
 <translation id="2359808026110333948">Davam edin</translation>
 <translation id="2361918034042471035">"<ph name="EXTENSION_NAME" />" artırması Chromium-a daxil olmağınızı istəyir</translation>
 <translation id="236943522426971115">Tətbiqlər üçün arxa fonda işləyən Chromium-u deaktiv edin</translation>
@@ -156,6 +158,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="2928420929544864228">Quraşdırma tamamlandı.</translation>
 <translation id="2933336679234709858">Data parol ifadəsi ilə şifrələnib. Google Hesabında Chromium datasını istifadə etmək və yadda saxlamaq üçün onu daxil edin.</translation>
 <translation id="2945997411976714835">Quraşdırma xətası: Quraşdırıcı prosesini başlatmaq mümkün olmadı.</translation>
+<translation id="2948852018303413228">iOS-da Chromium üçün yadda saxlanmış parollardan istifadə edərək saytlara daha sürətli daxil olun</translation>
 <translation id="2970426615109535079">Təşkilatınız Chromium-u idarə edir</translation>
 <translation id="2977470724722393594">Chromium güncəldir</translation>
 <translation id="2977506796191543575">Sayt parolunuzu oğurlamağa çalışdıqda və ya zərərli fayl endirdiyinizdə Chromium səhifə məzmunundan kiçik nümunələr də daxil olmaqla, URL'ləri Təhlükəsiz Baxışa göndərə bilər</translation>
@@ -180,6 +183,9 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3155163173539279776">Chromium'u yenidən başladın</translation>
 <translation id="3161522574479303604">Bütün dillər</translation>
 <translation id="3179665906251668410">Linki Gizli Chromium Pəncərəsində açın</translation>
+<translation id="3183357154200327217">Kompüterinizdə başqa proqram Chromium-un fəaliyyət tərzini dəyişən tema əlavə etdi.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="3185330573522821672">Yeni Chromium profilinizi fərdiləşdirin</translation>
 <translation id="3224847870593914902">Google Hesabını Chromium-dan silmək üçün Ayarlar səhifəsində Chromium-dan çıxın</translation>
 <translation id="3234316605225071811">Sonra Chromium formaları avtomatik doldurmaq üçün yadda saxlanmış məlumatdan istifadə etmək istəyib-istəmədiyinizi soruşa bilər</translation>
@@ -242,6 +248,9 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />Cari ayarları<ph name="END_LINK" /> bildirməklə Chormium'u təkmilləşdirməyə kömək edin</translation>
 <translation id="4050175100176540509">Mühüm təhlükəsizlik təkmilləşdirilmələri və yeni funksiyalar son versiyada əlçatandır.</translation>
 <translation id="4055805654398742145">Parol Meneceri</translation>
+<translation id="4061696872429826774">Kompüterinizdə başqa bir proqram Chromium-un fəaliyyət göstərmə formasını dəyişən artırma əlavə etdi.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="4095980151185649725">{COUNT,plural, =1{Chromium 1 dəqiqə istifadə edilmədikdə təşkilat onu avtomatik bağlayır. Baxış datası silinir. Bura tarixçə, avto doldurma və endirmələr daxil ola bilər.}other{Chromium # dəqiqə istifadə edilmədikdə təşkilat onu avtomatik bağlayır. Baxış datası silinir. Bura tarixçə, avto doldurma və endirmələr daxil ola bilər.}}</translation>
 <translation id="4118474109249235144">Chromium Anonim</translation>
 <translation id="4122186850977583290">Chromium haqqında səhifəsinə keçin</translation>
@@ -401,6 +410,9 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="6174920971222007286">Bu fayl təhlükəli ola bilər<ph name="LINE_BREAK" />Parolu təqdim etsəniz, Chromium bu endirməni yoxlaya bilər. Fayl haqqında məlumat Google güvənli baxışa göndərilir, lakin fayl kontenti və parol cihazda qalır.</translation>
 <translation id="6182736845697986886">Yeniləmə serverində daxili xəta səbəbindən quraşdırma alınmadı.</translation>
 <translation id="6183079672144801177"><ph name="TARGET_DEVICE_NAME" /> cihazınızda Chromium'a daxil olduğunuza əmin olun və sonra yenidən göndərin.</translation>
+<translation id="6204922163963157461">Kompüterinizdə başqa proqram Chromium-un fəaliyyət tərzini dəyişən tətbiq əlavə etdi.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6212496753309875659">Bu kompüterdə Chromium'um daha son versiyası var. Proqram təminatı işləmirsə, Chroimum'u sistemdən silin və yenidən cəhd edin.</translation>
 <translation id="6219195342503754812">{0,plural, =0{Chromium indi yenidən başlayacaq}=1{Chromium 1 saniyəyə yenidən başlayacaq}other{Chromium # saniyəyə yenidən başlayacaq}}</translation>
 <translation id="6239161312595354541">Bu video haqqında Şəkil Axtarışından soruşun</translation>
@@ -548,6 +560,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="7888981273428720788">Chromium-u defolt kimi ayarlayın</translation>
 <translation id="7934340546140346950">Chromium mümkün olduqda güvənsiz bağlantıları avtomatik olaraq HTTPS-ə təkmilləşdirir</translation>
 <translation id="7937630085815544518">Chromium'a <ph name="USER_EMAIL_ADDRESS" /> kimi daxil olmuşdunuz. Lütfən, yenidən daxil olmaq üçün eyni hesabdan istifadə edin.</translation>
+<translation id="7953047982688951904">Yolda olduğunuz zaman əlavə qoruma əldə etmək üçün telefonunuza Chromium endirin</translation>
 <translation id="7975919845073681630">Bu Chromium'un ikinci quraşdırmasıdır və defolt brauzer kimi ayarlana bilmir.</translation>
 <translation id="7997934263947464652">Naməlum mənbələrdən olan artırmalar, tətbiqlər və temalar cihazınıza zərər verə bilər. Chromium onları yalnız buradan quraşdırmağı tövsiyə edir: <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="8004582292198964060">Brauzer</translation>

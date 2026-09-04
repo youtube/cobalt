@@ -5,7 +5,7 @@
  * found in the LICENSE file.
  */
 
-// This test only works with the GPU backend.
+// This test only works with the Ganesh backend.
 
 #include "gm/gm.h"
 #include "include/core/SkBitmap.h"
@@ -28,7 +28,7 @@
 #include "src/gpu/ganesh/effects/GrTextureEffect.h"
 #include "tools/DecodeUtils.h"
 #include "tools/Resources.h"
-#include "tools/gpu/TestOps.h"
+#include "tools/ganesh/TestOps.h"
 
 #include <memory>
 #include <utility>

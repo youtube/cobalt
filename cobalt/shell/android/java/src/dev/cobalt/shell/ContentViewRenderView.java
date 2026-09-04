@@ -18,6 +18,7 @@ import android.view.Window;
 import android.widget.FrameLayout;
 import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
@@ -352,7 +353,8 @@ public class ContentViewRenderView extends FrameLayout {
           .addStartupCompletedObserver(
               new BrowserStartupController.StartupCallback() {
                 @Override
-                public void onSuccess() {
+                public void onSuccess(
+                    BrowserStartupController.@Nullable StartupMetrics metrics) {
                   Log.i(TAG, "ContentViewRenderView: Startup complete");
                   while (!mPendingTasks.isEmpty()) {
                     mPendingTasks.remove(0).run();

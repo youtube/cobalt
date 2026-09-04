@@ -444,7 +444,8 @@ AudioProcessingImpl::AudioProcessingImpl(const Environment& env)
                           /*render_pre_processor=*/nullptr,
                           /*echo_control_factory=*/nullptr,
                           /*echo_detector=*/nullptr,
-                          /*capture_analyzer=*/nullptr) {}
+                          /*capture_analyzer=*/nullptr,
+                          /*neural_residual_echo_estimator=*/nullptr) {}
 
 std::atomic<int> AudioProcessingImpl::instance_count_(0);
 
@@ -455,7 +456,8 @@ AudioProcessingImpl::AudioProcessingImpl(
     std::unique_ptr<CustomProcessing> render_pre_processor,
     std::unique_ptr<EchoControlFactory> echo_control_factory,
     scoped_refptr<EchoDetector> echo_detector,
-    std::unique_ptr<CustomAudioAnalyzer> capture_analyzer)
+    std::unique_ptr<CustomAudioAnalyzer> capture_analyzer,
+    std::unique_ptr<NeuralResidualEchoEstimator> neural_residual_echo_estimator)
     : env_(env),
       data_dumper_(new ApmDataDumper(instance_count_.fetch_add(1) + 1)),
       use_setup_specific_default_aec3_config_(
@@ -472,7 +474,8 @@ AudioProcessingImpl::AudioProcessingImpl(
       submodules_(std::move(capture_post_processor),
                   std::move(render_pre_processor),
                   std::move(echo_detector),
-                  std::move(capture_analyzer)),
+                  std::move(capture_analyzer),
+                  std::move(neural_residual_echo_estimator)),
       constants_(!env.field_trials().IsEnabled(
                      "WebRTC-ApmExperimentalMultiChannelRenderKillSwitch"),
                  !env.field_trials().IsEnabled(
@@ -493,7 +496,9 @@ AudioProcessingImpl::AudioProcessingImpl(
                    << "\nCapture post processor: "
                    << !!submodules_.capture_post_processor
                    << "\nRender pre processor: "
-                   << !!submodules_.render_pre_processor;
+                   << !!submodules_.render_pre_processor
+                   << "\nNeural residual echo estimator "
+                   << !!submodules_.neural_residual_echo_estimator;
   if (!DenormalDisabler::IsSupported()) {
     RTC_LOG(LS_INFO) << "Denormal disabler unsupported";
   }
@@ -1926,8 +1931,9 @@ void AudioProcessingImpl::InitializeEchoController() {
             EchoCanceller3Config::CreateDefaultMultichannelConfig();
       }
       submodules_.echo_controller = std::make_unique<EchoCanceller3>(
-          env_, config, multichannel_config, proc_sample_rate_hz(),
-          num_reverse_channels(), num_proc_channels());
+          env_, config, multichannel_config,
+          submodules_.neural_residual_echo_estimator.get(),
+          proc_sample_rate_hz(), num_reverse_channels(), num_proc_channels());
     }
 
     // Setup the storage for returning the linear AEC output.
@@ -2183,6 +2189,9 @@ void AudioProcessingImpl::WriteAecDumpConfigMessage(bool forced) {
   }
   if (config_.gain_controller2.enabled) {
     experiments_description += "GainController2;";
+  }
+  if (submodules_.neural_residual_echo_estimator) {
+    experiments_description += "NeuralResidualEchoEstimator;";
   }
 
   InternalAPMConfig apm_config;

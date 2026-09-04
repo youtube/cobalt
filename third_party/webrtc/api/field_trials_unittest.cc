@@ -155,5 +155,15 @@ TEST(FieldTrialsTest, SettingEmptyValueRemovesFieldTrial) {
   EXPECT_EQ(f2.Lookup("Audio"), "Disabled");
 }
 
+TEST(FieldTrialsTest, CreateCopy) {
+  auto f = std::make_unique<FieldTrials>("Audio/Enabled/");
+  f->RegisterKeysForTesting({"Audio"});
+
+  FieldTrialsView* view = f.get();
+  auto copy = view->CreateCopy();
+  f.reset();
+  EXPECT_EQ(copy->Lookup("Audio"), "Enabled");
+}
+
 }  // namespace
 }  // namespace webrtc

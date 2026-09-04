@@ -33,6 +33,7 @@ ANY_DECODER_SRCS = [
     "SkEncodedInfo.cpp",
     "SkExif.cpp",
     "SkGainmapInfo.cpp",
+    "SkHdrMetadata.cpp",
     "SkImageGenerator_FromEncoded.cpp",
     "SkMaskSwizzler.cpp",
     "SkParseEncodedOrigin.cpp",
@@ -94,7 +95,7 @@ skia_cc_library(
         "//modules/skresources:__pkg__",
         "//src/android:__pkg__",
         "//src/pdf:__pkg__",
-        "//tools:__pkg__",
+        "//tools/ganesh:__pkg__",
     ],
     deps = [
         ":any_decoder",

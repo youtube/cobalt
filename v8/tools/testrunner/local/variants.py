@@ -45,6 +45,21 @@ ALL_VARIANT_FLAGS = {
         "--maglev", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
+    "stress_maglev_tracing": [[
+        "--maglev", "--stress-maglev",
+        "--optimize-on-next-call-optimizes-to-maglev",
+        "--trace-maglev-graph-building",
+        "--trace-maglev-loop-speeling",
+        "--trace-maglev-inlining",
+        "--trace-maglev-phi-untagging",
+        "--trace-maglev-regalloc",
+        "--trace-maglev-escape-analysis",
+        "--trace-maglev-object-tracking",
+        "--print-maglev-code",
+        "--print-maglev-deopt-verbose",
+        "--print-maglev-graph",
+        "--print-maglev-graphs",
+    ]],
     "stress_maglev_future": [[
         "--maglev", "--maglev-future", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
@@ -127,8 +142,8 @@ ALL_VARIANT_FLAGS = {
 # disabled (i.e. not part of the binary), or when all codegen is disallowed (in
 # jitless mode).
 kIncompatibleFlagsForNoTurbofan = [
-    "--turbofan", "--liftoff", "--validate-asm", "--maglev",
-    "--stress-concurrent-inlining"
+    "--turbofan", "--liftoff", "--validate-asm", "--maglev", "--turbolev",
+    "--turbolev-future", "--stress-concurrent-inlining"
 ]
 
 # Flags that lead to a contradiction with the flags provided by the respective
@@ -200,6 +215,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--regexp-interpret-all",
     ],
     "stress_maglev": ["--jitless"],
+    "stress_maglev_tracing": ["--jitless"],
     "stress_maglev_non_eager_inlining": ["--jitless"],
     "stress_maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
     "stress_maglev_no_turbofan": [

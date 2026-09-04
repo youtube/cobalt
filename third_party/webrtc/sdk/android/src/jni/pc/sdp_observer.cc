@@ -44,7 +44,7 @@ void CreateSdpObserverJni::OnSuccess(SessionDescriptionInterface* desc) {
   RTC_CHECK(desc->ToString(&sdp)) << "got so far: " << sdp;
   Java_SdpObserver_onCreateSuccess(
       env, j_observer_global_,
-      NativeToJavaSessionDescription(env, sdp, desc->type()));
+      NativeToJavaSessionDescription(env, sdp, desc->GetType()));
   // OnSuccess transfers ownership of the description (there's a TODO to make
   // it use unique_ptr...).
   delete desc;

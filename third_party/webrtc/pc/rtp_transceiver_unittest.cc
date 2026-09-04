@@ -195,7 +195,8 @@ class RtpTransceiverUnifiedPlanTest : public RtpTransceiverTest {
         RtpReceiverProxyWithInternal<RtpReceiverInternal>::Create(
             Thread::Current(), Thread::Current(), std::move(receiver)),
         context(), codec_lookup_helper(),
-        media_engine()->voice().GetRtpHeaderExtensions(),
+        media_engine()->voice().GetRtpHeaderExtensions(
+            &context()->env().field_trials()),
         /* on_negotiation_needed= */ [] {});
   }
 

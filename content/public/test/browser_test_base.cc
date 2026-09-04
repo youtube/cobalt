@@ -676,7 +676,7 @@ void BrowserTestBase::SetUp() {
 
     auto* provider = delegate->CreateVariationsIdsProvider();
     if (!provider) {
-      variations::VariationsIdsProvider::Create(
+      variations::VariationsIdsProvider::CreateInstance(
           variations::VariationsIdsProvider::Mode::kUseSignedInState);
     }
 

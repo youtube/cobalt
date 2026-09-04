@@ -41,6 +41,7 @@
 #import "components/supervised_user/core/common/supervised_user_constants.h"
 #import "components/translate/core/browser/translate_manager.h"
 #import "components/trusted_vault/trusted_vault_server_constants.h"
+#import "ios/chrome/browser/aim/prototype/coordinator/aim_prototype_container_coordinator.h"
 #import "ios/chrome/browser/app_launcher/model/app_launcher_tab_helper_browser_presentation_provider.h"
 #import "ios/chrome/browser/app_store_rating/ui_bundled/features.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
@@ -680,7 +681,8 @@ enum class ToolbarKind {
   DockingPromoCoordinator* _dockingPromoCoordinator;
   // Used to display the Voice Search UI.  Nil if not visible.
   id<VoiceSearchController> _voiceSearchController;
-  raw_ptr<UrlLoadingNotifierBrowserAgent> _urlLoadingNotifierBrowserAgent;
+  raw_ptr<UrlLoadingNotifierBrowserAgent, DanglingUntriaged>
+      _urlLoadingNotifierBrowserAgent;
   id<LoadQueryCommands> _loadQueryCommandsHandler;
   id<OmniboxCommands> _omniboxCommandsHandler;
   LayoutGuideCenter* _layoutGuideCenter;
@@ -705,6 +707,9 @@ enum class ToolbarKind {
   // Callback to remove the activity overlay started by the browser coordinator
   // itself.
   base::ScopedClosureRunner _activityOverlayCallback;
+
+  // Coordinator for the AIM prototype.
+  AIMPrototypeContainerCoordinator* _aimPrototypeCoordinator;
 
   // The coordinator for the new Delete Browsing Data screen, also called Quick
   // Delete.
@@ -979,6 +984,11 @@ enum class ToolbarKind {
 
   [self cancelCollaborationFlows];
   [self.NTPCoordinator clearPresentedState];
+
+  // The aim prototype replaces the omnibox.
+  if (dismissOmnibox) {
+    [self hideAIMPrototype];
+  }
 
   [self.viewController clearPresentedStateWithCompletion:completion
                                           dismissOmnibox:dismissOmnibox];
@@ -1787,6 +1797,7 @@ enum class ToolbarKind {
   [self dismissSearchWhatYouSeePromo];
   [self dismissNotificationsOptIn];
   [self hideWelcomeBackPromo];
+  [self hideAIMPrototype];
 }
 
 // Starts independent mediators owned by this coordinator.
@@ -2566,6 +2577,10 @@ enum class ToolbarKind {
   _notificationsOptInCoordinator = nil;
 }
 
+- (void)forceFullscreenMode {
+  _fullscreenController->EnterForceFullscreenMode(YES);
+}
+
 - (void)showAddAccountWithAccessPoint:(signin_metrics::AccessPoint)accessPoint
                        prefilledEmail:(NSString*)email {
   if (_signinCoordinator.viewWillPersist) {
@@ -2592,6 +2607,28 @@ enum class ToolbarKind {
 - (void)performReauthToRetrieveTrustedVaultKey:
     (syncer::TrustedVaultUserActionTriggerForUMA)trigger {
   [self showTrustedVaultReauthForFetchKeysWithTrigger:trigger];
+}
+
+- (void)showAIMPrototypeFromEntrypoint:(AIMPrototypeEntrypoint)entrypoint
+                             withQuery:(NSString*)query {
+  CHECK(base::FeatureList::IsEnabled(kAIMPrototype));
+  if (_aimPrototypeCoordinator) {
+    return;
+  }
+  _aimPrototypeCoordinator = [[AIMPrototypeContainerCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser
+                      entrypoint:entrypoint
+                           query:query];
+  [_aimPrototypeCoordinator start];
+}
+
+- (void)hideAIMPrototype {
+  if (!_aimPrototypeCoordinator) {
+    return;
+  }
+  [_aimPrototypeCoordinator stop];
+  _aimPrototypeCoordinator = nil;
 }
 
 #pragma mark - ContextualPanelEntrypointIPHCommands
@@ -3455,6 +3492,7 @@ enum class ToolbarKind {
       ReaderModeBrowserAgent::FromBrowser(self.browser);
   if (readerModeBrowserAgent) {
     readerModeBrowserAgent->SetDelegate(self);
+    readerModeBrowserAgent->SetWebStateDelegate(self.tabLifecycleMediator);
   }
 }
 

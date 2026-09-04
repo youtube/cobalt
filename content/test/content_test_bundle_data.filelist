@@ -176,6 +176,8 @@ data/accessibility/accname/name-file-title.html
 data/accessibility/accname/name-from-content-dfn-expected-blink.txt
 data/accessibility/accname/name-from-content-dfn.html
 data/accessibility/accname/name-from-content-expected-blink.txt
+data/accessibility/accname/name-from-content-of-address-expected-blink.txt
+data/accessibility/accname/name-from-content-of-address.html
 data/accessibility/accname/name-from-content-of-label-expected-blink.txt
 data/accessibility/accname/name-from-content-of-label.html
 data/accessibility/accname/name-from-content-of-labelledby-element-expected-blink.txt
@@ -6841,6 +6843,8 @@ data/btm/v5.sql
 data/btm/v6.sql
 data/btm/v7.sql
 data/btm/v8.sql
+data/btm/v9.sql
+data/btm/v10.sql
 data/cache_storage/corrupt_utf16_cache_name/0430f1a484a0ea6d8de562488c5fbeec0111d16f/676288ed-4de0-44af-97d6-dbd75b07a8a3/4bfb34f348c2269e_0
 data/cache_storage/corrupt_utf16_cache_name/0430f1a484a0ea6d8de562488c5fbeec0111d16f/676288ed-4de0-44af-97d6-dbd75b07a8a3/index
 data/cache_storage/corrupt_utf16_cache_name/0430f1a484a0ea6d8de562488c5fbeec0111d16f/676288ed-4de0-44af-97d6-dbd75b07a8a3/index-dir/the-real-index

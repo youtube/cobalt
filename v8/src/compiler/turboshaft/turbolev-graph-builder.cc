@@ -22,6 +22,7 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/access-builder.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -33,6 +34,7 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/sidetable.h"
+#include "src/compiler/turboshaft/simplified-optimization-reducer.h"
 #include "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
@@ -492,8 +494,9 @@ class GraphBuildingNodeProcessor {
  public:
   using AssemblerT =
       TSAssembler<BlockOriginTrackingReducer, TurbolevEarlyLoweringReducer,
-                  MachineOptimizationReducer, VariableReducer,
-                  RequiredOptimizationReducer, ValueNumberingReducer>;
+                  SimplifiedOptimizationReducer, MachineOptimizationReducer,
+                  VariableReducer, RequiredOptimizationReducer,
+                  ValueNumberingReducer>;
 
   GraphBuildingNodeProcessor(
       PipelineData* data, Graph& graph, Zone* temp_zone,
@@ -1321,6 +1324,43 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CallKnownJSFunction* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+
+    JSWasmCallParameters* wasm_call_params = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+    SharedFunctionInfoRef shared = node->shared_function_info();
+    Tagged<Code> code = shared.object()->GetCode(isolate_);
+    Tagged<Object> data = shared.object()->GetTrustedData(isolate_);
+    // If the code is a JS-to-Wasm wrapper (either the generic builtin or a
+    // compiled wrapper), we might be able to inline it.
+    bool is_calling_js_to_wasm_wrapper_builtin =
+        (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
+        (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
+    if (v8_flags.turbolev_inline_js_wasm_wrappers &&
+        is_calling_js_to_wasm_wrapper_builtin &&
+        IsWasmExportedFunctionData(data)) {
+      FeedbackSource feedback = node->feedback_source();
+      SpeculationMode speculation_mode =
+          maglev::MaglevGraphBuilder::GetSpeculationMode(broker_, feedback);
+      // Avoid deoptimization loops if feedback says we should be conservative.
+      if (speculation_mode == SpeculationMode::kAllowSpeculation) {
+        Tagged<WasmExportedFunctionData> function_data =
+            TrustedCast<WasmExportedFunctionData>(data);
+        const wasm::CanonicalSig* wasm_signature = function_data->sig();
+        if (CanInlineJSToWasmCall(wasm_signature)) {
+          Tagged<WasmTrustedInstanceData> instance_data =
+              function_data->instance_data();
+          wasm::NativeModule* native_module = instance_data->native_module();
+          int wasm_function_index = function_data->function_index();
+          bool receiver_is_first_param =
+              function_data->receiver_is_first_param();
+          wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
+              native_module, wasm_function_index, shared, feedback,
+              receiver_is_first_param);
+        }
+      }
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
     V<Object> callee = Map(node->closure());
     int actual_parameter_count = JSParameterCount(node->num_args());
 
@@ -1385,9 +1425,9 @@ class GraphBuildingNodeProcessor {
       BAILOUT_IF_TOO_MANY_ARGUMENTS_FOR_CALL(arguments.size());
       SetMap(node, __ Call(V<CallTarget>::Cast(callee), frame_state,
                            base::VectorOf(arguments),
-                           TSCallDescriptor::Create(descriptor, CanThrow::kYes,
-                                                    lazy_deopt_on_throw,
-                                                    graph_zone())));
+                           TSCallDescriptor::Create(
+                               descriptor, CanThrow::kYes, lazy_deopt_on_throw,
+                               graph_zone(), wasm_call_params)));
     }
 
     return maglev::ProcessResult::kContinue;
@@ -1560,6 +1600,43 @@ class GraphBuildingNodeProcessor {
                 TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
                                          lazy_deopt_on_throw, graph_zone()));
     SetMapMaybeMultiReturn(node, call_idx);
+
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Throw* node,
+                                const maglev::ProcessingState&) {
+    ThrowingScope throwing_scope(this, node);
+    LazyDeoptOnThrow lazy_deopt_on_throw = ShouldLazyDeoptOnThrow(node);
+
+    auto c_entry_stub = __ CEntryStubConstant(isolate_, 1);
+
+    CallDescriptor* call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph_zone(), node->runtime_function(), node->has_input() ? 1 : 0,
+        Operator::kNoProperties, CallDescriptor::kNeedsFrameState,
+        lazy_deopt_on_throw);
+
+    OptionalV<FrameState> frame_state = OptionalV<FrameState>::Nullopt();
+    if (call_descriptor->NeedsFrameState()) {
+      GET_FRAME_STATE_MAYBE_ABORT(frame_state_value, node->lazy_deopt_info());
+      frame_state = frame_state_value;
+    }
+    DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
+                   frame_state.has_value());
+
+    base::SmallVector<OpIndex, 4> arguments;
+    if (node->has_input()) {
+      arguments.push_back(Map(node->value_input()));
+    }
+
+    arguments.push_back(__ ExternalConstant(
+        ExternalReference::Create(node->runtime_function())));
+    arguments.push_back(__ Word32Constant(node->has_input() ? 1 : 0));
+
+    arguments.push_back(native_context());
+    __ Call(c_entry_stub, frame_state, base::VectorOf(arguments),
+            TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+                                     lazy_deopt_on_throw, graph_zone()));
 
     return maglev::ProcessResult::kContinue;
   }

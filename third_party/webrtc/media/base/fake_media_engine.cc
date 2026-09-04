@@ -624,7 +624,8 @@ std::optional<AudioDeviceModule::Stats> FakeVoiceEngine::GetAudioDeviceStats() {
 void FakeVoiceEngine::StopAecDump() {}
 
 std::vector<RtpHeaderExtensionCapability>
-FakeVoiceEngine::GetRtpHeaderExtensions() const {
+FakeVoiceEngine::GetRtpHeaderExtensions(
+    const FieldTrialsView* field_trials) const {
   return header_extensions_;
 }
 
@@ -699,7 +700,8 @@ bool FakeVideoEngine::SetCapture(bool capture) {
   return true;
 }
 std::vector<RtpHeaderExtensionCapability>
-FakeVideoEngine::GetRtpHeaderExtensions() const {
+FakeVideoEngine::GetRtpHeaderExtensions(
+    const FieldTrialsView* field_trials) const {
   return header_extensions_;
 }
 void FakeVideoEngine::SetRtpHeaderExtensions(

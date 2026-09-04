@@ -168,21 +168,21 @@ GLenum DefaultGLErrorCode(VkResult result)
     }
 }
 
-constexpr gl::ShaderMap<vk::ImageLayout> kShaderReadOnlyImageLayouts = {
-    {gl::ShaderType::Vertex, vk::ImageLayout::VertexShaderReadOnly},
-    {gl::ShaderType::TessControl, vk::ImageLayout::PreFragmentShadersReadOnly},
-    {gl::ShaderType::TessEvaluation, vk::ImageLayout::PreFragmentShadersReadOnly},
-    {gl::ShaderType::Geometry, vk::ImageLayout::PreFragmentShadersReadOnly},
-    {gl::ShaderType::Fragment, vk::ImageLayout::FragmentShaderReadOnly},
-    {gl::ShaderType::Compute, vk::ImageLayout::ComputeShaderReadOnly}};
+constexpr gl::ShaderMap<vk::ImageAccess> kShaderReadOnlyImageAccess = {
+    {gl::ShaderType::Vertex, vk::ImageAccess::VertexShaderReadOnly},
+    {gl::ShaderType::TessControl, vk::ImageAccess::PreFragmentShadersReadOnly},
+    {gl::ShaderType::TessEvaluation, vk::ImageAccess::PreFragmentShadersReadOnly},
+    {gl::ShaderType::Geometry, vk::ImageAccess::PreFragmentShadersReadOnly},
+    {gl::ShaderType::Fragment, vk::ImageAccess::FragmentShaderReadOnly},
+    {gl::ShaderType::Compute, vk::ImageAccess::ComputeShaderReadOnly}};
 
-constexpr gl::ShaderMap<vk::ImageLayout> kShaderWriteImageLayouts = {
-    {gl::ShaderType::Vertex, vk::ImageLayout::VertexShaderWrite},
-    {gl::ShaderType::TessControl, vk::ImageLayout::PreFragmentShadersWrite},
-    {gl::ShaderType::TessEvaluation, vk::ImageLayout::PreFragmentShadersWrite},
-    {gl::ShaderType::Geometry, vk::ImageLayout::PreFragmentShadersWrite},
-    {gl::ShaderType::Fragment, vk::ImageLayout::FragmentShaderWrite},
-    {gl::ShaderType::Compute, vk::ImageLayout::ComputeShaderWrite}};
+constexpr gl::ShaderMap<vk::ImageAccess> kShaderWriteImageAccess = {
+    {gl::ShaderType::Vertex, vk::ImageAccess::VertexShaderWrite},
+    {gl::ShaderType::TessControl, vk::ImageAccess::PreFragmentShadersWrite},
+    {gl::ShaderType::TessEvaluation, vk::ImageAccess::PreFragmentShadersWrite},
+    {gl::ShaderType::Geometry, vk::ImageAccess::PreFragmentShadersWrite},
+    {gl::ShaderType::Fragment, vk::ImageAccess::FragmentShaderWrite},
+    {gl::ShaderType::Compute, vk::ImageAccess::ComputeShaderWrite}};
 
 constexpr VkBufferUsageFlags kVertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 constexpr size_t kDynamicVertexDataSize         = 16 * 1024;
@@ -390,7 +390,7 @@ bool IsStencilSamplerBinding(const gl::ProgramExecutable &executable, size_t tex
     return isStencilTexture;
 }
 
-vk::ImageLayout GetDepthStencilAttachmentImageReadLayout(const vk::ImageHelper &image,
+vk::ImageAccess GetDepthStencilAttachmentImageReadLayout(const vk::ImageHelper &image,
                                                          gl::ShaderType firstShader)
 {
     const bool isDepthTexture =
@@ -413,8 +413,8 @@ vk::ImageLayout GetDepthStencilAttachmentImageReadLayout(const vk::ImageHelper &
     if ((isDepthTexture && !isDepthReadOnlyAttachment) ||
         (isStencilTexture && !isStencilReadOnlyAttachment))
     {
-        return isFS ? vk::ImageLayout::DepthStencilFragmentShaderFeedback
-                    : vk::ImageLayout::DepthStencilAllShadersFeedback;
+        return isFS ? vk::ImageAccess::DepthStencilFragmentShaderFeedback
+                    : vk::ImageAccess::DepthStencilAllShadersFeedback;
     }
 
     if (isDepthReadOnlyAttachment)
@@ -422,14 +422,14 @@ vk::ImageLayout GetDepthStencilAttachmentImageReadLayout(const vk::ImageHelper &
         if (isStencilReadOnlyAttachment)
         {
             // Depth read + stencil read
-            return isFS ? vk::ImageLayout::DepthReadStencilReadFragmentShaderRead
-                        : vk::ImageLayout::DepthReadStencilReadAllShadersRead;
+            return isFS ? vk::ImageAccess::DepthReadStencilReadFragmentShaderRead
+                        : vk::ImageAccess::DepthReadStencilReadAllShadersRead;
         }
         else
         {
             // Depth read + stencil write
-            return isFS ? vk::ImageLayout::DepthReadStencilWriteFragmentShaderDepthRead
-                        : vk::ImageLayout::DepthReadStencilWriteAllShadersDepthRead;
+            return isFS ? vk::ImageAccess::DepthReadStencilWriteFragmentShaderDepthRead
+                        : vk::ImageAccess::DepthReadStencilWriteAllShadersDepthRead;
         }
     }
     else
@@ -437,19 +437,19 @@ vk::ImageLayout GetDepthStencilAttachmentImageReadLayout(const vk::ImageHelper &
         if (isStencilReadOnlyAttachment)
         {
             // Depth write + stencil read
-            return isFS ? vk::ImageLayout::DepthWriteStencilReadFragmentShaderStencilRead
-                        : vk::ImageLayout::DepthWriteStencilReadAllShadersStencilRead;
+            return isFS ? vk::ImageAccess::DepthWriteStencilReadFragmentShaderStencilRead
+                        : vk::ImageAccess::DepthWriteStencilReadAllShadersStencilRead;
         }
         else
         {
             // Depth write + stencil write: This is definitely a feedback loop and is handled above.
             UNREACHABLE();
-            return vk::ImageLayout::DepthStencilAllShadersFeedback;
+            return vk::ImageAccess::DepthStencilAllShadersFeedback;
         }
     }
 }
 
-vk::ImageLayout GetImageReadLayout(TextureVk *textureVk,
+vk::ImageAccess GetImageReadAccess(TextureVk *textureVk,
                                    const gl::ProgramExecutable &executable,
                                    size_t textureUnit,
                                    PipelineType pipelineType)
@@ -460,8 +460,8 @@ vk::ImageLayout GetImageReadLayout(TextureVk *textureVk,
     // we consider this image's layout as writeable.
     if (textureVk->hasBeenBoundAsImage() && executable.hasImages())
     {
-        return pipelineType == PipelineType::Compute ? vk::ImageLayout::ComputeShaderWrite
-                                                     : vk::ImageLayout::AllGraphicsShadersWrite;
+        return pipelineType == PipelineType::Compute ? vk::ImageAccess::ComputeShaderWrite
+                                                     : vk::ImageAccess::AllGraphicsShadersWrite;
     }
 
     gl::ShaderBitSet remainingShaderBits =
@@ -499,8 +499,8 @@ vk::ImageLayout GetImageReadLayout(TextureVk *textureVk,
 
         image.setRenderPassUsageFlag(vk::RenderPassUsage::ColorTextureSampler);
 
-        return isFragmentShaderOnly ? vk::ImageLayout::ColorWriteFragmentShaderFeedback
-                                    : vk::ImageLayout::ColorWriteAllShadersFeedback;
+        return isFragmentShaderOnly ? vk::ImageAccess::ColorWriteFragmentShaderFeedback
+                                    : vk::ImageAccess::ColorWriteAllShadersFeedback;
     }
 
     if (image.isDepthOrStencil())
@@ -510,8 +510,8 @@ vk::ImageLayout GetImageReadLayout(TextureVk *textureVk,
         // split a RenderPass to transition a depth texture from shader-read to read-only.
         // This improves performance in Manhattan. Future optimizations are likely possible
         // here including using specialized barriers without breaking the RenderPass.
-        return isFragmentShaderOnly ? vk::ImageLayout::DepthReadStencilReadFragmentShaderRead
-                                    : vk::ImageLayout::DepthReadStencilReadAllShadersRead;
+        return isFragmentShaderOnly ? vk::ImageAccess::DepthReadStencilReadFragmentShaderRead
+                                    : vk::ImageAccess::DepthReadStencilReadAllShadersRead;
     }
 
     // We barrier against either:
@@ -520,14 +520,14 @@ vk::ImageLayout GetImageReadLayout(TextureVk *textureVk,
     // - Pre-fragment only (vertex, geometry and tessellation together)
     if (remainingShaderBits.any() || firstShader != lastShader)
     {
-        return lastShader == gl::ShaderType::Fragment ? vk::ImageLayout::AllGraphicsShadersReadOnly
-                                                      : vk::ImageLayout::PreFragmentShadersReadOnly;
+        return lastShader == gl::ShaderType::Fragment ? vk::ImageAccess::AllGraphicsShadersReadOnly
+                                                      : vk::ImageAccess::PreFragmentShadersReadOnly;
     }
 
-    return kShaderReadOnlyImageLayouts[firstShader];
+    return kShaderReadOnlyImageAccess[firstShader];
 }
 
-vk::ImageLayout GetImageWriteLayoutAndSubresource(const gl::ImageUnit &imageUnit,
+vk::ImageAccess GetImageWriteAccessAndSubresource(const gl::ImageUnit &imageUnit,
                                                   vk::ImageHelper &image,
                                                   gl::ShaderBitSet shaderStages,
                                                   gl::LevelIndex *levelOut,
@@ -554,11 +554,11 @@ vk::ImageLayout GetImageWriteLayoutAndSubresource(const gl::ImageUnit &imageUnit
     // - Pre-fragment only (vertex, geometry and tessellation together)
     if (shaderStages.any() || firstShader != lastShader)
     {
-        return lastShader == gl::ShaderType::Fragment ? vk::ImageLayout::AllGraphicsShadersWrite
-                                                      : vk::ImageLayout::PreFragmentShadersWrite;
+        return lastShader == gl::ShaderType::Fragment ? vk::ImageAccess::AllGraphicsShadersWrite
+                                                      : vk::ImageAccess::PreFragmentShadersWrite;
     }
 
-    return kShaderWriteImageLayouts[firstShader];
+    return kShaderWriteImageAccess[firstShader];
 }
 
 template <typename CommandBufferT>
@@ -758,6 +758,37 @@ void GenerateTextureUnitSamplerIndexMap(
         textureUnitSamplerIndexMapOut->insert(
             {samplerBoundTextureUnits[samplerIndex], static_cast<uint32_t>(samplerIndex)});
     }
+}
+
+GLenum ConvertImageAccessToGLImageLayout(vk::Renderer *renderer, vk::ImageAccess imageAccess)
+{
+    switch (renderer->getVkImageLayout(imageAccess))
+    {
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+            return GL_NONE;
+        case VK_IMAGE_LAYOUT_GENERAL:
+            return GL_LAYOUT_GENERAL_EXT;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            return GL_LAYOUT_COLOR_ATTACHMENT_EXT;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            return GL_LAYOUT_DEPTH_STENCIL_ATTACHMENT_EXT;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+            return GL_LAYOUT_DEPTH_STENCIL_READ_ONLY_EXT;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            return GL_LAYOUT_SHADER_READ_ONLY_EXT;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            return GL_LAYOUT_TRANSFER_SRC_EXT;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            return GL_LAYOUT_TRANSFER_DST_EXT;
+        case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+            return GL_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_EXT;
+        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+            return GL_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_EXT;
+        default:
+            break;
+    }
+    UNREACHABLE();
+    return GL_NONE;
 }
 }  // anonymous namespace
 
@@ -2535,11 +2566,11 @@ ANGLE_INLINE angle::Result ContextVk::handleDirtyTexturesImpl(
         // layers. Therefore we can't verify it has no staged updates right here.
         vk::ImageHelper &image = textureVk->getImage();
 
-        const vk::ImageLayout imageLayout =
-            GetImageReadLayout(textureVk, *executable, textureUnit, pipelineType);
+        const vk::ImageAccess imageAccess =
+            GetImageReadAccess(textureVk, *executable, textureUnit, pipelineType);
 
         // Ensure the image is in the desired layout
-        commandBufferHelper->imageRead(this, image.getAspectFlags(), imageLayout, &image);
+        commandBufferHelper->imageRead(this, image.getAspectFlags(), imageAccess, &image);
     }
 
     if (executable->hasTextures())
@@ -2577,17 +2608,11 @@ angle::Result ContextVk::handleDirtyGraphicsVertexBuffers(DirtyBits::Iterator *d
     if (mRenderer->getFeatures().useVertexInputBindingStrideDynamicState.enabled ||
         getFeatures().supportsVertexInputDynamicState.enabled)
     {
-        const gl::AttribArray<GLuint> &bufferStrides =
-            vertexArrayVk->getCurrentArrayBufferStrides();
         const gl::AttribArray<angle::FormatID> &bufferFormats =
             vertexArrayVk->getCurrentArrayBufferFormats();
         gl::AttribArray<VkDeviceSize> strides = {};
-        const gl::AttribArray<GLuint> &bufferDivisors =
-            vertexArrayVk->getCurrentArrayBufferDivisors();
-        const gl::AttribArray<GLuint> &bufferRelativeOffsets =
-            vertexArrayVk->getCurrentArrayBufferRelativeOffsets();
-        const gl::AttributesMask &bufferCompressed =
-            vertexArrayVk->getCurrentArrayBufferCompressed();
+        const gl::ComponentTypeMask vertexAttributesTypeMask =
+            vertexArrayVk->getState().getVertexAttributesTypeMask();
 
         gl::AttribVector<VkVertexInputBindingDescription2EXT> bindingDescs;
         gl::AttribVector<VkVertexInputAttributeDescription2EXT> attributeDescs;
@@ -2601,18 +2626,16 @@ angle::Result ContextVk::handleDirtyGraphicsVertexBuffers(DirtyBits::Iterator *d
 
         for (size_t attribIndex : activeAttribLocations)
         {
-            const angle::Format &intendedFormat =
-                mRenderer->getFormat(bufferFormats[attribIndex]).getIntendedFormat();
-
-            const gl::ComponentType attribType = GetVertexAttributeComponentType(
-                intendedFormat.isPureInt(), intendedFormat.vertexAttribType);
+            const gl::ComponentType attribType =
+                gl::GetComponentTypeMask(vertexAttributesTypeMask, attribIndex);
             const gl::ComponentType programAttribType =
                 gl::GetComponentTypeMask(programAttribsTypeMask, attribIndex);
 
             const bool mismatchingType =
                 attribType != programAttribType && (programAttribType == gl::ComponentType::Float ||
                                                     attribType == gl::ComponentType::Float);
-            strides[attribIndex] = mismatchingType ? 0 : bufferStrides[attribIndex];
+            strides[attribIndex] =
+                mismatchingType ? 0 : vertexArrayVk->getCurrentArrayBufferStride(attribIndex);
 
             if (getFeatures().supportsVertexInputDynamicState.enabled)
             {
@@ -2622,9 +2645,10 @@ angle::Result ContextVk::handleDirtyGraphicsVertexBuffers(DirtyBits::Iterator *d
                 bindingDesc.binding = static_cast<uint32_t>(attribIndex);
                 bindingDesc.stride  = static_cast<uint32_t>(strides[attribIndex]);
                 bindingDesc.divisor =
-                    bufferDivisors[attribIndex] > mRenderer->getMaxVertexAttribDivisor()
+                    vertexArrayVk->getCurrentArrayBufferDivisor(attribIndex) >
+                            mRenderer->getMaxVertexAttribDivisor()
                         ? 1
-                        : bufferDivisors[attribIndex];
+                        : vertexArrayVk->getCurrentArrayBufferDivisor(attribIndex);
                 if (bindingDesc.divisor != 0)
                 {
                     bindingDesc.inputRate =
@@ -2643,10 +2667,10 @@ angle::Result ContextVk::handleDirtyGraphicsVertexBuffers(DirtyBits::Iterator *d
                 attribDesc.sType   = VK_STRUCTURE_TYPE_VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT;
                 attribDesc.binding = static_cast<uint32_t>(attribIndex);
                 attribDesc.format  = vk::GraphicsPipelineDesc::getPipelineVertexInputStateFormat(
-                    this, bufferFormats[attribIndex], bufferCompressed[attribIndex],
-                    programAttribType, static_cast<uint32_t>(attribIndex));
+                    this, bufferFormats[attribIndex], programAttribType,
+                    static_cast<uint32_t>(attribIndex));
                 attribDesc.location = static_cast<uint32_t>(attribIndex);
-                attribDesc.offset   = bufferRelativeOffsets[attribIndex];
+                attribDesc.offset = vertexArrayVk->getCurrentArrayBufferRelativeOffset(attribIndex);
 
                 bindingDescs.push_back(bindingDesc);
                 attributeDescs.push_back(attribDesc);
@@ -4609,7 +4633,7 @@ angle::Result ContextVk::optimizeRenderPassForPresent(vk::ImageViewHelper *color
         mRenderPassCommands->addColorResolveAttachment(0, colorImage, resolveImageView->getHandle(),
                                                        gl::LevelIndex(0), 0, 1, {});
         onImageRenderPassWrite(gl::LevelIndex(0), 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                               vk::ImageLayout::ColorWrite, colorImage);
+                               vk::ImageAccess::ColorWrite, colorImage);
 
         // Invalidate the surface.
         // See comment in WindowSurfaceVk::acquireNextSwapchainImage on why this is not done when
@@ -6792,7 +6816,7 @@ angle::Result ContextVk::memoryBarrier(const gl::Context *context, GLbitfield ba
     // other commands.  For the latter, since storage buffer and images are not tracked in command
     // buffers, we can't rely on the command buffers being flushed in the usual way when recording
     // these commands (i.e. through |getOutsideRenderPassCommandBuffer()| and
-    // |vk::CommandBufferAccess|).  Conservatively flushing command buffers with any storage output
+    // |vk::CommandResources|).  Conservatively flushing command buffers with any storage output
     // simplifies this use case.  If this needs to be avoided in the future,
     // |getOutsideRenderPassCommandBuffer()| can be modified to flush the command buffers if they
     // have had any storage output.
@@ -6888,11 +6912,12 @@ angle::Result ContextVk::acquireTextures(const gl::Context *context,
     {
         TextureVk *textureVk   = vk::GetImpl(textureBarrier.texture);
         vk::ImageHelper &image = textureVk->getImage();
-        vk::ImageLayout layout = vk::GetImageLayoutFromGLImageLayout(this, textureBarrier.layout);
+        vk::ImageAccess imageAccess =
+            vk::GetImageAccessFromGLImageLayout(this, textureBarrier.layout);
         // Image should not be accessed while unowned. Emulated formats may have staged updates
         // to clear the image after initialization.
         ASSERT(!image.hasStagedUpdatesInAllocatedLevels() || image.hasEmulatedImageChannels());
-        image.setCurrentImageLayout(getRenderer(), layout);
+        image.setCurrentImageAccess(getRenderer(), imageAccess);
     }
     return angle::Result::Continue;
 }
@@ -6910,7 +6935,7 @@ angle::Result ContextVk::releaseTextures(const gl::Context *context,
         ANGLE_TRY(onImageReleaseToExternal(image));
 
         textureBarrier.layout =
-            vk::ConvertImageLayoutToGLImageLayout(image.getCurrentImageLayout());
+            ConvertImageAccessToGLImageLayout(mRenderer, image.getCurrentImageAccess());
     }
 
     return flushAndSubmitCommands(nullptr, nullptr,
@@ -7677,10 +7702,10 @@ angle::Result ContextVk::updateActiveImages(CommandBufferHelperT *commandBufferH
         gl::LevelIndex level;
         uint32_t layerStart               = 0;
         uint32_t layerCount               = 0;
-        const vk::ImageLayout imageLayout = GetImageWriteLayoutAndSubresource(
+        const vk::ImageAccess imageAccess = GetImageWriteAccessAndSubresource(
             imageUnit, *image, shaderStages, &level, &layerStart, &layerCount);
 
-        if (imageLayout == image->getCurrentImageLayout() && !memoryBarrierRequired)
+        if (imageAccess == image->getCurrentImageAccess() && !memoryBarrierRequired)
         {
             // GL spec does not require implementation to do WAW barriers for shader image access.
             // If there is no layout change, we skip the barrier here unless there is prior
@@ -7690,7 +7715,7 @@ angle::Result ContextVk::updateActiveImages(CommandBufferHelperT *commandBufferH
         else
         {
             commandBufferHelper->imageWrite(this, level, layerStart, layerCount,
-                                            image->getAspectFlags(), imageLayout, image);
+                                            image->getAspectFlags(), imageAccess, image);
         }
     }
 
@@ -8822,80 +8847,81 @@ angle::Result ContextVk::switchToReadOnlyDepthStencilMode(gl::Texture *texture,
     return angle::Result::Continue;
 }
 
-angle::Result ContextVk::onResourceAccess(const vk::CommandBufferAccess &access)
+angle::Result ContextVk::onResourceAccess(const vk::CommandResources &resources)
 {
-    ANGLE_TRY(flushCommandBuffersIfNecessary(access));
+    ANGLE_TRY(flushCommandBuffersIfNecessary(resources));
 
-    for (const vk::CommandBufferImageAccess &imageAccess : access.getReadImages())
+    for (const vk::CommandResourceImage &readImage : resources.getReadImages())
     {
-        vk::ImageHelper *image = imageAccess.image;
+        vk::ImageHelper *image = readImage.image;
         ASSERT(!isRenderPassStartedAndUsesImage(*image));
 
-        imageAccess.image->recordReadBarrier(this, imageAccess.aspectFlags, imageAccess.imageLayout,
-                                             mOutsideRenderPassCommands);
-        mOutsideRenderPassCommands->retainImage(image);
+        readImage.image->recordReadBarrier(this, readImage.aspectFlags, readImage.imageAccess,
+                                           mOutsideRenderPassCommands);
+        mOutsideRenderPassCommands->retainImage(mRenderer, image);
     }
 
-    for (const vk::CommandBufferImageSubresourceAccess &imageReadAccess :
-         access.getReadImageSubresources())
+    for (const vk::CommandResourceImageSubresource &readImageSubresource :
+         resources.getReadImageSubresources())
     {
-        vk::ImageHelper *image = imageReadAccess.access.image;
+        vk::ImageHelper *image = readImageSubresource.image.image;
         ASSERT(!isRenderPassStartedAndUsesImage(*image));
 
         image->recordReadSubresourceBarrier(
-            this, imageReadAccess.access.aspectFlags, imageReadAccess.access.imageLayout,
-            imageReadAccess.levelStart, imageReadAccess.levelCount, imageReadAccess.layerStart,
-            imageReadAccess.layerCount, mOutsideRenderPassCommands);
-        mOutsideRenderPassCommands->retainImage(image);
+            this, readImageSubresource.image.aspectFlags, readImageSubresource.image.imageAccess,
+            readImageSubresource.levelStart, readImageSubresource.levelCount,
+            readImageSubresource.layerStart, readImageSubresource.layerCount,
+            mOutsideRenderPassCommands);
+        mOutsideRenderPassCommands->retainImage(mRenderer, image);
     }
 
-    for (const vk::CommandBufferImageSubresourceAccess &imageWrite : access.getWriteImages())
+    for (const vk::CommandResourceImageSubresource &writeImage : resources.getWriteImages())
     {
-        vk::ImageHelper *image = imageWrite.access.image;
+        vk::ImageHelper *image = writeImage.image.image;
         ASSERT(!isRenderPassStartedAndUsesImage(*image));
 
-        image->recordWriteBarrier(this, imageWrite.access.aspectFlags,
-                                  imageWrite.access.imageLayout, imageWrite.levelStart,
-                                  imageWrite.levelCount, imageWrite.layerStart,
-                                  imageWrite.layerCount, mOutsideRenderPassCommands);
-        mOutsideRenderPassCommands->retainImage(image);
-        image->onWrite(imageWrite.levelStart, imageWrite.levelCount, imageWrite.layerStart,
-                       imageWrite.layerCount, imageWrite.access.aspectFlags);
+        image->recordWriteBarrier(this, writeImage.image.aspectFlags, writeImage.image.imageAccess,
+                                  writeImage.levelStart, writeImage.levelCount,
+                                  writeImage.layerStart, writeImage.layerCount,
+                                  mOutsideRenderPassCommands);
+        mOutsideRenderPassCommands->retainImage(mRenderer, image);
+        image->onWrite(writeImage.levelStart, writeImage.levelCount, writeImage.layerStart,
+                       writeImage.layerCount, writeImage.image.aspectFlags);
     }
 
-    for (const vk::CommandBufferBufferAccess &bufferAccess : access.getReadBuffers())
+    for (const vk::CommandResourceBuffer &readBuffer : resources.getReadBuffers())
     {
-        ASSERT(!isRenderPassStartedAndUsesBufferForWrite(*bufferAccess.buffer));
-        ASSERT(!mOutsideRenderPassCommands->usesBufferForWrite(*bufferAccess.buffer));
+        ASSERT(!isRenderPassStartedAndUsesBufferForWrite(*readBuffer.buffer));
+        ASSERT(!mOutsideRenderPassCommands->usesBufferForWrite(*readBuffer.buffer));
 
-        mOutsideRenderPassCommands->bufferRead(this, bufferAccess.accessType, bufferAccess.stage,
-                                               bufferAccess.buffer);
+        mOutsideRenderPassCommands->bufferRead(this, readBuffer.accessType, readBuffer.stage,
+                                               readBuffer.buffer);
     }
 
-    for (const vk::CommandBufferBufferAccess &bufferAccess : access.getWriteBuffers())
+    for (const vk::CommandResourceBuffer &writeBuffer : resources.getWriteBuffers())
     {
-        ASSERT(!isRenderPassStartedAndUsesBuffer(*bufferAccess.buffer));
-        ASSERT(!mOutsideRenderPassCommands->usesBuffer(*bufferAccess.buffer));
+        ASSERT(!isRenderPassStartedAndUsesBuffer(*writeBuffer.buffer));
+        ASSERT(!mOutsideRenderPassCommands->usesBuffer(*writeBuffer.buffer));
 
-        mOutsideRenderPassCommands->bufferWrite(this, bufferAccess.accessType, bufferAccess.stage,
-                                                bufferAccess.buffer);
+        mOutsideRenderPassCommands->bufferWrite(this, writeBuffer.accessType, writeBuffer.stage,
+                                                writeBuffer.buffer);
     }
 
-    for (const vk::CommandBufferBufferExternalAcquireRelease &bufferAcquireRelease :
-         access.getExternalAcquireReleaseBuffers())
+    for (const vk::CommandResourceBufferExternalAcquireRelease &bufferAcquireRelease :
+         resources.getExternalAcquireReleaseBuffers())
     {
         mOutsideRenderPassCommands->retainResourceForWrite(bufferAcquireRelease.buffer);
     }
 
-    for (const vk::CommandBufferResourceAccess &resourceAccess : access.getAccessResources())
+    for (const vk::CommandResourceGeneric &genericResource : resources.getGenericResources())
     {
-        mOutsideRenderPassCommands->retainResource(resourceAccess.resource);
+        mOutsideRenderPassCommands->retainResource(genericResource.resource);
     }
 
     return angle::Result::Continue;
 }
 
-angle::Result ContextVk::flushCommandBuffersIfNecessary(const vk::CommandBufferAccess &access)
+angle::Result ContextVk::flushCommandBuffersIfNecessary(const vk::CommandResources &resources)
 {
     // Go over resources and decide whether the render pass needs to close, whether the outside
     // render pass commands need to be flushed, or neither.  Note that closing the render pass
@@ -8905,13 +8931,13 @@ angle::Result ContextVk::flushCommandBuffersIfNecessary(const vk::CommandBufferA
     // that once at the end.
 
     // Read images only need to close the render pass if they need a layout transition.
-    for (const vk::CommandBufferImageAccess &imageAccess : access.getReadImages())
+    for (const vk::CommandResourceImage &readImage : resources.getReadImages())
     {
         // Note that different read methods are not compatible. A shader read uses a different
         // layout than a transfer read. So we cannot support simultaneous read usage as easily as
         // for Buffers.  TODO: Don't close the render pass if the image was only used read-only in
         // the render pass.  http://anglebug.com/42263557
-        if (isRenderPassStartedAndUsesImage(*imageAccess.image))
+        if (isRenderPassStartedAndUsesImage(*readImage.image))
         {
             return flushCommandsAndEndRenderPass(RenderPassClosureReason::ImageUseThenOutOfRPRead);
         }
@@ -8920,19 +8946,19 @@ angle::Result ContextVk::flushCommandBuffersIfNecessary(const vk::CommandBufferA
     // In cases where the image has both read and write permissions, the render pass should be
     // closed if there is a read from a previously written subresource (in a specific level/layer),
     // or a write to a previously read one.
-    for (const vk::CommandBufferImageSubresourceAccess &imageSubresourceAccess :
-         access.getReadImageSubresources())
+    for (const vk::CommandResourceImageSubresource &readImageSubresource :
+         resources.getReadImageSubresources())
     {
-        if (isRenderPassStartedAndUsesImage(*imageSubresourceAccess.access.image))
+        if (isRenderPassStartedAndUsesImage(*readImageSubresource.image.image))
         {
             return flushCommandsAndEndRenderPass(RenderPassClosureReason::ImageUseThenOutOfRPRead);
         }
     }
 
     // Write images only need to close the render pass if they need a layout transition.
-    for (const vk::CommandBufferImageSubresourceAccess &imageWrite : access.getWriteImages())
+    for (const vk::CommandResourceImageSubresource &writeImage : resources.getWriteImages())
     {
-        if (isRenderPassStartedAndUsesImage(*imageWrite.access.image))
+        if (isRenderPassStartedAndUsesImage(*writeImage.image.image))
         {
             return flushCommandsAndEndRenderPass(RenderPassClosureReason::ImageUseThenOutOfRPWrite);
         }
@@ -8941,28 +8967,28 @@ angle::Result ContextVk::flushCommandBuffersIfNecessary(const vk::CommandBufferA
     bool shouldCloseOutsideRenderPassCommands = false;
 
     // Read buffers only need a new command buffer if previously used for write.
-    for (const vk::CommandBufferBufferAccess &bufferAccess : access.getReadBuffers())
+    for (const vk::CommandResourceBuffer &readBuffer : resources.getReadBuffers())
     {
-        if (isRenderPassStartedAndUsesBufferForWrite(*bufferAccess.buffer))
+        if (isRenderPassStartedAndUsesBufferForWrite(*readBuffer.buffer))
         {
             return flushCommandsAndEndRenderPass(
                 RenderPassClosureReason::BufferWriteThenOutOfRPRead);
         }
-        else if (mOutsideRenderPassCommands->usesBufferForWrite(*bufferAccess.buffer))
+        else if (mOutsideRenderPassCommands->usesBufferForWrite(*readBuffer.buffer))
         {
             shouldCloseOutsideRenderPassCommands = true;
         }
     }
 
     // Write buffers always need a new command buffer if previously used.
-    for (const vk::CommandBufferBufferAccess &bufferAccess : access.getWriteBuffers())
+    for (const vk::CommandResourceBuffer &writeBuffer : resources.getWriteBuffers())
     {
-        if (isRenderPassStartedAndUsesBuffer(*bufferAccess.buffer))
+        if (isRenderPassStartedAndUsesBuffer(*writeBuffer.buffer))
         {
             return flushCommandsAndEndRenderPass(
                 RenderPassClosureReason::BufferUseThenOutOfRPWrite);
         }
-        else if (mOutsideRenderPassCommands->usesBuffer(*bufferAccess.buffer))
+        else if (mOutsideRenderPassCommands->usesBuffer(*writeBuffer.buffer))
         {
             shouldCloseOutsideRenderPassCommands = true;
         }
@@ -9259,25 +9285,22 @@ angle::Result ContextVk::ensureInterfacePipelineCache()
     return angle::Result::Continue;
 }
 
-angle::Result ContextVk::onVertexArrayChange(const gl::AttributesMask enabledAttribDirtyBits,
-                                             const gl::AttributesMask disabledAttribDirtyBits)
+angle::Result ContextVk::onVertexArrayChange(const gl::AttributesMask enabledAttribDirtyBits)
 {
     const VertexArrayVk &vertexArray = *getVertexArray();
 
     if (ANGLE_UNLIKELY(!getFeatures().supportsVertexInputDynamicState.enabled))
     {
-        const gl::AttributesMask attribDirtyBits = enabledAttribDirtyBits | disabledAttribDirtyBits;
-
         invalidateCurrentGraphicsPipeline();
 
-        for (size_t attribIndex : attribDirtyBits)
+        for (size_t attribIndex : enabledAttribDirtyBits)
         {
             const GLuint staticStride =
                 mRenderer->getFeatures().useVertexInputBindingStrideDynamicState.enabled
                     ? 0
-                    : vertexArray.getCurrentArrayBufferStrides()[attribIndex];
+                    : vertexArray.getCurrentArrayBufferStride(attribIndex);
 
-            GLuint divisor = vertexArray.getCurrentArrayBufferDivisors()[attribIndex];
+            GLuint divisor = vertexArray.getCurrentArrayBufferDivisor(attribIndex);
             // Set divisor to 1 for attribs with emulated divisor
             if (divisor > mRenderer->getMaxVertexAttribDivisor())
             {
@@ -9287,8 +9310,7 @@ angle::Result ContextVk::onVertexArrayChange(const gl::AttributesMask enabledAtt
             mGraphicsPipelineDesc->updateVertexInput(
                 this, &mGraphicsPipelineTransition, static_cast<uint32_t>(attribIndex),
                 staticStride, divisor, vertexArray.getCurrentArrayBufferFormats()[attribIndex],
-                vertexArray.getCurrentArrayBufferCompressed()[attribIndex],
-                vertexArray.getCurrentArrayBufferRelativeOffsets()[attribIndex]);
+                vertexArray.getCurrentArrayBufferRelativeOffset(attribIndex));
         }
     }
 

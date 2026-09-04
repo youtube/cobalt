@@ -67,6 +67,10 @@ namespace syncer {
 class SyncService;
 }
 
+namespace one_time_tokens {
+class SmsOtpBackend;
+}
+
 namespace optimization_guide {
 class ModelQualityLogsUploaderService;
 }
@@ -105,7 +109,7 @@ class EntityDataManager;
 class FieldClassificationModelHandler;
 class FormDataImporter;
 class LogManager;
-class OtpDelegate;
+class OtpFieldDetector;
 class PersonalDataManager;
 class SingleFieldFillRouter;
 class StrikeDatabase;
@@ -387,10 +391,6 @@ class AutofillClient {
   // password suggestions for the given `field_id`.
   virtual PasswordManagerDelegate* GetPasswordManagerDelegate(
       const FieldGlobalId& field_id);
-
-  // Returns the `OtpDelegate` associated with the profile of the window of
-  // this tab.
-  virtual OtpDelegate* GetOtpDelegate();
 
   // TODO(crbug.com/365494310): Move these methods to a plus-address-specific
   // client class.
@@ -698,6 +698,12 @@ class AutofillClient {
       EntityInstance new_entity,
       std::optional<EntityInstance> old_entity,
       EntitySaveOrUpdatePromptResultCallback save_prompt_acceptance_callback);
+
+  // May return null on platforms where OTPs are not supported.
+  virtual OtpFieldDetector* GetOtpFieldDetector();
+
+  // May return null on platforms where no SmsOtpBackend is supported.
+  virtual one_time_tokens::SmsOtpBackend* GetSmsOtpBackend() const;
 };
 
 }  // namespace autofill

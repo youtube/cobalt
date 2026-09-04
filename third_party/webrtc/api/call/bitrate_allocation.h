@@ -28,6 +28,7 @@ struct BitrateAllocationUpdate {
   // Predicted round trip time.
   TimeDelta round_trip_time = TimeDelta::PlusInfinity();
   // `bwe_period` is deprecated.
+  // TODO: https://issues.webrtc.org/442860748 - complete removal.
   TimeDelta bwe_period = TimeDelta::PlusInfinity();
   // Congestion window pushback bitrate reduction fraction. Used in
   // VideoStreamEncoder to reduce the bitrate by the given fraction

@@ -74,14 +74,10 @@ class AsyncStunServerTCPSocket : public AsyncTcpListenSocket {
  public:
   AsyncStunServerTCPSocket(const Environment& env,
                            std::unique_ptr<Socket> socket)
-      : AsyncTcpListenSocket(std::move(socket)), env_(env) {}
-  void HandleIncomingConnection(Socket* socket) override {
-    SignalNewConnection(this,
-                        new AsyncStunTCPSocket(env_, absl::WrapUnique(socket)));
+      : AsyncTcpListenSocket(env, std::move(socket)) {}
+  void HandleIncomingConnection(std::unique_ptr<Socket> socket) override {
+    SignalNewConnection(this, new AsyncStunTCPSocket(env(), std::move(socket)));
   }
-
- private:
-  const Environment env_;
 };
 
 class AsyncStunTCPSocketTest : public ::testing::Test,

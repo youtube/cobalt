@@ -1796,8 +1796,6 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_memory0_size(0);
     trusted_data->set_memory_objects(*memory_objects);
     trusted_data->set_memory_bases_and_sizes(*memory_bases_and_sizes);
-    trusted_data->set_stress_deopt_counter_address(
-        ExternalReference::stress_deopt_count(isolate).address());
 
     for (int i = 0; i < num_memories; ++i) {
       memory_bases_and_sizes->set(
@@ -2289,11 +2287,9 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
                                           num_supertypes, context);
 
   if (v8_flags.wasm_explicit_prototypes && !IsSmi(*first_field) &&
-      IsWasmDescriptorOptions(Cast<HeapObject>(*first_field))) {
-    DirectHandle<JSPrototype> prototype = direct_handle(
-        Cast<JSReceiver>(
-            Cast<WasmDescriptorOptions>(*first_field)->prototype()),
-        isolate);
+      IsJSObject(Cast<HeapObject>(*first_field))) {
+    DirectHandle<JSPrototype> prototype =
+        direct_handle(Cast<JSReceiver>(*first_field), isolate);
     Map::SetPrototype(isolate, rtt, prototype);
   }
 
@@ -2408,17 +2404,6 @@ DirectHandle<WasmTagObject> WasmTagObject::New(
   }
 
   return tag_wrapper;
-}
-
-DirectHandle<WasmDescriptorOptions> WasmDescriptorOptions::New(
-    Isolate* isolate, DirectHandle<Object> prototype) {
-  DirectHandle<JSFunction> ctor(
-      isolate->native_context()->wasm_descriptor_options_constructor(),
-      isolate);
-  DirectHandle<WasmDescriptorOptions> desc =
-      Cast<WasmDescriptorOptions>(isolate->factory()->NewJSObject(ctor));
-  desc->set_prototype(*prototype);
-  return desc;
 }
 
 bool WasmTagObject::MatchesSignature(wasm::CanonicalTypeIndex expected_index) {

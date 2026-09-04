@@ -189,8 +189,8 @@ END_METADATA
 
 void AddResourceIcon(const gfx::ImageSkia* skia_image, void* data) {
   views::View* parent = static_cast<views::View*>(data);
-  parent->AddChildViewRaw(
-      new RatingStar(ui::ImageModel::FromImageSkia(*skia_image)));
+  parent->AddChildView(
+      std::make_unique<RatingStar>(ui::ImageModel::FromImageSkia(*skia_image)));
 }
 
 void ShowExtensionInstallDialogImpl(
@@ -211,9 +211,10 @@ void ShowExtensionInstallDialogImpl(
   }
 
   gfx::NativeWindow parent_window = show_params->GetParentWindow();
-  ExtensionInstallDialogView* dialog = new ExtensionInstallDialogView(
+  auto dialog = std::make_unique<ExtensionInstallDialogView>(
       std::move(show_params), std::move(done_callback), std::move(prompt));
-  constrained_window::CreateBrowserModalDialogViews(dialog, parent_window)
+  constrained_window::CreateBrowserModalDialogViews(std::move(dialog),
+                                                    parent_window)
       ->Show();
 }
 

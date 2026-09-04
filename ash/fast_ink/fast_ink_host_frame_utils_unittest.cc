@@ -84,8 +84,7 @@ class FastInkHostCreateFrameUtilTest : public AshTestBase {
 
   // AshTestBase:
   void TearDown() override {
-    shared_image_interface()->DestroySharedImage(gpu::SyncToken(),
-                                                 std::move(shared_image_));
+    shared_image_.reset();
     resource_manager_.ClearAvailableResources();
     resource_manager_.LostExportedResources();
     AshTestBase::TearDown();
@@ -136,7 +135,7 @@ TEST_F(FastInkHostCreateFrameUtilTest, ResourceUsesMailbox) {
 
   auto* resource = resource_manager_.PeekExportedResource(resource_id);
   EXPECT_NE(resource->ui_source_id, kInvalidUiSourceId);
-  EXPECT_EQ(resource->mailbox(), shared_image_->mailbox());
+  EXPECT_EQ(resource->client_shared_image(), shared_image_);
 }
 
 TEST_F(FastInkHostCreateFrameUtilTest, CompositorFrameHasCorrectStructure) {
@@ -202,12 +201,11 @@ TEST_F(FastInkHostCreateFrameUtilTest, OnlyCreateNewResourcesWhenNecessary) {
   // Populate resources in the resource manager.
   constexpr gfx::Size kResourceSizes[4] = {
       {1000, 404}, {1000, 404}, {250, 150}, {50, 25}};
-  auto mailbox = shared_image_->mailbox();
   for (const auto& size : kResourceSizes) {
     resource_manager_.OfferResourceForTesting(
         fast_ink_internal::CreateUiResource(
             size, fast_ink_internal::kFastInkUiSourceId,
-            /*is_overlay_candidate=*/false, mailbox, gpu::SyncToken()));
+            /*is_overlay_candidate=*/false, shared_image_, gpu::SyncToken()));
   }
 
   EXPECT_EQ(resource_manager_.available_resources_count(), 4u);

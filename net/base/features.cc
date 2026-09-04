@@ -86,6 +86,9 @@ BASE_FEATURE(kUseAlternativePortForGloballyReachableCheck,
 BASE_FEATURE(kEnableIPv6ReachabilityOverride,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kMaintainConnectionsOnIpv6TempAddrChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableTLS13EarlyData, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNetworkQualityEstimator, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -423,6 +426,10 @@ const base::FeatureParam<base::TimeDelta> kIpPrivacyTryGetAuthTokensBugBackoff{
     &kEnableIpProtectionProxy, /*name=*/"IpPrivacyTryGetAuthTokensBugBackoff",
     /*default_value=*/base::Minutes(10)};
 
+const base::FeatureParam<double> kIpPrivacyBackoffJitter{
+    &kEnableIpProtectionProxy, /*name=*/"IpPrivacyBackoffJitter",
+    /*default_value=*/0.25};
+
 const base::FeatureParam<bool> kIpPrivacyRestrictTopLevelSiteSchemes{
     &kEnableIpProtectionProxy,
     /*name=*/"IpPrivacyRestrictTopLevelSiteSchemes",
@@ -584,15 +591,7 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kDeviceBoundSessionsOriginTrialFeedback,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPartitionProxyChains, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kSpdySessionForProxyAdditionalChecks,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCompressionDictionaryTransportOverHttp1,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCompressionDictionaryTransportOverHttp2,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCompressionDictionaryTransportRequireKnownRootCert,
@@ -678,25 +677,11 @@ BASE_FEATURE_PARAM(size_t,
                    "max_entries",
                    1000);
 
-// TODO(crbug.com/433551601): Change the default to `true` once it has been
-// verified working.
-BASE_FEATURE_PARAM(bool,
-                   kHttpCacheNoVarySearchApplyToExternalHits,
-                   &kHttpCacheNoVarySearch,
-                   "apply_to_external_hits",
-                   false);
-
 BASE_FEATURE_PARAM(bool,
                    kHttpCacheNoVarySearchPersistenceEnabled,
                    &kHttpCacheNoVarySearch,
                    "persistence_enabled",
                    true);
-
-BASE_FEATURE_PARAM(bool,
-                   kHttpCacheNoVarySearchFakePersistence,
-                   &kHttpCacheNoVarySearch,
-                   "fake_persistence",
-                   false);
 
 BASE_FEATURE_PARAM(bool,
                    kHttpCacheNoVarySearchKeepNotSuitable,
@@ -811,9 +796,7 @@ BASE_FEATURE_PARAM(size_t,
                    "mtu",
                    quic::kDefaultMaxPacketSize);
 
-BASE_FEATURE(kConfigureQuicHints,
-             "ConfigureQuicHints",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kConfigureQuicHints, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(std::string,
                    kQuicHintHostPortPairs,
                    &kConfigureQuicHints,

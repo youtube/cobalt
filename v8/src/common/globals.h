@@ -403,8 +403,9 @@ constexpr int kInt16Size = sizeof(int16_t);
 constexpr int kUInt16Size = sizeof(uint16_t);
 constexpr int kIntSize = sizeof(int);
 constexpr int kInt32Size = sizeof(int32_t);
-constexpr int kInt64Size = sizeof(int64_t);
 constexpr int kUInt32Size = sizeof(uint32_t);
+constexpr int kInt64Size = sizeof(int64_t);
+constexpr int kUInt64Size = sizeof(uint64_t);
 constexpr int kSizetSize = sizeof(size_t);
 constexpr int kFloat16Size = sizeof(uint16_t);
 constexpr int kFloatSize = sizeof(float);
@@ -747,9 +748,14 @@ constexpr bool StaticStringsEqual(const char* s1, const char* s2) {
   }
 }
 
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
 constexpr size_t kContiguousReadOnlyReservationSize =
     V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB;
+// Bound the worst case consumption of contiguous RO space across the various
+// cages/regions.
+static_assert(kMinimumTrustedRangeSize >= 512 * MB);
+static_assert(!kPlatformRequiresCodeRange || kMinimumCodeRangeSize >= 64 * MB);
+
 // In this configuration we only allocate RO objects in the first
 // `kContiguousReadOnlyReservationSize` of the shared data cage. We also create
 // red zones in all cages and reservations that can be used to allocate
@@ -771,11 +777,8 @@ static_assert(base::bits::IsPowerOfTwo(kContiguousReadOnlyReservationSize));
 // ```
 constexpr Address kContiguousReadOnlySpaceMask =
     (kPtrComprCageBaseAlignment - 1) ^ (kContiguousReadOnlyReservationSize - 1);
-// Bound the worst case consumption of contiguous RO space across the various
-// cages/regions.
-static_assert(kMinimumTrustedRangeSize >= 512 * MB);
-static_assert(!kPlatformRequiresCodeRange || kMinimumCodeRangeSize >= 64 * MB);
-#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+
+#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
 
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
@@ -1607,6 +1610,11 @@ inline constexpr bool IsSharedAllocationType(AllocationType kind) {
          kind == AllocationType::kSharedMap;
 }
 
+enum class RecordYoungSlot : bool {
+  kNo,
+  kYes,
+};
+
 enum AllocationAlignment : uint8_t {
   // The allocated address is kTaggedSize aligned (this is default for most of
   // the allocations).
@@ -1671,8 +1679,14 @@ enum class ExternalBackingStoreType {
 };
 
 enum class NewJSObjectType : uint8_t {
-  kNoAPIWrapper,
-  kAPIWrapper,
+  // JS objects that may require embedder fields depending on their instance
+  // type. They are not API wrappers.
+  kMaybeEmbedderFieldsAndNoApiWrapper,
+  // JS objects that don't require any embedder fields and are not API wrappers.
+  kNoEmbedderFieldsAndNoApiWrapper,
+  // JS objects that may require embedder fields depending on their instance
+  // type and also are API wrappers.
+  kMaybeEmbedderFieldsAndApiWrapper,
 };
 
 bool inline IsBaselineCodeFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {

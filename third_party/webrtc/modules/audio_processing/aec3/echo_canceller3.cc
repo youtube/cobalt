@@ -748,6 +748,7 @@ EchoCanceller3::EchoCanceller3(
     const Environment& env,
     const EchoCanceller3Config& config,
     const std::optional<EchoCanceller3Config>& multichannel_config,
+    NeuralResidualEchoEstimator* neural_residual_echo_estimator,
     int sample_rate_hz,
     size_t num_render_channels,
     size_t num_capture_channels)
@@ -770,6 +771,7 @@ EchoCanceller3::EchoCanceller3(
               .multi_channel.stereo_detection_timeout_threshold_seconds,
           config_selector_.active_config()
               .multi_channel.stereo_detection_hysteresis_seconds),
+      neural_residual_echo_estimator_(neural_residual_echo_estimator),
       output_framer_(num_bands_, num_capture_channels_),
       capture_blocker_(num_bands_, num_capture_channels_),
       render_transfer_queue_(
@@ -843,7 +845,8 @@ void EchoCanceller3::Initialize() {
 
   block_processor_ = BlockProcessor::Create(
       env_, config_selector_.active_config(), sample_rate_hz_,
-      num_render_channels_to_aec_, num_capture_channels_);
+      num_render_channels_to_aec_, num_capture_channels_,
+      neural_residual_echo_estimator_);
 
   render_sub_frame_view_ = std::vector<std::vector<ArrayView<float>>>(
       num_bands_, std::vector<ArrayView<float>>(num_render_channels_to_aec_));

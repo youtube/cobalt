@@ -264,11 +264,6 @@ ExternalReference ExternalReference::Create(Runtime::FunctionId id) {
 }
 
 // static
-ExternalReference ExternalReference::Create(IsolateFieldId id) {
-  return ExternalReference(id);
-}
-
-// static
 ExternalReference ExternalReference::Create(const Runtime::Function* f) {
   return ExternalReference(
       Redirect(f->entry, BuiltinCallTypeForResultSize(f->result_size)));
@@ -521,6 +516,9 @@ FUNCTION_REFERENCE(insert_remembered_set_function,
 FUNCTION_REFERENCE(verify_skipped_write_barrier,
                    Heap::VerifySkippedWriteBarrier)
 
+FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
+                   Heap::VerifySkippedIndirectWriteBarrier)
+
 namespace {
 
 intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
@@ -594,10 +592,6 @@ Address ExternalReference::UnwrapRedirection(Address redirection_trampoline) {
 #endif
 }
 
-ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
-  return ExternalReference(isolate->stress_deopt_count_address());
-}
-
 ExternalReference ExternalReference::force_slow_path(Isolate* isolate) {
   return ExternalReference(isolate->force_slow_path_address());
 }
@@ -614,6 +608,7 @@ FUNCTION_REFERENCE(ensure_valid_return_address,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 FUNCTION_REFERENCE(wasm_start_stack, wasm::start_stack)
+FUNCTION_REFERENCE(wasm_suspender_has_js_frames, wasm::suspender_has_js_frames)
 FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
 FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
 FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)

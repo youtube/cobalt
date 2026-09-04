@@ -190,6 +190,7 @@ class TestBrowserWindow : public BrowserWindow, public BrowserListObserver {
       content::WebContents* contents,
       bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
+  views::Button* GetSharingHubIconButton() override;
   void ToggleMultitaskMenu() const override;
 #else
   sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
@@ -294,6 +295,8 @@ class TestBrowserWindow : public BrowserWindow, public BrowserListObserver {
     LocationBarTesting* GetLocationBarForTesting() override;
     LocationBarModel* GetLocationBarModel() override;
     content::WebContents* GetWebContents() override;
+    std::optional<bubble_anchor_util::AnchorConfiguration> GetChipAnchor()
+        override;
     void OnChanged() override {}
     void OnPopupVisibilityChanged() override {}
     void UpdateWithoutTabRestore() override {}

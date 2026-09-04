@@ -10,13 +10,13 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
 
 
 #include "absl/algorithm/container.h"
+#include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -24,15 +24,16 @@
 #include "absl/functional/bind_front.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -83,11 +84,14 @@ class DefaultPublisher : public MoqtPublisher {
     return instance;
   }
 
-  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> GetTrack(
+  // MoqtPublisher implementation.
+  absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) override {
     QUICHE_DCHECK(track_name.IsValid());
-    return absl::NotFoundError("No tracks published");
+    return nullptr;
   }
+  void AddNamespaceListener(NamespaceListener*) override {}
+  void RemoveNamespaceListener(NamespaceListener*) override {}
 };
 }  // namespace
 
@@ -102,6 +106,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
       publisher_(DefaultPublisher::GetInstance()),
       local_max_request_id_(parameters.max_request_id),
       alarm_factory_(std::move(alarm_factory)),
+      weak_ptr_factory_(this),
       liveness_token_(std::make_shared<Empty>()) {
   if (parameters_.using_webtrans) {
     session_->SetOnDraining([this]() {
@@ -222,7 +227,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     return;
   }
   QUICHE_CHECK(!track->is_fetch());
-  SubscribeRemoteTrack::Visitor* visitor = track->visitor();
+  SubscribeVisitor* visitor = track->visitor();
   if (visitor != nullptr) {
     // TODO(martinduke): Handle extension headers.
     PublishedObjectMetadata metadata;
@@ -272,7 +277,7 @@ bool MoqtSession::SubscribeNamespace(
                     << peer_max_request_id_;
     return false;
   }
-  if (outgoing_subscribe_announces_.contains(track_namespace)) {
+  if (outgoing_subscribe_namespaces_.contains(track_namespace)) {
     std::move(callback)(
         track_namespace, RequestErrorCode::kInternalError,
         "SUBSCRIBE_NAMESPACE already outstanding for namespace");
@@ -286,15 +291,15 @@ bool MoqtSession::SubscribeNamespace(
   SendControlMessage(framer_.SerializeSubscribeNamespace(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_NAMESPACE message for "
                   << message.track_namespace;
-  pending_outgoing_subscribe_announces_[message.request_id] =
+  pending_outgoing_subscribe_namespaces_[message.request_id] =
       PendingSubscribeNamespaceData{track_namespace, std::move(callback)};
-  outgoing_subscribe_announces_.emplace(track_namespace);
+  outgoing_subscribe_namespaces_.emplace(track_namespace);
   return true;
 }
 
 bool MoqtSession::UnsubscribeNamespace(TrackNamespace track_namespace) {
   QUICHE_DCHECK(track_namespace.IsValid());
-  if (!outgoing_subscribe_announces_.contains(track_namespace)) {
+  if (!outgoing_subscribe_namespaces_.contains(track_namespace)) {
     return false;
   }
   MoqtUnsubscribeNamespace message;
@@ -302,19 +307,21 @@ bool MoqtSession::UnsubscribeNamespace(TrackNamespace track_namespace) {
   SendControlMessage(framer_.SerializeUnsubscribeNamespace(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent UNSUBSCRIBE_NAMESPACE message for "
                   << message.track_namespace;
-  outgoing_subscribe_announces_.erase(track_namespace);
+  outgoing_subscribe_namespaces_.erase(track_namespace);
   return true;
 }
 
-void MoqtSession::Announce(TrackNamespace track_namespace,
-                           MoqtOutgoingAnnounceCallback announce_callback,
-                           VersionSpecificParameters parameters) {
+void MoqtSession::PublishNamespace(
+    TrackNamespace track_namespace,
+    MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
+    VersionSpecificParameters parameters) {
   QUICHE_DCHECK(track_namespace.IsValid());
-  if (outgoing_announces_.contains(track_namespace)) {
-    std::move(announce_callback)(
+  if (outgoing_publish_namespaces_.contains(track_namespace)) {
+    std::move(publish_namespace_callback)(
         track_namespace,
-        MoqtAnnounceErrorReason{RequestErrorCode::kInternalError,
-                                "ANNOUNCE already outstanding for namespace"});
+        MoqtPublishNamespaceErrorReason{
+            RequestErrorCode::kInternalError,
+            "PUBLISH_NAMESPACE already outstanding for namespace"});
     return;
   }
   if (next_request_id_ >= peer_max_request_id_) {
@@ -325,57 +332,60 @@ void MoqtSession::Announce(TrackNamespace track_namespace,
       SendControlMessage(framer_.SerializeRequestsBlocked(requests_blocked));
       last_requests_blocked_sent_ = peer_max_request_id_;
     }
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send ANNOUNCE with ID "
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send PUBLISH_NAMESPACE with ID "
                     << next_request_id_
                     << " which is greater than the maximum ID "
                     << peer_max_request_id_;
     return;
   }
   if (received_goaway_ || sent_goaway_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send ANNOUNCE after GOAWAY";
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Tried to send PUBLISH_NAMESPACE after GOAWAY";
     return;
   }
-  MoqtAnnounce message;
+  MoqtPublishNamespace message;
   message.request_id = next_request_id_;
   next_request_id_ += 2;
   message.track_namespace = track_namespace;
   message.parameters = parameters;
-  SendControlMessage(framer_.SerializeAnnounce(message));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE message for "
+  SendControlMessage(framer_.SerializePublishNamespace(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE message for "
                   << message.track_namespace;
-  pending_outgoing_announces_[message.request_id] = track_namespace;
-  outgoing_announces_[track_namespace] = std::move(announce_callback);
+  pending_outgoing_publish_namespaces_[message.request_id] = track_namespace;
+  outgoing_publish_namespaces_[track_namespace] =
+      std::move(publish_namespace_callback);
 }
 
-bool MoqtSession::Unannounce(TrackNamespace track_namespace) {
+bool MoqtSession::PublishNamespaceDone(TrackNamespace track_namespace) {
   QUICHE_DCHECK(track_namespace.IsValid());
-  auto it = outgoing_announces_.find(track_namespace);
-  if (it == outgoing_announces_.end()) {
-    return false;  // Could have been destroyed by ANNOUNCE_CANCEL.
+  auto it = outgoing_publish_namespaces_.find(track_namespace);
+  if (it == outgoing_publish_namespaces_.end()) {
+    return false;  // Could have been destroyed by PUBLISH_NAMESPACE_CANCEL.
   }
-  MoqtUnannounce message;
+  MoqtPublishNamespaceDone message;
   message.track_namespace = track_namespace;
-  SendControlMessage(framer_.SerializeUnannounce(message));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent UNANNOUNCE message for "
+  SendControlMessage(framer_.SerializePublishNamespaceDone(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE_DONE message for "
                   << message.track_namespace;
-  outgoing_announces_.erase(it);
+  outgoing_publish_namespaces_.erase(it);
   return true;
 }
 
-void MoqtSession::CancelAnnounce(TrackNamespace track_namespace,
-                                 RequestErrorCode code,
-                                 absl::string_view reason) {
+void MoqtSession::CancelPublishNamespace(TrackNamespace track_namespace,
+                                         RequestErrorCode code,
+                                         absl::string_view reason) {
   QUICHE_DCHECK(track_namespace.IsValid());
-  MoqtAnnounceCancel message{track_namespace, code, std::string(reason)};
+  MoqtPublishNamespaceCancel message{track_namespace, code,
+                                     std::string(reason)};
 
-  SendControlMessage(framer_.SerializeAnnounceCancel(message));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE_CANCEL message for "
+  SendControlMessage(framer_.SerializePublishNamespaceCancel(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE_CANCEL message for "
                   << message.track_namespace << " with reason " << reason;
 }
 
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
-                                    SubscribeRemoteTrack::Visitor* visitor,
+                                    SubscribeVisitor* visitor,
                                     VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
@@ -393,7 +403,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group,
-                                    SubscribeRemoteTrack::Visitor* visitor,
+                                    SubscribeVisitor* visitor,
                                     VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   if (end_group < start_group) {
@@ -413,7 +423,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
 }
 
 bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
-                                         SubscribeRemoteTrack::Visitor* visitor,
+                                         SubscribeVisitor* visitor,
                                          VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
@@ -429,7 +439,7 @@ bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
 }
 
 bool MoqtSession::SubscribeNextGroup(const FullTrackName& name,
-                                     SubscribeRemoteTrack::Visitor* visitor,
+                                     SubscribeVisitor* visitor,
                                      VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
@@ -536,7 +546,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
 }
 
 bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
-                                       SubscribeRemoteTrack::Visitor* visitor,
+                                       SubscribeVisitor* visitor,
                                        uint64_t num_previous_groups,
                                        VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
@@ -558,7 +568,7 @@ bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
 }
 
 bool MoqtSession::RelativeJoiningFetch(
-    const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
+    const FullTrackName& name, SubscribeVisitor* visitor,
     FetchResponseCallback callback, uint64_t num_previous_groups,
     MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
     VersionSpecificParameters parameters) {
@@ -637,7 +647,9 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
         if (fetch->session_->WriteObjectToStream(
                 stream_, fetch->request_id(), object.metadata,
                 std::move(object.payload), MoqtDataStreamType::Fetch(),
-                !stream_header_written_,
+                // last Object ID doesn't matter for FETCH, just use zero.
+                stream_header_written_ ? std::optional<uint64_t>(0)
+                                       : std::nullopt,
                 /*fin=*/false)) {
           stream_header_written_ = true;
         }
@@ -665,8 +677,8 @@ void MoqtSession::GoAwayTimeoutDelegate::OnAlarm() {
                   "Peer did not close session after GOAWAY");
 }
 
-bool MoqtSession::SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
-                                  absl::string_view error_reason) {
+bool MoqtSession::PublishIsDone(uint64_t request_id, PublishDoneCode code,
+                                absl::string_view error_reason) {
   auto it = published_subscriptions_.find(request_id);
   if (it == published_subscriptions_.end()) {
     return false;
@@ -676,12 +688,12 @@ bool MoqtSession::SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
   std::vector<webtransport::StreamId> streams_to_reset =
       subscription.GetAllStreams();
 
-  MoqtSubscribeDone subscribe_done;
+  MoqtPublishDone subscribe_done;
   subscribe_done.request_id = request_id;
   subscribe_done.status_code = code;
   subscribe_done.stream_count = subscription.streams_opened();
   subscribe_done.error_reason = error_reason;
-  SendControlMessage(framer_.SerializeSubscribeDone(subscribe_done));
+  SendControlMessage(framer_.SerializePublishDone(subscribe_done));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_DONE message for "
                   << subscription.publisher().GetTrackName();
   // Clean up the subscription
@@ -703,15 +715,14 @@ void MoqtSession::MaybeDestroySubscription(SubscribeRemoteTrack* subscribe) {
 }
 
 void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
-  subscribe->visitor()->OnSubscribeDone(subscribe->full_track_name());
+  subscribe->visitor()->OnPublishDone(subscribe->full_track_name());
   subscribe_by_name_.erase(subscribe->full_track_name());
   if (subscribe->track_alias().has_value()) {
     subscribe_by_alias_.erase(*subscribe->track_alias());
   }
 }
 
-bool MoqtSession::Subscribe(MoqtSubscribe& message,
-                            SubscribeRemoteTrack::Visitor* visitor) {
+bool MoqtSession::Subscribe(MoqtSubscribe& message, SubscribeVisitor* visitor) {
   // TODO(martinduke): support authorization info
   if (next_request_id_ >= peer_max_request_id_) {
     if (!last_requests_blocked_sent_.has_value() ||
@@ -1036,14 +1047,13 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     return;
   }
   const FullTrackName& track_name = message.full_track_name;
-  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
+  std::shared_ptr<MoqtTrackPublisher> track_publisher =
       session_->publisher_->GetTrack(track_name);
-  if (!track_publisher.ok()) {
+  if (track_publisher == nullptr) {
     QUIC_DLOG(INFO) << ENDPOINT << "SUBSCRIBE for " << track_name
-                    << " rejected by the application: "
-                    << track_publisher.status();
+                    << " rejected by the application: does not exist";
     SendSubscribeError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
-                       track_publisher.status().message());
+                       "not found");
     return;
   }
 
@@ -1056,9 +1066,9 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     session_->monitoring_interfaces_for_published_tracks_.erase(monitoring_it);
   }
 
-  MoqtTrackPublisher* track_publisher_ptr = track_publisher->get();
+  MoqtTrackPublisher* track_publisher_ptr = track_publisher.get();
   auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
-      session_, *std::move(track_publisher), message, monitoring);
+      session_, track_publisher, message, monitoring);
   subscription->set_delivery_timeout(message.parameters.delivery_timeout);
   MoqtSession::PublishedSubscription* subscription_ptr = subscription.get();
   auto [it, success] = session_->published_subscriptions_.emplace(
@@ -1161,8 +1171,8 @@ void MoqtSession::ControlStream::OnUnsubscribeMessage(
   session_->published_subscriptions_.erase(it);
 }
 
-void MoqtSession::ControlStream::OnSubscribeDoneMessage(
-    const MoqtSubscribeDone& message) {
+void MoqtSession::ControlStream::OnPublishDoneMessage(
+    const MoqtPublishDone& message) {
   auto it = session_->upstream_by_id_.find(message.request_id);
   if (it == session_->upstream_by_id_.end()) {
     return;
@@ -1170,10 +1180,10 @@ void MoqtSession::ControlStream::OnSubscribeDoneMessage(
   auto* subscribe = static_cast<SubscribeRemoteTrack*>(it->second.get());
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_DONE for "
                   << it->second->full_track_name();
-  subscribe->OnSubscribeDone(
+  subscribe->OnPublishDone(
       message.stream_count, session_->callbacks_.clock,
       absl::WrapUnique(session_->alarm_factory_->CreateAlarm(
-          new SubscribeDoneDelegate(session_, subscribe))));
+          new PublishDoneDelegate(session_, subscribe))));
   session_->MaybeDestroySubscription(subscribe);
 }
 
@@ -1188,98 +1198,104 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
   it->second->set_delivery_timeout(message.parameters.delivery_timeout);
 }
 
-void MoqtSession::ControlStream::OnAnnounceMessage(
-    const MoqtAnnounce& message) {
+void MoqtSession::ControlStream::OnPublishNamespaceMessage(
+    const MoqtPublishNamespace& message) {
   if (!session_->ValidateRequestId(message.request_id)) {
     return;
   }
   if (session_->sent_goaway_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received an ANNOUNCE after GOAWAY";
-    MoqtAnnounceError error;
+    QUIC_DLOG(INFO) << ENDPOINT << "Received a PUBLISH_NAMESPACE after GOAWAY";
+    MoqtPublishNamespaceError error;
     error.request_id = message.request_id;
     error.error_code = RequestErrorCode::kUnauthorized;
-    error.error_reason = "ANNOUNCE after GOAWAY";
-    SendOrBufferMessage(session_->framer_.SerializeAnnounceError(error));
+    error.error_reason = "PUBLISH_NAMESPACE after GOAWAY";
+    SendOrBufferMessage(
+        session_->framer_.SerializePublishNamespaceError(error));
     return;
   }
-  std::optional<MoqtAnnounceErrorReason> error =
-      session_->callbacks_.incoming_announce_callback(message.track_namespace,
-                                                      message.parameters);
+  std::optional<MoqtPublishNamespaceErrorReason> error =
+      session_->callbacks_.incoming_publish_namespace_callback(
+          message.track_namespace, message.parameters);
   if (error.has_value()) {
-    MoqtAnnounceError reply;
+    MoqtPublishNamespaceError reply;
     reply.request_id = message.request_id;
     reply.error_code = error->error_code;
     reply.error_reason = error->reason_phrase;
-    SendOrBufferMessage(session_->framer_.SerializeAnnounceError(reply));
+    SendOrBufferMessage(
+        session_->framer_.SerializePublishNamespaceError(reply));
     return;
   }
-  MoqtAnnounceOk ok;
+  MoqtPublishNamespaceOk ok;
   ok.request_id = message.request_id;
-  SendOrBufferMessage(session_->framer_.SerializeAnnounceOk(ok));
+  SendOrBufferMessage(session_->framer_.SerializePublishNamespaceOk(ok));
 }
 
-// Do not enforce that there is only one of OK or ERROR per ANNOUNCE. Upon
-// ERROR, we immediately destroy the state.
-void MoqtSession::ControlStream::OnAnnounceOkMessage(
-    const MoqtAnnounceOk& message) {
-  auto it = session_->pending_outgoing_announces_.find(message.request_id);
-  if (it == session_->pending_outgoing_announces_.end()) {
+// Do not enforce that there is only one of OK or ERROR per PUBLISH_NAMESPACE.
+// Upon ERROR, we immediately destroy the state.
+void MoqtSession::ControlStream::OnPublishNamespaceOkMessage(
+    const MoqtPublishNamespaceOk& message) {
+  auto it =
+      session_->pending_outgoing_publish_namespaces_.find(message.request_id);
+  if (it == session_->pending_outgoing_publish_namespaces_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
-                    "Received ANNOUNCE_OK for unknown request_id");
+                    "Received PUBLISH_NAMESPACE_OK for unknown request_id");
     return;
   }
   TrackNamespace track_namespace = it->second;
-  session_->pending_outgoing_announces_.erase(it);
-  auto callback_it = session_->outgoing_announces_.find(track_namespace);
-  if (callback_it == session_->outgoing_announces_.end()) {
-    // It might have already been destroyed due to UNANNOUNCE.
+  session_->pending_outgoing_publish_namespaces_.erase(it);
+  auto callback_it =
+      session_->outgoing_publish_namespaces_.find(track_namespace);
+  if (callback_it == session_->outgoing_publish_namespaces_.end()) {
+    // It might have already been destroyed due to PUBLISH_NAMESPACE_DONE.
     return;
   }
   std::move(callback_it->second)(track_namespace, std::nullopt);
 }
 
-void MoqtSession::ControlStream::OnAnnounceErrorMessage(
-    const MoqtAnnounceError& message) {
-  auto it = session_->pending_outgoing_announces_.find(message.request_id);
-  if (it == session_->pending_outgoing_announces_.end()) {
+void MoqtSession::ControlStream::OnPublishNamespaceErrorMessage(
+    const MoqtPublishNamespaceError& message) {
+  auto it =
+      session_->pending_outgoing_publish_namespaces_.find(message.request_id);
+  if (it == session_->pending_outgoing_publish_namespaces_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
-                    "Received ANNOUNCE_ERROR for unknown request_id");
+                    "Received PUBLISH_NAMESPACE_ERROR for unknown request_id");
     return;
   }
   TrackNamespace track_namespace = it->second;
-  session_->pending_outgoing_announces_.erase(it);
-  auto it2 = session_->outgoing_announces_.find(track_namespace);
-  if (it2 == session_->outgoing_announces_.end()) {
-    return;  // State might have been destroyed due to UNANNOUNCE.
+  session_->pending_outgoing_publish_namespaces_.erase(it);
+  auto it2 = session_->outgoing_publish_namespaces_.find(track_namespace);
+  if (it2 == session_->outgoing_publish_namespaces_.end()) {
+    return;  // State might have been destroyed due to PUBLISH_NAMESPACE_DONE.
   }
   std::move(it2->second)(
       track_namespace,
-      MoqtAnnounceErrorReason{message.error_code,
-                              std::string(message.error_reason)});
-  session_->outgoing_announces_.erase(it2);
+      MoqtPublishNamespaceErrorReason{message.error_code,
+                                      std::string(message.error_reason)});
+  session_->outgoing_publish_namespaces_.erase(it2);
 }
 
-void MoqtSession::ControlStream::OnUnannounceMessage(
-    const MoqtUnannounce& message) {
-  session_->callbacks_.incoming_announce_callback(message.track_namespace,
-                                                  std::nullopt);
+void MoqtSession::ControlStream::OnPublishNamespaceDoneMessage(
+    const MoqtPublishNamespaceDone& message) {
+  session_->callbacks_.incoming_publish_namespace_callback(
+      message.track_namespace, std::nullopt);
 }
 
-void MoqtSession::ControlStream::OnAnnounceCancelMessage(
-    const MoqtAnnounceCancel& message) {
+void MoqtSession::ControlStream::OnPublishNamespaceCancelMessage(
+    const MoqtPublishNamespaceCancel& message) {
   // The spec currently says that if a later SUBSCRIBE arrives for this
   // namespace, that SHOULD be a session error. I'm hoping that via Issue #557,
   // this will go away. Regardless, a SHOULD will not compel the session to keep
   // state forever, so there is no support for this requirement.
-  auto it = session_->outgoing_announces_.find(message.track_namespace);
-  if (it == session_->outgoing_announces_.end()) {
-    return;  // State might have been destroyed due to UNANNOUNCE.
+  auto it =
+      session_->outgoing_publish_namespaces_.find(message.track_namespace);
+  if (it == session_->outgoing_publish_namespaces_.end()) {
+    return;  // State might have been destroyed due to PUBLISH_NAMESPACE_DONE.
   }
   std::move(it->second)(
       message.track_namespace,
-      MoqtAnnounceErrorReason{message.error_code,
-                              std::string(message.error_reason)});
-  session_->outgoing_announces_.erase(it);
+      MoqtPublishNamespaceErrorReason{message.error_code,
+                                      std::string(message.error_reason)});
+  session_->outgoing_publish_namespaces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnTrackStatusMessage(
@@ -1298,9 +1314,9 @@ void MoqtSession::ControlStream::OnTrackStatusMessage(
     return;
   }
   // TODO(martinduke): Handle authentication.
-  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track =
+  std::shared_ptr<MoqtTrackPublisher> track =
       session_->publisher_->GetTrack(message.full_track_name);
-  if (!track.ok()) {
+  if (track == nullptr) {
     MoqtTrackStatusError error;
     error.request_id = message.request_id;
     error.error_code = RequestErrorCode::kTrackDoesNotExist;
@@ -1310,8 +1326,8 @@ void MoqtSession::ControlStream::OnTrackStatusMessage(
   }
   auto [it, inserted] = session_->incoming_track_status_.emplace(
       message.request_id, std::make_unique<DownstreamTrackStatus>(
-                              message.request_id, session_, track->get()));
-  track->get()->AddObjectListener(it->second.get());
+                              message.request_id, session_, track.get()));
+  track->AddObjectListener(it->second.get());
 }
 
 void MoqtSession::ControlStream::OnGoAwayMessage(const MoqtGoAway& message) {
@@ -1350,7 +1366,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
         session_->framer_.SerializeSubscribeNamespaceError(error));
     return;
   }
-  if (!session_->incoming_subscribe_announces_.AddNamespace(
+  if (!session_->incoming_subscribe_namespace_.AddNamespace(
           message.track_namespace)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_NAMESPACE for "
                     << message.track_namespace
@@ -1364,7 +1380,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
     return;
   }
   std::optional<MoqtSubscribeErrorReason> result =
-      session_->callbacks_.incoming_subscribe_announces_callback(
+      session_->callbacks_.incoming_subscribe_namespace_callback(
           message.track_namespace, message.parameters);
   if (result.has_value()) {
     MoqtSubscribeNamespaceError error;
@@ -1373,7 +1389,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
     error.error_reason = result->reason_phrase;
     SendOrBufferMessage(
         session_->framer_.SerializeSubscribeNamespaceError(error));
-    session_->incoming_subscribe_announces_.RemoveNamespace(
+    session_->incoming_subscribe_namespace_.RemoveNamespace(
         message.track_namespace);
     return;
   }
@@ -1385,21 +1401,21 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
 void MoqtSession::ControlStream::OnSubscribeNamespaceOkMessage(
     const MoqtSubscribeNamespaceOk& message) {
   auto it =
-      session_->pending_outgoing_subscribe_announces_.find(message.request_id);
-  if (it == session_->pending_outgoing_subscribe_announces_.end()) {
+      session_->pending_outgoing_subscribe_namespaces_.find(message.request_id);
+  if (it == session_->pending_outgoing_subscribe_namespaces_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SUBSCRIBE_NAMESPACE_OK for unknown request_id");
     return;  // UNSUBSCRIBE_NAMESPACE may already have deleted the entry.
   }
   std::move(it->second.callback)(it->second.track_namespace, std::nullopt, "");
-  session_->pending_outgoing_subscribe_announces_.erase(it);
+  session_->pending_outgoing_subscribe_namespaces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnSubscribeNamespaceErrorMessage(
     const MoqtSubscribeNamespaceError& message) {
   auto it =
-      session_->pending_outgoing_subscribe_announces_.find(message.request_id);
-  if (it == session_->pending_outgoing_subscribe_announces_.end()) {
+      session_->pending_outgoing_subscribe_namespaces_.find(message.request_id);
+  if (it == session_->pending_outgoing_subscribe_namespaces_.end()) {
     session_->Error(
         MoqtError::kProtocolViolation,
         "Received SUBSCRIBE_NAMESPACE_ERROR for unknown request_id");
@@ -1407,17 +1423,17 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceErrorMessage(
   }
   std::move(it->second.callback)(it->second.track_namespace, message.error_code,
                                  absl::string_view(message.error_reason));
-  session_->outgoing_subscribe_announces_.erase(it->second.track_namespace);
-  session_->pending_outgoing_subscribe_announces_.erase(it);
+  session_->outgoing_subscribe_namespaces_.erase(it->second.track_namespace);
+  session_->pending_outgoing_subscribe_namespaces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnUnsubscribeNamespaceMessage(
     const MoqtUnsubscribeNamespace& message) {
   // MoqtSession keeps no state here, so just tell the application.
   std::optional<MoqtSubscribeErrorReason> result =
-      session_->callbacks_.incoming_subscribe_announces_callback(
+      session_->callbacks_.incoming_subscribe_namespace_callback(
           message.track_namespace, std::nullopt);
-  session_->incoming_subscribe_announces_.RemoveNamespace(
+  session_->incoming_subscribe_namespace_.RemoveNamespace(
       message.track_namespace);
 }
 
@@ -1450,23 +1466,21 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
     const StandaloneFetch& standalone_fetch =
         std::get<StandaloneFetch>(message.fetch);
     track_name = standalone_fetch.full_track_name;
-    absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
+    std::shared_ptr<MoqtTrackPublisher> track_publisher =
         session_->publisher_->GetTrack(track_name);
-    if (!track_publisher.ok()) {
+    if (track_publisher == nullptr) {
       QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
-                      << " rejected by the application: "
-                      << track_publisher.status();
+                      << " rejected by the application: not found";
       SendFetchError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
-                     track_publisher.status().message());
+                     "not found");
     }
     QUIC_DLOG(INFO) << ENDPOINT << "Received a StandaloneFETCH for "
                     << track_name;
     // The check for end_object < start_object is done in
     // MoqtTrackPublisher::Fetch().
-    fetch = (*track_publisher)
-                ->StandaloneFetch(standalone_fetch.start_location,
-                                  standalone_fetch.end_location,
-                                  message.group_order);
+    fetch = track_publisher->StandaloneFetch(standalone_fetch.start_location,
+                                             standalone_fetch.end_location,
+                                             message.group_order);
   } else {
     // Joining Fetch processing.
     uint64_t joining_request_id =
@@ -1723,10 +1737,6 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   if (!track->is_fetch()) {
     if (no_more_objects_) {
       // Already got a stream-ending object.
-      session_->OnMalformedTrack(track);
-      return;
-    }
-    if (message.object_id < next_object_id_) {
       session_->OnMalformedTrack(track);
       return;
     }
@@ -2093,8 +2103,8 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
 }
 
 void MoqtSession::PublishedSubscription::OnTrackPublisherGone() {
-  session_->SubscribeIsDone(request_id_, SubscribeDoneCode::kGoingAway,
-                            "Publisher is gone");
+  session_->PublishIsDone(request_id_, PublishDoneCode::kGoingAway,
+                          "Publisher is gone");
 }
 
 // TODO(martinduke): Revise to check if the last object has been delivered.
@@ -2159,8 +2169,7 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
       stream_map().GetStreamsForGroup(group_id);
   if (delivery_timeout_.IsInfinite() && largest_sent_.has_value() &&
       largest_sent_->group <= group_id) {
-    session_->SubscribeIsDone(request_id_, SubscribeDoneCode::kTooFarBehind,
-                              "");
+    session_->PublishIsDone(request_id_, PublishDoneCode::kTooFarBehind, "");
     // No class access below this line!
     return;
   }
@@ -2392,14 +2401,14 @@ void MoqtSession::OutgoingDataStream::SendObjects(
     }
     if (!session_->WriteObjectToStream(
             stream_, *subscription.track_alias(), object->metadata,
-            std::move(object->payload), stream_type_, !stream_header_written_,
+            std::move(object->payload), stream_type_, last_object_id_,
             object->fin_after_this)) {
       // WriteObjectToStream() closes the connection on error, meaning that
       // there is no need to process the stream any further.
       return;
     }
     ++next_object_;
-    stream_header_written_ = true;
+    last_object_id_ = object->metadata.location.object;
     subscription.OnObjectSent(object->metadata.location);
 
     if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
@@ -2434,7 +2443,8 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
                                       const PublishedObjectMetadata& metadata,
                                       quiche::QuicheMemSlice payload,
                                       MoqtDataStreamType type,
-                                      bool is_first_on_stream, bool fin) {
+                                      std::optional<uint64_t> last_id,
+                                      bool fin) {
   QUICHE_DCHECK(stream->CanWrite());
   MoqtObject header;
   header.track_alias = id;
@@ -2446,7 +2456,7 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   header.payload_length = payload.length();
 
   quiche::QuicheBuffer serialized_header =
-      framer_.SerializeObjectHeader(header, type, is_first_on_stream);
+      framer_.SerializeObjectHeader(header, type, last_id);
   // TODO(vasilvv): add a version of WebTransport write API that accepts
   // memslices so that we can avoid a copy here.
   std::array write_vector = {

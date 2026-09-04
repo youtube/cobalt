@@ -894,7 +894,7 @@ void BrowserMainLoop::CreateStartupTasks() {
       GetUIThreadTaskRunner({BrowserTaskType::kStartup}));
 #else
   startup_task_runner_ = std::make_unique<StartupTaskRunner>(
-      base::OnceCallback<void(int, base::TimeDelta)>(),
+      base::OnceCallback<void(int, base::TimeDelta, base::TimeDelta)>(),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 #endif
   StartupTask pre_create_threads = base::BindOnce(
@@ -937,10 +937,10 @@ void BrowserMainLoop::CreateStartupTasks() {
           "use-starboard-lifecycle")) {
     startup_task_runner_->StartRunningTasksAsync();
   } else {
-    startup_task_runner_->RunAllTasksNow();
+    startup_task_runner_->RunAllTasksNow(false);
   }
 #else
-  startup_task_runner_->RunAllTasksNow();
+  startup_task_runner_->RunAllTasksNow(false);
 #endif
 }
 
@@ -963,8 +963,8 @@ BrowserMainLoop::gpu_channel_establish_factory() const {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void BrowserMainLoop::SynchronouslyFlushStartupTasks() {
-  startup_task_runner_->RunAllTasksNow();
+void BrowserMainLoop::SynchronouslyFlushStartupTasks(bool was_posted) {
+  startup_task_runner_->RunAllTasksNow(was_posted);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

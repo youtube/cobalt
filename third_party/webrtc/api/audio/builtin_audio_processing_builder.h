@@ -17,6 +17,7 @@
 #include "absl/base/nullability.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
 #include "rtc_base/system/rtc_export.h"
@@ -76,6 +77,15 @@ class RTC_EXPORT BuiltinAudioProcessingBuilder
     return *this;
   }
 
+  // The AudioProcessingBuilder takes ownership of the
+  // neural_residual_echo_estimator.
+  BuiltinAudioProcessingBuilder& SetNeuralResidualEchoEstimator(
+      std::unique_ptr<NeuralResidualEchoEstimator>
+          neural_residual_echo_estimator) {
+    neural_residual_echo_estimator_ = std::move(neural_residual_echo_estimator);
+    return *this;
+  }
+
   // Creates an APM instance with the specified config or the default one if
   // unspecified. Injects the specified components transferring the ownership
   // to the newly created APM instance.
@@ -89,6 +99,7 @@ class RTC_EXPORT BuiltinAudioProcessingBuilder
   std::unique_ptr<CustomProcessing> render_pre_processing_;
   scoped_refptr<EchoDetector> echo_detector_;
   std::unique_ptr<CustomAudioAnalyzer> capture_analyzer_;
+  std::unique_ptr<NeuralResidualEchoEstimator> neural_residual_echo_estimator_;
 };
 
 }  // namespace webrtc

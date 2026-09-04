@@ -28,9 +28,6 @@ class AsyncStunTCPSocket : public AsyncTCPSocketBase {
  public:
   AsyncStunTCPSocket(const Environment& env,
                      absl_nonnull std::unique_ptr<Socket> socket);
-  // TODO: bugs.webrtc.org/42223992 - Delete or deprecate constructor below when
-  // WebRTC is updated to use constructor that provides Environment.
-  explicit AsyncStunTCPSocket(Socket* socket);
 
   AsyncStunTCPSocket(const AsyncStunTCPSocket&) = delete;
   AsyncStunTCPSocket& operator=(const AsyncStunTCPSocket&) = delete;

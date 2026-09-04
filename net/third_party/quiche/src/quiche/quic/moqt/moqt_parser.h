@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -38,13 +39,18 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
   virtual void OnSubscribeErrorMessage(const MoqtSubscribeError& message) = 0;
   virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
-  virtual void OnSubscribeDoneMessage(const MoqtSubscribeDone& message) = 0;
+  virtual void OnPublishDoneMessage(const MoqtPublishDone& message) = 0;
   virtual void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) = 0;
-  virtual void OnAnnounceMessage(const MoqtAnnounce& message) = 0;
-  virtual void OnAnnounceOkMessage(const MoqtAnnounceOk& message) = 0;
-  virtual void OnAnnounceErrorMessage(const MoqtAnnounceError& message) = 0;
-  virtual void OnUnannounceMessage(const MoqtUnannounce& message) = 0;
-  virtual void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) = 0;
+  virtual void OnPublishNamespaceMessage(
+      const MoqtPublishNamespace& message) = 0;
+  virtual void OnPublishNamespaceOkMessage(
+      const MoqtPublishNamespaceOk& message) = 0;
+  virtual void OnPublishNamespaceErrorMessage(
+      const MoqtPublishNamespaceError& message) = 0;
+  virtual void OnPublishNamespaceDoneMessage(
+      const MoqtPublishNamespaceDone& message) = 0;
+  virtual void OnPublishNamespaceCancelMessage(
+      const MoqtPublishNamespaceCancel& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
   virtual void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) = 0;
   virtual void OnTrackStatusErrorMessage(
@@ -125,13 +131,13 @@ class QUICHE_EXPORT MoqtControlParser {
       quic::QuicDataReader& reader,
       MoqtMessageType message_type = MoqtMessageType::kSubscribeError);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeDone(quic::QuicDataReader& reader);
+  size_t ProcessPublishDone(quic::QuicDataReader& reader);
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
-  size_t ProcessAnnounce(quic::QuicDataReader& reader);
-  size_t ProcessAnnounceOk(quic::QuicDataReader& reader);
-  size_t ProcessAnnounceError(quic::QuicDataReader& reader);
-  size_t ProcessUnannounce(quic::QuicDataReader& reader);
-  size_t ProcessAnnounceCancel(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespace(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespaceOk(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespaceError(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespaceDone(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespaceCancel(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
   size_t ProcessTrackStatusOk(quic::QuicDataReader& reader);
   size_t ProcessTrackStatusError(quic::QuicDataReader& reader);
@@ -284,6 +290,7 @@ class QUICHE_EXPORT MoqtDataParser {
   std::optional<MoqtDataStreamType> type_ = std::nullopt;
   NextInput next_input_ = kStreamType;
   MoqtObject metadata_;
+  std::optional<uint64_t> last_object_id_;
   size_t payload_length_remaining_ = 0;
   size_t num_objects_read_ = 0;
 

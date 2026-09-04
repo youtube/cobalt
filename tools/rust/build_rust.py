@@ -656,6 +656,11 @@ def GitApplyCherryPicks():
     GitCherryPick(RUST_SRC_DIR, '4ecca581fad73c51d7c7a78c4b97a3ada2ca5249',
                   'https://github.com/rust-lang/rust.git')
 
+    # TODO(crbug.com/442112342): Remove once
+    # https://github.com/rust-lang/rust/pull/146133 lands and we roll past it.
+    GitCherryPick(RUST_SRC_DIR, '916b55e08217ca14dabec0169067ed8d6523bf6e',
+                  'https://github.com/rust-lang/rust.git')
+
     print('Finished applying cherry-picks.')
 
 
@@ -743,9 +748,21 @@ def main():
         action='store_true',
         help='After building rust, also generate stdlib GN rules using '
         'gnrt_stdlib.py')
+    parser.add_argument(
+        '--entire-toolchain',
+        action='store_true',
+        help='Build rust and the rest of the rust toolchain. '
+        'Equivalent to --build-bindgen --build-vet --build-crubit '
+        '--gnrt-stdlib')
     if sys.platform == 'win32':
         parser.add_argument('--sh', help='path to the sh.exe to use')
     args, rest = parser.parse_known_args()
+
+    if args.entire_toolchain:
+      args.build_bindgen = True
+      args.build_vet = True
+      args.build_crubit = True
+      args.gnrt_stdlib = True
 
     if sys.platform == 'win32':
         if args.sh:

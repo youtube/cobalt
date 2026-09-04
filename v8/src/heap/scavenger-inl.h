@@ -452,6 +452,8 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
 }
 
 class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
+  using Base = NewSpaceVisitor<ScavengeVisitor>;
+
  public:
   explicit ScavengeVisitor(Scavenger* scavenger);
 
@@ -460,6 +462,9 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 
   V8_INLINE void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final;
+  V8_INLINE void VisitCustomWeakPointers(Tagged<HeapObject> host,
+                                         ObjectSlot start,
+                                         ObjectSlot end) final;
   V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
                                            Tagged<EphemeronHashTable> object,
                                            MaybeObjectSize);
@@ -471,7 +476,9 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
   V8_INLINE size_t VisitCppHeapExternalObject(
       Tagged<Map> map, Tagged<CppHeapExternalObject> object, MaybeObjectSize);
   V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
-                                      ExternalPointerSlot slot);
+                                      ExternalPointerSlot slot) final;
+  V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
+                                  MaybeObjectSize maybe_size);
 
   V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
     return false;
@@ -492,7 +499,21 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
                                    TSlot end);
 
   Scavenger* const scavenger_;
+  bool allow_weakness_ = false;
+
+  friend class Scavenger;
 };
+
+void ScavengeVisitor::VisitCustomWeakPointers(Tagged<HeapObject> host,
+                                              ObjectSlot start,
+                                              ObjectSlot end) {
+  if (allow_weakness_) {
+    DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
+    return;
+  }
+  // Strongify the weak pointers.
+  VisitPointersImpl(host, start, end);
+}
 
 void ScavengeVisitor::VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                                     ObjectSlot end) {
@@ -588,6 +609,17 @@ size_t ScavengeVisitor::VisitEphemeronHashTable(
   }
 
   return table->SafeSizeFromMap(map).value();
+}
+
+size_t ScavengeVisitor::VisitJSWeakRef(Tagged<Map> map,
+                                       Tagged<JSWeakRef> object,
+                                       MaybeObjectSize maybe_size) {
+  DCHECK(!allow_weakness_);
+  allow_weakness_ = v8_flags.handle_weak_ref_weakly_in_minor_gc;
+  const size_t size = Base::VisitJSWeakRef(map, object, maybe_size);
+  allow_weakness_ = false;
+  scavenger_->RecordJSWeakRefIfNeeded<Scavenger::WeakObjectAge::kYoung>(object);
+  return size;
 }
 
 }  // namespace internal

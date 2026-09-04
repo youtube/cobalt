@@ -13,7 +13,7 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
-import org.chromium.chrome.browser.keyboard_accessory.data.PropertyProvider;
+import org.chromium.chrome.browser.keyboard_accessory.data.Provider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.components.autofill.AutofillDelegate;
@@ -22,7 +22,6 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.AsyncViewStub;
-import org.chromium.ui.DropdownPopupWindow;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.insets.InsetObserver;
 
@@ -136,24 +135,17 @@ public interface ManualFillingComponent extends BackPressHandler {
     void dismiss();
 
     /**
-     * Notifies the component that a popup window exists so it can be dismissed if necessary.
-     *
-     * @param popup A {@link DropdownPopupWindow} that might be dismissed later.
-     */
-    void notifyPopupAvailable(DropdownPopupWindow popup);
-
-    /**
      * By registering a provider, an empty tab of the given tab type is created. Call {@link
-     * PropertyProvider#notifyObservers(Object)} to fill or update the sheet.
+     * Provider#notifyObservers(Object)} to fill or update the sheet.
      *
      * @param webContents The {@link WebContents} the provided data is meant for.
      * @param sheetType The type of sheet to instantiate and to provide data for.
-     * @param sheetDataProvider The {@link PropertyProvider} the tab will get its data from.
+     * @param sheetDataProvider The {@link Provider} the tab will get its data from.
      */
     void registerSheetDataProvider(
             WebContents webContents,
             @AccessoryTabType int sheetType,
-            PropertyProvider<KeyboardAccessoryData.AccessorySheetData> sheetDataProvider);
+            Provider<KeyboardAccessoryData.AccessorySheetData> sheetDataProvider);
 
     /**
      * Registers an updater delegate which requests new accessory sheets for a given `webContents`.
@@ -166,24 +158,21 @@ public interface ManualFillingComponent extends BackPressHandler {
 
     /**
      * Registers a provider, to provide actions for the keyboard accessory bar. Call {@link
-     * PropertyProvider#notifyObservers(Object)} to fill or update the actions.
+     * Provider#notifyObservers(Object)} to fill or update the actions.
      *
      * @param webContents The {@link WebContents} the provided data is meant for.
-     * @param actionProvider The {@link PropertyProvider} providing actions.
+     * @param actionProvider The {@link Provider} providing actions.
      */
     void registerActionProvider(
-            WebContents webContents,
-            PropertyProvider<KeyboardAccessoryData.Action[]> actionProvider);
+            WebContents webContents, Provider<KeyboardAccessoryData.Action[]> actionProvider);
 
     /**
-     * Registers a provider, to provide autofill suggestions for the keyboard accessory bar. Call
-     * {@link PropertyProvider#notifyObservers(Object)} to fill or update the suggestions.
+     * Sets the suggestions to be displayed in the accessory bar.
      *
-     * @param autofillProvider The {@link PropertyProvider} providing autofill suggestions.
+     * @param suggestions A list of {@link AutofillSuggestion}s to be shown.
      * @param delegate The {@link AutofillDelegate} to call for interaction with the suggestions.
      */
-    void registerAutofillProvider(
-            PropertyProvider<List<AutofillSuggestion>> autofillProvider, AutofillDelegate delegate);
+    void setSuggestions(List<AutofillSuggestion> suggestions, AutofillDelegate delegate);
 
     /**
      * Signals that the accessory has permission to show.

@@ -289,7 +289,7 @@ class ObjectGenerator : public quic::simulator::Actor,
   std::vector<QuicBandwidth> bitrate_history_;
 };
 
-class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
+class ObjectReceiver : public SubscribeVisitor {
  public:
   explicit ObjectReceiver(const QuicClock* clock, QuicTimeDelta deadline)
       : clock_(clock), deadline_(deadline) {}
@@ -321,7 +321,7 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
     OnFullObject(metadata.location, object);
   }
 
-  void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+  void OnPublishDone(FullTrackName /*full_track_name*/) override {}
   void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
   void OnFullObject(Location sequence, absl::string_view payload) {

@@ -70,6 +70,11 @@ class FieldTrials : public FieldTrialsRegistry {
   // Setting empty `group` is valid and removes the `trial`.
   void Set(absl::string_view trial, absl::string_view group);
 
+  // Create a copy of this view.
+  std::unique_ptr<FieldTrialsView> CreateCopy() const override {
+    return std::make_unique<FieldTrials>(*this);
+  }
+
  private:
   explicit FieldTrials(flat_map<std::string, std::string> key_value_map)
       : key_value_map_(std::move(key_value_map)) {}

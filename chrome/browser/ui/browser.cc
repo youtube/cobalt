@@ -696,12 +696,9 @@ Browser::~Browser() {
   BrowserList::RemoveBrowser(this);
   window_.reset();
 
-  // Tear down `BrowserWindowFeatures` and `BrowserUserData`s now to avoid
-  // exposing them to Browser in a partially-destroyed state. Eventually,
-  // all BrowserUserData should be converted to features. Until then,
-  // destroy `features_` because that's what breaks things the least :)
+  // Tear down `BrowserWindowFeatures` to avoid exposing it to Browser in a
+  // partially-destroyed state.
   features_.reset();
-  ClearAllUserData();
 
   // Stop observing notifications and destroy the tab monitor before continuing
   // with destruction. Profile destruction will unload extensions and reentrant
@@ -1995,10 +1992,6 @@ bool Browser::ShouldShowStaleContentOnEviction(content::WebContents* source) {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
-// TODO(crbug.com/40177301): Remove this.
-void Browser::MediaWatchTimeChanged(
-    const content::MediaPlayerWatchTime& watch_time) {}
-
 bool Browser::IsPointerLocked() const {
   return browser_window_features()
       ->exclusive_access_manager()
@@ -2878,7 +2871,7 @@ void Browser::RequestMediaAccessPermission(
 void Browser::ProcessSelectAudioOutput(
     const content::SelectAudioOutputRequest& request,
     content::SelectAudioOutputCallback callback) {
-#if defined(TOOLKIT_VIEWS) && !BUILDFLAG(IS_FUCHSIA)
+#if defined(TOOLKIT_VIEWS)
   MediaCaptureDevicesDispatcher::GetInstance()->ProcessSelectAudioOutputRequest(
       this, request, std::move(callback));
 #else
@@ -2985,6 +2978,19 @@ void Browser::SetWebContentsBlocked(content::WebContents* web_contents,
 web_modal::WebContentsModalDialogHost* Browser::GetWebContentsModalDialogHost(
     content::WebContents* web_contents) {
   return window_->GetWebContentsModalDialogHostFor(web_contents);
+}
+
+void Browser::OnWebContentsModalDialogShown(
+    content::WebContents* web_contents) {
+  // Check that the WebContents isn't already active to avoid re-entrancy in
+  // TabStripModel when activating a tab triggers a dialog to show.
+  if (base::FeatureList::IsEnabled(features::kSideBySide) &&
+      tab_strip_model_->GetActiveWebContents() != web_contents) {
+    const int tab_index = tab_strip_model_->GetIndexOfWebContents(web_contents);
+    if (tab_strip_model_->IsTabInForeground(tab_index)) {
+      tab_strip_model_->ActivateTabAt(tab_index);
+    }
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

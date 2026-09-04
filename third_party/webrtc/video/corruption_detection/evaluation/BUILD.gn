@@ -28,6 +28,15 @@ rtc_library("file_based_encoder") {
   ]
 }
 
+rtc_library("file_based_encoder_with_ivf_transform") {
+  testonly = true
+  sources = [ "file_based_encoder_with_ivf_transform.h" ]
+  deps = [
+    ":file_based_encoder",
+    "../../../api:rtc_error",
+  ]
+}
+
 rtc_library("picture_pair_provider") {
   testonly = true
   sources = [ "picture_pair_provider.h" ]
@@ -143,7 +152,7 @@ if (rtc_include_tests) {
       ":picture_pair_provider",
       ":utils",
       ":webrtc_picture_pair_provider",
-      "../../../api:field_trials_view",
+      "../../../api:field_trials",
       "../../../api:mock_video_codec_factory",
       "../../../api:mock_video_decoder",
       "../../../api:mock_video_encoder",

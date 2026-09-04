@@ -63,22 +63,26 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeDoneMessage(const MoqtSubscribeDone& message) override {
+  void OnPublishDoneMessage(const MoqtPublishDone& message) override {
     OnControlMessage(message);
   }
-  void OnAnnounceMessage(const MoqtAnnounce& message) override {
+  void OnPublishNamespaceMessage(const MoqtPublishNamespace& message) override {
     OnControlMessage(message);
   }
-  void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override {
+  void OnPublishNamespaceOkMessage(
+      const MoqtPublishNamespaceOk& message) override {
     OnControlMessage(message);
   }
-  void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override {
+  void OnPublishNamespaceErrorMessage(
+      const MoqtPublishNamespaceError& message) override {
     OnControlMessage(message);
   }
-  void OnUnannounceMessage(const MoqtUnannounce& message) override {
+  void OnPublishNamespaceDoneMessage(
+      const MoqtPublishNamespaceDone& message) override {
     OnControlMessage(message);
   }
-  void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override {
+  void OnPublishNamespaceCancelMessage(
+      const MoqtPublishNamespaceCancel& message) override {
     OnControlMessage(message);
   }
   void OnTrackStatusMessage(const MoqtTrackStatus& message) override {

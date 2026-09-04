@@ -19,18 +19,21 @@ import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {AppStyleUpdater} from './app_style_updater.js';
 import type {SettingsPrefs} from './common.js';
-import {minOverflowLengthToScroll} from './common.js';
+import {LOG_EMPTY_DELAY_MS, minOverflowLengthToScroll} from './common.js';
 import {ContentController} from './content_controller.js';
 import type {LanguageToastElement} from './language_toast.js';
 import {NodeStore} from './node_store.js';
+import {getReadAloudModel} from './read_aloud/read_aloud_model_browser_proxy.js';
+import {ReadAloudNode} from './read_aloud/read_aloud_types.js';
 import {SpeechController} from './read_aloud/speech_controller.js';
 import type {SpeechListener} from './read_aloud/speech_controller.js';
 import {TextSegmenter} from './read_aloud/text_segmenter.js';
 import {VoiceLanguageController} from './read_aloud/voice_language_controller.js';
 import type {VoiceLanguageListener} from './read_aloud/voice_language_controller.js';
+import {VoiceNotificationManager} from './read_aloud/voice_notification_manager.js';
 import {ReadAnythingLogger, TimeFrom} from './read_anything_logger.js';
 import type {ReadAnythingToolbarElement} from './read_anything_toolbar.js';
-import {VoiceNotificationManager} from './read_aloud/voice_notification_manager.js';
+import {SelectionController} from './selection_controller.js';
 
 const AppElementBase = WebUiListenerMixinLit(CrLitElement);
 
@@ -81,7 +84,6 @@ export class AppElement extends AppElementBase implements
   private startTime = Date.now();
   private constructorTime: number;
 
-  private scrollingOnSelection_ = false;
   protected accessor hasContent_ = false;
   protected accessor emptyStateImagePath_: string|undefined;
   protected accessor emptyStateDarkImagePath_: string|undefined;
@@ -128,6 +130,8 @@ export class AppElement extends AppElementBase implements
   private speechController_: SpeechController = SpeechController.getInstance();
   private contentController_: ContentController =
       ContentController.getInstance();
+  private selectionController_: SelectionController =
+      SelectionController.getInstance();
   protected accessor settingsPrefs_: SettingsPrefs = {
     letterSpacing: 0,
     lineSpacing: 0,
@@ -213,7 +217,7 @@ export class AppElement extends AppElementBase implements
 
       const {anchorNodeId, anchorOffset, focusNodeId, focusOffset} =
           this.isReadAloudEnabled_ ?
-          this.speechController_.getSelectionAdjustedForHighlights(
+          this.selectionController_.getSelectionAdjustedForHighlights(
               selection.anchorNode, selection.anchorOffset, selection.focusNode,
               selection.focusOffset) :
           this.getSelection();
@@ -268,7 +272,7 @@ export class AppElement extends AppElementBase implements
     };
 
     chrome.readingMode.updateSelection = () => {
-      this.updateSelection();
+      this.selectionController_.updateSelection(this.getSelection());
     };
 
     chrome.readingMode.updateVoicePackStatus =
@@ -310,8 +314,7 @@ export class AppElement extends AppElementBase implements
   }
 
   protected onContainerScroll_() {
-    chrome.readingMode.onScroll(this.scrollingOnSelection_);
-    this.scrollingOnSelection_ = false;
+    this.selectionController_.onScroll();
     if (this.isReadAloudEnabled_) {
       this.speechController_.onScroll();
     }
@@ -322,6 +325,17 @@ export class AppElement extends AppElementBase implements
   }
 
   showEmpty() {
+    if (this.isEmptyState()) {
+      return;
+    }
+    // Log the empty state only after a short delay. Sometimes the empty state
+    // is only shown very briefly before the content is distilled, so we don't
+    // need to count those instances as a failure to distill.
+    setTimeout(() => {
+      if (this.isEmptyState() && !this.hasContent_) {
+        this.logger_.logEmptyState();
+      }
+    }, LOG_EMPTY_DELAY_MS);
     if (!chrome.readingMode.isGoogleDocs) {
       this.emptyStateHeading_ = loadTimeData.getString('emptyStateHeader');
     } else {
@@ -350,9 +364,7 @@ export class AppElement extends AppElementBase implements
         loadTimeData.getString('readAnythingLoadingMessage');
     this.emptyStateSubheading_ = '';
     this.hasContent_ = false;
-    if (this.isReadAloudEnabled_) {
-      this.speechController_.clearReadAloudState();
-    }
+    this.resetForNewContent();
   }
 
   // TODO: crbug.com/40927698 - Handle focus changes for speech, including
@@ -370,7 +382,7 @@ export class AppElement extends AppElementBase implements
 
     if (this.isReadAloudEnabled_) {
       this.speechController_.saveReadAloudState();
-      this.speechController_.clearReadAloudState();
+      this.resetForNewContent();
     }
     const container = this.$.container;
 
@@ -402,7 +414,7 @@ export class AppElement extends AppElementBase implements
       // send that info back to the controller.
       if (this.hasContent_) {
         this.hasContent_ = false;
-        chrome.readingMode.onNoTextContent(/* previouslyHadContent*/ true);
+        chrome.readingMode.onNoTextContent();
       } else if (!this.isEmptyState()) {
         // If no text content is found but reading mode is not showing the
         // empty state, signal back to the renderer that this is the case.
@@ -410,12 +422,7 @@ export class AppElement extends AppElementBase implements
         // reading mode believes it has selected content to distll but
         // nothing valid is selected. This can cause the loading screen
         // to never switch to the empty state.
-        // TODO: crbug.com/411198154- Longer term, once reading mode and read
-        // aloud traversal is more in line, the renderer should be able to call
-        // showEmpty directly, rather than signaling to the WebUI to update
-        // content and then WebUI signaling back to the renderer that there is
-        // no text content.
-        chrome.readingMode.onNoTextContent(/* previouslyHadContent*/ false);
+        this.showEmpty();
       }
       return;
     }
@@ -451,6 +458,15 @@ export class AppElement extends AppElementBase implements
         this.$.containerScroller.scrollTop = 0;
       }
       this.nodeStore_.estimateWordsSeenWithDelay();
+      // Initialize the speech tree with the new content.
+      if (chrome.readingMode.isTsTextSegmentationEnabled) {
+        const contextNode = ReadAloudNode.create(container);
+        if (contextNode) {
+          // Don't initialize until after we've drawn- otherwise, the DOM
+          // nodes might not yet exist in the tree.
+          getReadAloudModel().init(contextNode);
+        }
+      }
     });
   }
 
@@ -459,83 +475,17 @@ export class AppElement extends AppElementBase implements
     return this.shadowRoot.getSelection();
   }
 
-  updateSelection() {
-    const selection: Selection = this.getSelection();
-    selection.removeAllRanges();
-
-    const range = new Range();
-    const startNodeId = chrome.readingMode.startNodeId;
-    const endNodeId = chrome.readingMode.endNodeId;
-    let startOffset = chrome.readingMode.startOffset;
-    let endOffset = chrome.readingMode.endOffset;
-    let startNode = this.nodeStore_.getDomNode(startNodeId);
-    let endNode = this.nodeStore_.getDomNode(endNodeId);
-    if (!startNode || !endNode) {
+  protected resetForNewContent() {
+    if (!this.isReadAloudEnabled_) {
       return;
     }
 
-    // Range.setStart/setEnd behaves differently if the node is an element or a
-    // text node. If the former, the offset refers to the index of the children.
-    // If the latter, the offset refers to the character offset inside the text
-    // node. The start and end nodes are elements if they've been read aloud
-    // because we add formatting to the text that wasn't there before. However,
-    // the information we receive from chrome.readingMode is always the id of a
-    // text node and character offset for that text, so find the corresponding
-    // text child here and adjust the offset
-    if (startNode.nodeType !== Node.TEXT_NODE) {
-      const startTreeWalker =
-          document.createTreeWalker(startNode, NodeFilter.SHOW_TEXT);
-      while (startTreeWalker.nextNode()) {
-        const textNodeLength = startTreeWalker.currentNode.textContent!.length;
-        // Once we find the child text node inside which the starting index
-        // fits, update the start node to be that child node and the adjusted
-        // offset will be relative to this child node
-        if (startOffset < textNodeLength) {
-          startNode = startTreeWalker.currentNode;
-          break;
-        }
-
-        startOffset -= textNodeLength;
-      }
-    }
-    if (endNode.nodeType !== Node.TEXT_NODE) {
-      const endTreeWalker =
-          document.createTreeWalker(endNode, NodeFilter.SHOW_TEXT);
-      while (endTreeWalker.nextNode()) {
-        const textNodeLength = endTreeWalker.currentNode.textContent!.length;
-        if (endOffset <= textNodeLength) {
-          endNode = endTreeWalker.currentNode;
-          break;
-        }
-
-        endOffset -= textNodeLength;
-      }
+    if (chrome.readingMode.isTsTextSegmentationEnabled) {
+      // Reset the read aloud model because there's new content.
+      getReadAloudModel().resetModel?.();
     }
 
-    // Gmail will try to select text when collapsing the node. At the same time,
-    // the node contents are then shortened because of the collapse which causes
-    // the range to go out of bounds. When this happens we should reset the
-    // selection.
-    try {
-      range.setStart(startNode, startOffset);
-      range.setEnd(endNode, endOffset);
-    } catch (err) {
-      selection.removeAllRanges();
-      return;
-    }
-
-    selection.addRange(range);
-
-    // Scroll the start node into view. ScrollIntoView is available on the
-    // Element class.
-    const startElement = startNode.nodeType === Node.ELEMENT_NODE ?
-        startNode as Element :
-        startNode.parentElement;
-    if (!startElement) {
-      return;
-    }
-    this.scrollingOnSelection_ = true;
-    startElement.scrollIntoViewIfNeeded();
+    this.speechController_.clearReadAloudState();
   }
 
   protected updateLinks_() {
@@ -708,7 +658,7 @@ export class AppElement extends AppElementBase implements
     const root = this.nodeStore_.getDomNode(chrome.readingMode.rootId);
     if (this.hasContent_ && !root?.textContent) {
       this.hasContent_ = false;
-      chrome.readingMode.onNoTextContent(/*previouslyHadContent*/ true);
+      chrome.readingMode.onNoTextContent();
     }
   }
 

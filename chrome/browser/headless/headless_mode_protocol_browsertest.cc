@@ -147,8 +147,7 @@ void HeadlessModeProtocolBrowserTest::OnLoadEventFired(
   }
   test_params.Merge(GetPageUrlExtraParams());
 
-  std::string json_test_params;
-  base::JSONWriter::Write(test_params, &json_test_params);
+  std::string json_test_params = base::WriteJson(test_params).value_or("");
   std::string evaluate_script = "runTest(" + json_test_params + ")";
 
   base::Value::Dict evaluate_params;
@@ -242,14 +241,9 @@ class HeadlessModeInputSelectFileDialogTest
   bool select_file_dialog_has_run_ = false;
 };
 
-// TODO(crbug.com/40919351): flaky on Mac and Linux builders.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-#define MAYBE_InputSelectFileDialog DISABLED_InputSelectFileDialog
-#else
-#define MAYBE_InputSelectFileDialog InputSelectFileDialog
-#endif
+// TODO(crbug.com/40919351, crbug.com/443993825): flaky on Mac/Linux/Win.
 HEADLESS_MODE_PROTOCOL_TEST_F(HeadlessModeInputSelectFileDialogTest,
-                              MAYBE_InputSelectFileDialog,
+                              DISABLED_InputSelectFileDialog,
                               "input/input-select-file-dialog.js")
 
 class HeadlessModeScreencastTest : public HeadlessModeProtocolBrowserTest {
@@ -286,11 +280,26 @@ HEADLESS_MODE_PROTOCOL_TEST(ChangeWindowSize, "shared/change-window-size.js")
 HEADLESS_MODE_PROTOCOL_TEST(ChangeWindowState, "shared/change-window-state.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(WindowOuterSize, "shared/window-outer-size.js")
-HEADLESS_MODE_PROTOCOL_TEST(WindowInnerSize, "shared/window-inner-size.js")
+
+// TODO(crbug.com/443993825): Tests are flaky. Fix and re-enable.
+#if defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_WIN)
+#define MAYBE_WindowInnerSize DISABLED_WindowInnerSize
+#else
+#define MAYBE_WindowInnerSize WindowInnerSize
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_WindowInnerSize,
+                            "shared/window-inner-size.js")
+
 HEADLESS_MODE_PROTOCOL_TEST(WindowInnerSizeScaled,
                             "shared/window-inner-size-scaled.js")
 
-HEADLESS_MODE_PROTOCOL_TEST(LargeBrowserWindowSize,
+// TODO(crbug.com/443993825): Tests are flaky. Fix and re-enable.
+#if defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_WIN)
+#define MAYBE_LargeBrowserWindowSize DISABLED_LargeBrowserWindowSize
+#else
+#define MAYBE_LargeBrowserWindowSize LargeBrowserWindowSize
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_LargeBrowserWindowSize,
                             "shared/large-browser-window-size.js")
 
 // These currently fail on Mac, see https://crbug.com/1488010
@@ -335,7 +344,13 @@ HEADLESS_MODE_PROTOCOL_TEST(MAYBE_ScreenDetailsMultipleScreensScaled,
 HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsRotationAngle,
                             "shared/screen-details-rotation-angle.js")
 
-HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsPixelRatio,
+// TODO(crbug.com/443993825): Tests are flaky. Fix and re-enable.
+#if defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_WIN)
+#define MAYBE_ScreenDetailsPixelRatio DISABLED_ScreenDetailsPixelRatio
+#else
+#define MAYBE_ScreenDetailsPixelRatio ScreenDetailsPixelRatio
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_ScreenDetailsPixelRatio,
                             "shared/screen-details-pixel-ratio.js")
 
 // TODO(crbug.com/442920826): Re-enable this test
@@ -350,16 +365,17 @@ HEADLESS_MODE_PROTOCOL_TEST(MAYBE_ScreenDetailsColorDepth,
 HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsWorkArea,
                             "shared/screen-details-work-area.js")
 
-// This fails on Linux and Mac, see http://crbug.com/442922581.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-#define MAYBE_ScreenDetailsWorkAreaScaled DISABLED_ScreenDetailsWorkAreaScaled
-#else
-#define MAYBE_ScreenDetailsWorkAreaScaled ScreenDetailsWorkAreaScaled
-#endif
-HEADLESS_MODE_PROTOCOL_TEST(MAYBE_ScreenDetailsWorkAreaScaled,
+HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsWorkAreaScaled,
                             "shared/screen-details-work-area-scaled.js")
 
-HEADLESS_MODE_PROTOCOL_TEST(RequestFullscreen, "shared/request-fullscreen.js")
+// TODO(crbug.com/443993825): Tests are flaky. Fix and re-enable.
+#if defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_WIN)
+#define MAYBE_RequestFullscreen DISABLED_RequestFullscreen
+#else
+#define MAYBE_RequestFullscreen RequestFullscreen
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_RequestFullscreen,
+                            "shared/request-fullscreen.js")
 
 // Fails on all platforms, see https://crbug.com/429035133
 HEADLESS_MODE_PROTOCOL_TEST(DISABLED_RequestFullscreenOnSecondaryScreen,
@@ -415,7 +431,14 @@ HEADLESS_MODE_PROTOCOL_TEST(WindowSizeSwitchHandling,
 HEADLESS_MODE_PROTOCOL_TEST(WindowSizeSwitchLargerThanScreen,
                             "shared/window-size-switch-larger-than-screen.js")
 
-HEADLESS_MODE_PROTOCOL_TEST(WindowScreenAvail, "shared/window-screen-avail.js")
+// TODO(crbug.com/443993825): Tests are flaky. Fix and re-enable.
+#if defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_WIN)
+#define MAYBE_WindowScreenAvail DISABLED_WindowScreenAvail
+#else
+#define MAYBE_WindowScreenAvail WindowScreenAvail
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_WindowScreenAvail,
+                            "shared/window-screen-avail.js")
 
 // TODO(crbug.com/424797525): Fails Mac 13.
 #if BUILDFLAG(IS_MAC)
@@ -437,8 +460,9 @@ HEADLESS_MODE_PROTOCOL_TEST(MAYBE_StartFullscreenSwitch,
 HEADLESS_MODE_PROTOCOL_TEST(MAYBE_StartFullscreenSwitchScaled,
                             "sanity/start-fullscreen-switch-scaled.js")
 
-// TODO(crbug.com/430156442): These fail on Mac 13.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/430156442, crbug.com/443993825): These fail on Mac 13 and Win
+// ASan.
+#if BUILDFLAG(IS_MAC) || (defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_WIN))
 #define MAYBE_WindowStateTransitions DISABLED_WindowStateTransitions
 #define MAYBE_WindowZoomOnSecondaryScreen DISABLED_WindowZoomOnSecondaryScreen
 #define MAYBE_WindowZoomSizeMatchesWorkArea \
@@ -467,9 +491,19 @@ HEADLESS_MODE_PROTOCOL_TEST(WindowScreenSizeOrientation,
 HEADLESS_MODE_PROTOCOL_TEST(AutofillTriggerCreditCard,
                             "autofill/autofill-trigger-credit-card.js")
 
-// These are only supported on Linux at this time,
+HEADLESS_MODE_PROTOCOL_TEST(DispatchMouseEventScreenCoordinates,
+                            "shared/dispatch-mouse-event-screen-coordinates.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(DispatchTouchEventScreenCoordinates,
+                            "shared/dispatch-touch-event-screen-coordinates.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(
+    EmulateTouchFromMouseEventScreenCoordinates,
+    "shared/emulate-touch-from-mouse-event-screen-coordinates.js")
+
+// These are only supported on Linux and Mac at this time,
 // see http://crbug.com/437387607.
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 HEADLESS_MODE_PROTOCOL_TEST(GetScreenInfos, "shared/get-screen-infos.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(AddScreen, "shared/add-screen.js")
@@ -488,6 +522,6 @@ HEADLESS_MODE_PROTOCOL_TEST(RemoveScreenGetScreenDetails,
                             "shared/remove-screen-get-screen-details.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(AddRemoveScreen, "shared/add-remove-screen.js")
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 
 }  // namespace headless

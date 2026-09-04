@@ -110,28 +110,42 @@ TEST_F(WindowManagerTest, Focus) {
                                          .SetColorWindowDelegate(SK_ColorWHITE)
                                          .SetBounds(gfx::Rect(10, 10, 500, 500))
                                          .Build();
-  std::unique_ptr<aura::Window> w11(aura::test::CreateTestWindow(
-      SK_ColorGREEN, -11, gfx::Rect(5, 5, 100, 100), w1.get()));
-  std::unique_ptr<aura::Window> w111(aura::test::CreateTestWindow(
-      SK_ColorCYAN, -111, gfx::Rect(5, 5, 75, 75), w11.get()));
-  std::unique_ptr<aura::Window> w1111(aura::test::CreateTestWindow(
-      SK_ColorRED, -1111, gfx::Rect(5, 5, 50, 50), w111.get()));
-  std::unique_ptr<aura::Window> w12(aura::test::CreateTestWindow(
-      SK_ColorMAGENTA, -12, gfx::Rect(10, 420, 25, 25), w1.get()));
+  std::unique_ptr<aura::Window> w11 = aura::test::CreateTestWindow(
+      {.parent = w1.get(), .bounds = {5, 5, 100, 100}, .window_id = -11},
+      SK_ColorGREEN);
+  std::unique_ptr<aura::Window> w111 = aura::test::CreateTestWindow(
+      {.parent = w11.get(), .bounds = {5, 5, 75, 75}, .window_id = -111},
+      SK_ColorCYAN);
+  std::unique_ptr<aura::Window> w1111 = aura::test::CreateTestWindow(
+      {.parent = w111.get(), .bounds = {5, 5, 50, 50}, .window_id = -1111},
+      SK_ColorRED);
+  std::unique_ptr<aura::Window> w12 = aura::test::CreateTestWindow(
+      {.parent = w1.get(), .bounds = {10, 420, 25, 25}, .window_id = -12},
+      SK_ColorMAGENTA);
   aura::test::ColorTestWindowDelegate* w121delegate =
       new aura::test::ColorTestWindowDelegate(SK_ColorYELLOW);
-  std::unique_ptr<aura::Window> w121(aura::test::CreateTestWindowWithDelegate(
-      w121delegate, -121, gfx::Rect(5, 5, 5, 5), w12.get()));
+  std::unique_ptr<aura::Window> w121 =
+      aura::test::CreateTestWindow({.delegate = w121delegate,
+                                    .parent = w12.get(),
+                                    .bounds = {5, 5, 5, 5},
+                                    .window_id = -121});
   aura::test::ColorTestWindowDelegate* w122delegate =
       new aura::test::ColorTestWindowDelegate(SK_ColorRED);
-  std::unique_ptr<aura::Window> w122(aura::test::CreateTestWindowWithDelegate(
-      w122delegate, -122, gfx::Rect(10, 5, 5, 5), w12.get()));
+  std::unique_ptr<aura::Window> w122 =
+      aura::test::CreateTestWindow({.delegate = w122delegate,
+                                    .parent = w12.get(),
+                                    .bounds = {10, 5, 5, 5},
+                                    .window_id = -122});
   aura::test::ColorTestWindowDelegate* w123delegate =
       new aura::test::ColorTestWindowDelegate(SK_ColorRED);
-  std::unique_ptr<aura::Window> w123(aura::test::CreateTestWindowWithDelegate(
-      w123delegate, -123, gfx::Rect(15, 5, 5, 5), w12.get()));
-  std::unique_ptr<aura::Window> w13(aura::test::CreateTestWindow(
-      SK_ColorGRAY, -13, gfx::Rect(5, 470, 50, 50), w1.get()));
+  std::unique_ptr<aura::Window> w123 =
+      aura::test::CreateTestWindow({.delegate = w123delegate,
+                                    .parent = w12.get(),
+                                    .bounds = {15, 5, 5, 5},
+                                    .window_id = -123});
+  std::unique_ptr<aura::Window> w13 = aura::test::CreateTestWindow(
+      {.parent = w1.get(), .bounds = {5, 470, 50, 50}, .window_id = -13},
+      SK_ColorGRAY);
 
   // Click on a sub-window (w121) to focus it.
   ui::test::EventGenerator generator(Shell::GetPrimaryRootWindow(), w121.get());
@@ -299,8 +313,11 @@ TEST_F(WindowManagerTest, ActivateOnMouse) {
   // Clicking an active window with a child shouldn't steal the
   // focus from the child.
   {
-    std::unique_ptr<aura::Window> w11(CreateTestWindowWithDelegate(
-        &wd, -11, gfx::Rect(10, 10, 10, 10), w1.get()));
+    std::unique_ptr<aura::Window> w11 =
+        aura::test::CreateTestWindow({.delegate = &wd,
+                                      .parent = w1.get(),
+                                      .bounds = {10, 10, 10, 10},
+                                      .window_id = -11});
     ui::test::EventGenerator generator(Shell::GetPrimaryRootWindow(),
                                        w11.get());
     // First set the focus to the child |w11|.
@@ -323,8 +340,11 @@ TEST_F(WindowManagerTest, ActivateOnMouse) {
   {
     aura::test::TestWindowDelegate non_focusable_delegate;
     non_focusable_delegate.set_can_focus(false);
-    std::unique_ptr<aura::Window> w11(CreateTestWindowWithDelegate(
-        &non_focusable_delegate, -1, gfx::Rect(10, 10, 10, 10), w1.get()));
+    std::unique_ptr<aura::Window> w11 =
+        aura::test::CreateTestWindow({.delegate = &non_focusable_delegate,
+                                      .parent = w1.get(),
+                                      .bounds = {10, 10, 10, 10},
+                                      .window_id = -1});
     // Move focus to |w2| first.
     w2.reset(CreateTestWindowInShellWithDelegate(&wd, -1,
                                                  gfx::Rect(70, 70, 50, 50)));

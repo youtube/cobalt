@@ -274,6 +274,8 @@ static const uint8_t kPSSParamsSHA512[] = {
 
 const EVP_MD *rsa_pss_params_get_md(rsa_pss_params_t params) {
   switch (params) {
+    case rsa_pss_none:
+      return nullptr;
     case rsa_pss_sha256:
       return EVP_sha256();
     case rsa_pss_sha384:
@@ -287,6 +289,9 @@ const EVP_MD *rsa_pss_params_get_md(rsa_pss_params_t params) {
 int rsa_marshal_pss_params(CBB *cbb, rsa_pss_params_t params) {
   bssl::Span<const uint8_t> bytes;
   switch (params) {
+    case rsa_pss_none:
+      OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
+      return 0;
     case rsa_pss_sha256:
       bytes = kPSSParamsSHA256;
       break;

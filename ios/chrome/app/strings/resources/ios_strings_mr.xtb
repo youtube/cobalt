@@ -27,6 +27,7 @@
 <translation id="1082554859195167538">तुमच्यासाठी उत्पादन परीक्षणे</translation>
 <translation id="1084365883616172403">Facebook पोस्ट पूर्ण केले.</translation>
 <translation id="1085677983426914530"><ph name="FILENAME" /> उघडता आली नाही</translation>
+<translation id="1086486568852410168">Google Lens वापरून शोधा</translation>
 <translation id="1096992026380844478">तुमच्या शेवटच्या बॅकअपच्या आधारावर तुमची सिंक सेटिंग्ज रिस्टोअर केली जातील. <ph name="BEGIN_LINK" />तुम्ही काय सिंक करू शकता हे पहा<ph name="END_LINK" /></translation>
 <translation id="1103523840287552314">नेहमी भाषांतर करा <ph name="LANGUAGE" /></translation>
 <translation id="110491332089958282">अधिक सुसंबद्ध उत्तरे मिळवण्यासाठी Gemini सोबत पेज आशय शेअर करा. तुम्ही Gemini सोबत पेज शेअर करता, तेव्हा पेजचा पूर्ण आशय आणि URL Google ला पाठवली जाते. <ph name="BEGIN_LINK" />अधिक जाणून घ्या<ph name="END_LINK" /></translation>
@@ -647,7 +648,6 @@
 <translation id="3530206579861815432">तुमच्या सिंक केलेल्या सर्व डिव्हाइसवर उघडे आणि अलीकडे बंद केलेले टॅब झटपट शोधा.</translation>
 <translation id="3530767473765895035">या डिव्हाइसवरील खाती व्यवस्थापित करा…</translation>
 <translation id="3533436815740441613">नवीन टॅब</translation>
-<translation id="3533860663366814939">ऑटोफिल आणि पासवर्ड सेटिंग्ज उघडा</translation>
 <translation id="3540141921715814660">बुकमार्क मध्ये जोडा</translation>
 <translation id="3546122170015471515">Google.com वर Maps पूर्वावलोकने</translation>
 <translation id="3547356470684043247">परीक्षणांद्वारे तुमचे निर्णय अधिक माहितीपूर्ण पद्धतीने घेण्यात मदत व्हावी, यासाठी उत्पादने, सेवा किंवा अनुभवासंबंधित ग्राहक मूल्यमापने वाचा</translation>
@@ -681,6 +681,7 @@
 <translation id="3695446226812920698">कसे ते जाणून घ्या</translation>
 <translation id="3700134753671613714">आपल्या सर्व डिव्हाइसेस वरील तुमचे बुकमार्क मिळविण्यासाठी साइन इन करा.</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{{COUNT} पासवर्ड फक्त या डिव्हाइसवर सेव्ह केला आहे. तो इतर डिव्हाइसवर वापरण्यासाठी, तुमच्या {EMAIL} या Google खाते मध्ये सेव्ह करा.}other{{COUNT} पासवर्ड फक्त या डिव्हाइसवर सेव्ह केले आहेत. ते इतर डिव्हाइसवर वापरण्यासाठी, तुमच्या {EMAIL} या Google खाते मध्ये सेव्ह करा.}}</translation>
+<translation id="3709621342136814217">तुमचा फाँट, मजकूर, आकार आणि आणखी बरेच काही इथे निवडा</translation>
 <translation id="371230970611282515">धोकादायक घटना घडण्याआधी त्यांचे पूर्वानुमान करतो आणि त्यांबद्दल तुम्हाला चेतावणी देतो.</translation>
 <translation id="372115889256123713">कॅशे केलेल्या फाइल</translation>
 <translation id="3725081662140949903">तुमचा पासवर्ड वापरण्यापासून इतरांना थांबवण्यासाठी, तुमचा पासवर्ड बदलण्याकरिता <ph name="APP" /> ॲप उघडा</translation>
@@ -832,6 +833,7 @@
 <translation id="4286718549648564014">पत्ता तुमच्या <ph name="USER_EMAIL" /> खात्यावर हलवला आहे</translation>
 <translation id="4287172530684295552">वाचलेल्या अशी खूण करा</translation>
 <translation id="428768789042547925">नवीन काय आहे</translation>
+<translation id="428858055663163046">तुम्ही डाउनलोड केलेल्या फाइल उपलब्ध झाल्यावर त्या तुम्हाला इथे अ‍ॅक्सेस करता येतील</translation>
 <translation id="429074084062258019">{count,plural, =1{गट मध्ये टॅब जोडा}other{गट मध्ये टॅब जोडा}}</translation>
 <translation id="4302061870579014542">स्थान सेट करा</translation>
 <translation id="4304713468139749426">पासवर्ड व्यवस्थापक</translation>
@@ -1415,6 +1417,7 @@
 <translation id="6452534462676960500">नवीन अ‍ॅक्टिव्हिटी</translation>
 <translation id="6459411599807878608">तपशील लपवले</translation>
 <translation id="646394917185284261">Files</translation>
+<translation id="6472069383518492189">तुमची डाउनलोड तुम्हाला इथे आढळतील</translation>
 <translation id="6476253015009698798">या पेजसाठी किमतीचा माग ठेवणे उपलब्ध नाही.</translation>
 <translation id="6476284679642588870">पेमेंट पद्धती व्यवस्थापित करा</translation>
 <translation id="6476800141292307438">पेजचे <ph name="LANGUAGE" /> मध्ये भाषांतर करत आहे. पर्याय स्क्रीनच्या खाली उपलब्ध आहेत.</translation>

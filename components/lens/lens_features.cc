@@ -64,10 +64,6 @@ BASE_FEATURE(kLensOverlaySidePanelOpenInNewTab,
              "LensOverlaySidePanelOpenInNewTab",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kLensOverlaySimplifiedSelection,
-             "LensOverlaySimplifiedSelection",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kLensOverlayVisualSelectionUpdates,
              "LensOverlayVisualSelectionUpdates",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -112,20 +108,12 @@ BASE_FEATURE(kLensOverlayEduActionChip,
              "LensOverlayEduActionChip",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kLensSearchSidePanelDefaultWidthChange,
-             "LensSearchSidePanelDefaultWidthChange",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kLensOverlayKeyboardSelection,
              "LensOverlayKeyboardSelection",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayPermissionBubbleAlt,
              "LensOverlayPermissionBubbleAlt",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kLensOverlayBackToPage,
-             "LensOverlayBackToPage",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchNotFoundOnPageToast,
@@ -449,22 +437,6 @@ constexpr base::FeatureParam<base::TimeDelta> kSupportedLanguagesCacheTimeoutMs{
 constexpr base::FeatureParam<int> kRecentLanguagesAmount{
     &kLensOverlayTranslateLanguages, "recent-languages-amount", 5};
 
-constexpr base::FeatureParam<int>
-    kLensOverlaySimplifiedSelectionTextReceivedTimeout{
-        &kLensOverlaySimplifiedSelection, "simplified-text-received-timeout",
-        2000};
-constexpr base::FeatureParam<int>
-    kLensOverlaySimplifiedSelectionCopyTextReceivedTimeout{
-        &kLensOverlaySimplifiedSelection, "copy-text-received-timeout", 500};
-constexpr base::FeatureParam<int>
-    kLensOverlaySimplifiedSelectionTranslateTextReceivedTimeout{
-        &kLensOverlaySimplifiedSelection, "translate-text-received-timeout",
-        500};
-constexpr base::FeatureParam<bool>
-    kLensOverlaySimplifiedSelectionShouldCopyAsImage{
-        &kLensOverlaySimplifiedSelection, "copy-command-copies-as-image",
-        false};
-
 constexpr base::FeatureParam<bool>
     kLensOverlayVisualSelectionUpdatesEnableDynamicTheme{
         &kLensOverlayVisualSelectionUpdates, "enable-dynamic-theme", false};
@@ -567,9 +539,6 @@ const base::FeatureParam<std::string>
 
 const base::FeatureParam<bool> kLensOverlayEduActionChipDisabledByGlic{
     &kLensOverlayEduActionChip, "disabled-by-glic", true};
-
-constexpr base::FeatureParam<int> kLensSearchSidePanelDefaultWidth{
-    &kLensSearchSidePanelDefaultWidthChange, "lens-panel-default-width", 440};
 
 constexpr base::FeatureParam<std::string> kLensOverlayStraightToSrpQuery{
     &kLensOverlayStraightToSrp, "query", ""};
@@ -1003,26 +972,6 @@ bool ShouldAutoFocusSearchbox() {
   return kAutoFocusSearchbox.Get();
 }
 
-bool IsSimplifiedSelectionEnabled() {
-  return base::FeatureList::IsEnabled(kLensOverlaySimplifiedSelection);
-}
-
-int GetSimplifiedSelectionTextReceivedTimeout() {
-  return kLensOverlaySimplifiedSelectionTextReceivedTimeout.Get();
-}
-
-int GetCopyTextReceivedTimeout() {
-  return kLensOverlaySimplifiedSelectionCopyTextReceivedTimeout.Get();
-}
-
-int GetTranslateTextReceivedTimeout() {
-  return kLensOverlaySimplifiedSelectionTranslateTextReceivedTimeout.Get();
-}
-
-bool GetShouldCopyAsImage() {
-  return kLensOverlaySimplifiedSelectionShouldCopyAsImage.Get();
-}
-
 bool IsLensOverlayVisualSelectionUpdatesEnabled() {
   return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates);
 }
@@ -1227,24 +1176,12 @@ bool IsLensOverlayEduActionChipDisabledByGlic() {
   return kLensOverlayEduActionChipDisabledByGlic.Get();
 }
 
-bool IsLensSearchSidePanelDefaultWidthChangeEnabled() {
-  return base::FeatureList::IsEnabled(kLensSearchSidePanelDefaultWidthChange);
-}
-
-int GetLensSearchSidePanelDefaultWidth() {
-  return kLensSearchSidePanelDefaultWidth.Get();
-}
-
 bool IsLensOverlayKeyboardSelectionEnabled() {
   return base::FeatureList::IsEnabled(kLensOverlayKeyboardSelection);
 }
 
 bool IsLensOverlayPermissionBubbleAltEnabled() {
   return base::FeatureList::IsEnabled(kLensOverlayPermissionBubbleAlt);
-}
-
-bool IsLensOverlayBackToPageEnabled() {
-  return base::FeatureList::IsEnabled(kLensOverlayBackToPage);
 }
 
 bool IsLensSearchNotFoundOnPageToastEnabled() {

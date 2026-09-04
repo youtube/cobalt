@@ -172,13 +172,13 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ed25519(void);
 // request |EVP_pkey_dsa|, we could change that.
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_dsa(void);
 
-// EVP_pkey_rsa_pss_sha256 implements RSASSA-PSS keys, encoded as id-RSASSA-PSS
-// (RFC 4055, Section 3.1). The |EVP_PKEY_id| value is |EVP_PKEY_RSA_PSS|. This
+// EVP_pkey_rsa_pss_* implements RSASSA-PSS keys, encoded as id-RSASSA-PSS
+// (RFC 4055, Section 3.1). The |EVP_PKEY_id| value is |EVP_PKEY_RSA_PSS|. Each
 // |EVP_PKEY_ALG| only accepts keys whose parameters specify:
 //
-//  - A hashAlgorithm of SHA-256
-//  - A maskGenAlgorithm of MGF1 with SHA-256
-//  - A minimum saltLength of 32
+//  - A hashAlgorithm of the specified hash
+//  - A maskGenAlgorithm of MGF1 with the specified hash
+//  - A minimum saltLength of the specified hash's digest length
 //  - A trailerField of one (must be omitted in the encoding)
 //
 // Keys of this type will only be usable with RSASSA-PSS with matching signature
@@ -208,6 +208,8 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_dsa(void);
 // these keys. Callers that require this functionality should contact the
 // BoringSSL team.
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha256(void);
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha384(void);
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha512(void);
 
 
 // Getting and setting concrete key types.

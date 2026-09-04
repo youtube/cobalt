@@ -188,7 +188,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Browser.CookieAccessObserver.{CookieAccessReceiver}.Duration.Subsampled"
-    units="microseconds" expires_after="2026-01-04">
+    units="microseconds" expires_after="2026-03-08">
   <owner>acondor@chromium.org</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -455,7 +455,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.ERP.RateLimitedEvents" enum="BooleanAccepted"
-    expires_after="2025-11-23">
+    expires_after="2026-03-08">
   <owner>djzhang@google.com</owner>
   <owner>jdudder@google.com</owner>
   <owner>cros-reporting-team@google.com</owner>
@@ -626,7 +626,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.ERP.{Param}PayloadSizePerHour" units="KiB"
-    expires_after="2025-11-09">
+    expires_after="2026-03-08">
   <owner>djzhang@google.com</owner>
   <owner>jdudder@google.com</owner>
   <owner>cros-reporting-team@google.com</owner>
@@ -644,6 +644,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2026-03-01">
   <owner>kawasin@google.com</owner>
   <owner>baseos-perf@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     This metric is a specialized subset of the `Browser.MainThreadsCongestion`
     metric, designed to capture the metrics specifically during the first minute
@@ -668,6 +669,7 @@ chromium-metrics-reviews@google.com.
     units="janks" expires_after="2025-04-27">
   <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     This metric is emitted every 30 seconds after main message loop start, when
     there is user activity. Each 30 second duration is divided into 100ms
@@ -698,6 +700,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2026-02-22">
   <owner>vovoy@chromium.org</owner>
   <owner>chromeos-memory@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     This metric is emitted every 30 seconds after main message loop start, when
     there is user activity. Each 30 second duration is divided into 100ms
@@ -718,6 +721,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2026-03-01">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     This metric is emitted every 30 seconds after main message loop start, when
     there is user activity. Each 30 second duration is divided into 100ms
@@ -741,6 +745,7 @@ chromium-metrics-reviews@google.com.
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <owner>chrome-analysis-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     This metric is emitted every 30 seconds after main message loop start, when
     there is user activity. Each 30 second duration is divided into 100ms
@@ -782,6 +787,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2026-02-22">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     This metric is emitted every 30 seconds after main message loop start, when
     there is user activity. Each 30 second duration is divided into 100ms
@@ -1185,6 +1191,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="BrowserRenderProcessHost.AvailableMemoryBeforeCreation.SpareRenderer"
+    units="MB" expires_after="2026-01-15">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Recorded the size of the available memory when before creating the spare
+    renderer. The UMA is recorded only on the Android platform before the
+    creation of a spare renderer.
+  </summary>
+</histogram>
+
 <histogram name="BrowserRenderProcessHost.BlockedByFilterURL"
     enum="RenderProcessHostBlockedURLReason" expires_after="2026-02-05">
   <owner>creis@chromium.org</owner>
@@ -1377,7 +1395,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="BrowserRenderProcessHost.NoSpareRenderer.AllocationSource.{NoSpareRendererReason}"
-    enum="ProcessAllocationSource" expires_after="2026-01-04">
+    enum="ProcessAllocationSource" expires_after="2026-03-08">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1405,7 +1423,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="BrowserRenderProcessHost.NoSpareRenderer.NavigationStage.{NoSpareRendererReason}"
-    enum="ProcessAllocationNavigationStage" expires_after="2026-01-04">
+    enum="ProcessAllocationNavigationStage" expires_after="2026-03-08">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1567,7 +1585,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.SpareRendererPreviouslyTaken.ForCOOP"
-    enum="Boolean" expires_after="2026-01-04">
+    enum="Boolean" expires_after="2026-03-08">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1583,7 +1601,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.SpareRendererPreviouslyTaken.Source"
-    enum="ProcessAllocationSource" expires_after="2026-01-04">
+    enum="ProcessAllocationSource" expires_after="2026-03-08">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1648,7 +1666,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="BrowserRenderProcessHost.SpareRendererTakenInSameNavigation.StageCombination"
     enum="ProcessAllocationNavigationStageCombination"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>

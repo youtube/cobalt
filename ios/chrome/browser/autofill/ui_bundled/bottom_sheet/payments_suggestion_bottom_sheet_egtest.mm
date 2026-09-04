@@ -131,7 +131,7 @@ id<GREYMatcher> KeyboardAccessoryCreditCardSuggestionChip() {
     config.features_enabled.push_back(
         autofill::features::kAutofillEnableFpanRiskBasedAuthentication);
   } else if ([self isRunningTest:@selector
-                   (testUpdateBottomSheetOnAddServerCreditCard)]) {
+                   (DISABLED_testUpdateBottomSheetOnAddServerCreditCard)]) {
     config.features_enabled.push_back(
         autofill::features::kAutofillEnableFpanRiskBasedAuthentication);
   }
@@ -286,7 +286,8 @@ void CheckAutofillSuggestionAcceptedIndexMetricsCount(
 
 // Tests that the Payments Bottom Sheet appears when tapping on a credit card
 // related field.
-- (void)testOpenPaymentsBottomSheetUseCreditCard {
+// TODO(crbug.com/444085918): Test is flaky.
+- (void)FLAKY_testOpenPaymentsBottomSheetUseCreditCard {
   [self loadPaymentsPage];
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
@@ -329,7 +330,8 @@ void CheckAutofillSuggestionAcceptedIndexMetricsCount(
 
 // Tests that the Payments Bottom Sheet appears when tapping on a credit card
 // related field with the new blur logic.
-- (void)testOpenPaymentsBottomSheetUseCreditCardWithNewBlur {
+// TODO(crbug.com/444033658): Fix test and re-enable.
+- (void)DISABLED_testOpenPaymentsBottomSheetUseCreditCardWithNewBlur {
   [self loadPaymentsPage];
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
@@ -470,7 +472,8 @@ void CheckAutofillSuggestionAcceptedIndexMetricsCount(
 
 // Tests that the expected metric is logged when accepting a suggestion from
 // the bottom sheet that is not the first one in the list.
-- (void)testAcceptedSuggestionIndexLogged {
+// TODO(crbug.com/415030578): Fix test and re-enable.
+- (void)DISABLED_testAcceptedSuggestionIndexLogged {
   // Add a credit card to the Personal Data Manager.
   [AutofillAppInterface saveMaskedCreditCard];
 
@@ -500,7 +503,8 @@ void CheckAutofillSuggestionAcceptedIndexMetricsCount(
 
 // Tests that the Payments Bottom Sheet updates its contents when a new credit
 // card becomes available in the personal data manager.
-- (void)testUpdateBottomSheetOnAddServerCreditCard {
+// TODO(crbug.com/444042991): Test is flaky.
+- (void)DISABLED_testUpdateBottomSheetOnAddServerCreditCard {
   [self loadPaymentsPage];
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]

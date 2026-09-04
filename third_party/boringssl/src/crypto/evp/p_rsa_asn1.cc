@@ -27,6 +27,12 @@
 #include "internal.h"
 
 
+namespace {
+
+struct EVP_PKEY_ALG_RSA_PSS : public EVP_PKEY_ALG {
+  rsa_pss_params_t pss_params;
+};
+
 static int rsa_pub_encode(CBB *out, const EVP_PKEY *key) {
   // See RFC 3279, section 2.3.1.
   const RSA *rsa = reinterpret_cast<const RSA *>(key->pkey);
@@ -123,9 +129,8 @@ static evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
   return evp_decode_ok;
 }
 
-static evp_decode_result_t rsa_decode_pss_params_sha256(CBS *params) {
-  // For now, we only support the SHA-256 parameter set. If we want to support
-  // more, we'll need to record a little more state in the |EVP_PKEY|.
+static evp_decode_result_t rsa_decode_pss_params(rsa_pss_params_t expected,
+                                                 CBS *params) {
   if (CBS_len(params) == 0) {
     return evp_decode_unsupported;
   }
@@ -136,18 +141,17 @@ static evp_decode_result_t rsa_decode_pss_params_sha256(CBS *params) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
   }
-  return pss_params == rsa_pss_sha256 ? evp_decode_ok : evp_decode_unsupported;
+  return pss_params == expected ? evp_decode_ok : evp_decode_unsupported;
 }
 
-static int rsa_pub_encode_pss_sha256(CBB *out, const EVP_PKEY *key) {
+static int rsa_pub_encode_pss(CBB *out, const EVP_PKEY *key) {
   const RSA *rsa = reinterpret_cast<const RSA *>(key->pkey);
   CBB spki, algorithm, key_bitstring;
   if (!CBB_add_asn1(out, &spki, CBS_ASN1_SEQUENCE) ||
       !CBB_add_asn1(&spki, &algorithm, CBS_ASN1_SEQUENCE) ||
-      !CBB_add_asn1_element(&algorithm, CBS_ASN1_OBJECT,
-                            rsa_pss_sha256_asn1_meth.oid,
-                            rsa_pss_sha256_asn1_meth.oid_len) ||
-      !rsa_marshal_pss_params(&algorithm, rsa_pss_sha256) ||
+      !CBB_add_asn1_element(&algorithm, CBS_ASN1_OBJECT, rsa_pss_asn1_meth.oid,
+                            rsa_pss_asn1_meth.oid_len) ||
+      !rsa_marshal_pss_params(&algorithm, rsa->pss_params) ||
       !CBB_add_asn1(&spki, &key_bitstring, CBS_ASN1_BITSTRING) ||
       !CBB_add_u8(&key_bitstring, 0 /* padding */) ||
       !RSA_marshal_public_key(&key_bitstring, rsa) ||  //
@@ -159,10 +163,11 @@ static int rsa_pub_encode_pss_sha256(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static evp_decode_result_t rsa_pub_decode_pss_sha256(const EVP_PKEY_ALG *alg,
+static evp_decode_result_t rsa_pub_decode_pss(const EVP_PKEY_ALG *alg,
                                                      EVP_PKEY *out, CBS *params,
                                                      CBS *key) {
-  evp_decode_result_t ret = rsa_decode_pss_params_sha256(params);
+  const auto *alg_pss = static_cast<const EVP_PKEY_ALG_RSA_PSS *>(alg);
+  evp_decode_result_t ret = rsa_decode_pss_params(alg_pss->pss_params, params);
   if (ret != evp_decode_ok) {
     return ret;
   }
@@ -174,20 +179,20 @@ static evp_decode_result_t rsa_pub_decode_pss_sha256(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
-  evp_pkey_set0(out, &rsa_pss_sha256_asn1_meth, rsa.release());
+  rsa->pss_params = alg_pss->pss_params;
+  evp_pkey_set0(out, &rsa_pss_asn1_meth, rsa.release());
   return evp_decode_ok;
 }
 
-static int rsa_priv_encode_pss_sha256(CBB *out, const EVP_PKEY *key) {
+static int rsa_priv_encode_pss(CBB *out, const EVP_PKEY *key) {
   const RSA *rsa = reinterpret_cast<const RSA *>(key->pkey);
   CBB pkcs8, algorithm, private_key;
   if (!CBB_add_asn1(out, &pkcs8, CBS_ASN1_SEQUENCE) ||
       !CBB_add_asn1_uint64(&pkcs8, 0 /* version */) ||
       !CBB_add_asn1(&pkcs8, &algorithm, CBS_ASN1_SEQUENCE) ||
-      !CBB_add_asn1_element(&algorithm, CBS_ASN1_OBJECT,
-                            rsa_pss_sha256_asn1_meth.oid,
-                            rsa_pss_sha256_asn1_meth.oid_len) ||
-      !rsa_marshal_pss_params(&algorithm, rsa_pss_sha256) ||
+      !CBB_add_asn1_element(&algorithm, CBS_ASN1_OBJECT, rsa_pss_asn1_meth.oid,
+                            rsa_pss_asn1_meth.oid_len) ||
+      !rsa_marshal_pss_params(&algorithm, rsa->pss_params) ||
       !CBB_add_asn1(&pkcs8, &private_key, CBS_ASN1_OCTETSTRING) ||
       !RSA_marshal_private_key(&private_key, rsa) ||  //
       !CBB_flush(out)) {
@@ -198,10 +203,11 @@ static int rsa_priv_encode_pss_sha256(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static evp_decode_result_t rsa_priv_decode_pss_sha256(const EVP_PKEY_ALG *alg,
-                                                      EVP_PKEY *out,
-                                                      CBS *params, CBS *key) {
-  evp_decode_result_t ret = rsa_decode_pss_params_sha256(params);
+static evp_decode_result_t rsa_priv_decode_pss(const EVP_PKEY_ALG *alg,
+                                               EVP_PKEY *out, CBS *params,
+                                               CBS *key) {
+  const auto *alg_pss = static_cast<const EVP_PKEY_ALG_RSA_PSS *>(alg);
+  evp_decode_result_t ret = rsa_decode_pss_params(alg_pss->pss_params, params);
   if (ret != evp_decode_ok) {
     return ret;
   }
@@ -213,7 +219,8 @@ static evp_decode_result_t rsa_priv_decode_pss_sha256(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
-  evp_pkey_set0(out, &rsa_pss_sha256_asn1_meth, rsa.release());
+  rsa->pss_params = alg_pss->pss_params;
+  evp_pkey_set0(out, &rsa_pss_asn1_meth, rsa.release());
   return evp_decode_ok;
 }
 
@@ -236,6 +243,8 @@ static void int_rsa_free(EVP_PKEY *pkey) {
   RSA_free(reinterpret_cast<RSA *>(pkey->pkey));
   pkey->pkey = NULL;
 }
+
+}  // namespace
 
 const EVP_PKEY_ASN1_METHOD rsa_asn1_meth = {
     EVP_PKEY_RSA,
@@ -271,20 +280,20 @@ const EVP_PKEY_ASN1_METHOD rsa_asn1_meth = {
     int_rsa_free,
 };
 
-const EVP_PKEY_ASN1_METHOD rsa_pss_sha256_asn1_meth = {
+const EVP_PKEY_ASN1_METHOD rsa_pss_asn1_meth = {
     EVP_PKEY_RSA_PSS,
     // 1.2.840.113549.1.1.10
     {0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0a},
     9,
 
-    &rsa_pss_sha256_pkey_meth,
+    &rsa_pss_pkey_meth,
 
-    rsa_pub_decode_pss_sha256,
-    rsa_pub_encode_pss_sha256,
+    rsa_pub_decode_pss,
+    rsa_pub_encode_pss,
     rsa_pub_cmp,
 
-    rsa_priv_decode_pss_sha256,
-    rsa_priv_encode_pss_sha256,
+    rsa_priv_decode_pss,
+    rsa_priv_encode_pss,
 
     /*set_priv_raw=*/nullptr,
     /*set_pub_raw=*/nullptr,
@@ -307,18 +316,25 @@ const EVP_PKEY_ASN1_METHOD rsa_pss_sha256_asn1_meth = {
 
 
 const EVP_PKEY_ALG *EVP_pkey_rsa(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&rsa_asn1_meth,
-      /*ec_group=*/nullptr,
-  };
+  static const EVP_PKEY_ALG kAlg = {&rsa_asn1_meth};
   return &kAlg;
 }
 
 const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha256(void) {
-  static const EVP_PKEY_ALG kAlg = {
-      /*method=*/&rsa_pss_sha256_asn1_meth,
-      /*ec_group=*/nullptr,
-  };
+  static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
+                                            rsa_pss_sha256};
+  return &kAlg;
+}
+
+const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha384(void) {
+  static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
+                                            rsa_pss_sha384};
+  return &kAlg;
+}
+
+const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha512(void) {
+  static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
+                                            rsa_pss_sha512};
   return &kAlg;
 }
 

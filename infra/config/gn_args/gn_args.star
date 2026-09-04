@@ -463,8 +463,6 @@ gn_args.config(
         "use_hashed_jni_names": True,
         "default_min_sdk_version": 23,
         "clang_use_default_sample_profile": False,
-        # https://crbug.com/1136963
-        "use_thin_lto": False,
         "enable_resource_allowlist_generation": False,
         # LINT.ThenChange(//tools/mb/mb_config.pyl:cronet_android)
     },
@@ -472,17 +470,6 @@ gn_args.config(
         "android",
         "cronet_common",
     ],
-)
-
-gn_args.config(
-    name = "cronet_android_mainline_clang",
-    args = {
-        "clang_base_path": "//third_party/cronet_android_mainline_clang/linux-amd64",
-        "clang_use_chrome_plugins": False,
-        "default_min_sdk_version": 29,
-        # https://crbug.com/1481060
-        "llvm_android_mainline": True,
-    },
 )
 
 # Keep in sync with //infra/build/recipes/recipe_modules/chromium_android/chromium_config.py
@@ -659,6 +646,16 @@ gn_args.config(
     name = "enable_dangling_raw_ptr_checks",
     args = {
         "enable_dangling_raw_ptr_checks": True,
+    },
+)
+
+# iOS can't use enable_dangling_raw_ptr_checks, since there are some configurations
+# that do not build with backup ref ptr. Instead, enable dangling_raw_ptr via
+# ios_enable_dangling_raw_ptr_checks
+gn_args.config(
+    name = "ios_enable_dangling_raw_ptr_checks",
+    args = {
+        "ios_enable_dangling_raw_ptr_checks": True,
     },
 )
 
@@ -897,11 +894,10 @@ gn_args.config(
     ],
 )
 
-# Do not use this for non-FYI builders.
 gn_args.config(
-    name = "clang_modules",
+    name = "no_clang_modules",
     args = {
-        "use_clang_modules": True,
+        "use_clang_modules": False,
     },
 )
 

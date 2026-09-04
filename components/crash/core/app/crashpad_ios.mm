@@ -63,8 +63,7 @@ const std::map<std::string, std::string>& GetProcessSimpleAnnotations() {
           base::apple::ObjCCast<NSString>([base::apple::FrameworkBundle()
               objectForInfoDictionaryKey:@"CFBundleVersion"]);
       process_annotations["ver"] = base::SysNSStringToUTF8(version);
-      process_annotations["plat"] = kPlatformName;
-      process_annotations["crashpad"] = std::string("yes");
+      process_annotations["plat"] = std::string(kPlatformName);
     }  // @autoreleasepool
     return process_annotations;
   }

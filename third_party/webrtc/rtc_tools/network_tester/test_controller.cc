@@ -54,9 +54,8 @@ TestController::TestController(const Environment& env,
   packet_sender_thread_->Start();
   packet_sender_thread_->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(packet_sender_thread_.get());
-    udp_socket_ =
-        std::unique_ptr<AsyncPacketSocket>(socket_factory_.CreateUdpSocket(
-            SocketAddress(GetAnyIP(AF_INET), 0), min_port, max_port));
+    udp_socket_ = socket_factory_.CreateUdpSocket(
+        env_, SocketAddress(GetAnyIP(AF_INET), 0), min_port, max_port);
     RTC_CHECK(udp_socket_ != nullptr);
     udp_socket_->RegisterReceivedPacketCallback(
         [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {

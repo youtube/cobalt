@@ -179,6 +179,27 @@ class FullMarkingVerifier : public MarkingVerifierBase {
     }
   }
 
+  void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key_slot,
+                      ObjectSlot value_slot) override {
+    // First verify that both key and value are marked.
+    VerifyPointers(key_slot, key_slot + 1);
+    VerifyPointers(value_slot, value_slot + 1);
+
+    // Also verify that the ephemeron key was recorded in OLD_TO_NEW by the
+    // markers/write barrier.
+    Tagged<Object> k = *key_slot;
+    if (!HeapLayout::InYoungGeneration(host) &&
+        HeapLayout::InYoungGeneration(k)) {
+      MutablePageMetadata* page =
+          MutablePageMetadata::FromHeapObject(heap_->isolate(), host);
+      // No slots recorded on evacuation candidates.
+      CHECK_IMPLIES(!page->is_evacuation_candidate(),
+                    RememberedSet<OLD_TO_NEW_BACKGROUND>::Contains(
+                        page, key_slot.address()));
+      CHECK(!RememberedSet<OLD_TO_NEW>::Contains(page, key_slot.address()));
+    }
+  }
+
  private:
   V8_INLINE void VerifyHeapObjectImpl(Tagged<HeapObject> heap_object) {
     if (!ShouldVerifyObject(heap_object)) return;
@@ -265,10 +286,10 @@ class MainMarkingVisitor final
  private:
   // Functions required by MarkingVisitorBase.
 
-  template <typename TSlot>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void RecordSlot(Tagged<HeapObject> object, TSlot slot,
                   Tagged<HeapObject> target) {
-    MarkCompactCollector::RecordSlot(object, slot, target);
+    MarkCompactCollector::RecordSlot<TSlot, kRecordYoung>(object, slot, target);
   }
 
   void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
@@ -411,6 +432,11 @@ void MarkCompactCollector::StartMarking(
   if (v8_flags.sticky_mark_bits) {
     heap()->Unmark();
   }
+
+  // We can clear this remembered set once we start incremental marking. During
+  // incremental marking the markers will record ephemeron keys in OLD_TO_NEW
+  // instead.
+  heap_->ephemeron_remembered_set()->tables()->clear();
 
 #ifdef V8_COMPRESS_POINTERS
   heap_->young_external_pointer_space()->StartCompactingIfNeeded();
@@ -911,6 +937,10 @@ void MarkCompactCollector::Finish() {
   // Shrink pages if possible after processing and filtering slots.
   ShrinkPagesToObjectSizes(heap_, heap_->lo_space());
 
+  // Ensure that the GC and the incremental marking phase keep this remembered
+  // set empty.
+  DCHECK(heap_->ephemeron_remembered_set()->tables()->empty());
+
 #ifdef DEBUG
   DCHECK(state_ == SWEEP_SPACES || state_ == RELOCATE_OBJECTS);
   state_ = IDLE;
@@ -1401,7 +1431,7 @@ class RecordMigratedSlotVisitor
       const MutablePageMetadata* value_page =
           MutablePageMetadata::cast(value_chunk->Metadata(heap_->isolate()));
       if (value_page->is_executable()) {
-        DCHECK(!InsideSandbox(value_chunk->address()));
+        DCHECK(OutsideSandbox(value_chunk->address()));
         RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
             host_page, host_chunk->Offset(slot));
       } else if (value_page->is_trusted() && host_page->is_trusted()) {
@@ -1410,7 +1440,7 @@ class RecordMigratedSlotVisitor
         // references we want to use the OLD_TO_OLD remembered set, so here
         // we need to check that both the value chunk and the host chunk are
         // trusted space chunks.
-        DCHECK(!InsideSandbox(value_chunk->address()));
+        DCHECK(OutsideSandbox(value_chunk->address()));
         if (value_page->is_writable_shared()) {
           RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
               AccessMode::NON_ATOMIC>(host_page, host_chunk->Offset(slot));
@@ -3878,15 +3908,6 @@ void MarkCompactCollector::ClearWeakCollections() {
       }
     }
   }
-  auto* table_map = heap_->ephemeron_remembered_set()->tables();
-  for (auto it = table_map->begin(); it != table_map->end();) {
-    if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-            heap_, non_atomic_marking_state_, it->first)) {
-      it = table_map->erase(it);
-    } else {
-      ++it;
-    }
-  }
 }
 
 template <typename TObjectAndSlot, typename TMaybeSlot>
@@ -5437,15 +5458,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       return;
     }
 
-#ifdef V8_ENABLE_SANDBOX
     // When the sandbox is enabled, we must not process the TRUSTED_TO_CODE
     // remembered set on any chunk that is located inside the sandbox (in which
     // case the set should be unused). This is because an attacker could either
     // directly modify the TRUSTED_TO_CODE set on such a chunk, or trick the GC
     // into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the (trusted) code space here.
-    SBXCHECK(!InsideSandbox(chunk_->ChunkAddress()));
-#endif
+    SBXCHECK(OutsideSandbox(chunk_->ChunkAddress()));
 
     const PtrComprCageBase cage_base = heap_->isolate();
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -5476,15 +5495,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       return;
     }
 
-#ifdef V8_ENABLE_SANDBOX
     // When the sandbox is enabled, we must not process the TRUSTED_TO_TRUSTED
     // remembered set on any chunk that is located inside the sandbox (in which
     // case the set should be unused). This is because an attacker could either
     // directly modify the TRUSTED_TO_TRUSTED set on such a chunk, or trick the
     // GC into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the trusted space here.
-    SBXCHECK(!InsideSandbox(chunk_->ChunkAddress()));
-#endif
+    SBXCHECK(OutsideSandbox(chunk_->ChunkAddress()));
 
     // TODO(saelo) we can probably drop all the cage_bases here once we no
     // longer need to pass them into our slot implementations.
@@ -5623,52 +5640,6 @@ void CollectRememberedSetUpdatingItems(
   }
 }
 
-class EphemeronTableUpdatingItem : public UpdatingItem {
- public:
-  enum EvacuationState { kRegular, kAborted };
-
-  explicit EphemeronTableUpdatingItem(Heap* heap) : heap_(heap) {}
-  ~EphemeronTableUpdatingItem() override = default;
-
-  void Process() override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "EphemeronTableUpdatingItem::Process");
-    PtrComprCageBase cage_base(heap_->isolate());
-
-    auto* table_map = heap_->ephemeron_remembered_set()->tables();
-    for (auto it = table_map->begin(); it != table_map->end(); it++) {
-      Tagged<EphemeronHashTable> table = it->first;
-      auto& indices = it->second;
-      if (Cast<HeapObject>(table)
-              ->map_word(kRelaxedLoad)
-              .IsForwardingAddress()) {
-        // The object has moved, so ignore slots in dead memory here.
-        continue;
-      }
-      DCHECK(IsMap(table->map(), cage_base));
-      DCHECK(IsEphemeronHashTable(table, cage_base));
-      for (auto iti = indices.begin(); iti != indices.end(); ++iti) {
-        // EphemeronHashTable keys must be heap objects.
-        ObjectSlot key_slot(table->RawFieldOfElementAt(
-            EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
-        Tagged<Object> key_object = key_slot.Relaxed_Load();
-        Tagged<HeapObject> key;
-        CHECK(key_object.GetHeapObject(&key));
-        if (IsTheHole(key)) continue;
-        MapWord map_word = key->map_word(cage_base, kRelaxedLoad);
-        if (map_word.IsForwardingAddress()) {
-          key = map_word.ToForwardingAddress(key);
-          key_slot.Relaxed_Store(key);
-        }
-      }
-    }
-    table_map->clear();
-  }
-
- private:
-  Heap* const heap_;
-};
-
 }  // namespace
 
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
@@ -5724,9 +5695,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // WasmStruct which races with updating a slot in Map. Since to space is
     // empty after a full GC, such races can't happen.
     DCHECK_IMPLIES(heap_->new_space(), heap_->new_space()->Size() == 0);
-
-    updating_items.push_back(
-        std::make_unique<EphemeronTableUpdatingItem>(heap_));
 
     auto pointers_updating_job = std::make_unique<PointersUpdatingJob>(
         heap_->isolate(), this, std::move(updating_items));

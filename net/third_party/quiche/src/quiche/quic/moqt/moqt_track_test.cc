@@ -10,9 +10,10 @@
 
 #include "absl/status/status.h"
 #include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -278,6 +279,22 @@ TEST_F(UpstreamFetchTest, LocationIsValidObjectBeyondEndOfTrack) {
                                      MoqtObjectStatus::kEndOfTrack, true));
   EXPECT_FALSE(
       fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidTwoEndsOfTrack) {
+  EXPECT_TRUE(fetch_.LocationIsValid(Location(1, 1),
+                                     MoqtObjectStatus::kEndOfTrack, true));
+  EXPECT_FALSE(fetch_.LocationIsValid(Location(1, 2),
+                                      MoqtObjectStatus::kEndOfTrack, true));
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidEndOfTrackTooLow) {
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, true));
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(3, 0), MoqtObjectStatus::kNormal, true));
+  EXPECT_FALSE(fetch_.LocationIsValid(Location(2, 1),
+                                      MoqtObjectStatus::kEndOfTrack, true));
 }
 
 }  // namespace test

@@ -100,12 +100,13 @@ class ConnectionContext final : public RefCountedNonVirtual<ConnectionContext> {
   ~ConnectionContext();
 
  private:
-  // The following three variables are used to communicate between the
+  // The following four variables are used to communicate between the
   // constructor and the destructor, and are never exposed externally.
   bool wraps_current_thread_;
   std::unique_ptr<SocketFactory> owned_socket_factory_;
   std::unique_ptr<Thread> owned_network_thread_
       RTC_GUARDED_BY(signaling_thread_);
+  bool blocking_media_engine_destruction_;
   Thread* const network_thread_;
   AlwaysValidPointer<Thread> const worker_thread_;
   Thread* const signaling_thread_;

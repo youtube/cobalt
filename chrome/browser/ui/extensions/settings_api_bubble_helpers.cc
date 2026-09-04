@@ -13,7 +13,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/extensions/controlled_home_bubble_delegate.h"
+#include "chrome/browser/ui/extensions/controlled_home_dialog_controller.h"
 #include "chrome/browser/ui/extensions/extension_settings_overridden_dialog.h"
 #include "chrome/browser/ui/extensions/extensions_container.h"
 #include "chrome/browser/ui/extensions/extensions_dialogs.h"
@@ -34,8 +34,10 @@ namespace extensions {
 namespace {
 
 // Whether the NTP post-install UI is enabled. By default, this is limited to
-// Windows, Mac, and ChromeOS, but can be overridden for testing.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+// Windows, Mac, ChromeOS, and Desktop Android but can be overridden for
+// testing.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_ANDROID)
 bool g_ntp_post_install_ui_enabled = true;
 #else
 bool g_ntp_post_install_ui_enabled = false;
@@ -106,14 +108,15 @@ void RegisterSettingsOverriddenUiPrefs(PrefRegistrySimple* registry) {
 void MaybeShowExtensionControlledHomeNotification(Browser* browser) {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   auto bubble_delegate =
-      std::make_unique<ControlledHomeBubbleDelegate>(browser);
+      std::make_unique<ControlledHomeDialogController>(browser);
   if (!bubble_delegate->ShouldShow()) {
     return;
   }
 
   bubble_delegate->PendingShow();
-  browser->window()->GetExtensionsContainer()->ShowToolbarActionBubble(
-      std::move(bubble_delegate));
+  ShowControlledHomeDialog(browser->profile(),
+                           browser->window()->GetNativeWindow(),
+                           std::move(bubble_delegate));
 #endif
 }
 

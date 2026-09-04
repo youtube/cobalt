@@ -12,6 +12,7 @@
 #include "base/callback_list.h"
 #include "base/check_deref.h"
 #include "base/check_is_test.h"
+#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -292,6 +293,26 @@ bool RegionalCapabilitiesService::IsInSearchEngineChoiceScreenRegion() {
   return GetChoiceScreenEligibilityConfig().has_value();
 }
 
+bool RegionalCapabilitiesService::
+    IsChoiceScreenCompatibleWithCurrentLocation() {
+  CHECK(GetChoiceScreenEligibilityConfig().has_value())
+      << "No choice screen config is present so it won't be shown. "
+         "Checking the compatibility with the current location in "
+         "this context is irrelevant and should not have happened.";
+  if (!GetChoiceScreenEligibilityConfig()->restrict_to_associated_countries) {
+    return true;
+  }
+
+  return base::Contains(GetActiveProgramSettings().associated_countries,
+                        client_->GetVariationsLatestCountryId());
+}
+
+bool RegionalCapabilitiesService::
+    ShouldRecordSearchEngineChoicesMadeFromSettings() {
+  return GetActiveProgramSettings()
+      .selection_from_settings_counts_as_choice_screen_choice;
+}
+
 std::optional<RegionalCapabilitiesService::ChoiceScreenDesign>
 RegionalCapabilitiesService::GetChoiceScreenDesign() {
   // TODO(crbug.com/440549533): Investigate minimizing apk size by excluding
@@ -302,16 +323,14 @@ RegionalCapabilitiesService::GetChoiceScreenDesign() {
     case Program::kTaiyaki:
       return RegionalCapabilitiesService::ChoiceScreenDesign{
           .title_string_id = IDS_SEARCH_ENGINE_CHOICE_PAGE_TITLE,
-          // TODO(crbug.com/433501136): Need to add the string for the
-          // subtitle 1.
-          .subtitle_1_string_id = IDS_SEARCH_ENGINE_CHOICE_PAGE_SUBTITLE,
+          .subtitle_1_string_id =
+              IDS_SEARCH_ENGINE_CHOICE_PAGE_SUBTITLE_WITH_DEFINITION1,
           .subtitle_1_learn_more_suffix_string_id =
               IDS_SEARCH_ENGINE_CHOICE_PAGE_SUBTITLE_INFO_LINK,
           .subtitle_1_learn_more_a11y_string_id =
               IDS_SEARCH_ENGINE_CHOICE_PAGE_SUBTITLE_INFO_LINK_A11Y_LABEL,
-          // TODO(crbug.com/433501136): Need to add the string for the
-          // subtitle 2.
-          .subtitle_2_string_id = IDS_SEARCH_ENGINE_CHOICE_PAGE_SUBTITLE,
+          .subtitle_2_string_id =
+              IDS_SEARCH_ENGINE_CHOICE_PAGE_SUBTITLE_WITH_DEFINITION2,
       };
     case Program::kWaffle:
       return RegionalCapabilitiesService::ChoiceScreenDesign{
@@ -340,6 +359,11 @@ bool RegionalCapabilitiesService::IsInEeaCountry() {
   // TODO(crbug.com/328040066): Introduce granular program settings APIs and
   // deprecate `IsInEeaCountry()` in favour of these.
   return GetActiveProgramSettings().program == Program::kWaffle;
+}
+
+RegionalCapabilitiesService::Client&
+RegionalCapabilitiesService::GetClientForTesting() {
+  return *client_;
 }
 
 CountryIdHolder RegionalCapabilitiesService::GetCountryId() {
@@ -442,7 +466,8 @@ void RegionalCapabilitiesService::EnsureRegionalScopeCacheInitialized() {
   }
 }
 
-ActiveRegionalProgram RegionalCapabilitiesService::GetActiveProgramForMetrics() {
+ActiveRegionalProgram
+RegionalCapabilitiesService::GetActiveProgramForMetrics() {
   switch (GetActiveProgramSettings().program) {
     case Program::kDefault:
       return ActiveRegionalProgram::kDefault;
@@ -462,6 +487,16 @@ void RegionalCapabilitiesService::ClearCacheForTesting() {
   CHECK_IS_TEST();
   country_id_cache_.reset();
   program_settings_cache_.reset();
+}
+
+void RegionalCapabilitiesService::SetActiveProgramSettingsForTesting(
+    const ProgramSettings& program_settings) {
+  CHECK(!GetSearchEngineCountryOverride().has_value())
+      << "Override either country or program settings, not both.";
+  country_id_cache_ = program_settings.associated_countries.empty()
+                          ? country_codes::CountryId()
+                          : program_settings.associated_countries.front();
+  program_settings_cache_ = program_settings;
 }
 
 const ProgramSettings&

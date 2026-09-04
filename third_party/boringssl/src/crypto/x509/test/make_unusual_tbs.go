@@ -20,6 +20,7 @@ package main
 
 import (
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/rand"
 	_ "crypto/sha256"
 	"crypto/x509"
@@ -30,6 +31,21 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
 )
+
+func digest(hash crypto.Hash, in []byte) []byte {
+	h := hash.New()
+	h.Write(in)
+	return h.Sum(nil)
+}
+
+func verifySignature(key crypto.PublicKey, in, sig []byte, opts crypto.SignerOpts) bool {
+	switch k := key.(type) {
+	case *ecdsa.PublicKey:
+		return ecdsa.VerifyASN1(k, digest(opts.HashFunc(), in), sig)
+	default:
+		panic(fmt.Sprintf("unknown key type %T", k))
+	}
+}
 
 func updateSignature(path string, key crypto.Signer, opts crypto.SignerOpts) error {
 	inp, err := os.ReadFile(path)
@@ -43,16 +59,21 @@ func updateSignature(path string, key crypto.Signer, opts crypto.SignerOpts) err
 
 	s := cryptobyte.String(block.Bytes)
 	var cert, tbsCert, sigAlg cryptobyte.String
+	var sig []byte
 	if !s.ReadASN1(&cert, asn1.SEQUENCE) ||
 		!cert.ReadASN1Element(&tbsCert, asn1.SEQUENCE) ||
-		!cert.ReadASN1Element(&sigAlg, asn1.SEQUENCE) {
+		!cert.ReadASN1Element(&sigAlg, asn1.SEQUENCE) ||
+		!cert.ReadASN1BitStringAsBytes(&sig) ||
+		!cert.Empty() {
 		return fmt.Errorf("could not parse certificate in %q", path)
 	}
 
-	h := opts.HashFunc().New()
-	h.Write(tbsCert)
-	digest := h.Sum(nil)
-	signature, err := key.Sign(rand.Reader, digest, opts)
+	// Check if the signature is already valid.
+	if verifySignature(key.Public(), tbsCert, sig, opts) {
+		return nil
+	}
+
+	newSig, err := key.Sign(rand.Reader, digest(opts.HashFunc(), tbsCert), opts)
 	if err != nil {
 		return err
 	}
@@ -61,7 +82,7 @@ func updateSignature(path string, key crypto.Signer, opts crypto.SignerOpts) err
 	b.AddASN1(asn1.SEQUENCE, func(child *cryptobyte.Builder) {
 		child.AddBytes(tbsCert)
 		child.AddBytes(sigAlg)
-		child.AddASN1BitString(signature)
+		child.AddASN1BitString(newSig)
 	})
 	newCert, err := b.Bytes()
 	if err != nil {
