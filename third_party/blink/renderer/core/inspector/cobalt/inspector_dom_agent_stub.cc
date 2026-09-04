@@ -28,6 +28,7 @@ void InspectorDOMAgent::TopLayerElementsChanged() {}
 void InspectorDOMAgent::PseudoElementDestroyed(PseudoElement*) {}
 void InspectorDOMAgent::NodeCreated(Node*) {}
 void InspectorDOMAgent::UpdateScrollableFlag(Node*, std::optional<bool>) {}
+void InspectorDOMAgent::UpdateAffectedByStartingStylesFlag(Node*, std::optional<bool>) {}
 void InspectorDOMAgent::Trace(Visitor*) const {}
 void InspectorDOMAgent::DidInsertDOMNode(Node*) {}
 void InspectorDOMAgent::WillRemoveDOMNode(Node*) {}
