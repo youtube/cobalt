@@ -25,6 +25,7 @@
 #include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
@@ -42,16 +43,15 @@
 #endif
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
+#include "cobalt/browser/h5vcc_memory/low_memory_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/app/content_main.h"
+#include "content/public/app/content_main_runner.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
 #include "net/base/network_change_notifier_passive.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "content/public/app/content_main.h"
-#include "content/public/app/content_main_runner.h"
-#endif
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults.h"
@@ -72,7 +72,6 @@ namespace {
 constexpr base::TimeDelta kTransitionTimeout = base::Seconds(2);
 }  // namespace
 
-#if !BUILDFLAG(IS_ANDROID)
 namespace {
 content::ContentMainRunner* GetContentMainRunner() {
   static base::NoDestructor<std::unique_ptr<content::ContentMainRunner>>
@@ -80,7 +79,6 @@ content::ContentMainRunner* GetContentMainRunner() {
   return main_runner->get();
 }
 }  // namespace
-#endif
 
 class AppEventRunnerImpl : public AppEventRunner,
                            public CobaltLifecycleManagerObserver {
@@ -98,7 +96,9 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void InitializeSystem() override {
+#if !BUILDFLAG(IS_ANDROID)
     exit_manager_ = std::make_unique<base::AtExitManager>();
+#endif
   }
 
   void CreateMainDelegate(std::optional<int64_t> startup_timestamp,
@@ -143,6 +143,8 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void DoStop() override {
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_blocking;
+
     content::Shell::OnStop();
 
     content::Shell::Shutdown();
@@ -213,6 +215,31 @@ class AppEventRunnerImpl : public AppEventRunner,
   void DoConceal() override {
     content::Shell::OnConceal();
     WaitForAck(PendingAck::kConceal);
+
+    // Run memory pressure notification and partition alloc reclamation in a
+    // posted task. This prevents slowing down the synchronous conceal step.
+    // We are guaranteed that this task will be executed before any subsequent
+    // DoFreeze() returns, because DoFreeze invokes a blocking RunLoop inside
+    // WaitForAck(PendingAck::kCookieFlush) which will drain this task queue.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](AppEventRunner* runner) {
+              DCHECK(!runner->is_visible());
+              if (!runner->is_visible()) {
+                base::MemoryPressureListener::NotifyMemoryPressure(
+                    base::MemoryPressureListener::
+                        MEMORY_PRESSURE_LEVEL_CRITICAL);
+                // Chromium's memory pressure listeners are invoked
+                // asynchronously on all threads. Explicitly calling
+                // ReclaimAll here forces PartitionAlloc to
+                // synchronously purge its thread caches for the main
+                // thread right now, avoiding relying solely on the
+                // asynchronous signal propagation.
+                ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+              }
+            },
+            this));
   }
 
   void DoReveal() override {
@@ -271,6 +298,10 @@ class AppEventRunnerImpl : public AppEventRunner,
     base::MemoryPressureListener::NotifyMemoryPressure(
         base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
 
+    // Forward event to JavaScript layer via LowMemoryManager before reclaiming
+    // memory.
+    cobalt::browser::LowMemoryManager::GetInstance()->OnLowMemory();
+
     // Chromium internally calls Reclaim/ReclaimNormal at regular interval
     // to claim free memory. Using ReclaimAll is more aggressive.
     ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
@@ -306,7 +337,6 @@ class AppEventRunnerImpl : public AppEventRunner,
 
   void OnOsNetworkConnectedDisconnected(const SbEvent* event) override {
     CHECK(is_running());
-#if BUILDFLAG(IS_STARBOARD)
     auto* notifier = content::GetNetworkChangeNotifier();
     if (notifier) {
       auto* passive_notifier =
@@ -325,7 +355,6 @@ class AppEventRunnerImpl : public AppEventRunner,
         passive_notifier->OnIPAddressChanged();
       }
     }
-#endif
   }
 
   void OnDateTimeConfigurationChanged(const SbEvent* event) override {
@@ -378,18 +407,17 @@ class AppEventRunnerImpl : public AppEventRunner,
     params.argc = argc;
     params.argv = argv;
 #endif
+#endif
 
     main_runner_ = GetContentMainRunner();
     return content::RunContentProcess(std::move(params), main_runner_);
-#else
-    return 0;
-#endif
   }
 
   std::unique_ptr<base::AtExitManager> exit_manager_;
-#if !BUILDFLAG(IS_ANDROID)
+  // We own and manage the lifecycle of the ContentMainRunner. On non-Android
+  // platforms we explicitly shut it down in DoStop().
   content::ContentMainRunner* main_runner_ = nullptr;
-#endif
+
   std::unique_ptr<cobalt::CobaltMainDelegate> content_main_delegate_;
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -448,7 +476,10 @@ class AppEventRunnerImpl : public AppEventRunner,
     }
   }
 
-  void OnAllFramesConcealed(content::WebContents* web_contents) override {
+  // Called by CobaltLifecycleManager when the full conceal sequence (renderer
+  // frame ACKs, platform window unmapping, and GPU resource/EGLDisplay
+  // teardown) has completed, unblocking WaitForAck(PendingAck::kConceal).
+  void OnConcealCompleted(content::WebContents* web_contents) override {
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kConceal) {
       if (quit_closure_) {

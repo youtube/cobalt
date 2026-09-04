@@ -72,14 +72,6 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
   MOCK_METHOD(bool, DestroyShell, (Shell * shell), (override));
   MOCK_METHOD(void, CleanUp, (Shell * shell), (override));
   MOCK_METHOD(void,
-              EnableUIControl,
-              (Shell * shell, UIControl control, bool is_enabled),
-              (override));
-  MOCK_METHOD(void,
-              SetAddressBarURL,
-              (Shell * shell, const GURL& url),
-              (override));
-  MOCK_METHOD(void,
               SetTitle,
               (Shell * shell, const std::u16string& title),
               (override));

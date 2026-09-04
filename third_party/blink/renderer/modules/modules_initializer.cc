@@ -317,6 +317,7 @@ void ModulesInitializer::InitInspectorAgentSession(
     InspectorDOMAgent* dom_agent,
     InspectedFrames* inspected_frames,
     Page* page) const {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   session->CreateAndAppend<InspectorIndexedDBAgent>(inspected_frames,
                                                     session->V8Session());
   session->CreateAndAppend<DeviceOrientationInspectorAgent>(inspected_frames);
@@ -326,6 +327,7 @@ void ModulesInitializer::InitInspectorAgentSession(
   session->CreateAndAppend<InspectorWebAudioAgent>(page);
   session->CreateAndAppend<InspectorCacheStorageAgent>(inspected_frames);
   session->CreateAndAppend<BucketFileSystemAgent>(inspected_frames);
+#endif
 }
 
 void ModulesInitializer::OnClearWindowObjectInMainWorld(

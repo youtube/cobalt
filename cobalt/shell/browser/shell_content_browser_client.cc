@@ -393,6 +393,21 @@ ShellContentBrowserClient::GetGeneratedCodeCacheSettings(
   return GeneratedCodeCacheSettings(true, 0, context->GetPath());
 }
 
+base::FilePath ShellContentBrowserClient::GetCacheStoragePath(
+    content::BrowserContext* browser_context,
+    const base::FilePath& partition_path,
+    const base::FilePath& relative_partition_path) {
+#if BUILDFLAG(IS_STARBOARD)
+  base::FilePath cache_dir;
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+    return relative_partition_path.empty()
+               ? cache_dir
+               : cache_dir.Append(relative_partition_path);
+  }
+#endif
+  return base::FilePath();
+}
+
 base::OnceClosure ShellContentBrowserClient::SelectClientCertificate(
     BrowserContext* browser_context,
     int process_id,

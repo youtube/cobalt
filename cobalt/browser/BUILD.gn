@@ -34,6 +34,10 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
+    "memory_ablation.cc",
+    "memory_ablation.h",
+    "metrics/cobalt_stability_metrics_helper.cc",
+    "metrics/cobalt_stability_metrics_helper.h",
   ]
 
   if (is_androidtv) {
@@ -51,6 +55,7 @@ source_set("browser") {
   }
 
   public_deps = [
+    "//cobalt/browser/h5vcc_memory",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/lifecycle",
@@ -71,6 +76,8 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//cobalt/browser/h5vcc_experiments",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
+    "//cobalt/browser/h5vcc_memory",
+    "//cobalt/browser/h5vcc_memory/public/mojom",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_native_stability",
     "//cobalt/browser/h5vcc_native_stability/public/mojom",
@@ -117,6 +124,7 @@ source_set("browser") {
     deps += [
       "//cobalt/android:jni_headers",
       "//cobalt/android:pip_jni_headers",
+      "//components/crash/content/browser",
       "//components/embedder_support/android:web_contents_delegate",
       "//components/thin_webview",
       "//components/thin_webview/internal",
@@ -187,6 +195,7 @@ source_set("features") {
     "features.cc",
     "features.h",
   ]
+  public = [ "features.h" ]
   deps = [
     "//base",
     "//cobalt/build/configs:buildflags",
@@ -217,6 +226,7 @@ source_set("global_features") {
     ":metrics",
     "//base",
     "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/constants:cobalt_pref_names",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
@@ -235,6 +245,7 @@ if (is_starboard || is_androidtv) {
       ":global_features",
       "//base",
       "//cobalt/browser/h5vcc_native_stability:h5vcc_native_stability",
+      "//cobalt/build/configs:buildflags",
     ]
   }
 }

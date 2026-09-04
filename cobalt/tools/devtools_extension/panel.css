@@ -30,6 +30,11 @@
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
+  /* Live Line Chart Colors */
+  --color-live-rss: #a855f7;
+  --color-live-pmf: #38bdf8;
+  --color-live-v8: #fbbf24;
+
   /* 10 Canonical Allocator Palette (go/kimono-memory-metrics) */
   --color-binary: #8b5cf6;
   --color-codeother: #a855f7;
@@ -183,6 +188,112 @@ body {
   align-items: center;
   gap: 10px;
 }
+
+/* Real-Time Live Memory Chart Section */
+.chart-section {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.streaming-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--status-connected);
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.streaming-badge.inactive {
+  background-color: rgba(161, 161, 170, 0.15);
+  color: var(--text-dim);
+}
+
+.chart-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+#live-memory-chart {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: rgba(24, 24, 27, 0.9);
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-normal);
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  line-height: 1.5;
+}
+
+.live-legend-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.live-legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.live-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dot-rss { background-color: var(--color-live-rss); }
+.dot-pmf { background-color: var(--color-live-pmf); }
+.dot-v8 { background-color: var(--color-live-v8); }
+
+.live-legend-label {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.live-legend-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.chip-rss .live-legend-val { color: #d8b4fe; }
+.chip-pmf .live-legend-val { color: #7dd3fc; }
+.chip-v8 .live-legend-val { color: #fde047; }
 
 /* Primary Table Section */
 .table-section {

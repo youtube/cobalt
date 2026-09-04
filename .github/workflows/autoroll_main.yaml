@@ -31,8 +31,8 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts, autoroll: .github/AUTOROLL},
-          {source: main, target: staging, autoroll: .github/AUTOROLL},
+          {source: main, target: 27.lts, autoroll: .github/AUTOROLL, max_commits: 10},
+          {source: main, target: staging, autoroll: .github/AUTOROLL, max_commits: 50},
         ]
     steps:
       - name: Checkout code
@@ -84,7 +84,7 @@ jobs:
       - name: Cherry Pick Merged PRs
         id: autoroll
         env:
-          MAX_COMMITS: ${{ inputs.max_commits || 10 }}
+          MAX_COMMITS: ${{ inputs.max_commits || matrix.branch.max_commits }}
           SOURCE_BRANCH: ${{ matrix.branch.source }}
           TARGET_BRANCH: ${{ matrix.branch.target }}
           AUTOROLL_FILE: ${{ matrix.branch.autoroll }}
@@ -132,6 +132,14 @@ jobs:
             echo ""
             echo "Original pull requests:"
             echo "${PR_LINKS}"
+            echo ""
+            echo "To merge these changes, run the autoroll script:"
+            echo ""
+            echo '```bash'
+            echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY} python3 cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
+            echo "  --source-branch ${SOURCE_BRANCH} \\"
+            echo "  --target-branch ${TARGET_BRANCH}"
+            echo '```'
           } > "${PR_BODY_FILE}"
 
           if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then

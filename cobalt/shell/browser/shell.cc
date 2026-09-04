@@ -97,6 +97,8 @@ using ::starboard::StarboardBridge;
 #include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #endif
 
+#include "starboard/system.h"
+
 namespace content {
 
 namespace {
@@ -212,6 +214,17 @@ ShellPlatformDelegate* g_platform = nullptr;
 
 std::vector<Shell*> Shell::windows_;
 base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
+std::atomic<bool> Shell::has_hidden_system_splash_screen_{false};
+
+void Shell::MaybeHideSystemSplashScreen() {
+  if (!has_hidden_system_splash_screen_.exchange(true)) {
+    SbSystemHideSplashScreen();
+  }
+}
+
+void Shell::ResetSystemSplashScreenForTesting() {
+  has_hidden_system_splash_screen_.store(false);
+}
 
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
              std::unique_ptr<WebContents> splash_screen_web_contents,
@@ -415,12 +428,6 @@ void Shell::SetShellCreatedCallback(
 }
 
 // static
-bool Shell::ShouldHideToolbar() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kContentShellHideToolbar);
-}
-
-// static
 Shell* Shell::FromWebContents(WebContents* web_contents) {
   for (Shell* window : windows_) {
     if (window->web_contents() && window->web_contents() == web_contents) {
@@ -556,6 +563,10 @@ void Shell::PrimaryMainDocumentElementAvailable() {
     updater_module->MarkSuccessful();
   }
 #endif
+}
+
+void Shell::DidFirstVisuallyNonEmptyPaint() {
+  MaybeHideSystemSplashScreen();
 }
 
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
@@ -779,19 +790,6 @@ void Shell::Stop() {
   web_contents_->Stop();
 }
 
-void Shell::UpdateNavigationControls(bool should_show_loading_ui) {
-  int current_index = web_contents_->GetController().GetCurrentEntryIndex();
-  int max_index = web_contents_->GetController().GetEntryCount() - 1;
-
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::BACK_BUTTON,
-                              current_index > 0);
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::FORWARD_BUTTON,
-                              current_index < max_index);
-  g_platform->EnableUIControl(
-      this, ShellPlatformDelegate::STOP_BUTTON,
-      should_show_loading_ui && web_contents_->IsLoading());
-}
-
 void Shell::ShowDevTools() {
   if (!devtools_frontend_) {
     auto* devtools_frontend = ShellDevToolsFrontend::Show(web_contents());
@@ -884,12 +882,6 @@ WebContents* Shell::OpenURLFromTab(
   return target;
 }
 
-void Shell::LoadingStateChanged(WebContents* source,
-                                bool should_show_loading_ui) {
-  UpdateNavigationControls(should_show_loading_ui);
-  g_platform->SetIsLoading(this, source->IsLoading());
-}
-
 void Shell::EnterFullscreenModeForTab(
     RenderFrameHost* requesting_frame,
     const blink::mojom::FullscreenOptions& options) {
@@ -971,13 +963,6 @@ bool Shell::CanOverscrollContent() {
 #endif
 }
 
-void Shell::NavigationStateChanged(WebContents* source,
-                                   InvalidateTypes changed_flags) {
-  if (changed_flags & INVALIDATE_TYPE_URL) {
-    g_platform->SetAddressBarURL(this, source->GetVisibleURL());
-  }
-}
-
 JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
     WebContents* source) {
   if (!dialog_manager_) {
@@ -1010,8 +995,9 @@ void Shell::ActivateContents(WebContents* contents) {
   }
 }
 
-bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
-  return true;
+bool Shell::IsBackForwardCacheSupported(WebContents& /*web_contents*/) {
+  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kDisableBackForwardCache);
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(

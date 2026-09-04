@@ -15,10 +15,17 @@
 #ifndef COBALT_BROWSER_LOADER_APP_METRICS_H_
 #define COBALT_BROWSER_LOADER_APP_METRICS_H_
 
+#include "base/functional/callback.h"
+
 namespace cobalt {
 namespace browser {
 
 void RecordLoaderAppMetrics();
+
+using GetExtensionCallback = base::RepeatingCallback<const void*(const char*)>;
+
+// Injects a custom Starboard extension getter callback for testing.
+void SetGetExtensionForTesting(GetExtensionCallback get_extension_callback);
 
 }  // namespace browser
 }  // namespace cobalt

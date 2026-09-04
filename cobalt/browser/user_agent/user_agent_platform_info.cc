@@ -28,6 +28,7 @@
 #include "base/system/sys_info.h"
 #include "base/system/sys_info_starboard.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/cobalt_build_id.h"  // Generated
 #include "cobalt/version.h"
 #include "starboard/common/system_property.h"
@@ -330,6 +331,13 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   set_build_configuration("devel");
 #endif
 
+  if (base::FeatureList::IsEnabled(features::kEnableUserAgentFinchToken)) {
+    const std::string& finch_token = features::kUserAgentFinchTokenParam.Get();
+    if (!finch_token.empty()) {
+      set_finch_version(finch_token);
+    }
+  }
+
 // Apply overrides from command line
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (!base::CommandLine::InitializedForCurrentProcess()) {
@@ -511,6 +519,11 @@ void UserAgentPlatformInfo::set_evergreen_version(
   evergreen_version_ = Sanitize(evergreen_version, isTCHAR);
 }
 
+void UserAgentPlatformInfo::set_finch_version(
+    const std::string& finch_version) {
+  finch_version_ = Sanitize(finch_version, isTCHAR);
+}
+
 void UserAgentPlatformInfo::set_android_build_fingerprint(
     const std::string& android_build_fingerprint) {
   android_build_fingerprint_ =
@@ -557,6 +570,9 @@ std::string UserAgentPlatformInfo::ToString() const {
   //   Evergreen/Version
   //   Evergreen-Type
   //   Evergreen-FileType
+  //
+  // In the case of Finch experiment verification:
+  //   Finch/Version
 
   std::string user_agent =
       base::StringPrintf("Mozilla/5.0 (%s)", os_name_and_version_.c_str());
@@ -589,6 +605,10 @@ std::string UserAgentPlatformInfo::ToString() const {
 
   if (!starboard_version_.empty()) {
     base::StringAppendF(&user_agent, " %s", starboard_version_.c_str());
+  }
+
+  if (!finch_version_.empty()) {
+    base::StringAppendF(&user_agent, " Finch/%s", finch_version_.c_str());
   }
 
   const std::string kUnknownFieldName = "Unknown";

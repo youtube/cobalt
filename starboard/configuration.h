@@ -35,13 +35,11 @@
 
 // --- Common Defines --------------------------------------------------------
 
-// The minimum API version allowed by this version of the Starboard headers,
-// inclusive.
+// The minimum Starboard API version supported.
 #define SB_MINIMUM_API_VERSION 18
 
-// The maximum API version allowed by this version of the Starboard headers,
-// inclusive. The API version is not stable and is open for changes.
-#define SB_MAXIMUM_API_VERSION 19
+// The maximum Starboard API version supported.
+#define SB_MAXIMUM_API_VERSION 18
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -130,6 +128,9 @@ struct CompileAssert {};
 #endif
 #endif  // SB_PRINTF_FORMAT
 
+// Deprecated: Per the Google C++ Style Guide, comment out unused parameter
+// names (e.g., `void* /*context*/` or `Type /*param_name*/`), or use
+// `[[maybe_unused]]` if conditionally unused.
 // Trivially references a parameter that is otherwise unreferenced, preventing a
 // compiler warning on some platforms.
 #if !defined(SB_UNREFERENCED_PARAMETER)
