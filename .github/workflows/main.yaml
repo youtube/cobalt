@@ -1051,8 +1051,7 @@ jobs:
     needs:
       - initialize
       - build
-      - on-device-test
-      - on-host-test
+      - test-results
       - web-tests
       - e2e-test
       - yts-test
