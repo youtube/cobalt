@@ -25,6 +25,20 @@ namespace starboard {
 class VideoSurfaceHolder;
 class JobQueue;
 
+// This class coordinates the destruction of the global video surface between
+// the Android JNI thread and the player decoder thread. It allows the JNI
+// thread to trigger surface destruction and wait for the teardown to complete
+// without holding the global view surface mutex.
+//
+// Thread safety & Lifetime:
+// - RefCountedThreadSafe with internal mutex guarding state transitions.
+// - Created in VideoSurfaceHolder::AcquireVideoSurface(), where references are
+//   stored globally in GetGlobalSurfaceDestroyNotifier() and locally in
+//   the decoder (VideoSurfaceHolder::active_notifier_ /
+//   MediaCodecVideoDecoder).
+// - When Notify() is invoked from the JNI thread, an in-flight task on the
+//   JobQueue also holds a reference to ensure the object stays alive until
+//   NotifyDestroyed() completes on the decoder thread.
 class SurfaceDestroyNotifier
     : public RefCountedThreadSafe<SurfaceDestroyNotifier> {
  public:

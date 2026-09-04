@@ -40,6 +40,8 @@ void SurfaceDestroyNotifier::Notify() {
   if (state_ == State::kDone || !holder_ || !job_queue_) {
     return;
   }
+  state_ = State::kWaiting;
+
   scoped_refptr<SurfaceDestroyNotifier> self(this);
   auto task = [self]() { self->NotifyDestroyed(); };
   if (!job_queue_->Schedule(std::move(task))) {
