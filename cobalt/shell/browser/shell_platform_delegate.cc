@@ -371,11 +371,7 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
 #if !defined(USE_AURA) || !BUILDFLAG(IS_STARBOARD)
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
-    WebContents* web_contents) {
-  if (!is_visible_) {
-    TrackPreviouslyVisibleWebContents(web_contents);
-  }
-}
+    WebContents* web_contents) {}
 #endif
 
 }  // namespace content

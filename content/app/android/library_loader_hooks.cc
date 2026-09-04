@@ -4,7 +4,6 @@
 
 #include "content/app/android/library_loader_hooks.h"
 
-#include "base/command_line.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
 #include "base/process/current_process.h"
@@ -55,17 +54,7 @@ bool LibraryLoaded(base::android::LibraryProcessType library_process_type) {
   // Content Schemes need to be registered as early as possible after the
   // CommandLine has been initialized to allow java and tests to use GURL before
   // running ContentMain.
-#if BUILDFLAG(IS_COBALT)
-  // For Cobalt Android: In production (Starboard lifecycle), schemes are registered
-  // during ContentMainRunnerImpl::Initialize() after the delegate is configured.
-  // In tests (non-Starboard lifecycle), we must register schemes here early.
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "use-starboard-lifecycle")) {
-    RegisterContentSchemes();
-  }
-#else
   RegisterContentSchemes();
-#endif
   return true;
 }
 

@@ -913,12 +913,7 @@ void BrowserMainLoop::CreateStartupTasks() {
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "use-starboard-lifecycle")) {
-    startup_task_runner_->StartRunningTasksAsync();
-  } else {
-    startup_task_runner_->RunAllTasksNow();
-  }
+  startup_task_runner_->StartRunningTasksAsync();
 #else
   startup_task_runner_->RunAllTasksNow();
 #endif

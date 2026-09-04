@@ -28,25 +28,14 @@ public class JavaSwitches {
   public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
 
   public static final String ENABLE_QUIC = "EnableQUIC";
-
-  /**
-   * Java switch key set via Intent or Android metadata bundle to enable Starboard lifecycle
-   * migration.
-   */
-  public static final String USE_STARBOARD_LIFECYCLE = "UseStarboardLifeCycle";
-
-  /**
-   * Command-line switch name passed to CommandLine when USE_STARBOARD_LIFECYCLE is set. Allows C++
-   * code and non-Activity Java classes (e.g. NetworkStatus) to query CommandLine.
-   */
-  public static final String USE_STARBOARD_LIFECYCLE_SWITCH = "use-starboard-lifecycle";
-
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
   /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
   public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
       "EnableAutoRetryOnNetworkRecovery";
+
+  public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
 
   /** flag to enable deferred V8 bytecode serialization in background/idle */
   public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
@@ -272,6 +261,10 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+      extraCommandLineArgs.add("--enable-optimized-font-loading");
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
     }
@@ -340,13 +333,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
       extraCommandLineArgs.add("--disable-back-forward-cache");
-    }
-
-    // Convert the Java switch to a command-line flag so C++ code and non-Activity Java components
-    // (such as NetworkStatus) can query
-    // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
-    if (javaSwitches.containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)) {
-      extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
     }
 
     return extraCommandLineArgs;
