@@ -461,21 +461,26 @@ def main() -> int:
 
   args = parser.parse_args()
 
-  # TODO(b/428961033): Let argparse handle these checks as required arguments.
-  if args.test_type in ('e2e_test', 'yts_test'):
-    if not args.cobalt_path:
-      raise ValueError('--cobalt_path is required for e2e_test or yts_test')
-  elif args.test_type in ('unit_test', 'browser_test'):
-    if not args.device_family:
-      raise ValueError(f'--device_family is required for {args.test_type}')
-    if not args.gcs_archive_path:
-      raise ValueError(f'--gcs_archive_path is required for {args.test_type}')
-    if not args.gcs_result_path:
-      raise ValueError(f'--gcs_result_path is required for {args.test_type}')
-    if not args.filter_json_dir:
-      raise ValueError(f'--filter_json_dir is required for {args.test_type}')
+  if args.action == 'trigger':
+    # TODO(b/428961033): Let argparse handle these checks as required arguments.
+    if args.test_type in ('e2e_test', 'yts_test'):
+      if not args.cobalt_path:
+        raise ValueError('--cobalt_path is required for e2e_test or yts_test')
+    elif args.test_type in ('unit_test', 'browser_test'):
+      if not args.device_family:
+        raise ValueError(f'--device_family is required for {args.test_type}')
+      if not args.gcs_archive_path:
+        raise ValueError(f'--gcs_archive_path is required for {args.test_type}')
+      if not args.gcs_result_path:
+        raise ValueError(f'--gcs_result_path is required for {args.test_type}')
+      if not args.filter_json_dir:
+        raise ValueError(f'--filter_json_dir is required for {args.test_type}')
 
-  test_requests = _process_test_requests(args)
+    test_requests = _process_test_requests(args)
+    if not test_requests:
+      print('No tests to run.')
+      return 0
+
   client = OnDeviceTestsGatewayClient()
 
   try:
