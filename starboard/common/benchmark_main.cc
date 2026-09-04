@@ -20,17 +20,8 @@
 #include "starboard/system.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "perfetto/tracing.h"
-#endif
-
 namespace {
 int RunAllBenchmarks(int argc, char** argv) {
-#if BUILDFLAG(IS_ANDROID)
-  perfetto::TracingInitArgs perfetto_args;
-  perfetto_args.backends = perfetto::kSystemBackend;
-  perfetto::Tracing::Initialize(perfetto_args);
-#endif
 #if BUILDFLAG(IS_ANDROID)
   starboard::features::InitializeStarboardFeatureListWithDefaults();
 #endif

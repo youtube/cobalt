@@ -17,20 +17,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "perfetto/tracing.h"
-#endif
-
 namespace starboard {
 namespace benchmark {
 
 TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
-#if BUILDFLAG(IS_ANDROID)
-  perfetto::TracingInitArgs perfetto_args;
-  perfetto_args.backends = perfetto::kSystemBackend;
-  perfetto::Tracing::Initialize(perfetto_args);
-#endif
-
   // Run only the player benchmarks.
   // Google Benchmark modifies argc/argv.
   int argc = 2;
