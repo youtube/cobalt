@@ -123,28 +123,65 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
 static bool ElfClassBuildIDNoteIdentifier(const void* section,
                                           size_t length,
                                           std::vector<uint8_t>& identifier) {
-  const void* section_end = reinterpret_cast<const char*>(section) + length;
-  const Nhdr* note_header = reinterpret_cast<const Nhdr*>(section);
-  while (reinterpret_cast<const void*>(note_header) < section_end) {
-    if (note_header->n_type == NT_GNU_BUILD_ID) {
-      break;
-    }
-    note_header = reinterpret_cast<const Nhdr*>(
-        reinterpret_cast<const char*>(note_header) + sizeof(Nhdr) +
-        NOTE_PADDING(note_header->n_namesz) +
-        NOTE_PADDING(note_header->n_descsz));
-  }
-  if (reinterpret_cast<const void*>(note_header) >= section_end ||
-      note_header->n_descsz == 0) {
+  // Ensure the section is at least large enough to hold one Note header.
+  if (!section || length < sizeof(Nhdr)) {
     return false;
   }
 
-  const uint8_t* build_id = reinterpret_cast<const uint8_t*>(note_header) +
-                            sizeof(Nhdr) + NOTE_PADDING(note_header->n_namesz);
-  identifier.insert(identifier.end(), build_id,
-                    build_id + note_header->n_descsz);
+  const char* current = reinterpret_cast<const char*>(section);
+  const char* const section_end = current + length;
 
-  return true;
+  // Sane bounds for what we expect in a valid GNU Build ID note.
+  constexpr size_t kMaxBuildIdSize = EVERGREEN_BUILD_ID_MAX_SIZE;
+  constexpr size_t kMaxNoteNameSize = 256;
+
+  // The condition `current + sizeof(Nhdr) <= section_end` ensures that we
+  // have enough bytes left in the buffer to fully read the Nhdr struct safely.
+  while (current + sizeof(Nhdr) <= section_end) {
+    const Nhdr* note_header = reinterpret_cast<const Nhdr*>(current);
+
+    // Initial check: if sizes are egregiously large (or larger than the
+    // remaining buffer), reject them to prevent integer overflows during
+    // padding calculation.
+    if (note_header->n_namesz > kMaxNoteNameSize ||
+        note_header->n_descsz > static_cast<size_t>(section_end - current)) {
+      return false;
+    }
+
+    size_t padded_namesz = NOTE_PADDING(note_header->n_namesz);
+    size_t padded_descsz = NOTE_PADDING(note_header->n_descsz);
+
+    // Strict bounds check: ensure the name block and the descriptor block
+    // all fit entirely within the remaining valid buffer (header bounds are
+    // checked in the loop condition).
+    if (padded_namesz >
+            static_cast<size_t>(section_end - current - sizeof(Nhdr)) ||
+        padded_descsz > static_cast<size_t>(section_end - current -
+                                            sizeof(Nhdr) - padded_namesz)) {
+      return false;
+    }
+
+    const char* name = current + sizeof(Nhdr);
+    const uint8_t* desc =
+        reinterpret_cast<const uint8_t*>(name + padded_namesz);
+
+    // Exact string match for GNU Build ID.
+    if (note_header->n_type == NT_GNU_BUILD_ID && note_header->n_namesz == 4 &&
+        memcmp(name, "GNU\0", 4) == 0) {
+      if (note_header->n_descsz == 0 ||
+          note_header->n_descsz > kMaxBuildIdSize) {
+        return false;
+      }
+      // Assign bounded contents to the identifier vector.
+      identifier.assign(desc, desc + note_header->n_descsz);
+      return true;
+    }
+
+    // Advance to the next note using the accurately padded block sizes.
+    current += sizeof(Nhdr) + padded_namesz + padded_descsz;
+  }
+
+  return false;
 }
 
 bool ProgramTable::LoadSegments(File* elf_file) {
@@ -152,11 +189,23 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     const Phdr* phdr = &phdr_table_[i];
 
     if (phdr->p_type == PT_NOTE) {
-      if (!ElfClassBuildIDNoteIdentifier(
-              reinterpret_cast<const void*>(phdr->p_vaddr +
-                                            base_memory_address_),
-              phdr->p_memsz, build_id_)) {
-        SB_LOG(INFO) << "Could not get build id";
+      // 64 KB cap limits arbitrary payload size causing excessive allocations.
+      constexpr size_t kMaxNoteSegmentSize = 65536;
+      if (phdr->p_filesz > 0 && phdr->p_filesz <= kMaxNoteSegmentSize) {
+        std::vector<char> note_buffer(phdr->p_filesz);
+        // By reading directly from the file offset instead of mapped virtual
+        // memory, we avoid crashing (Page Fault / SIGSEGV) if the PT_NOTE
+        // header was placed before PT_LOAD segments and their corresponding
+        // memory pages are still running under PROT_NONE mappings.
+        if (elf_file->ReadFromOffset(phdr->p_offset, note_buffer.data(),
+                                     phdr->p_filesz)) {
+          if (!ElfClassBuildIDNoteIdentifier(note_buffer.data(), phdr->p_filesz,
+                                             build_id_)) {
+            SB_LOG(INFO) << "Could not get build id";
+          }
+        }
+      } else {
+        SB_LOG(INFO) << "Invalid PT_NOTE size or too large: " << phdr->p_filesz;
       }
       continue;
     }

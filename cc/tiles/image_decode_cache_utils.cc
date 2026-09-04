@@ -102,12 +102,12 @@ size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes() {
   static const size_t cobalt_decoded_image_persistent_cache_budget_bytes = []() {
     size_t budget = std::numeric_limits<size_t>::max();
     auto* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kCCImageCacheLimitBytes)) {
+    if (command_line->HasSwitch(switches::kCCImageCacheLimitMbs)) {
       std::string value = command_line->GetSwitchValueASCII(
-          switches::kCCImageCacheLimitBytes);
-      int64_t parsed_value;
-      if (base::StringToInt64(value, &parsed_value) && parsed_value >= 0) {
-        budget = static_cast<size_t>(parsed_value);
+          switches::kCCImageCacheLimitMbs);
+      int parsed_value;
+      if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+        budget = static_cast<size_t>(parsed_value) * 1024 * 1024;
       }
     }
     return budget;

@@ -468,5 +468,13 @@ if (is_cobalt && use_evergreen) {
       "//components/test:run_all_unittests",
       "//components/test:test_support",
     ]
+
+    # ui_test.pak is required at runtime by ComponentsTestSuite::Initialize().
+    # Because //ui/resources:ui_test_pak does not set mark_as_data = true,
+    # specifying data = [ "$root_out_dir/ui_test.pak" ] is required for GN
+    # to include the .pak file in update_client_unittests_loader.runtime_deps
+    # so archive_test_artifacts.py packages it for device testing.
+    data = [ "$root_out_dir/ui_test.pak" ]
+    data_deps = [ "//ui/resources:ui_test_pak" ]
   }
 }

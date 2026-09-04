@@ -1,5 +1,9 @@
+# Disable dangerous-triggers rule because this workflow uses workflow_run
+# strictly to check job results and rerun failed test jobs without executing
+# untrusted code.
+# actionlint: disable dangerous-triggers
 name: Deflake Tests
-on:
+on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: [android, raspi-2-modular, evergreen, linux, tvos]
     types:
@@ -16,8 +20,9 @@ jobs:
       actions: write
     steps:
       - name: Checkout .github Files
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: false
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: .github
@@ -27,22 +32,36 @@ jobs:
           REPO: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
           WORKFLOW: ${{ github.event.workflow_run.id }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
         shell: bash
         run: |
           set +x
+          if [ -n "${HEAD_BRANCH}" ]; then
+            current_sha=$(git ls-remote -- "https://github.com/${HEAD_REPO:-${REPO}}.git" "refs/heads/${HEAD_BRANCH}" 2>/dev/null | cut -f1) || true
+            if [ -n "${current_sha}" ] && [ "${current_sha}" != "${HEAD_SHA}" ]; then
+              echo "A newer commit (${current_sha}) exists on branch ${HEAD_BRANCH} than the run SHA (${HEAD_SHA}). Aborting re-run."
+              exit 0
+            fi
+          fi
+
           # Max number of times the tests should run. Must match number of
           # retries in on_host_tests and on_device_tests actions.
           MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 3' .github/config/infra/deflake.json)
 
-          # This call fails until the workflow has run $MAX_ATTEMPTS times.
-          if gh run view --repo "${REPO}" "${WORKFLOW}" --attempt "${MAX_ATTEMPTS}"; then
-            echo "Done retrying ${WORKFLOW_NAME}. It is still failing after ${MAX_ATTEMPTS} attempts."
+          if ! run_info=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json attempt,jobs 2>/dev/null); then
+            echo "Failed to fetch run info for ${WORKFLOW}."
+            exit 1
+          fi
+
+          attempt=$(echo "${run_info}" | jq -r '.attempt')
+          if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
+            echo "Done retrying ${WORKFLOW_NAME}. It is still failing after ${attempt} attempts."
             exit 0
           fi
 
-          # Fetch failed jobs containing _tests.
-          failed_job_ids=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
-
+          failed_job_ids=$(echo "${run_info}" | jq -r '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
           if [ -z "${failed_job_ids}" ]; then
             echo "No failing '_tests' jobs found to rerun."
             exit 0

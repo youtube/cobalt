@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -85,7 +86,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void Reload();
   void ReloadBypassingCache();
   void Stop();
-  void UpdateNavigationControls(bool should_show_loading_ui);
   void Close();
   void ShowDevTools();
   void CloseDevTools();
@@ -140,8 +140,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static void SetShellCreatedCallback(
       base::OnceCallback<void(Shell*)> shell_created_callback);
 
-  static bool ShouldHideToolbar();
-
   WebContents* web_contents() const { return web_contents_.get(); }
 
   void Focus();
@@ -171,8 +169,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       const blink::mojom::WindowFeatures& window_features,
       bool user_gesture,
       bool* was_blocked) override;
-  void LoadingStateChanged(WebContents* source,
-                           bool should_show_loading_ui) override;
   void EnterFullscreenModeForTab(
       RenderFrameHost* requesting_frame,
       const blink::mojom::FullscreenOptions& options) override;
@@ -185,8 +181,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
                           bool last_unlocked_by_target) override;
   void CloseContents(WebContents* source) override;
   bool CanOverscrollContent() override;
-  void NavigationStateChanged(WebContents* source,
-                              InvalidateTypes changed_flags) override;
   JavaScriptDialogManager* GetJavaScriptDialogManager(
       WebContents* source) override;
   bool DidAddMessageToConsole(WebContents* source,
@@ -230,6 +224,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   base::WeakPtr<on_screen_keyboard::PlatformOnScreenKeyboard>
   GetPlatformOnScreenKeyboard();
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+
+  static void MaybeHideSystemSplashScreen();
+  static void ResetSystemSplashScreenForTesting();
 
  private:
   class DevToolsWebContentsObserver;
@@ -284,6 +281,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
   void PrimaryMainDocumentElementAvailable() override;
+  void DidFirstVisuallyNonEmptyPaint() override;
   void DidFinishLoad(RenderFrameHost* render_frame_host,
                      const GURL& validated_url) override;
   void DidStartNavigation(NavigationHandle* navigation_handle) override;
@@ -335,6 +333,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static std::vector<Shell*> windows_;
 
   static base::OnceCallback<void(Shell*)> shell_created_callback_;
+
+  static std::atomic<bool> has_hidden_system_splash_screen_;
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.

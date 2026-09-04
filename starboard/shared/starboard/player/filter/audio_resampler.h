@@ -16,8 +16,8 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RESAMPLER_H_
 
 #include <memory>
+#include <optional>
 
-#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -25,8 +25,7 @@
 namespace starboard {
 
 // Classes inherited from this interface can convert input audio samples in one
-// sample and storage type into another sample and storage type.  For example,
-// it can convert planar int16 samples into interleaved float32 samples.
+// sample type and sample rate into another sample type and sample rate.
 // All functions (including Create() and the dtor) of the class should be called
 // on the same thread as the JobQueue passed in the Create() function.
 // It doesn't have a function to reset its internal state so during a seek the
@@ -37,14 +36,13 @@ class AudioResampler {
 
   // Write frames to the AudioResampler.  The format of the frames is determined
   // by the input formats passed to Create().
-  virtual scoped_refptr<DecodedAudio> Resample(
-      scoped_refptr<DecodedAudio> audio_data) = 0;
+  virtual std::optional<DecodedAudio> Resample(DecodedAudio audio_data) = 0;
 
   // Signal that the last audio input frame has been written.  The resampler
   // should allow for reading of any audio data inside its internal cache.  The
   // caller should continue call Read() after calling this function until Read()
   // returns EOS.
-  virtual scoped_refptr<DecodedAudio> WriteEndOfStream() = 0;
+  virtual std::optional<DecodedAudio> WriteEndOfStream() = 0;
 
   // Create an AudioResampler that takes input specified by |source_*| and
   // produce output specified by |destination_*|.  The input and output have to
@@ -54,10 +52,8 @@ class AudioResampler {
   // AudioResampler can call Read() to read the next chunk of resampled data.
   static std::unique_ptr<AudioResampler> Create(
       SbMediaAudioSampleType source_sample_type,
-      SbMediaAudioFrameStorageType source_storage_type,
       int source_sample_rate,
       SbMediaAudioSampleType destination_sample_type,
-      SbMediaAudioFrameStorageType destination_storage_type,
       int destination_sample_rate,
       int channels);
 };

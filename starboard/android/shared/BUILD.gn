@@ -222,7 +222,6 @@ static_library("starboard_platform") {
     "player_settings.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
-    # "posix_emu/dirent.cc",
     # "posix_emu/pthread.cc",
 
     "runtime_resource_overlay.cc",
@@ -292,6 +291,7 @@ static_library("starboard_platform") {
 
   public_deps = [
     ":starboard_base_symbolize",
+    "//cobalt/android:app_event_bridge",
     "//cobalt/android:jni_headers",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser/client_hint_headers",
@@ -341,18 +341,17 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/speech_synthesis_speak.cc",
       "//starboard/shared/stub/system_network_is_disconnected.cc",
       "//starboard/shared/stub/system_raise_platform_error.cc",
-      "//starboard/shared/stub/window_create.cc",
-      "//starboard/shared/stub/window_destroy.cc",
       "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
-      "//starboard/shared/stub/window_get_platform_handle.cc",
-      "//starboard/shared/stub/window_get_size.cc",
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
+      "posix_emu/alarm.cc",
+      "posix_emu/dirent.cc",
       "posix_emu/errno.cc",
       "posix_emu/file.cc",
       "posix_emu/net_if.cc",
       "posix_emu/stat.cc",
+      "posix_emu/stdlib.cc",
     ]
 
     public_deps += [
@@ -475,6 +474,7 @@ test("starboard_platform_tests") {
 
 java_cpp_enum("java_enums") {
   sources = [
+    "audio_track.h",
     "media_codec.h",
     "media_common.h",
     "media_drm_bridge.h",

@@ -16,6 +16,7 @@
 #define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 
 #include <atomic>
+#include <cstddef>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -46,6 +47,31 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // mutex.
   class Strategy {
    public:
+    // Temporary configuration structure for experimental strategy parameters,
+    // allowing strategies to selectively adopt these settings.
+    struct ExperimentConfig {
+      // The initial capacity of the memory pool.
+      size_t initial_capacity = 0;
+      // The fallback allocation increment.
+      size_t allocation_increment = 0;
+      // Whether to perform any decommits when idle.
+      bool enable_decommit_on_idle = false;
+      // Number of blocks to keep fully committed when idle.
+      size_t retain_blocks = 0;
+      // Number of blocks beyond retain blocks to lazily decommit (e.g. using
+      // MADV_FREE if supported). Any blocks beyond these are aggressively
+      // decommitted (e.g. using MADV_DONTNEED).
+      size_t conservative_decommit_blocks = 0;
+      // Whether to aggressively decommit all idle blocks when app is suspended.
+      bool aggressive_decommit_on_suspend = false;
+      // Whether fallback allocations align to page boundary.
+      bool allocate_with_page_alignment = false;
+      // Whether to zero out fallback blocks on reclamation.
+      bool memset_on_reclaim = false;
+      // Whether to advise MADV_COLD on reclamation.
+      bool mark_as_cold_on_reclaim = false;
+    };
+
     virtual ~Strategy() {}
     virtual void* Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, void* p) = 0;
@@ -70,7 +96,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   static DecoderBufferAllocator* Get();
 
-  void ReleaseIdleMemory();
   void DecommitAllDecommitableBlocks();
 
   // DecoderBuffer::Allocator methods.
@@ -135,17 +160,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   static void EnableConfigurableDecommitStrategy(
-      int block_size,
-      int retain_blocks,
-      int conservative_decommit_blocks,
+      Strategy::ExperimentConfig strategy_config,
       bool enable_decommit_on_suspend,
-      bool allocate_with_page_alignment,
-      bool aggressive_decommit_on_suspend,
-      bool memset_on_reclaim,
-      bool mark_as_cold_on_reclaim,
       bool periodic_decommit);
   static void EnableMediaBufferPoolStrategy();
-  static void EnableReleaseIdleMemory();
 
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void EnablePeriodicDecommitLoop();
@@ -163,11 +181,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
   bool is_strategy_switch_pending_ GUARDED_BY(mutex_) = false;
-  // ReleaseIdleMemory() can be called on the UI thread while buffers are still
-  // actively decoding on the media thread. We defer idle memory reclamation
-  // until buffers drain in Free().
-  bool has_pending_release_ GUARDED_BY(mutex_) = false;
-  bool should_release_idle_memory_ GUARDED_BY(mutex_) = false;
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
   scoped_refptr<PeriodicDecommitState> periodic_decommit_state_
       GUARDED_BY(mutex_);

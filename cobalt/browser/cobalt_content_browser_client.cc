@@ -326,15 +326,10 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
-  // Default compiled javascript quota in Cobalt 25 is 3 MB:
+  // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  // When enable-optimized-v8-code-cache switch is set, increase to 5 MB for
-  // YouTube TV.
-  size_t size = 3 * 1024 * 1024;
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-optimized-v8-code-cache")) {
-    size = 5 * 1024 * 1024;
-  }
+  // Increased to 5 MB for Cobalt 27+.
+  size_t size = 5 * 1024 * 1024;
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -612,15 +607,27 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     return;
   }
   auto* web_contents = web_contents_observer_->web_contents();
-  CHECK(web_contents);
+  if (!web_contents) {
+    std::move(callback).Run();
+    return;
+  }
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
-  CHECK(rfh);
+  if (!rfh) {
+    std::move(callback).Run();
+    return;
+  }
   auto* storage_partition = rfh->GetStoragePartition();
-  CHECK(storage_partition);
+  if (!storage_partition) {
+    std::move(callback).Run();
+    return;
+  }
   // Flushes localStorage.
   storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
+  if (!cookie_manager) {
+    std::move(callback).Run();
+    return;
+  }
   cookie_manager->FlushCookieStore(std::move(callback));
 }
 
@@ -635,10 +642,20 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   auto* global_features = GlobalFeatures::GetInstance();
   auto* experiment_config_manager =
       global_features->experiment_config_manager();
+
+  // It is critical that GetExperimentConfigType() is evaluated after
+  // InstantiateFieldTrialList(), because the latter triggers
+  // CleanExitBeacon::Initialize(), which reads the 'Variations' beacon file
+  // from DIR_CACHE and increments/syncs the crash streak into
+  // metrics_local_state.
+  // ExperimentConfigManager can then see the true crash streak and fall back
+  // to Safe Mode when needed.
   auto config_type = experiment_config_manager->GetExperimentConfigType();
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
+
+  global_features->InitializeActiveConfigData(config_type);
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);

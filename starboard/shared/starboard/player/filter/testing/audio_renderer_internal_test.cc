@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "starboard/common/log.h"
@@ -33,6 +34,7 @@ namespace {
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
+using ::testing::ByMove;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::InvokeWithoutArgs;
@@ -67,9 +69,11 @@ class AudioRendererTest : public ::testing::Test {
                                           kDefaultSamplesPerSecond);
 
     ON_CALL(*audio_decoder_, Read(_))
-        .WillByDefault(
-            DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
-                  Return(scoped_refptr<DecodedAudio>(new DecodedAudio()))));
+        .WillByDefault(DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
+                             InvokeWithoutArgs([]() {
+                               return std::optional<DecodedAudio>(
+                                   DecodedAudio::CreateEOSBuffer());
+                             })));
     ON_CALL(*audio_renderer_sink_, Start(_, _, _, _, _, _, _, _))
         .WillByDefault(DoAll(InvokeWithoutArgs([this]() {
                                audio_renderer_sink_->SetHasStarted(true);
@@ -140,9 +144,9 @@ class AudioRendererTest : public ::testing::Test {
       scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(timestamp);
       WriteSample(input_buffer);
       CallConsumedCB();
-      scoped_refptr<DecodedAudio> decoded_audio =
+      DecodedAudio decoded_audio =
           CreateDecodedAudio(timestamp, kFramesPerBuffer);
-      SendDecoderOutput(decoded_audio);
+      SendDecoderOutput(std::move(decoded_audio));
       frames_written += kFramesPerBuffer;
     }
 
@@ -186,12 +190,13 @@ class AudioRendererTest : public ::testing::Test {
     job_queue_.RunUntilIdle();
   }
 
-  void SendDecoderOutput(const scoped_refptr<DecodedAudio>& decoded_audio) {
+  void SendDecoderOutput(DecodedAudio decoded_audio) {
     ASSERT_TRUE(output_cb_);
 
     EXPECT_CALL(*audio_decoder_, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
-                        Return(decoded_audio)));
+                        Return(ByMove(std::optional<DecodedAudio>(
+                            std::move(decoded_audio))))));
     output_cb_();
     job_queue_.RunUntilIdle();
   }
@@ -208,12 +213,11 @@ class AudioRendererTest : public ::testing::Test {
     return new InputBuffer(DeallocateSampleCB, NULL, this, sample_info);
   }
 
-  scoped_refptr<DecodedAudio> CreateDecodedAudio(int64_t timestamp,
-                                                 int frames) {
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
+  DecodedAudio CreateDecodedAudio(int64_t timestamp, int frames) {
+    DecodedAudio decoded_audio(
+        kDefaultNumberOfChannels, sample_type_, timestamp,
         frames * kDefaultNumberOfChannels * GetBytesPerSample(sample_type_));
-    memset(decoded_audio->data(), 0, decoded_audio->size_in_bytes());
+    memset(decoded_audio.data(), 0, decoded_audio.size_in_bytes());
     return decoded_audio;
   }
 
@@ -334,7 +338,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -423,7 +427,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -482,7 +486,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   bool is_playing = false;
   bool is_eos_played = true;
@@ -555,7 +559,7 @@ TEST_F(AudioRendererTest, DecoderReturnsEOSWithoutAnyData) {
   EXPECT_FALSE(prerolled_);
 
   // Return EOS from decoder without sending any audio data, which is valid.
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
   EXPECT_TRUE(prerolled_);
@@ -605,7 +609,7 @@ TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
   EXPECT_FALSE(prerolled_);
 
   // Return EOS from decoder without sending any audio data, which is valid.
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
   EXPECT_TRUE(prerolled_);
@@ -668,7 +672,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -763,7 +767,7 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -837,7 +841,7 @@ TEST_F(AudioRendererTest, Seek) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -873,7 +877,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
                                       &is_playing, &is_eos_reached);

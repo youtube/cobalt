@@ -18,11 +18,13 @@
 #include <utility>
 
 #include "starboard/android/shared/audio_decoder_passthrough.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -302,8 +304,8 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
     seek_to_time_ = seek_to_time;
   }
   paused_ = true;
-  decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // clear it
-  decoded_audio_writing_in_progress_ = nullptr;
+  decoded_audios_ = std::queue<DecodedAudio>();  // clear it
+  decoded_audio_writing_in_progress_ = std::nullopt;
   decoded_audio_writing_offset_ = 0;
   total_frames_written_on_audio_track_thread_ = 0;
 }
@@ -471,11 +473,14 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   SB_DCHECK(error_cb_);
   SB_DCHECK(audio_track_bridge_);
 
-  if (audio_track_bridge_->GetAndResetHasAudioDeviceChanged()) {
+  // Encoded passthrough bitstreams (e.g. AC3/E-AC3) cannot be seamlessly routed
+  // across different sinks (e.g. Bluetooth or built-in speakers), so any device
+  // change requires recreating the player to renegotiate audio capabilities.
+  if (audio_track_bridge_->GetAndResetAudioDeviceChange() !=
+      AudioDeviceChange::kNone) {
     SB_LOG(INFO) << "Audio device changed, raising a capability changed error "
                     "to restart playback.";
-    error_cb_(kSbPlayerErrorCapabilityChanged,
-              "Audio device capability changed");
+    ReportCapabilityChanged();
     audio_track_bridge_->PauseAndFlush();
     return;
   }
@@ -527,7 +532,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         playback_head_position_when_stopped_ =
             audio_track_bridge_->GetAudioTimestamp(&stopped_at_);
         total_frames_written_ = total_frames_written_on_audio_track_thread_;
-        decoded_audio_writing_in_progress_ = nullptr;
+        decoded_audio_writing_in_progress_ = std::nullopt;
         SB_LOG(INFO) << "Audio track stopped at " << stopped_at_
                      << ", playback head: "
                      << playback_head_position_when_stopped_;
@@ -551,8 +556,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
           SB_LOG(INFO)
               << "Write error for dead audio track, audio device capability "
                  "has likely changed. Restarting playback.";
-          error_cb_(kSbPlayerErrorCapabilityChanged,
-                    "Audio device capability changed");
+          ReportCapabilityChanged();
         } else {
           // `kSbPlayerErrorDecode` is used for general SbPlayer error, there is
           // no error code corresponding to audio sink.
@@ -576,7 +580,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       if (decoded_audio_writing_offset_ ==
           decoded_audio_writing_in_progress_->size_in_bytes()) {
         total_frames_written_on_audio_track_thread_ += frames_per_input_buffer_;
-        decoded_audio_writing_in_progress_ = nullptr;
+        decoded_audio_writing_in_progress_ = std::nullopt;
         decoded_audio_writing_offset_ = 0;
         fully_written = true;
       } else if (!prerolled_.exchange(true)) {
@@ -607,6 +611,14 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       std::bind(&AudioRendererPassthrough::UpdateStatusAndWriteData, this,
                 current_state),
       fully_written ? 0 : kAudioTrackUpdateInternal);
+}
+
+void AudioRendererPassthrough::ReportCapabilityChanged() {
+  // Invalidate caches so subsequent isTypeSupported() queries see live state.
+  MediaCapabilitiesCache::GetInstance()->ClearCache();
+  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+
+  error_cb_(kSbPlayerErrorCapabilityChanged, "Audio device capability changed");
 }
 
 // This function can be called from *any* threads.
@@ -641,7 +653,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   }
 
   std::lock_guard scoped_lock(mutex_);
-  decoded_audios_.push(std::move(decoded_audio));
+  decoded_audios_.push(std::move(*decoded_audio));
 }
 
 }  // namespace starboard
