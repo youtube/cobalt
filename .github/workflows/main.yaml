@@ -1109,6 +1109,12 @@ jobs:
             find results -type d -name "retry_filters" -exec cp -r {}/. "${filter_dir}/" \; 2>/dev/null || true
           fi
 
+          required_test_targets=$(jq -nr \
+            --argjson expected "${EXPECTED_TESTS}" \
+            --argjson browser "${BROWSER_TESTS}" \
+            '($expected + $browser)[] | select(.target != null and .required != false) |
+             [.target, (.runs_on // "host"), (.test_type // "")] | @tsv')
+
           missing_required=0
           xml_files=()
 
@@ -1136,11 +1142,7 @@ jobs:
               (( ++missing_required ))
             fi
             xml_files+=("${files[@]}")
-          done < <(jq -nr \
-            --argjson expected "${EXPECTED_TESTS}" \
-            --argjson browser "${BROWSER_TESTS}" \
-            '($expected + $browser)[] | select(.target != null and .required != false) |
-             [.target, (.runs_on // "host"), (.test_type // "")] | @tsv')
+          done <<< "${required_test_targets}"
 
           test_failures='{}'
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
