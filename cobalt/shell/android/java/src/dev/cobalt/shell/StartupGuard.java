@@ -2,14 +2,22 @@ package dev.cobalt.shell;
 
 import static dev.cobalt.shell.Shell.TAG;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import java.io.File;
+import java.io.RandomAccessFile;
+import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.chromium.base.PathUtils;
 
 /**
  * This class crashes the application if scheduled and not disarmed before its timer expires.
@@ -38,7 +46,7 @@ public class StartupGuard {
   }
 
   // Backing memory-mapped file for Phase 1 cross-layer UMA persistence
-  private java.nio.MappedByteBuffer startupStateBuffer = null;
+  private MappedByteBuffer startupStateBuffer = null;
 
   // Private constructor prevents direct instantiation from other classes
   private StartupGuard() {
@@ -57,26 +65,36 @@ public class StartupGuard {
         };
   }
 
-  public void initializePersistence(android.content.Context context) {
+  public void initializePersistence(Context context) {
+    initializePersistenceInternal(context, null);
+  }
+
+  @VisibleForTesting
+  public void initializePersistenceInternal(Context context, @Nullable File baseDir) {
     try {
-      java.io.File file = new java.io.File(context.getFilesDir(), "java_startup_state.bin");
+      // Default to Chromium's data directory so it matches C++ DIR_ANDROID_APP_DATA.
+      File dir = baseDir != null ? baseDir : new File(PathUtils.getDataDirectory());
+      if (!dir.exists()) {
+        dir.mkdirs();
+      }
+
+      File file = new File(dir, "java_startup_state.bin");
       // If a file from the previous session exists, rename it so C++ can harvest the previous
       // session's
       // state without racing with this fresh session's writes.
       if (file.exists()) {
-        java.io.File prevFile =
-            new java.io.File(context.getFilesDir(), "java_startup_state_previous.bin");
+        File prevFile = new File(dir, "java_startup_state_previous.bin");
         if (prevFile.exists()) {
           prevFile.delete();
         }
         file.renameTo(prevFile);
       }
 
-      try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "rw");
-          java.nio.channels.FileChannel channel = raf.getChannel()) {
+      try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
+          FileChannel channel = raf.getChannel()) {
         // MappedByteBuffer defaults to big-endian, we strictly need little-endian for C++.
-        startupStateBuffer = channel.map(java.nio.channels.FileChannel.MapMode.READ_WRITE, 0, 8);
-        startupStateBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        startupStateBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 8);
+        startupStateBuffer.order(ByteOrder.LITTLE_ENDIAN);
         startupStateBuffer.putLong(0, 0);
       }
     } catch (Exception e) {
