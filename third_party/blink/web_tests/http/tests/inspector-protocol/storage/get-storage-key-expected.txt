@@ -1,2 +1,0 @@
-SUCCESS: Got storage key
-Storage key is non-empty.

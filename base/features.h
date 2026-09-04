@@ -17,12 +17,6 @@ namespace base::features {
 // Alphabetical:
 BASE_EXPORT BASE_DECLARE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle);
 
-#if BUILDFLAG(IS_COBALT)
-// When enabled, image transfer cache entries bypass serialization and transfer
-// images directly to the GPU service thread in-process.
-BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessImageTransferCache);
-#endif  // BUILDFLAG(IS_COBALT)
-
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFastFilePathIsParent);

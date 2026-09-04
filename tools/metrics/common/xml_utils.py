@@ -2,24 +2,16 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Helpers to parse content of xml files."""
-
-import typing
-
-from collections.abc import Iterator
 import html
 from xml.dom import minidom
 
-# A minidom tree is represented by a Document or an Element. A generic Node is
-# not used because these functions are designed to traverse element containers.
-# The implementation of Node type is possible with extra runtime checks, however
-# using a more specific type makes the intent clearer and avoids potential
-# warnings about attributes like `tagName` not being present on all Node types.
-DomTree = typing.Union[minidom.Element, minidom.Document]
+from typing import Iterator
 
 _ELEMENT_NODE = minidom.Node.ELEMENT_NODE
 
 
-def GetTagSubTree(tree: DomTree, tag: str, depth: int) -> DomTree:
+def GetTagSubTree(tree: minidom.Element, tag: str,
+                  depth: int) -> minidom.Element:
   """Returns sub tree with tag element as a root.
 
   When no element with tag name is found or there are many of them
@@ -31,7 +23,7 @@ def GetTagSubTree(tree: DomTree, tag: str, depth: int) -> DomTree:
     depth: Defines how deep in the tree function should search for a match.
 
   Returns:
-    Sub tree (matching criteria) or original one.
+    xml.dom.minidom.Node: Sub tree (matching criteria) or original one.
   """
   entries = list(IterElementsWithTag(tree, tag, depth))
   if len(entries) == 1:
@@ -57,7 +49,7 @@ def NormalizeString(text: str) -> str:
   return html.unescape(line)
 
 
-def NormalizeAllAttributeValues(node: DomTree) -> DomTree:
+def NormalizeAllAttributeValues(node: minidom.Element) -> minidom.Element:
   """Recursively normalizes all tag attribute values in the given tree.
 
   Args:
@@ -75,7 +67,7 @@ def NormalizeAllAttributeValues(node: DomTree) -> DomTree:
   return node
 
 
-def GetTextFromChildNodes(node: DomTree) -> str:
+def GetTextFromChildNodes(node: minidom.Element) -> str:
   """Returns a string concatenation of the text of the given node's children.
 
   Comments are ignored, consecutive lines of text are joined with a single
@@ -144,6 +136,7 @@ def IterElementsWithTag(root: minidom.Element,
 
   Yields:
     xml.dom.minidom.Node: Element matching criteria.
+
   """
   if depth == 0 and root.nodeType == _ELEMENT_NODE and root.tagName == tag:
     yield root

@@ -15,7 +15,6 @@ component("sync") {
     "//chrome/browser/ui",
     "//chrome/browser/web_applications",
     "//chrome/test:test_support",
-    "//cobalt/browser",
     "//components/autofill/content/browser",
     "//components/cookie_config",
     "//components/gcm_driver",

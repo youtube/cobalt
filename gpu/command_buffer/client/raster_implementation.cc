@@ -18,7 +18,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
 #include <limits>
 #include <set>
 #include <sstream>
@@ -29,7 +28,6 @@
 #include "base/bits.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
-#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/stack_allocated.h"
 #include "base/metrics/histogram_macros.h"
@@ -43,16 +41,10 @@
 #include "cc/paint/decode_stashing_image_provider.h"
 #include "cc/paint/display_item_list.h"
 #include "cc/paint/paint_cache.h"
-#include "cc/paint/paint_flags.h"
-#include "cc/paint/paint_op_buffer_iterator.h"
 #include "cc/paint/paint_op_buffer_serializer.h"
-#include "cc/paint/paint_shader.h"
 #include "cc/paint/skottie_serialization_history.h"
 #include "cc/paint/transfer_cache_entry.h"
 #include "cc/paint/transfer_cache_serialize_helper.h"
-#if BUILDFLAG(IS_COBALT)
-#include "cc/paint/image_transfer_cache_entry.h"
-#endif  // BUILDFLAG(IS_COBALT)
 #include "components/miracle_parameter/common/public/miracle_parameter.h"
 #include "gpu/command_buffer/client/gpu_control.h"
 #include "gpu/command_buffer/client/image_decode_accelerator_interface.h"
@@ -60,8 +52,6 @@
 #include "gpu/command_buffer/client/raster_cmd_helper.h"
 #include "gpu/command_buffer/client/shared_memory_limits.h"
 #include "gpu/command_buffer/client/transfer_buffer.h"
-#include "gpu/command_buffer/common/in_process_raster_payload.h"
-#include "gpu/config/gpu_finch_features.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/rect.h"
@@ -183,146 +173,6 @@ class ScopedSharedMemoryPtr {
   std::optional<ScopedMappedMemoryPtr> scoped_mapped_ptr_;
   std::optional<ScopedTransferBufferPtr> scoped_transfer_ptr_;
 };
-
-#if BUILDFLAG(IS_COBALT)
-// Performs the equivalent of PaintOpWriter::Write(const DrawImage&, SkSize*)
-// and PaintOpWriter::WriteImage(): decodes/uploads the image via |provider|
-// and records its transfer_cache_entry_id.
-void ProcessPaintImage(
-    const cc::PaintImage& paint_image,
-    const SkIRect& src_rect,
-    cc::PaintFlags::FilterQuality quality,
-    cc::ImageProvider* provider,
-    base::flat_map<cc::PaintImage::Id, uint32_t>* image_to_transfer_cache_id) {
-  DCHECK(provider);
-  if (!paint_image) {
-    return;
-  }
-
-  // Dark mode is not used in Cobalt, and an identity matrix (SkM44()) decodes
-  // and uploads the image at its native 1:1 scale to the transfer cache.
-  // |current_ctm| is not needed for preprocessing because DisplayItemList
-  // retains the full CTM context, and Skia will apply all canvas
-  // transformations dynamically during rasterization.
-  cc::DrawImage draw_image(paint_image, /*use_dark_mode=*/false, src_rect,
-                           quality, SkM44());
-  auto result = provider->GetRasterContent(draw_image);
-  if (result &&
-      result.decoded_image().transfer_cache_entry_id().has_value()) {
-    (*image_to_transfer_cache_id)[paint_image.stable_id()] =
-        result.decoded_image().transfer_cache_entry_id().value();
-  }
-}
-
-// Forward declaration
-void InProcRasterPreProcess(
-    const cc::PaintOpBuffer& buffer,
-    const std::vector<size_t>* offsets,
-    cc::ImageProvider* provider,
-    base::flat_map<cc::PaintImage::Id, uint32_t>* image_to_transfer_cache_id);
-
-// Handles a single PaintOp to extract and process images.
-void InProcRasterPreProcessOp(
-    const cc::PaintOp& op,
-    cc::ImageProvider* provider,
-    base::flat_map<cc::PaintImage::Id, uint32_t>* image_to_transfer_cache_id) {
-  DCHECK(provider);
-
-  switch (op.GetType()) {
-    case cc::PaintOpType::kDrawImage: {
-      const auto& draw_image_op = static_cast<const cc::DrawImageOp&>(op);
-      ProcessPaintImage(draw_image_op.image,
-                        SkIRect::MakeWH(draw_image_op.image.width(),
-                                        draw_image_op.image.height()),
-                        draw_image_op.GetImageQuality(), provider,
-                        image_to_transfer_cache_id);
-      break;
-    }
-    case cc::PaintOpType::kDrawImageRect: {
-      const auto& draw_image_rect_op =
-          static_cast<const cc::DrawImageRectOp&>(op);
-      SkIRect int_src_rect;
-      draw_image_rect_op.src.roundOut(&int_src_rect);
-      ProcessPaintImage(draw_image_rect_op.image, int_src_rect,
-                        draw_image_rect_op.GetImageQuality(), provider,
-                        image_to_transfer_cache_id);
-      break;
-    }
-    // Recursively process all ops in the nested PaintRecord buffer.
-    case cc::PaintOpType::kDrawRecord: {
-      const auto& draw_record_op = static_cast<const cc::DrawRecordOp&>(op);
-      InProcRasterPreProcess(draw_record_op.record.buffer(), nullptr, provider,
-                            image_to_transfer_cache_id);
-      break;
-    }
-    // Recursively process all ops in the scrolling DisplayItemList buffer.
-    case cc::PaintOpType::kDrawScrollingContents: {
-      const auto& scrolling_op =
-          static_cast<const cc::DrawScrollingContentsOp&>(op);
-      if (scrolling_op.display_item_list) {
-        InProcRasterPreProcess(
-            scrolling_op.display_item_list->paint_op_buffer(), nullptr,
-            provider, image_to_transfer_cache_id);
-      }
-      break;
-    }
-    // All other drawing ops with PaintFlags serialize their flags via
-    // PaintOpWriter::Write(const PaintFlags&, ...), which checks for image
-    // shaders or nested PaintRecords. Ops without flags do nothing.
-    default:
-      if (op.IsPaintOpWithFlags()) {
-        const auto& flags_op = static_cast<const cc::PaintOpWithFlags&>(op);
-        if (flags_op.flags.HasShader()) {
-          const cc::PaintShader* shader = flags_op.flags.getShader();
-          if (shader) {
-            if (shader->shader_type() == cc::PaintShader::Type::kImage) {
-              ProcessPaintImage(
-                  shader->paint_image(),
-                  SkIRect::MakeWH(shader->paint_image().width(),
-                                  shader->paint_image().height()),
-                  flags_op.flags.getFilterQuality(), provider,
-                  image_to_transfer_cache_id);
-            } else if (shader->shader_type() ==
-                       cc::PaintShader::Type::kPaintRecord) {
-              if (shader->paint_record()) {
-                InProcRasterPreProcess(shader->paint_record()->buffer(),
-                                      nullptr, provider,
-                                      image_to_transfer_cache_id);
-              }
-            }
-          }
-        }
-      }
-      break;
-  }
-}
-
-// Recursively traverses the PaintOpBuffer (including nested PaintRecords,
-// scrolling display lists, and PaintShader images) to decode images via
-// |provider| and populate |image_to_transfer_cache_id|. This allows the
-// GPU-side raster decoder to resolve pre-uploaded transfer cache textures
-// during direct playback without serialization.
-void InProcRasterPreProcess(
-    const cc::PaintOpBuffer& buffer,
-    const std::vector<size_t>* offsets,
-    cc::ImageProvider* provider,
-    base::flat_map<cc::PaintImage::Id, uint32_t>* image_to_transfer_cache_id) {
-  if (!provider) {
-    return;
-  }
-
-  if (offsets) {
-    for (const cc::PaintOp& op :
-         cc::PaintOpBuffer::OffsetIterator(buffer, *offsets)) {
-      InProcRasterPreProcessOp(op, provider, image_to_transfer_cache_id);
-    }
-  } else {
-    for (const cc::PaintOp& op : buffer) {
-      InProcRasterPreProcessOp(op, provider, image_to_transfer_cache_id);
-    }
-  }
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
@@ -736,20 +586,7 @@ gpu::ContextResult RasterImplementation::Initialize(
     const SharedMemoryLimits& limits) {
   TRACE_EVENT0("gpu", "RasterImplementation::Initialize");
 
-  SharedMemoryLimits modified_limits = limits;
-#if BUILDFLAG(IS_COBALT)
-  // When in-process direct raster is enabled, PaintOp buffers are passed
-  // directly via pointer payload. Reduce the initial transfer buffer size to
-  // 1 KB to minimize shared memory overhead.
-  if (base::FeatureList::IsEnabled(features::kCobaltInProcessDirectRaster)) {
-    LOG(INFO) << "RasterImplementation: CobaltInProcessDirectRaster enabled, "
-                 "reducing initial transfer buffer size to "
-              << 1024 << " bytes (was " << limits.start_transfer_buffer_size
-              << " bytes)";
-    modified_limits.start_transfer_buffer_size = 1024;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
-  auto result = ImplementationBase::Initialize(modified_limits);
+  auto result = ImplementationBase::Initialize(limits);
   if (result != gpu::ContextResult::kSuccess) {
     return result;
   }
@@ -771,11 +608,6 @@ RasterImplementation::~RasterImplementation() {
 
   // Make sure the commands make it the service.
   WaitForCmd();
-
-#if BUILDFLAG(IS_COBALT)
-  cc::ClientImageTransferCacheEntry::ClearInProcessRegistry();
-  InProcessRasterPayloadRegistry::GetInstance().Clear();
-#endif  // BUILDFLAG(IS_COBALT)
 }
 
 RasterCmdHelper* RasterImplementation::helper() const {
@@ -1394,45 +1226,6 @@ void RasterImplementation::UnmapRasterCHROMIUM(uint32_t raster_written_size,
   CheckGLError();
 }
 
-#if BUILDFLAG(IS_COBALT)
-void RasterImplementation::RasterCHROMIUMInProcess(
-    const cc::DisplayItemList* list,
-    cc::ImageProvider* provider,
-    const gfx::Size& content_size,
-    const gfx::Rect& full_raster_rect,
-    const gfx::Rect& playback_rect,
-    const gfx::Vector2dF& post_translate,
-    const gfx::Vector2dF& post_scale,
-    bool requires_clear,
-    const ScrollOffsetMap* raster_inducing_scroll_offsets) {
-  uint32_t size_allocated = 0;
-  void* mem =
-      MapRasterCHROMIUM(sizeof(InProcessRasterPayload*), &size_allocated);
-  if (mem) {
-    auto* payload = new InProcessRasterPayload();
-    payload->display_item_list = base::WrapRefCounted(list);
-    payload->content_size = content_size;
-    payload->full_raster_rect = full_raster_rect;
-    payload->playback_rect = playback_rect;
-    payload->post_translate = post_translate;
-    payload->post_scale = post_scale;
-    payload->requires_clear = requires_clear;
-    payload->background_color = raster_properties_->background_color;
-    if (raster_inducing_scroll_offsets) {
-      payload->raster_inducing_scroll_offsets = *raster_inducing_scroll_offsets;
-    }
-
-    InProcRasterPreProcess(list->paint_op_buffer(), &temp_raster_offsets_,
-                           provider, &payload->image_to_transfer_cache_id);
-
-    InProcessRasterPayloadRegistry::GetInstance().Register(payload);
-    std::memcpy(mem, &payload, sizeof(payload));
-    UnmapRasterCHROMIUM(sizeof(InProcessRasterPayload*),
-                        sizeof(InProcessRasterPayload*));
-  }
-}
-#endif  // BUILDFLAG(IS_COBALT)
-
 // Include the auto-generated part of this file. We split this because it means
 // we can easily edit the non-auto generated parts right here in this file
 // instead of having to edit some template or the code generator.
@@ -1662,15 +1455,6 @@ void RasterImplementation::RasterCHROMIUM(
   if (temp_raster_offsets_.empty() && !requires_clear) {
     return;
   }
-
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(features::kCobaltInProcessDirectRaster)) {
-    RasterCHROMIUMInProcess(list, provider, content_size, full_raster_rect,
-                            playback_rect, post_translate, post_scale,
-                            requires_clear, raster_inducing_scroll_offsets);
-    return;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 
   // TODO(enne): Tune these numbers
   static constexpr uint32_t kMinAlloc = 16 * 1024;
