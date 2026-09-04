@@ -247,22 +247,23 @@ template <typename CrossVariantBase>
 struct PendingReceiverConverter<
     blink::CrossVariantMojoReceiver<CrossVariantBase>> {
   template <typename VariantBase>
-  static PendingReceiver<VariantBase> To(
+  static ::mojo::PendingReceiver<VariantBase> To(
       blink::CrossVariantMojoReceiver<CrossVariantBase>&& in) {
     return in.pipe_.is_valid()
-               ? PendingReceiver<VariantBase>(std::move(in.pipe_))
-               : PendingReceiver<VariantBase>();
+               ? ::mojo::PendingReceiver<VariantBase>(std::move(in.pipe_))
+               : ::mojo::PendingReceiver<VariantBase>();
   }
 };
 
 template <typename CrossVariantBase>
 struct PendingRemoteConverter<blink::CrossVariantMojoRemote<CrossVariantBase>> {
   template <typename VariantBase>
-  static PendingRemote<VariantBase> To(
+  static ::mojo::PendingRemote<VariantBase> To(
       blink::CrossVariantMojoRemote<CrossVariantBase>&& in) {
     return in.pipe_.is_valid()
-               ? PendingRemote<VariantBase>(std::move(in.pipe_), in.version_)
-               : PendingRemote<VariantBase>();
+               ? ::mojo::PendingRemote<VariantBase>(std::move(in.pipe_),
+                                                    in.version_)
+               : ::mojo::PendingRemote<VariantBase>();
   }
 };
 
@@ -270,11 +271,12 @@ template <typename CrossVariantBase>
 struct PendingAssociatedReceiverConverter<
     blink::CrossVariantMojoAssociatedReceiver<CrossVariantBase>> {
   template <typename VariantBase>
-  static PendingAssociatedReceiver<VariantBase> To(
+  static ::mojo::PendingAssociatedReceiver<VariantBase> To(
       blink::CrossVariantMojoAssociatedReceiver<CrossVariantBase>&& in) {
     return in.handle_.is_valid()
-               ? PendingAssociatedReceiver<VariantBase>(std::move(in.handle_))
-               : PendingAssociatedReceiver<VariantBase>();
+               ? ::mojo::PendingAssociatedReceiver<VariantBase>(
+                     std::move(in.handle_))
+               : ::mojo::PendingAssociatedReceiver<VariantBase>();
   }
 };
 
@@ -282,11 +284,11 @@ template <typename CrossVariantBase>
 struct PendingAssociatedRemoteConverter<
     blink::CrossVariantMojoAssociatedRemote<CrossVariantBase>> {
   template <typename VariantBase>
-  static PendingAssociatedRemote<VariantBase> To(
+  static ::mojo::PendingAssociatedRemote<VariantBase> To(
       blink::CrossVariantMojoAssociatedRemote<CrossVariantBase>&& in) {
-    return in.handle_.is_valid() ? PendingAssociatedRemote<VariantBase>(
+    return in.handle_.is_valid() ? ::mojo::PendingAssociatedRemote<VariantBase>(
                                        std::move(in.handle_), in.version_)
-                                 : PendingAssociatedRemote<VariantBase>();
+                                 : ::mojo::PendingAssociatedRemote<VariantBase>();
   }
 };
 

@@ -71,7 +71,7 @@ class AudioCapturerSource
 
   // Sets information about the audio stream format and the device to be used.
   // It must be called exactly once before any of the other methods.
-  virtual void Initialize(const AudioParameters& params,
+  virtual void Initialize(const ::media::AudioParameters& params,
                           CaptureCallback* callback) = 0;
 
   // Starts the audio recording.
