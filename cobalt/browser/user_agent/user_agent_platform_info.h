@@ -117,10 +117,10 @@ class UserAgentPlatformInfo {
 // IS_ANDROIDTV as well.
 #if BUILDFLAG(IS_ANDROID)
   void InitializePlatformDependentFieldsAndroid();
-#elif BUILDFLAG(IS_STARBOARD)
-  void InitializePlatformDependentFieldsStarboard();
 #elif BUILDFLAG(IS_IOS_TVOS)
   void InitializePlatformDependentFieldsTvOS();
+#elif BUILDFLAG(IS_STARBOARD)
+  void InitializePlatformDependentFieldsStarboard();
 #endif  // BUILDFLAG(IS_ANDROID)
 
   std::string starboard_version_;
