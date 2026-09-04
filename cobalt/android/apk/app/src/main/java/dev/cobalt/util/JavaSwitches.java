@@ -24,16 +24,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
-<<<<<<< HEAD
-import org.chromium.base.DeviceInfo;
-=======
 import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.json.JSONObject;
->>>>>>> ac00563e1a (Check ExperimentConfigManager before applying experiment configs in JavaSwitches (#12202))
 
 /** Defines the constant names for feature switches used in Kimono. */
 @JNINamespace("cobalt")
