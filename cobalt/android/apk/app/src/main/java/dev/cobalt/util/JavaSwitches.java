@@ -138,6 +138,13 @@ public class JavaSwitches {
   /** Flag to disable v8 baseline compiler sparkplug. */
   public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
 
+  /** flag to enable moderate memory pressure handling on Android. */
+  public static final String ENABLE_MODERATE_MEMORY_PRESSURE = "EnableModerateMemoryPressure";
+
+  /** flag to configure memory pressure throttling cooldown in seconds. */
+  public static final String MEMORY_PRESSURE_COOLDOWN_IN_SECONDS =
+      "MemoryPressureCooldownInSeconds";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -339,6 +346,27 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
       extraCommandLineArgs.add("--disable-back-forward-cache");
+    }
+
+    List<String> enabledMemoryPressureFeatures = new ArrayList<>();
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_MODERATE_MEMORY_PRESSURE)) {
+      enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
+      String cooldown =
+          javaSwitches
+              .get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)
+              .replaceAll("[^0-9]", "");
+      if (!cooldown.isEmpty()) {
+        enabledMemoryPressureFeatures.add(
+            "CobaltMemoryPressureCooldown:cooldown_seconds/" + cooldown);
+      }
+    }
+
+    if (!enabledMemoryPressureFeatures.isEmpty()) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + String.join(",", enabledMemoryPressureFeatures));
     }
 
     return extraCommandLineArgs;
