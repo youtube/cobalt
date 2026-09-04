@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #if BUILDFLAG(IS_COBALT)
+#include "base/cancelable_callback.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #endif
@@ -35,6 +36,12 @@ class CONTROLLER_EXPORT HighestPmfReporter
   // Returns the shared instance.
   static void Initialize(
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+#if BUILDFLAG(IS_COBALT)
+  static HighestPmfReporter* Instance();
+  static void OnProcessForegrounded();
+  static void OnProcessBackgrounded();
+  ~HighestPmfReporter() override;
+#endif
 
  private:
   explicit HighestPmfReporter(
@@ -44,6 +51,11 @@ class CONTROLLER_EXPORT HighestPmfReporter
   HighestPmfReporter(
       scoped_refptr<base::SingleThreadTaskRunner> task_runner_for_testing,
       const base::TickClock* clock);
+
+#if BUILDFLAG(IS_COBALT)
+  void ProcessForegrounded();
+  void ProcessBackgrounded();
+#endif
 
   friend class MockHighestPmfReporter;
 
@@ -64,8 +76,21 @@ class CONTROLLER_EXPORT HighestPmfReporter
   unsigned webpage_counts_at_current_highest_pmf_ = 0;
   unsigned report_count_ = 0;
 #if BUILDFLAG(IS_COBALT)
-  WTF::Vector<base::TimeDelta> time_to_report_;
-  WTF::Vector<WTF::String> metric_names_;
+  static HighestPmfReporter* instance_;
+
+  struct MetricInfo {
+    base::TimeDelta time_to_report;
+    WTF::String pmf_name;
+    WTF::String pmf_foregrounded_name;
+    WTF::String peak_rss_name;
+    WTF::String peak_rss_foregrounded_name;
+  };
+  WTF::Vector<MetricInfo> metrics_;
+
+  // True when measuring metrics after resuming from background state into
+  // foreground. False when measuring during initial startup navigation.
+  bool is_foreground_measuring_ = false;
+  base::CancelableOnceClosure cancelable_report_task_;
 #endif
 };
 
