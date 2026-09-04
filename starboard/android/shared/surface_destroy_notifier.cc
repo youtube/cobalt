@@ -37,7 +37,7 @@ void SurfaceDestroyNotifier::Disconnect() {
 
 void SurfaceDestroyNotifier::Notify() {
   std::unique_lock lock(mutex_);
-  if (state_ == State::kDone || !holder_ || !job_queue_) {
+  if (state_ != State::kIdle || !holder_ || !job_queue_) {
     return;
   }
   state_ = State::kWaiting;
@@ -62,7 +62,7 @@ void SurfaceDestroyNotifier::NotifyDestroyed() {
   VideoSurfaceHolder* holder_to_notify = nullptr;
   {
     std::lock_guard lock(mutex_);
-    if (state_ == State::kDone) {
+    if (state_ != State::kWaiting) {
       return;
     }
     state_ = State::kExecuting;
