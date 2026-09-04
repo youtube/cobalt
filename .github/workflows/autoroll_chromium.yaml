@@ -117,6 +117,7 @@ jobs:
           fi
 
       - name: Push and Create PR
+        id: create_pr
         if: steps.autoroll.outputs.pr_links != ''
         env:
           SOURCE_BRANCH: ${{ matrix.branch.source }}
@@ -147,7 +148,9 @@ jobs:
             echo '```'
           } > "${PR_BODY_FILE}"
 
+          IS_CONFLICTED=false
           if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then
+            IS_CONFLICTED=true
             PR_TITLE="$(git log -1 --pretty=%s)"
             {
               echo ""
@@ -175,4 +178,23 @@ jobs:
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
           else
             gh pr create --base "${TARGET_BRANCH}" --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
+            PR_NUMBER=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json number --jq .number)
+            echo "created=true" >> "${GITHUB_OUTPUT}"
           fi
+          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+          echo "is_conflicted=${IS_CONFLICTED}" >> "${GITHUB_OUTPUT}"
+
+      - name: Trigger AI Rebase Agent
+        if: steps.create_pr.outputs.created == 'true' && steps.create_pr.outputs.is_conflicted == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+          PR_NUMBER: ${{ steps.create_pr.outputs.pr_number }}
+          TARGET_BRANCH: ${{ matrix.branch.target }}
+        run: |
+          set -x
+          echo "Dispatching AI Rebase Agent workflow for conflicted PR #${PR_NUMBER} on branch ${TARGET_BRANCH}..."
+          gh workflow run ai_rebase_resolver.yaml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref "${TARGET_BRANCH}" \
+            -f pr_number="${PR_NUMBER}" \
+            -f dry_run=false || echo "::warning::Failed to trigger AI Rebase Agent workflow for PR #${PR_NUMBER}"
