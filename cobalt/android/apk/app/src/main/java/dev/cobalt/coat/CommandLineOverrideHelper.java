@@ -18,7 +18,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
+<<<<<<< HEAD
 import org.chromium.base.DeviceInfo;
+=======
+import org.chromium.base.CommandLineInitUtil;
+>>>>>>> 27dd65a172 (Run telemetry against cobalt browser (#9347))
 
 // ==========
 // IMPORTANT:
@@ -30,6 +34,16 @@ import org.chromium.base.DeviceInfo;
 /** Helper class to provide commandLine Overrides. */
 public final class CommandLineOverrideHelper {
   private CommandLineOverrideHelper() {} // Prevent instantiation.
+
+  /**
+   * Initializes the command line from the "content-shell-command-line" file if present (used by
+   * Telemetry and automated tests).
+   */
+  public static void initializeContentShellCommandLine() {
+    if (!CommandLine.isInitialized()) {
+      CommandLineInitUtil.initCommandLine("content-shell-command-line", () -> true);
+    }
+  }
 
   /** Param class to simplify #getFlagOverrides method signature */
   public static class CommandLineOverrideHelperParams {
