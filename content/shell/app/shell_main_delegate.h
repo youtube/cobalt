@@ -66,7 +66,7 @@ class ShellMainDelegate : public ContentMainDelegate {
 #if !BUILDFLAG(IS_ANDROID)
 =======
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Only present when running web tests, which run inside Content Shell.
   //
   // Web tests are not browser tests, so |is_content_browsertests_| and

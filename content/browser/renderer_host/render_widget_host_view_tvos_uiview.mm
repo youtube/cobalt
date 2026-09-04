@@ -347,7 +347,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       // Since UIPress has key information from the physical keyboard,
       // NativeWebKeyboardEvent is built with it in `sendKeyboardEvent`.
       needToHandleInFramework |= ![self sendKeyboardEvent:press eventType:type];
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       continue;
     }
     if (button == kSelect && [self handleSelectPressWithType:type]) {
@@ -401,7 +401,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                             withType:blink::WebInputEvent::Type::kKeyUp];
   if (!handled) {
     [super pressesEnded:presses withEvent:event];
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
@@ -410,7 +410,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 - (void)sendKeyboardEvent:(UIPress*)press
 =======
 - (BOOL)sendKeyboardEvent:(UIPress*)press
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                 eventType:(blink::WebInputEvent::Type)type {
   input::NativeWebKeyboardEvent native_event =
       input::NativeWebKeyboardEvent(base::apple::OwnedUIPress(press));
@@ -437,7 +437,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 // Helper method to generate WebKeyboardEvent with RemoteButton.
 - (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
                            eventType:(blink::WebInputEvent::Type)type {
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
                                 ui::EventTimeForNow());
 

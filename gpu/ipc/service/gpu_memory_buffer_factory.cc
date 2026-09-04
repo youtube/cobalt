@@ -44,7 +44,7 @@ GpuMemoryBufferFactory::CreateNativeType(
   // factory at all.
   return std::make_unique<GpuMemoryBufferFactoryStub>();
 #elif BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return std::make_unique<GpuMemoryBufferFactoryNativePixmap>(
       vulkan_context_provider);
 #elif BUILDFLAG(IS_WIN)

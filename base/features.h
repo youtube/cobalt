@@ -23,7 +23,7 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle);
 // images directly to the GPU service thread in-process.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessImageTransferCache);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
 

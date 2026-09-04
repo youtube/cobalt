@@ -28,7 +28,7 @@ class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # TODO(crbug.com/436274260): Drop support of the old
   # 'BASE_FEATURE(ConstantName, ...);' format.
   _FEATURE_RE = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(([^,]+),')
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   _STRING_LITERAL_RE = re.compile(r'"(?:\\"|[^"])*"')
   _constant_name = None  # The name of the current macro.
   _comma_count = 0  # Number of commas seen in the current macro.

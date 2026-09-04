@@ -1292,7 +1292,7 @@ BASE_FEATURE(UserMediaScreenCapturing,
 BASE_FEATURE(DoNotGenerateChromiumA11yTree,
              BUILDFLAG(IS_COBALT) ? base::FEATURE_ENABLED_BY_DEFAULT
                                   : base::FEATURE_DISABLED_BY_DEFAULT);
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)

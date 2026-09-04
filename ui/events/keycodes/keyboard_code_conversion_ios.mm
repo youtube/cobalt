@@ -234,7 +234,7 @@ KeyboardCode KeyboardCodeFromUIKeyCode(UIKeyboardHIDUsage key_code) {
 <<<<<<< HEAD
 =======
            {UIKeyboardHIDUsageKeyboardReturnOrEnter, KeyboardCode::VKEY_RETURN},
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
            {UIKeyboardHIDUsageKeyboardTab, KeyboardCode::VKEY_TAB},
            {UIKeyboardHIDUsageKeyboardF1, KeyboardCode::VKEY_F1},
            {UIKeyboardHIDUsageKeyboardF2, KeyboardCode::VKEY_F2},

@@ -1307,7 +1307,7 @@ HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal(
     }
 #endif  // BUILDFLAG(IS_COBALT)
     return AlternativeServiceInfo();
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   bool quic_advertised = false;

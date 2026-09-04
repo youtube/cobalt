@@ -68,7 +68,7 @@ const std::map<std::string, std::string>& GetProcessSimpleAnnotations() {
 =======
       process_annotations["plat"] = kPlatformName;
       process_annotations["crashpad"] = std::string("yes");
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }  // @autoreleasepool
     return process_annotations;
   }
