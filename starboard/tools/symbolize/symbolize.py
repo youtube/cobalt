@@ -50,13 +50,78 @@ _SYMBOLIZER = os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'llvm-build',
                            'Release+Asserts', 'bin', 'llvm-symbolizer')
 
 _RE_ASAN = re.compile(
-    r'\s*(#[0-9]{1,3})\s*(0x[a-z0-9]*)\s*\(<unknown\smodule>\)')
-_RE_COBALT = re.compile(r'\s*<unknown> \[(0x[a-z0-9]*)\]\s*')
-_RE_RAW = re.compile(r'^(0x[a-z0-9]*)$')
-_RE_GDB = re.compile(r'\s*(#[0-9]{1,3})\s*(0x[a-z0-9]*)\s*')
+    r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s+\(<unknown\s+module>\)')
+_RE_COBALT = re.compile(
+    r'^(.*?(?:\s|\t|^))(<unknown>|[^\s\[\]]+(?:\(.*?\))?)\s+'
+    r'\[(0x[0-9a-fA-F]+)\]\s*$')
+_RE_RAW = re.compile(r'^(0x[a-fA-F0-9]+)$')
+_RE_GDB = re.compile(r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s*')
 
-# Regex to find the start of a stack trace line (Cobalt or ASAN/GDB)
-_RE_STACK_START = re.compile(r'(?:\s*<unknown>\s+\[0x)|(?:\s*#[0-9]{1,3}\s+0x)')
+
+class _SymbolizerRunner:
+  """Runs llvm-symbolizer in interactive mode with caching for fast lookups.
+
+  Lifetime and Ownership:
+    Typically managed as a context manager using a `with` statement to ensure
+    the underlying subprocess is properly closed.
+
+  Threading Model:
+    This class is not thread-safe and is thread-affine. It should only be
+    accessed from a single thread.
+  """
+
+  def __init__(self, library):
+    self._library = library
+    self._proc = None
+    self._cache = {}
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    self.close()
+
+  def close(self):
+    if self._proc:
+      try:
+        self._proc.stdin.close()
+        self._proc.wait()
+      except Exception:  # pylint: disable=broad-except
+        pass
+      self._proc = None
+
+  def symbolize(self, offset):
+    """Resolves an offset using llvm-symbolizer."""
+    if int(offset) < 0:
+      return None
+    if offset in self._cache:
+      return self._cache[offset]
+    if self._proc is None:
+      self._proc = subprocess.Popen(  # pylint: disable=consider-using-with
+          [_SYMBOLIZER, '-e', self._library, '-f'],
+          stdin=subprocess.PIPE,
+          stdout=subprocess.PIPE,
+          text=True,
+          encoding='utf-8',
+          errors='replace')
+    try:
+      self._proc.stdin.write(f'{offset}\n')
+      self._proc.stdin.flush()
+      lines = []
+      while True:
+        line = self._proc.stdout.readline()
+        if not line:
+          self.close()
+          break
+        if line == '\n':
+          break
+        lines.append(line.rstrip('\r\n'))
+      if lines:
+        self._cache[offset] = lines
+        return lines
+    except Exception:  # pylint: disable=broad-except
+      self.close()
+    return None
 
 
 def _Symbolize(filename, library, base_address):
@@ -78,71 +143,73 @@ def _Symbolize(filename, library, base_address):
     raise ValueError(f'File not found: {filename}.')
   if not os.path.exists(library):
     raise ValueError(f'Library not found: {library}.')
-  with open(filename, encoding='utf-8') as f:
-    for line in f:
-      prefix = ''
+  base = int(base_address, 0) if base_address else 0
+  with _SymbolizerRunner(library) as runner:
+    with open(filename, encoding='utf-8') as f:
+      for line in f:
+        # Address Sanitizer
+        match = _RE_ASAN.match(line)
+        if match:
+          addr = int(match.group(3), 0)
+          offset = addr if addr < base else addr - base
+          results = runner.symbolize(str(offset))
+          if results and '?' not in results[0]:
+            file_line = (f' {results[1]}'
+                         if len(results) > 1 and '?' not in results[1] else '')
+            sys.stdout.write(
+                f'{match.group(1)}    {match.group(2)} {hex(offset)} in '
+                f'{results[0]}{file_line}\n')
+            continue
+        # Cobalt
+        match = _RE_COBALT.match(line)
+        if match:
+          addr = int(match.group(3), 0)
+          offset = addr if addr < base else addr - base
+          results = runner.symbolize(str(offset))
+          if results and '?' not in results[0]:
+            prefix = match.group(1) or '        '
+            sys.stdout.write(f'{prefix}{hex(offset)} [{results[0]}]\n')
+            continue
+        # Raw
+        match = _RE_RAW.match(line)
+        if match:
+          addr = int(match.group(1), 0)
+          offset = addr if addr < base else addr - base
+          results = runner.symbolize(str(offset))
+          if results:
+            file_line = (f' in {results[1]}'
+                         if len(results) > 1 and '?' not in results[1] else '')
+            sys.stdout.write(f'{hex(offset)} {results[0]}{file_line}\n')
+            continue
+        # GDB
+        match = _RE_GDB.match(line)
+        if match:
+          addr = int(match.group(3), 0)
+          offset = addr if addr < base else addr - base
+          results = runner.symbolize(str(offset))
+          if results and '?' not in results[0]:
+            file_line = (f' {results[1]}'
+                         if len(results) > 1 and '?' not in results[1] else '')
+            sys.stdout.write(
+                f'{match.group(1)}    {match.group(2)} {hex(offset)} in '
+                f'{results[0]}{file_line}\n')
+            continue
 
-      # Try to split prefix (e.g. RDK log header) from the actual stack trace
-      match_start = _RE_STACK_START.search(line)
-      if match_start:
-        prefix = line[:match_start.start()]
-        line = line[match_start.start():]
-
-      # Address Sanitizer
-      match = _RE_ASAN.match(line)
-      if match:
-        offset = int(match.group(2), 0) - int(base_address, 0)
-        results = _RunSymbolizer(library, str(offset))
-        if results and '?' not in results[0] and '?' not in results[1]:
-          sys.stdout.write(f'{prefix}    {match.group(1)} {hex(offset)} in '
-                           f'{results[0]} {results[1]}\n')
-          continue
-      # Cobalt
-      match = _RE_COBALT.match(line)
-      if match:
-        offset = int(match.group(1), 0) - int(base_address, 0)
-        results = _RunSymbolizer(library, str(offset))
-        if results and '?' not in results[0]:
-          sys.stdout.write(f'{prefix}        {hex(offset)} [{results[0]}]\n')
-          continue
-      # Raw
-      match = _RE_RAW.match(line)
-      if match:
-        offset = int(match.group(1), 0) - int(base_address, 0)
-        results = _RunSymbolizer(library, str(offset))
-        if results:
-          sys.stdout.write(f'{hex(offset)} {results[0]} in {results[1]}\n')
-          continue
-      # GDB
-      match = _RE_GDB.match(line)
-      if match:
-        offset = int(match.group(2), 0) - int(base_address, 0)
-        results = _RunSymbolizer(library, str(offset))
-        if results and '?' not in results[0] and '?' not in results[1]:
-          sys.stdout.write(f'{prefix}    {match.group(1)} {hex(offset)} in '
-                           f'{results[0]} {results[1]}\n')
-          continue
-
-      sys.stdout.write(prefix + line)
+        sys.stdout.write(line)
 
 
 def _RunSymbolizer(library, offset):
-  """Uses a external symbolizer tool to resolve symbol names.
+  """Uses an external symbolizer tool to resolve symbol names.
 
   Args:
     library: The path to the library that is believed to have the symbol.
     offset:  The offset into the library of the symbol we are looking for.
   """
-  if int(offset) >= 0:
-    command = subprocess.Popen(  # pylint:disable=consider-using-with
-        [_SYMBOLIZER, '-e', library, offset, '-f'],
-        stdout=subprocess.PIPE,
-        text=True,
-        encoding='utf-8')
-    results = command.communicate()
-    if command.returncode == 0:
-      return results[0].split('\n')
-  return None
+  runner = _SymbolizerRunner(library)
+  try:
+    return runner.symbolize(str(offset))
+  finally:
+    runner.close()
 
 
 def main():
@@ -170,7 +237,10 @@ def main():
     raise ValueError(
         f'Please update {__file__} with a valid llvm-symbolizer path.')
 
-  return _Symbolize(args.filename, args.library, args.base_address)
+  base_address = (
+      args.base_address[0]
+      if isinstance(args.base_address, list) else args.base_address)
+  return _Symbolize(args.filename, args.library, base_address)
 
 
 if __name__ == '__main__':
