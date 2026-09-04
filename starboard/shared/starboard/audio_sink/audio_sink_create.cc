@@ -29,9 +29,14 @@ SbAudioSink SbAudioSinkCreate(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
+  if (!SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type)) {
+    SB_LOG(WARNING) << "Invalid audio frame storage type "
+                    << audio_frame_storage_type;
+    return kSbAudioSinkInvalid;
+  }
+
   return starboard::SbAudioSinkImpl::Create(
-      channels, sampling_frequency_hz, audio_sample_type,
-      audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func, consume_frames_func, NULL /*error_func*/,
-      context);
+      channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+      frame_buffers_size_in_frames, update_source_status_func,
+      consume_frames_func, NULL /*error_func*/, context);
 }

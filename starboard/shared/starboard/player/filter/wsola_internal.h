@@ -25,7 +25,6 @@
 
 #include <utility>
 
-#include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
@@ -38,7 +37,6 @@ typedef std::pair<int, int> Interval;
 // |exclude_interval| is an interval that is excluded from the search.
 int OptimalIndex(const DecodedAudio* search_block,
                  const DecodedAudio* target_block,
-                 SbMediaAudioFrameStorageType storage_type,
                  Interval exclude_interval);
 
 // Return a "periodic" Hann window(https://en.wikipedia.org/wiki/Hann_function).
