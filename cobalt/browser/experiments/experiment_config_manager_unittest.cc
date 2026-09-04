@@ -22,6 +22,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/constants/cobalt_pref_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/version.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -752,6 +753,22 @@ TEST_F(ExperimentConfigManagerTest, HistogramsConfigDiscardedDowngrade) {
   histogram_tester_.ExpectUniqueSample(
       "Cobalt.Finch.ConfigOutcome",
       static_cast<int>(FinchConfigOutcome::kEmptyConfigRollback), 1);
+}
+
+TEST_F(ExperimentConfigManagerTest, PrefFilePathEquivalenceSanityCheck) {
+  base::FilePath cache_dir(FILE_PATH_LITERAL("test_cache_dir"));
+
+  base::FilePath exp_macro =
+      cache_dir.Append(FILE_PATH_LITERAL("Experiment Config"));
+  base::FilePath exp_ascii = cache_dir.AppendASCII(kExperimentConfigFilename);
+  EXPECT_EQ(exp_macro, exp_ascii);
+  EXPECT_EQ(exp_macro.value(), exp_ascii.value());
+
+  base::FilePath metrics_macro =
+      cache_dir.Append(FILE_PATH_LITERAL("Metrics Config"));
+  base::FilePath metrics_ascii = cache_dir.AppendASCII(kMetricsConfigFilename);
+  EXPECT_EQ(metrics_macro, metrics_ascii);
+  EXPECT_EQ(metrics_macro.value(), metrics_ascii.value());
 }
 
 }  // namespace cobalt

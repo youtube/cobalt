@@ -218,6 +218,7 @@ test("cobalt_browsertests") {
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
     "//cobalt/browser/cache_storage_browsertest.cc",
+    "//cobalt/browser/h5vcc_memory_browsertest.cc",
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
 
@@ -226,6 +227,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "//cobalt/browser/metrics/highest_pmf_reporter_browsertest.cc",
+    "cobalt_constants_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
 
     #"encrypted_media_browsertest.cc",
@@ -288,6 +290,8 @@ test("cobalt_browsertests") {
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser:switches",
+    "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/constants:cobalt_pref_names",
     "//cobalt/common/features",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
@@ -447,6 +451,7 @@ test("cobalt_browsertests") {
   if (is_starboard) {
     deps += [
       ":cobalt_shell_test_lib",
+      "//cobalt/browser/h5vcc_memory:low_memory_manager",
       "//content/test:test_support",
       "//starboard:starboard_headers_only",
     ]
