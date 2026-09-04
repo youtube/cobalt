@@ -346,7 +346,7 @@ jobs:
                     (.runs_on == "device" and $run_on_device_test == "true") or
                     (.runs_on == "host"  and $run_on_host_test == "true")
                   )
-                ) | .required = (if .required == false then false else true end)
+                ) | .required = (.required != false)
               ]' "${test_targets_json_file}")
           fi
 
@@ -959,8 +959,8 @@ jobs:
           path: results/
       - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
+        continue-on-error: ${{ !matrix.test_info.required }}
         uses: ./.github/actions/process_test_results
-        continue-on-error: ${{ matrix.test_info.required == false }}
         with:
           target_name: ${{ matrix.test_info.target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
@@ -976,7 +976,7 @@ jobs:
           symbolize: 'false'
       - name: ${{ matrix.test_info.target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
-        continue-on-error: ${{ matrix.test_info.required == false }}
+        continue-on-error: ${{ !matrix.test_info.required }}
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
@@ -1073,91 +1073,86 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Prepare Test Filters
+        id: prepare-test-filters
+        uses: ./.github/actions/prepare_test_filters
+        with:
+          test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+          platform: ${{ matrix.platform }}
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       - name: Download Test Results
         uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         continue-on-error: true
         with:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_*results*
           path: results/
-      - name: Validate Required Test Results
-        if: always()
-        id: validate-required-tests
-        env:
-          PLATFORM: ${{ matrix.platform }}
-          EXPECTED_TESTS: ${{ needs.initialize.outputs.expected_tests_json || '[]' }}
-          BROWSER_TESTS: ${{ needs.initialize.outputs.browser_test_targets || '[]' }}
-          NUM_GTEST_SHARDS: ${{ needs.initialize.outputs.num_gtest_shards || 1 }}
-        run: |
-          set -euo pipefail
-          shopt -s globstar nullglob
-
-          REQUIRED_TARGETS=$(jq -nr \
-            --argjson expected "$EXPECTED_TESTS" \
-            --argjson browser "$BROWSER_TESTS" \
-            --arg num_gtest_shards "$NUM_GTEST_SHARDS" \
-            '($expected + $browser)[] | select(.target != null and .required != false) |
-             "\(.target) \(if .runs_on == "host" and .test_type == "gtest" then $num_gtest_shards else 1 end)"')
-
-          missing_required=0
-          > required_xmls.txt
-
-          while read -r target expected_shards; do
-            if [ -z "$target" ]; then
-              continue
-            fi
-            target_name="${target##*:}"
-            test_filter_file="cobalt/testing/filters/${PLATFORM}/${target_name}_filter.json"
-            if [ -f "${test_filter_file}" ] && [ "$(jq -cr '.failing_tests[0]' "${test_filter_file}")" = '*' ]; then
-              echo "Target ${target} was skipped due to test filter."
-              continue
-            fi
-            files=(
-              results/**/"${target_name}"_result.xml
-              results/**/"${target_name}".xml
-              results/**/"${target_name}"_testoutput.xml
-            )
-            if [ ${#files[@]} -lt "$expected_shards" ]; then
-              echo "::error::Missing required test results for target: $target. Found ${#files[@]}, expected ${expected_shards}."
-              missing_required=1
-            else
-              for f in "${files[@]}"; do
-                echo "$f" >> required_xmls.txt
-              done
-            fi
-          done <<< "$REQUIRED_TARGETS"
-
-          echo "missing_required=${missing_required}" >> "${GITHUB_OUTPUT}"
-        shell: bash
-      - name: Parse Test Failures
-        if: always()
-        run: |
-          set -euo pipefail
-          test_failures='{}'
-          if [ -s required_xmls.txt ]; then
-            readarray -t xml_files < required_xmls.txt
-            if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
-              test_failures=$(python3 cobalt/tools/junit_mini_parser.py \
-                "${xml_files[@]}" || true)
-              if [[ -z "${test_failures}" ]]; then
-                test_failures='{}'
-              fi
-            fi
-          fi
-          echo "${test_failures}" > test_failures.json
-        shell: bash
-      - name: Generate Shepherd Report
+      - name: Validate Results
         if: always()
         env:
           PLATFORM_INPUT: ${{ inputs.platform }}
           PLATFORM_NAME: ${{ matrix.name }}
+          PLATFORM: ${{ matrix.platform }}
+          FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           NEEDS_JSON: ${{ toJSON(needs) }}
+          EXPECTED_TESTS: ${{ needs.initialize.outputs.expected_tests_json || '[]' }}
+          BROWSER_TESTS: ${{ needs.initialize.outputs.run_browser_tests == 'true' && needs.initialize.outputs.browser_test_targets || '[]' }}
+          NUM_GTEST_SHARDS: ${{ needs.initialize.outputs.num_gtest_shards || 1 }}
         run: |
           set -euo pipefail
-          test_failures=$(cat test_failures.json 2>/dev/null || echo '{}')
+          shopt -s globstar nullglob
+
+          filter_dir="${FILTER_DIR:-${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}}"
+          if [[ -d results ]]; then
+            find results -type d -name "retry_filters" -exec cp -r {}/. "${filter_dir}/" \; 2>/dev/null || true
+          fi
+
+          missing_required=0
+          xml_files=()
+
+          while IFS=$'\t' read -r target runs_on test_type; do
+            [[ -z "${target}" ]] && continue
+            target_name="${target##*:}"
+
+            test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
+              --filter-dir "${filter_dir}" \
+              --target "${target_name}")
+
+            if [[ "${test_filter}" == "-*" ]]; then
+              echo "Target ${target} was skipped due to test filter."
+              continue
+            fi
+
+            expected_shards=1
+            if [[ "${runs_on}" == "host" && "${test_type}" == "gtest" && "${test_filter}" == "*" ]]; then
+              expected_shards="${NUM_GTEST_SHARDS}"
+            fi
+
+            files=(results/**/"${target_name}"*.xml)
+            if [[ ${#files[@]} -lt "${expected_shards}" ]]; then
+              echo "::error::Missing required test results for target: ${target}. Found ${#files[@]}, expected ${expected_shards}."
+              (( ++missing_required ))
+            fi
+            xml_files+=("${files[@]}")
+          done < <(jq -nr \
+            --argjson expected "${EXPECTED_TESTS}" \
+            --argjson browser "${BROWSER_TESTS}" \
+            '($expected + $browser)[] | select(.target != null and .required != false) |
+             [.target, (.runs_on // "host"), (.test_type // "")] | @tsv')
+
+          test_failures='{}'
+          if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
+            test_failures=$(python3 cobalt/tools/junit_mini_parser.py \
+              "${xml_files[@]}" || true)
+            if [[ -z "${test_failures}" ]]; then
+              test_failures='{}'
+            fi
+          fi
+
+          # Generate shepherd_report.json
           jq -n \
             --arg platform "${PLATFORM_INPUT}" \
             --arg platform_name "${PLATFORM_NAME}" \
@@ -1179,18 +1174,10 @@ jobs:
               checks: ($needs | map_values(.result)),
               test_failures: $failing_tests
             }' > shepherd_report.json
-        shell: bash
-      - name: Validate Platform Outcome
-        if: always()
-        env:
-          MISSING_REQUIRED: ${{ steps.validate-required-tests.outputs.missing_required }}
-        run: |
-          set -euo pipefail
-          failing_jobs=$(jq -r '[.checks // {} | to_entries[] | select(.value == "failure" or .value == "cancelled") | .key] | join(", ")' shepherd_report.json)
-          failed_tests_count=$(jq '[.test_failures // {} | .[] | length] | add // 0' shepherd_report.json)
-          missing_required="${MISSING_REQUIRED:-0}"
 
-          if [[ "${failed_tests_count}" -gt 0 || -n "${failing_jobs}" || "${missing_required}" -ne 0 ]]; then
+          failing_jobs=$(jq -r '[.checks // {} | to_entries[] | select(.value == "failure" or .value == "cancelled") | .key] | join(", ")' shepherd_report.json)
+          failed_tests_count=$(jq '[.failing_tests // {} | .[] | length] | add // 0' <<< "${test_failures}")
+          if [[ "${failed_tests_count}" -gt 0 || -n "${failing_jobs}" || "${missing_required}" -gt 0 ]]; then
             echo "::error title=Platform Validation Failed::Failing jobs: ${failing_jobs:-none}, Failed tests: ${failed_tests_count}, Missing required test targets: ${missing_required}"
             exit 1
           fi
