@@ -24,6 +24,7 @@ import dev.cobalt.util.Holder;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.BrowserStartupController.StartupCallback;
 import org.chromium.native_test.NativeBrowserTest;
@@ -116,7 +117,8 @@ public abstract class CobaltBrowserTestActivity extends NativeBrowserTestActivit
             /* scheduleFlushStartupTasks= */ false,
             new StartupCallback() {
               @Override
-              public void onSuccess() {
+              public void onSuccess(
+                  BrowserStartupController.@Nullable StartupMetrics metrics) {
                 // The C++ test harness is running thanks to runTests() above, but
                 // it waits for Java initialization to complete. This tells C++
                 // that it may continue now to finish running the tests.

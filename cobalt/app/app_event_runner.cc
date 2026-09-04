@@ -347,7 +347,8 @@ class AppEventRunnerImpl : public AppEventRunner,
       passive_notifier->OnConnectionChanged(type);
       passive_notifier->OnConnectionSubtypeChanged(type, subtype);
       if (event->type == kSbEventTypeOsNetworkConnected) {
-        passive_notifier->OnIPAddressChanged();
+        passive_notifier->OnIPAddressChanged(
+            net::NetworkChangeNotifier::IP_ADDRESS_CHANGE_NORMAL);
       }
     }
   }

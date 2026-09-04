@@ -50,20 +50,16 @@ std::atomic_bool g_is_reduce_ppms_enabled{false};
 
 // Alphabetical:
 
-<<<<<<< HEAD
 // When enabled, the compositor threads (including GPU) will be boosted to
 // kInteractive when not in input or loading scenarios.
 BASE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle,
              FEATURE_DISABLED_BY_DEFAULT);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
-BASE_FEATURE(kCobaltInProcessImageTransferCache,
-             "CobaltInProcessImageTransferCache",
-             FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCobaltInProcessImageTransferCache, FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
 // so that ScopedFeatureList can disable it to turn off caching.
