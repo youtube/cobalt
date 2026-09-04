@@ -151,9 +151,12 @@ void MemoryPressureListenerRegistry::OnMemoryPressure(
   for (auto& client : clients_)
     client->OnMemoryPressure(level);
 
-  // Clear decoded image caches for CRITICAL pressure to release image ArrayBuffers.
+  // Prune decoded image caches to 8MB on CRITICAL pressure to release inactive image
+  // buffers while preserving recently active frames to prevent re-decoding thrashing.
   if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
-    ImageDecodingStore::Instance().Clear();
+    constexpr size_t kTrimmedImageCacheLimitBytes = 8 * 1024 * 1024;
+    ImageDecodingStore::Instance().SetCacheLimitInBytes(
+        kTrimmedImageCacheLimitBytes);
   }
 
   // Stage 1: Immediate fast reclaim of already-unpinned pages.
