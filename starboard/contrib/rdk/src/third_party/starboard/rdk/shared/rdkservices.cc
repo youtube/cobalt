@@ -22,6 +22,7 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 
 #include <atomic>
+#include <chrono>
 #include <string>
 #include <cstring>
 #include <algorithm>
@@ -1571,6 +1572,15 @@ public:
   }
 
   bool GetPresentationLanguage(std::string& out_lang) {
+    Refresh();
+    {
+      std::lock_guard lock(mutex_);
+      if (!presentation_language_.empty()) {
+        out_lang = presentation_language_;
+        return true;
+      }
+    }
+
     Core::JSON::String info;
     uint32_t rc = link_.Get(kDefaultTimeoutMs, "getPresentationLanguage", info);
     if (Core::ERROR_NONE == rc && info.IsSet() && !info.Value().empty()) {
@@ -1603,9 +1613,20 @@ SB_ONCE_INITIALIZE_FUNCTION(UserSettingsImpl, GetUserSettings);
 
 struct UserPreferencesImpl {
 private:
+  static constexpr auto kUILanguageCacheTTL = std::chrono::seconds(2);
+
   std::mutex mutex_;
   ServiceLink link_ { kUserPreferencesCallsign };
   std::string ui_language_;
+  std::chrono::steady_clock::time_point last_query_time_;
+  bool subscribed_ { false };
+
+  void OnUILanguageChanged(const Core::JSON::String& info) {
+    std::lock_guard lock(mutex_);
+    ui_language_ = info.Value();
+    last_query_time_ = std::chrono::steady_clock::now();
+    SB_LOG(INFO) << "User preference changed. ui language = " << ui_language_;
+  }
 
   struct UILanguageInfo : public Core::JSON::Container {
     UILanguageInfo()
@@ -1630,11 +1651,28 @@ private:
 
 public:
   bool GetUILanguage(std::string& out_lang) {
+    {
+      std::lock_guard lock(mutex_);
+      if (!subscribed_) {
+        link_.Subscribe<Core::JSON::String>(
+            kDefaultTimeoutMs, "onUILanguageChanged",
+            &UserPreferencesImpl::OnUILanguageChanged, this);
+        subscribed_ = true;
+      }
+
+      auto now = std::chrono::steady_clock::now();
+      if (!ui_language_.empty() && (now - last_query_time_ < kUILanguageCacheTTL)) {
+        out_lang = ui_language_;
+        return true;
+      }
+    }
+
     UILanguageInfo info;
     uint32_t rc = link_.Get(kDefaultTimeoutMs, "getUILanguage", info);
     if (Core::ERROR_NONE == rc && info.Success.Value() && info.UILanguage.IsSet() && !info.UILanguage.Value().empty()) {
       std::lock_guard lock(mutex_);
       ui_language_ = info.UILanguage.Value();
+      last_query_time_ = std::chrono::steady_clock::now();
       out_lang = ui_language_;
       return true;
     }
@@ -1649,6 +1687,10 @@ public:
 
   void Teardown() {
     std::lock_guard lock(mutex_);
+    if (subscribed_) {
+      link_.Unsubscribe(kDefaultTimeoutMs, "onUILanguageChanged");
+      subscribed_ = false;
+    }
     link_.Teardown();
     ui_language_.clear();
   }
