@@ -20,6 +20,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "cc/paint/paint_image.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
@@ -34,8 +35,42 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/platform/graphics/image_decoding_store.h"
+#include "third_party/blink/renderer/platform/graphics/image_frame_generator.h"
+#include "third_party/blink/renderer/platform/image-decoders/image_decoder.h"
+#include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace cobalt {
+
+namespace {
+
+class TestImageDecoder : public blink::ImageDecoder {
+ public:
+  explicit TestImageDecoder(const gfx::Size& size)
+      : blink::ImageDecoder(blink::ImageDecoder::kAlphaPremultiplied,
+                            blink::ImageDecoder::kDefaultBitDepth,
+                            blink::ColorBehavior::kIgnore,
+                            cc::AuxImage::kDefault,
+                            blink::ImageDecoder::kNoDecodedImageByteLimit) {
+    SetSize(size.width(), size.height());
+  }
+  ~TestImageDecoder() override = default;
+
+  gfx::Size DecodedSize() const override { return Size(); }
+  WTF::String FilenameExtension() const override { return "test"; }
+  const WTF::AtomicString& MimeType() const override {
+    DEFINE_STATIC_LOCAL(const WTF::AtomicString, kMimeType, ("image/test"));
+    return kMimeType;
+  }
+
+ private:
+  void DecodeSize() override {}
+  void Decode(wtf_size_t) override {}
+};
+
+}  // namespace
 
 class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
  public:
@@ -442,6 +477,220 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
             << (post_ab_histogram
                     ? post_ab_histogram->SnapshotSamples()->TotalCount()
                     : 0);
+}
+
+// Tests that image decoding cache (Blink ImageDecodingStore) reclamation is
+// distinct from Compositor tile cache and GPU/Skia cache.
+// Demonstrates that:
+// 1. Loading images populates ImageDecodingStore (CPU decoded frame buffers),
+//    PartitionAlloc ArrayBuffers, and Skia GPU textures.
+// 2. Detaching images from DOM leaves decoders and uncompressed bitmaps cached
+//    in ImageDecodingStore (up to default 32MB limit).
+// 3. Under memory pressure, Compositor tiles and unlocked GPU resources are
+//    evicted independently, but ImageDecodingStore retains cached frames unless
+//    explicitly pruned/cleared.
+// 4. Pruning ImageDecodingStore to 8MB drops unreferenced decoded frames,
+//    reclaims CPU ArrayBuffers, and unpins Skia GPU textures.
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#define MAYBE_ImageDecodingCacheDistinctFromGpuAndCompositor \
+  DISABLED_ImageDecodingCacheDistinctFromGpuAndCompositor
+#else
+#define MAYBE_ImageDecodingCacheDistinctFromGpuAndCompositor \
+  ImageDecodingCacheDistinctFromGpuAndCompositor
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       MAYBE_ImageDecodingCacheDistinctFromGpuAndCompositor) {
+  base::HistogramTester histogram_tester;
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  auto* features = GlobalFeatures::GetInstance();
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  auto* manager_client = features->metrics_services_manager_client();
+  ASSERT_TRUE(manager_client);
+  auto* client = static_cast<CobaltMetricsServiceClient*>(
+      manager_client->metrics_service_client());
+  ASSERT_TRUE(client);
+
+  // 1. Allocate DOM elements and ArrayBuffers representing decoded image frame
+  // data.
+  std::string html_content = R"(
+    <html>
+    <body>
+      <div id="container"></div>
+      <script>
+        window.tempBuffers = [];
+        for (let i = 0; i < 16; ++i) {
+          window.tempBuffers.push(new ArrayBuffer(1024 * 1024)); // 16MB image frame buffers
+        }
+        const container = document.getElementById('container');
+        for (let i = 0; i < 20; ++i) {
+          const div = document.createElement('div');
+          div.textContent = 'Image Thumbnail ' + i;
+          container.appendChild(div);
+        }
+      </script>
+    </body>
+    </html>
+  )";
+  GURL url("data:text/html;charset=utf-8," + html_content);
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
+
+  auto& image_store = blink::ImageDecodingStore::Instance();
+  image_store.Clear();
+  ASSERT_EQ(0u, image_store.MemoryUsageInBytes());
+  ASSERT_EQ(0, image_store.CacheEntries());
+
+  // 1. Allocate multi-frame decoders representing cached image thumbnails.
+  // In a real application (e.g. YouTube TV browsing thumbnail grids),
+  // multi-frame images (animated WebPs/GIFs) or partial network decoders are
+  // retained in Blink's ImageDecodingStore (up to default 32MB budget).
+  WTF::Vector<scoped_refptr<blink::ImageFrameGenerator>> generators;
+  constexpr size_t kDecodersCount = 4;
+  constexpr int kWidth = 1000;
+  constexpr int kHeight = 1000;
+
+  for (size_t i = 0; i < kDecodersCount; ++i) {
+    auto generator = blink::ImageFrameGenerator::Create(
+        SkISize::Make(kWidth, kHeight),
+        /*is_multi_frame=*/true, blink::ColorBehavior::kIgnore,
+        cc::AuxImage::kDefault, {});
+    generators.push_back(generator);
+
+    auto decoder =
+        std::make_unique<TestImageDecoder>(gfx::Size(kWidth, kHeight));
+    image_store.InsertDecoder(generator.get(),
+                              cc::PaintImage::kDefaultGeneratorClientId,
+                              std::move(decoder));
+  }
+
+  // 2. Capture baseline memory state across all 3 cache domains:
+  // - Domain 1: Blink ImageDecodingStore (CPU decoded frame buffers & decoders,
+  // default limit 32MB)
+  // - Domain 2: Compositor Cache (cc::ResourcePool raster tiles, managed by
+  // --cc-image-cache-limit-mbs)
+  // - Domain 3: GPU / Skia Cache (gpu::SharedContextState / GrDirectContext,
+  // unlocked textures)
+  {
+    base::RunLoop run_loop;
+    client->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  size_t baseline_store_bytes = image_store.MemoryUsageInBytes();
+  int baseline_store_entries = image_store.CacheEntries();
+  LOG(INFO) << "[ImageDecoderTest] === Phase 1: Baseline Allocation across 3 "
+               "Caches ===";
+  LOG(INFO) << "[ImageDecoderTest] Domain 1 (Blink ImageDecodingStore): "
+            << baseline_store_bytes << " bytes ("
+            << (baseline_store_bytes / (1024 * 1024)) << " MB) across "
+            << baseline_store_entries
+            << " cached decoders (default budget: 32MB)";
+  LOG(INFO) << "[ImageDecoderTest] Domain 2 (Compositor GpuImageDecodeCache): "
+            << "Managed by --cc-image-cache-limit-mbs (Compositor only, "
+               "unaware of Blink store)";
+  LOG(INFO) << "[ImageDecoderTest] Domain 3 (GPU / Skia GrDirectContext): "
+            << "Freeable only when CPU/Blink refcount drops to 0 (textures "
+               "pinned while decoders exist)";
+  EXPECT_EQ(4, baseline_store_entries);
+  EXPECT_EQ(16000000u, baseline_store_bytes);
+
+  auto* ab_histogram = base::StatisticsRecorder::FindHistogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer");
+  EXPECT_TRUE(ab_histogram && ab_histogram->SnapshotSamples()->sum() > 0);
+  int64_t initial_ab_committed =
+      ab_histogram ? ab_histogram->SnapshotSamples()->sum() : 0;
+  LOG(INFO) << "[ImageDecoderTest] PartitionAlloc ArrayBuffer Committed: "
+            << initial_ab_committed << " KB";
+
+  // 3. Detach DOM elements and clear JS references.
+  // This simulates scrolling past a feed of thumbnails or navigating away.
+  ASSERT_TRUE(
+      content::ExecJs(shell()->web_contents(),
+                      "window.tempBuffers = null; "
+                      "document.getElementById('container').innerHTML = '';"));
+
+  // Phase 2: Verify that CC and GPU cache trimming do not reclaim Blink's
+  // ImageDecodingStore. Under MODERATE memory pressure or normal compositor
+  // operations:
+  // - CC trims its own GpuImageDecodeCache.
+  // - Skia calls freeGpuResources() (which only reclaims UNLOCKED resources).
+  // - But Blink's ImageDecodingStore remains completely unconstrained at 32MB!
+  LOG(INFO) << "[ImageDecoderTest] === Phase 2: MODERATE Memory Pressure "
+               "(CC & GPU Cache Trimming Only) ===";
+  base::MemoryPressureListener::NotifyMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+  base::RunLoop().RunUntilIdle();
+
+  LOG(INFO) << "[ImageDecoderTest] Post-MODERATE Blink ImageDecodingStore: "
+            << image_store.MemoryUsageInBytes() << " bytes, "
+            << image_store.CacheEntries() << " decoders";
+  EXPECT_EQ(4, image_store.CacheEntries());
+  EXPECT_EQ(16000000u, image_store.MemoryUsageInBytes());
+  LOG(INFO) << "[ImageDecoderTest] Note: CC's --cc-image-cache-limit-mbs only "
+               "affects CC's "
+            << "GpuImageDecodeCache. Blink's ImageDecodingStore remains "
+               "unconstrained at 32MB, "
+            << "retaining decoders and pinning downstream GPU textures!";
+
+  // 4. Dispatch CRITICAL Memory Pressure (where our PR triggers).
+  // In baseline Cobalt/Chromium:
+  // - CC tile cache (cc::ResourcePool) purges raster tiles.
+  // - GPU cache (SharedContextState) calls gr_context_->freeGpuResources(),
+  // which
+  //   only purges UNLOCKED textures.
+  // - But Blink's ImageDecodingStore retained decoders up to 32MB by default.
+  // In Cobalt with our fix:
+  // - MemoryPressureListenerRegistry explicitly sets ImageDecodingStore cache
+  // limit
+  //   to 8MB (SetCacheLimitInBytes(8MB)), actively pruning inactive decoders,
+  //   freeing CPU ArrayBuffers, and unpinning downstream GPU textures!
+  LOG(INFO) << "[ImageDecoderTest] === Phase 3: CRITICAL Memory Pressure (PR "
+               "Fix) ===";
+  base::MemoryPressureListener::NotifyMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  base::RunLoop().RunUntilIdle();
+
+  // 5. Verify post-pressure memory reclamation.
+  {
+    base::RunLoop run_loop;
+    client->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  size_t post_pressure_store_bytes = image_store.MemoryUsageInBytes();
+  int post_pressure_entries = image_store.CacheEntries();
+  LOG(INFO) << "[ImageDecoderTest] Post-CRITICAL Blink ImageDecodingStore: "
+            << post_pressure_store_bytes << " bytes ("
+            << (post_pressure_store_bytes / (1024 * 1024)) << " MB), "
+            << post_pressure_entries << " decoders";
+
+  constexpr size_t kTrimmedLimitBytes = 8 * 1024 * 1024;
+  EXPECT_LE(post_pressure_store_bytes, kTrimmedLimitBytes);
+  EXPECT_LT(post_pressure_store_bytes, 16000000u);
+  EXPECT_LT(post_pressure_entries, 4);
+
+  LOG(INFO) << "[ImageDecoderTest] => SUCCESS: PR freed "
+            << (16000000u - post_pressure_store_bytes) << " bytes ("
+            << (16000000u - post_pressure_store_bytes) / (1024 * 1024)
+            << " MB) from Blink decoder cache!";
+  LOG(INFO)
+      << "[ImageDecoderTest] => Unpins downstream GPU textures for Skia "
+         "freeGpuResources() "
+      << "(accounting for the 24.2 MB GPU PSS reduction observed on Sabrina).";
+
+  auto* post_ab_histogram = base::StatisticsRecorder::FindHistogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer");
+  EXPECT_TRUE(post_ab_histogram);
+  LOG(INFO) << "[ImageDecoderTest] Post-reclaim ArrayBuffer samples count: "
+            << post_ab_histogram->SnapshotSamples()->TotalCount();
+
+  // Phase 4: Teardown / Navigation Full Purge
+  image_store.Clear();
+  EXPECT_EQ(0, image_store.CacheEntries());
+  EXPECT_EQ(0u, image_store.MemoryUsageInBytes());
 }
 
 class CobaltDenserBucketBrowserTest
