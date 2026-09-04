@@ -32,8 +32,12 @@ class ChildExitObserver;
 }
 #endif
 
+class GURL;
+
 namespace content {
 class ShellPlatformDelegate;
+
+GURL GetStartupURL(bool should_preload = false);
 
 class ShellBrowserMainParts : public BrowserMainParts {
  public:

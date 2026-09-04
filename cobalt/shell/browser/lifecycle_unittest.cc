@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/containers/contains.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/test/test_web_contents.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using testing::_;
 
@@ -75,6 +78,14 @@ TEST_F(LifecycleTest, StartupHidden) {
   CreateTestShell(false /* is_visible */);
   EXPECT_FALSE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
+}
+
+TEST_F(LifecycleTest, StartupURLPreloadParameter) {
+  GURL normal_url = GetStartupURL(/*should_preload=*/false);
+  EXPECT_FALSE(base::Contains(normal_url.query(), "launch=preload"));
+
+  GURL preload_url = GetStartupURL(/*should_preload=*/true);
+  EXPECT_TRUE(base::Contains(preload_url.query(), "launch=preload"));
 }
 
 TEST_F(LifecycleTest, Reveal) {

@@ -100,7 +100,9 @@ class NetworkChangeNotifierFactoryStarboard
 };
 #endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
 
-GURL GetStartupURL() {
+}  // namespace
+
+GURL GetStartupURL(bool should_preload) {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kBrowserTest)) {
     return GURL();
@@ -125,12 +127,18 @@ GURL GetStartupURL() {
     }
   }
 
+  if (should_preload) {
+    initial_url = net::AppendQueryParameter(initial_url, "launch", "preload");
+  }
+
 #if BUILDFLAG(IS_STARBOARD)
   initial_url = GetDeviceAuthenticationSignedURL(initial_url);
 #endif
   return initial_url;
 #endif
 }
+
+namespace {
 
 scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
   if (key == IDR_DIR_HEADER_HTML) {
@@ -177,8 +185,8 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 }
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
-  Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
-                         gfx::Size(),
+  Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(!is_visible_),
+                         nullptr, gfx::Size(),
 #if BUILDFLAG(IS_ANDROID)
                          false /* create_splash_screen_web_contents */
 #else
