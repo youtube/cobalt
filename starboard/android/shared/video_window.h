@@ -20,12 +20,12 @@
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
-#include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 class SurfaceDestroyNotifier;
+class JobQueue;
 
 class VideoSurfaceHolder {
  public:

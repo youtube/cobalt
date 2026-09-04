@@ -176,12 +176,12 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     std::lock_guard lock(*GetViewSurfaceMutex());
     if (g_video_surface_holder) {
       g_video_surface_holder->OnSurfaceDestroyed();
-      g_video_surface_holder = NULL;
+      g_video_surface_holder = nullptr;
     }
     GetGlobalVideoSurface().Reset();
     if (g_native_video_window) {
       ANativeWindow_release(g_native_video_window);
-      g_native_video_window = NULL;
+      g_native_video_window = nullptr;
     }
     if (surface) {
       GetGlobalVideoSurface().Reset(env, surface);
