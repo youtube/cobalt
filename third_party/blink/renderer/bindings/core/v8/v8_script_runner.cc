@@ -32,6 +32,7 @@
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
+#include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/v8_compile_hints_histograms.h"
 #include "third_party/blink/public/mojom/v8_cache_options.mojom-blink.h"
@@ -653,19 +654,39 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
           cache_handler) {
         cache_handler->WillProduceCodeCache();
       }
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
       static const bool defer_v8_code_cache_write =
           base::CommandLine::ForCurrentProcess()->HasSwitch(
               "defer-v8-code-cache-write");
       if (produce_cache_options ==
               V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
-          (execution_context->IsServiceWorkerGlobalScope() ||
-           defer_v8_code_cache_write)) {
-#else
+          defer_v8_code_cache_write) {
+        // Route V8 cache write through ThreadScheduler's Idle queue to free up thread
+        // space for more critical work on startup.
+        auto code_cache_task = WTF::BindOnce(&DelayedProduceCodeCacheTask,
+                                             WrapPersistent(script_state),
+                                             v8::Global<v8::Script>(isolate, script),
+                                             WrapPersistent(cache_handler),
+                                             classic_script->SourceText().length(),
+                                             classic_script->SourceUrl(),
+                                             classic_script->StartPosition());
+
+        if (auto* scheduler = ThreadScheduler::Current()) {
+          scheduler->PostDelayedIdleTask(
+              FROM_HERE, base::Milliseconds(1),
+              WTF::BindOnce(
+                  [](base::OnceClosure task, base::TimeTicks /* deadline */) {
+                    std::move(task).Run();
+                  },
+                  std::move(code_cache_task)));
+        } else {
+          std::move(code_cache_task).Run();
+        }
+      } else
+#endif
       if (produce_cache_options ==
               V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
           execution_context->IsServiceWorkerGlobalScope()) {
-#endif
         static constexpr base::TimeDelta kCacheCodeOnIdleDelay =
             base::Milliseconds(1);
         // TODO(crbug.com/40202028): Consider scheduling idle tasks via
