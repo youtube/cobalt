@@ -1161,10 +1161,17 @@ void RasterDecoderImpl::Destroy(bool have_context) {
   // on it.
   if (sk_surface_ || scoped_shared_image_raster_write_) {
 #if BUILDFLAG(IS_COBALT)
+    // If the GL context is still valid (or using a non-GL backend) and has not
+    // been marked lost, complete pending rasterization commands normally.
     if ((have_context || !shared_context_state_->GrContextIsGL()) &&
         !shared_context_state_->context_lost()) {
       DoEndRasterCHROMIUM();
     } else {
+      // When tearing down without a valid GL context, calling
+      // DoEndRasterCHROMIUM() would flush Skia commands and issue GL calls
+      // (e.g., glDrawElements) with no current context, crashing the driver.
+      // Safely unlock font handles and release pending write/surface state
+      // without submitting GPU commands.
       if (scoped_shared_image_raster_write_) {
         scoped_shared_image_raster_write_->set_callback(base::BindOnce(
             [](scoped_refptr<ServiceFontManager> font_manager,
