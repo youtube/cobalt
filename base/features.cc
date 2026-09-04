@@ -58,9 +58,7 @@ BASE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle,
 #if BUILDFLAG(IS_COBALT)
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
-BASE_FEATURE(kCobaltInProcessImageTransferCache,
-             "CobaltInProcessImageTransferCache",
-             FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCobaltInProcessImageTransferCache, FEATURE_DISABLED_BY_DgEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
