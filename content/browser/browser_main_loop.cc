@@ -937,7 +937,7 @@ void BrowserMainLoop::CreateStartupTasks() {
           "use-starboard-lifecycle")) {
     startup_task_runner_->StartRunningTasksAsync();
   } else {
-    startup_task_runner_->RunAllTasksNow();
+    startup_task_runner_->RunAllTasksNow(false);
   }
 #else
   startup_task_runner_->RunAllTasksNow(false);
