@@ -1196,7 +1196,6 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
     // When using SurfaceDestroyNotifier, OnSurfaceDestroyed() is always invoked
     // on the decoder thread via NotifyDestroyed().
     SB_CHECK(BelongsToCurrentThread());
-    owns_video_surface_ = false;
     TeardownCodec();
     return;
   }
