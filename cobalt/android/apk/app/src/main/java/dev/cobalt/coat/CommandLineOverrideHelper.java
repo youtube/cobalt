@@ -18,11 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
-<<<<<<< HEAD
-import org.chromium.base.DeviceInfo;
-=======
 import org.chromium.base.CommandLineInitUtil;
->>>>>>> 27dd65a172 (Run telemetry against cobalt browser (#9347))
+import org.chromium.base.DeviceInfo;
 
 // ==========
 // IMPORTANT:
