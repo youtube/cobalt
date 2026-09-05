@@ -67,69 +67,81 @@ public class CobaltActivityTest {
   }
 
   @Test
-  public void testAppendArgsFromMetaData_NullMetaData() {
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(/* metaData= */ null, args);
-    assertArrayEquals(args, result);
+  public void testAppendMetaDataArgs_NullMetaData() {
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, /* metaData= */ null);
+    assertArrayEquals(new String[] {"--arg1"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_EmptyMetaData() {
+  public void testAppendMetaDataArgs_EmptyMetaData() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(args, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(new String[] {"--arg1"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_EmptyStringFeature() {
+  public void testAppendMetaDataArgs_EmptyStringFeature() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("");
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(args, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(new String[] {"--arg1"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_WithFeature() {
+  public void testAppendMetaDataArgs_WithFeature() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(new String[] {"--arg1", "--enable-features=FeatureA"}, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(
+        new String[] {"--arg1", "--enable-features=FeatureA"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_WithMultipleFeatures() {
+  public void testAppendMetaDataArgs_WithMultipleFeatures() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA;FeatureB");
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(new String[] {"--arg1", "--enable-features=FeatureA;FeatureB"}, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(
+        new String[] {"--arg1", "--enable-features=FeatureA;FeatureB"},
+        args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_NullArgs() {
+  public void testAppendMetaDataArgs_EmptyArgs() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, /* commandLineArgs= */ null);
-    assertArrayEquals(new String[] {"--enable-features=FeatureA"}, result);
+    List<String> args = new ArrayList<>();
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(new String[] {"--enable-features=FeatureA"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_DisableSplashScreen() {
+  public void testAppendMetaDataArgs_DisableSplashScreen() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(false);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(new String[] {"--arg1", "--enable-features=DisableSplashScreen"}, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(
+        new String[] {"--arg1", "--enable-features=DisableSplashScreen"},
+        args.toArray(new String[0]));
   }
 
   @Test

@@ -34,6 +34,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -53,6 +54,7 @@ import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -142,14 +144,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private boolean mWasDisplayOn = true;
 
   @VisibleForTesting
-  static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
+  static void appendMetaDataArgs(@NonNull List<String> args, @Nullable Bundle metaData) {
     if (metaData == null) {
-      return commandLineArgs;
-    }
-
-    List<String> args = new ArrayList<>();
-    if (commandLineArgs != null) {
-      args.addAll(Arrays.asList(commandLineArgs));
+      return;
     }
 
     boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
@@ -159,14 +156,24 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
     if (TextUtils.isEmpty(enableFeatures)) {
-      return args.toArray(new String[0]);
+      return;
     }
 
     // CommandLineOverrideHelper will merge this with other --enable-features flags
     // It also accepts semi-colon-separated list of features.
     // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
     args.add("--enable-features=" + enableFeatures);
-    return args.toArray(new String[0]);
+  }
+
+  private void appendIntentArgs(@NonNull List<String> args) {
+    if (VersionInfo.isReleaseBuild()) {
+      return;
+    }
+
+    String[] intentArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+    if (intentArgs != null) {
+      Collections.addAll(args, intentArgs);
+    }
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -175,28 +182,22 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
-      String[] commandLineArgs = null;
       if (!VersionInfo.isReleaseBuild()) {
-        commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
         // Initializes command line from content-shell-command-line for telemetry tests.
         CommandLineOverrideHelper.initializeContentShellCommandLine();
       } else {
         CommandLine.init(null);
       }
-      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
 
-      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
-
-      if (!extraCommandLineArgs.isEmpty()) {
-        if (commandLineArgs != null) {
-          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
-        }
-        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
+      List<String> args = new ArrayList<>();
+      appendIntentArgs(args);
+      appendMetaDataArgs(args, getActivityMetaData());
+      args.addAll(JavaSwitches.getExtraCommandLineArgs(getJavaSwitches()));
+      if (!VersionInfo.isOfficialBuild()) {
+        args.add("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com");
       }
 
-      CommandLineOverrideHelper.getFlagOverrides(
-          new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              VersionInfo.isOfficialBuild(), commandLineArgs));
+      CommandLineOverrideHelper.getFlagOverrides(args);
     }
     mIsCobaltUsingAndroidOverlay =
         CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
