@@ -34,6 +34,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/privacy_mode.h"
 #include "net/base/proxy_chain.h"
@@ -99,8 +100,20 @@ constexpr net::NetworkTrafficAnnotationTag
     )");
 
 const int kReadBufferSize = 8 * 1024;
+#if BUILDFLAG(IS_COBALT)
+// On living room devices (e.g. Android TV), short pauses (15-45s) between user
+// interactions are standard. Because TCP keep-alive maintains NAT state every
+// 45s, only connections idle for >60s require an HTTP/2 preface ping.
+// Furthermore, waiting 10-20s for a hung ping causes unacceptable UI freezes;
+// an 8-byte top-priority ping ACK returns in <2s on any healthy connection,
+// so a 5s hung interval provides a safe margin while failing fast to trigger
+// an immediate auto-retry.
+const int kDefaultConnectionAtRiskOfLossSeconds = 60;
+const int kHungIntervalSeconds = 5;
+#else
 const int kDefaultConnectionAtRiskOfLossSeconds = 10;
 const int kHungIntervalSeconds = 10;
+#endif
 
 // Default initial value for HTTP/2 SETTINGS.
 const uint32_t kDefaultInitialHeaderTableSize = 4096;
