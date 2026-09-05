@@ -188,10 +188,6 @@ public class BaseStarboardBridge {
     void setAndroidPlayServicesVersion(long version);
 
     void setYoutubeCertificationScope(String certScope);
-
-    boolean isReleaseBuild();
-
-    boolean isDevelopmentBuild();
   }
 
   protected void onActivityStart(Activity activity) {
@@ -326,16 +322,6 @@ public class BaseStarboardBridge {
   @CalledByNative
   public boolean isPlatformErrorShowing() {
     return false;
-  }
-
-  /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
-  public static boolean isReleaseBuild() {
-    return BaseStarboardBridgeJni.get().isReleaseBuild();
-  }
-
-  /** Returns true if the native code is compiled for development (i.e. 'devel' build). */
-  public static boolean isDevelopmentBuild() {
-    return BaseStarboardBridgeJni.get().isDevelopmentBuild();
   }
 
   protected Holder<Activity> getActivityHolder() {
