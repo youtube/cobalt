@@ -64,7 +64,6 @@ import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
@@ -176,7 +175,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       String[] commandLineArgs = null;
-      if (!VersionInfo.isReleaseBuild()) {
+      if (!isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
         // Initializes command line from content-shell-command-line for telemetry tests.
         CommandLineOverrideHelper.initializeContentShellCommandLine();
@@ -196,7 +195,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              VersionInfo.isOfficialBuild(), commandLineArgs));
+              !isDevelopmentBuild(), commandLineArgs));
     }
     mIsCobaltUsingAndroidOverlay =
         CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
