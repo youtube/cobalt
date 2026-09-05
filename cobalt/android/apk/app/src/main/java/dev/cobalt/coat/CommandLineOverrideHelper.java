@@ -14,6 +14,7 @@
 
 package dev.cobalt.coat;
 
+import androidx.annotation.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -41,18 +42,6 @@ public final class CommandLineOverrideHelper {
       CommandLineInitUtil.initCommandLine("content-shell-command-line", () -> true);
     }
   }
-
-  /** Param class to simplify #getFlagOverrides method signature */
-  public static class CommandLineOverrideHelperParams {
-    public CommandLineOverrideHelperParams(boolean isOfficialBuild, String[] commandLineArgs) {
-      mIsOfficialBuild = isOfficialBuild;
-      mCommandLineArgs = commandLineArgs;
-    }
-
-    private boolean mIsOfficialBuild;
-    private String[] mCommandLineArgs;
-  }
-
   // This can be returned as a list, since it does not need to be a single
   // string object. The others can be combined into a single String because
   // they need to be enclosed in the feature's enable/disable header.
@@ -166,7 +155,7 @@ public final class CommandLineOverrideHelper {
     return paramOverrides;
   }
 
-  public static void getFlagOverrides(CommandLineOverrideHelperParams params) {
+  public static void getFlagOverrides(@NonNull List<String> commandLineArgs) {
     List<String> cliOverrides = getDefaultCommandLineOverridesList();
     StringJoiner jsFlagOverrides = getDefaultJsFlagOverridesList();
     StringJoiner enableFeatureOverrides = getDefaultEnableFeatureOverridesList();
@@ -175,67 +164,49 @@ public final class CommandLineOverrideHelper {
     StringJoiner traceStartupOverrides = new StringJoiner(",");
     StringJoiner enableH5vccSettings = new StringJoiner(";");
 
-    if (params != null) {
-      if (!params.mIsOfficialBuild) {
-        cliOverrides.add(
-            "--remote-allow-origins=" + "https://chrome-devtools-frontend.appspot.com");
+    for (String param : commandLineArgs) {
+      if (param == null || param.isEmpty()) {
+        continue;
+      }
+      String[] parts = param.split("=", 2);
+      if (parts.length != 2) {
+        cliOverrides.add(param);
+        continue;
       }
 
-      if (params.mCommandLineArgs != null) {
-        for (String param : params.mCommandLineArgs) {
-          if (param == null || param.isEmpty()) {
-            continue; // Skip null or empty params
-          }
-          String[] parts = param.split("=", 2);
-          if (parts.length == 2) {
-            String key = parts[0];
-            String value = parts[1];
-            String[] values = value.split(";");
-            for (String v : values) {
-              if (key.equals("--js-flags")) {
-                jsFlagOverrides.add(v);
-              } else if (key.equals("--enable-features")) {
-                enableFeatureOverrides.add(v);
-              } else if (key.equals("--disable-features")) {
-                disableFeatureOverrides.add(v);
-              } else if (key.equals("--enable-blink-features")) {
-                blinkEnableFeatureOverrides.add(v);
-              } else if (key.equals("--trace-startup")) {
-                traceStartupOverrides.add(v);
-              } else if (key.equals("--enable-h5vcc-settings")) {
-                enableH5vccSettings.add(v);
-              } else {
-                cliOverrides.add(param);
-                break; // Avoid adding the same param multiple times
-              }
-            }
-          } else {
-            cliOverrides.add(param);
-          }
+      String key = parts[0];
+      String value = parts[1];
+      for (String v : value.split(";")) {
+        if (key.equals("--js-flags")) {
+          jsFlagOverrides.add(v);
+        } else if (key.equals("--enable-features")) {
+          enableFeatureOverrides.add(v);
+        } else if (key.equals("--disable-features")) {
+          disableFeatureOverrides.add(v);
+        } else if (key.equals("--enable-blink-features")) {
+          blinkEnableFeatureOverrides.add(v);
+        } else if (key.equals("--trace-startup")) {
+          traceStartupOverrides.add(v);
+        } else if (key.equals("--enable-h5vcc-settings")) {
+          enableH5vccSettings.add(v);
+        } else {
+          cliOverrides.add(param);
+          break; // Avoid adding the same param multiple times
         }
       }
     }
-    CommandLine.getInstance().appendSwitchesAndArguments(cliOverrides.toArray(new String[0]));
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(new String[] {"--js-flags=" + jsFlagOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--enable-features=" + enableFeatureOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--disable-features=" + disableFeatureOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--enable-blink-features=" + blinkEnableFeatureOverrides.toString()});
+
+    cliOverrides.add("--js-flags=" + jsFlagOverrides.toString());
+    cliOverrides.add("--enable-features=" + enableFeatureOverrides.toString());
+    cliOverrides.add("--disable-features=" + disableFeatureOverrides.toString());
+    cliOverrides.add("--enable-blink-features=" + blinkEnableFeatureOverrides.toString());
     if (traceStartupOverrides.length() > 0) {
-      CommandLine.getInstance()
-          .appendSwitchesAndArguments(
-              new String[] {"--trace-startup=" + traceStartupOverrides.toString()});
+      cliOverrides.add("--trace-startup=" + traceStartupOverrides.toString());
     }
     if (enableH5vccSettings.length() > 0) {
-      CommandLine.getInstance()
-          .appendSwitchesAndArguments(
-              new String[] {"--enable-h5vcc-settings=" + enableH5vccSettings.toString()});
+      cliOverrides.add("--enable-h5vcc-settings=" + enableH5vccSettings.toString());
     }
+
+    CommandLine.getInstance().appendSwitchesAndArguments(cliOverrides.toArray(new String[0]));
   }
 }
