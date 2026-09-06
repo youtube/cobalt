@@ -1,8 +1,20 @@
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//cobalt/build/configs/cobalt.gni")
 import("//third_party/icu/config.gni")
 import("//third_party/jni_zero/jni_zero.gni")
+
+java_cpp_template("cobalt_build_info_srcjar") {
+  sources = [ "apk/app/src/main/java/dev/cobalt/coat/CobaltBuildInfo.tmpl" ]
+  defines = []
+  if (is_official_build) {
+    defines += [ "OFFICIAL_BUILD" ]
+  }
+  if (cobalt_is_release_build) {
+    defines += [ "COBALT_IS_RELEASE_BUILD" ]
+  }
+}
 
 jinja_template("cobalt_manifest") {
   input = "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2"
@@ -125,6 +137,7 @@ android_library("cobalt_main_java") {
   }
 
   srcjar_deps = [
+    ":cobalt_build_info_srcjar",
     ":cobalt_crash_streak_thresholds_java",
     ":cobalt_experiment_names_java",
     ":cobalt_pref_names_java",
