@@ -64,11 +64,7 @@ import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.metrics.RecordHistogram;
-<<<<<<< HEAD
-import org.chromium.base.version_info.VersionInfo;
 import org.chromium.components.origin_matcher.OriginMatcher;
-=======
->>>>>>> cc7418d424 (android: Eliminate runtime JNI build type queries using java_cpp_template (#12474))
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
