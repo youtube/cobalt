@@ -198,12 +198,20 @@ public abstract class BaseCobaltActivity extends Activity {
     }
   }
 
+  /**
+   * Returns true if compiled for release (i.e. 'gold' build; false for 'qa'). Subclasses may
+   * override this (e.g. to allow dev args on dogfood builds).
+   */
   protected boolean isReleaseBuild() {
-    return BaseStarboardBridge.isReleaseBuild();
+    return CobaltBuildInfo.IS_RELEASE_BUILD;
   }
 
+  /**
+   * Returns true if compiled for development (i.e. 'devel' or 'debug' build; false for 'qa' and
+   * 'gold'). Subclasses may override this.
+   */
   protected boolean isDevelopmentBuild() {
-    return BaseStarboardBridge.isDevelopmentBuild();
+    return !CobaltBuildInfo.IS_OFFICIAL_BUILD;
   }
 
   @Override
