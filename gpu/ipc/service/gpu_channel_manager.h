@@ -165,19 +165,12 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
     return default_offscreen_surface_.get();
   }
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
   void SetDefaultOffscreenSurface(scoped_refptr<gl::GLSurface> surface) {
     default_offscreen_surface_ = std::move(surface);
   }
 #endif
 
-  GpuMemoryBufferFactory* gpu_memory_buffer_factory() {
-    return gpu_memory_buffer_factory_;
-  }
-
->>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   MemoryTracker::Observer* peak_memory_monitor() {
     return peak_memory_monitor_.get();
   }
