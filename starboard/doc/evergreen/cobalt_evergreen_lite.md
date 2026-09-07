@@ -79,7 +79,7 @@ Same as the [Evergreen full doc](cobalt_evergreen_overview.md).
 ## Building Cobalt Evergreen Components
 
 `kSbSystemPathStorageDirectory` is not required to implement. Set
-`sb_evergreen_compatible_lite` to `1`s in the `gyp` platform config. The
+`sb_evergreen_compatible_lite` to `1` in the `gyp` platform config. The
 remaining is the same as the Evergreen full doc.
 
 ## How does the update work with Evergreen Lite?

@@ -16,4 +16,4 @@
 # platform being built.
 
 assert(!is_starboard_use_libunwind || is_starboard,
-       "Can only specify is_starboard_use_libunwind on starboard platforms.")
+       "Can only specify is_starboard_use_libunwind on Starboard platforms.")

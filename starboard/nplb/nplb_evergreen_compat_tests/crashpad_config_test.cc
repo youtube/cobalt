@@ -24,7 +24,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if !BUILDFLAG(IS_STARBOARD)
-#error These tests apply only to IS_STARBOARD platforms.
+#error These tests apply only to Starboard platforms.
 #endif
 
 namespace nplb {
