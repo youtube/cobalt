@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/clang/clang.gni")
+
 if (is_official_build && is_cobalt_hermetic_build) {
-  if (target_cpu == "arm") {
-    strip_executable = "arm-linux-gnueabi-strip"
-  } else if (target_cpu == "arm64") {
-    strip_executable = "aarch64-linux-gnu-strip"
-  } else if (target_cpu == "x64") {
-    strip_executable = "strip"
-  } else {
-    assert(false, "Unsupported architecture.")
-  }
+  assert(target_cpu == "arm" || target_cpu == "arm64" || target_cpu == "x64",
+         "Unsupported architecture.")
+
+  strip_executable =
+      rebase_path("$clang_base_path/bin/llvm-strip", root_build_dir)
 }
