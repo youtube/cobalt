@@ -78,8 +78,8 @@ Same as the [Evergreen full doc](cobalt_evergreen_overview.md).
 
 ## Building Cobalt Evergreen Components
 
-`kSbSystemPathStorageDirectory` is not required to implement. The remaining is
-the same as the Evergreen Full doc -
+`kSbSystemPathStorageDirectory` is not required to implement. The rest of the
+implementation is the same as the Evergreen Full doc -
 [cobalt_evergreen_overview.md](cobalt_evergreen_overview.md).
 
 ## How does the update work with Evergreen Lite?
