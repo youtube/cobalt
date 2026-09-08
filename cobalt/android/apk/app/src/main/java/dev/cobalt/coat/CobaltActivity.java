@@ -174,13 +174,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
+      CommandLine.init(null);
+
       String[] commandLineArgs = null;
       if (!isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
-        // Initializes command line from content-shell-command-line for telemetry tests.
-        CommandLineOverrideHelper.initializeContentShellCommandLine();
-      } else {
-        CommandLine.init(null);
       }
       commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
 
