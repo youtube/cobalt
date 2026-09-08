@@ -45,14 +45,12 @@ namespace {
 const char kFingerprintSuffixForceUpdateCache[] = "-2";
 const char kProtobufFilename[] = "font_unique_name_table.pb";
 
-#if !(BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT))
 // These directories contain read-only font files stored in ROM.
 // Memory-mapping these files avoids large RAM allocations.
 // DO NOT add directories here unless the files are guaranteed read-only.
 // Modifying these files typically requires a firmware or system update.
 static const char* const kAndroidFontPaths[] = {
     "/system/fonts", "/vendor/fonts", "/product/fonts"};
-#endif
 
 void IndexFile(blink::FontUniqueNameTable& font_table,
                std::string_view font_file_path,
@@ -255,11 +253,14 @@ std::vector<base::FilePath> FontUniqueNameLookup::GetFontFilePaths() const {
     return font_file_paths_for_testing_;
   std::vector<base::FilePath> font_files;
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
-  // For Cobalt Android, custom fonts are configured hermetically in Skia.
-  // Scanning 200+ Android OS ROM font files is unnecessary and adds
-  // ~950 ms of cold-start indexing overhead.
-  return font_files;
-#else
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "use-custom-android-fonts-xml")) {
+    // When Cobalt custom Android fonts XML is enabled, custom fonts are
+    // configured hermetically in Skia. Scanning 200+ Android OS ROM font files
+    // is unnecessary and adds ~950 ms of cold-start indexing overhead.
+    return font_files;
+  }
+#endif
   for (const char* font_dir_path : kAndroidFontPaths) {
     base::FileEnumerator files_enumerator(
         base::MakeAbsoluteFilePath(base::FilePath(font_dir_path)), true,

@@ -161,15 +161,17 @@ FontDataForRangeSet* FontFallbackIterator::Next(const HintCharList& hint_list) {
   if (fallback_stage_ == kFirstCandidateForNotdefGlyph) {
     fallback_stage_ = kOutOfLuck;
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
-    // Don't crash the application if first_candidate is null.
-    if (first_candidate_)                                                                                                                  
-      return first_candidate_; 
-    return MakeGarbageCollected<FontDataForRangeSet>();
-#else
+    // Don't crash the application if first_candidate is null when custom fonts are enabled.
+    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+            "use-custom-android-fonts-xml")) {
+      if (first_candidate_)
+        return first_candidate_;
+      return MakeGarbageCollected<FontDataForRangeSet>();
+    }
+#endif
     if (!first_candidate_)
       FontCache::CrashWithFontInfo(&font_description_);
     return first_candidate_;
-#endif
   }
 
   DCHECK(fallback_stage_ == kFontGroupFonts ||
