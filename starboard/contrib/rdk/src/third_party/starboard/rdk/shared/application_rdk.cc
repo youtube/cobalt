@@ -42,7 +42,15 @@
 #include "third_party/starboard/rdk/shared/platform/platform_interface.h"
 #include "third_party/starboard/rdk/shared/libcobalt.h"
 
+#if defined(ENABLE_RDKSERVICES_API)
+#include "third_party/starboard/rdk/shared/rdkservices.h"
+#endif
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <fcntl.h>
+#include <locale.h>
 #include <poll.h>
 #include <cstring>
 #include <sys/eventfd.h>
@@ -477,5 +485,72 @@ void ApplicationRdk::InjectAccessibilityCaptionSettingsChanged() {
 
 void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged() {
   Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged, NULL, NULL));
+}
+
+const char* ApplicationRdk::GetLocaleId() {
+  std::lock_guard<std::mutex> lock(locale_mutex_);
+
+  auto is_valid = [](const char* id) {
+    return id != nullptr && id[0] != '\0' && strcmp(id, "C") != 0 &&
+           strcmp(id, "POSIX") != 0;
+  };
+
+  auto normalize_locale = [](std::string& s) {
+    // Handle inverted format: "US_en" or "US-en" -> "en_US"
+    if (s.length() == 5 && (s[2] == '_' || s[2] == '-') &&
+        std::isupper(static_cast<unsigned char>(s[0])) &&
+        std::isupper(static_cast<unsigned char>(s[1])) &&
+        std::islower(static_cast<unsigned char>(s[3])) &&
+        std::islower(static_cast<unsigned char>(s[4]))) {
+      s = s.substr(3, 2) + "_" + s.substr(0, 2);
+      return;
+    }
+    // Handle standard BCP-47 "en-US" -> "en_US"
+    std::replace(s.begin(), s.end(), '-', '_');
+  };
+
+  std::string new_locale;
+#if defined(ENABLE_RDKSERVICES_API)
+  std::string lang;
+  if (UserPreferences::GetUILanguage(lang) && !lang.empty()) {
+    normalize_locale(lang);
+    if (is_valid(lang.c_str())) {
+      new_locale = std::move(lang);
+    }
+  }
+  if (new_locale.empty()) {
+    if (UserSettings::GetPresentationLanguage(lang) && !lang.empty()) {
+      normalize_locale(lang);
+      if (is_valid(lang.c_str())) {
+        new_locale = std::move(lang);
+      }
+    }
+  }
+#endif
+
+  if (new_locale.empty()) {
+    // Fallback to POSIX locale or environment variables.
+    const char* posix_id = setlocale(LC_MESSAGES, NULL);
+    if (!is_valid(posix_id)) {
+      posix_id = getenv("LC_ALL");
+      if (!is_valid(posix_id)) {
+        posix_id = getenv("LC_MESSAGES");
+        if (!is_valid(posix_id)) {
+          posix_id = getenv("LANG");
+        }
+      }
+    }
+
+    if (is_valid(posix_id)) {
+      new_locale = posix_id;
+    } else {
+      new_locale = "";
+    }
+  }
+
+  // Store locales in a pool to guarantee pointer stability for the lifetime
+  // of the application, as required by Starboard C API consumers holding
+  // const char* references across dynamic runtime locale changes.
+  return locale_pool_.insert(std::move(new_locale)).first->c_str();
 }
 }  // namespace starboard
