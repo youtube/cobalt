@@ -211,10 +211,10 @@ void HarvestJavaStartupMetrics() {
   // Because the JNI bridge is not available early in the Java Android Phase
   // (e.g. Activity onCreate) `StartupGuard` persists Milestones 1-4 via a
   // bare-metal MappedByteBuffer. On the subsequent boot, search for the
-  // abandoned `_previous` file, read the 64-bit integer, and feed every tripped
-  // bit natively into `Cobalt.Startup.MilestoneReached`. This intentionally
-  // fires *after* PMA mounts in `PreEarlyInitialization` to ensure these writes
-  // survive secondary crashes.
+  // previous session's `_previous` file, read the 64-bit integer, and feed
+  // every tripped bit natively into `Cobalt.Startup.MilestoneReached`. This
+  // intentionally fires *after* PMA mounts in `PreEarlyInitialization` to
+  // ensure these writes survive secondary crashes.
   base::FilePath app_data_dir;
   if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
     base::FilePath state_file =

@@ -40,6 +40,7 @@ public class StartupGuard {
   private final AtomicLong startupStatus = new AtomicLong(0L);
   private final Map<String, String> diagnosisInfo = new HashMap<>();
   private final AtomicBoolean isArmed = new AtomicBoolean(false);
+  private final Object stateLock = new Object();
 
   private static class LazyHolder {
     private static final StartupGuard INSTANCE = new StartupGuard();
@@ -137,7 +138,7 @@ public class StartupGuard {
     long mask = 1L << milestone;
 
     // Synchronize to ensure atomic write-through to the disk buffer without interleaving
-    synchronized (this) {
+    synchronized (stateLock) {
       long current = startupStatus.updateAndGet(curr -> curr | mask);
       if (startupStateBuffer != null) {
         startupStateBuffer.putLong(0, current);
@@ -197,7 +198,7 @@ public class StartupGuard {
 
   @VisibleForTesting
   public void resetForTesting() {
-    synchronized (this) {
+    synchronized (stateLock) {
       startupStatus.set(0);
       isArmed.set(false);
       startupStateBuffer = null;
