@@ -159,6 +159,7 @@ jobs:
           "${RUNNER_TEMP}/depot_tools/gclient" config \
             --name=src \
             --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
+            --custom-var="reapi_backend_config_path=\"cobalt.star\"" \
             "${{ github.server_url }}/${{ github.repository }}"
           echo "target_os=['android']" >> .gclient
           "${RUNNER_TEMP}/depot_tools/gclient" validate || true
