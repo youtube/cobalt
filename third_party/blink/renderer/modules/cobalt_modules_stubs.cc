@@ -70,9 +70,27 @@ static const WrapperTypeInfo g_dummy_wrapper_type_info = {
     false,
 };
 
+static const WrapperTypeInfo g_dummy_namespace_wrapper_type_info = {
+    gin::kEmbedderBlink,
+    DummyInstallInterfaceTemplateFunc,
+    nullptr,
+    "DummyNamespace",
+    nullptr,
+    v8::CppHeapPointerTag::kDefaultTag,
+    v8::CppHeapPointerTag::kDefaultTag,
+    WrapperTypeInfo::kWrapperTypeNoPrototype,
+    WrapperTypeInfo::kObjectClassId,
+    WrapperTypeInfo::kIdlNamespace,
+    false,
+};
+
 #define STUB_V8_WRAPPER(ClassName) \
   class ClassName { public: static const WrapperTypeInfo wrapper_type_info_; }; \
   const WrapperTypeInfo ClassName::wrapper_type_info_ = g_dummy_wrapper_type_info;
+
+#define STUB_V8_NAMESPACE_WRAPPER(ClassName) \
+  class ClassName { public: static const WrapperTypeInfo wrapper_type_info_; }; \
+  const WrapperTypeInfo ClassName::wrapper_type_info_ = g_dummy_namespace_wrapper_type_info;
 
 // Web Bluetooth V8 Wrappers
 STUB_V8_WRAPPER(V8Bluetooth)
@@ -195,9 +213,9 @@ STUB_V8_WRAPPER(V8GPUAdapterInfo)
 STUB_V8_WRAPPER(V8GPUBindGroup)
 STUB_V8_WRAPPER(V8GPUBindGroupLayout)
 STUB_V8_WRAPPER(V8GPUBuffer)
-STUB_V8_WRAPPER(V8GPUBufferUsage)
+STUB_V8_NAMESPACE_WRAPPER(V8GPUBufferUsage)
 STUB_V8_WRAPPER(V8GPUCanvasContext)
-STUB_V8_WRAPPER(V8GPUColorWrite)
+STUB_V8_NAMESPACE_WRAPPER(V8GPUColorWrite)
 STUB_V8_WRAPPER(V8GPUCommandBuffer)
 STUB_V8_WRAPPER(V8GPUCommandEncoder)
 STUB_V8_WRAPPER(V8GPUCompilationInfo)
@@ -208,9 +226,9 @@ STUB_V8_WRAPPER(V8GPUDevice)
 STUB_V8_WRAPPER(V8GPUDeviceLostInfo)
 STUB_V8_WRAPPER(V8GPUError)
 STUB_V8_WRAPPER(V8GPUExternalTexture)
-STUB_V8_WRAPPER(V8GPUHeapProperty)
+STUB_V8_NAMESPACE_WRAPPER(V8GPUHeapProperty)
 STUB_V8_WRAPPER(V8GPUInternalError)
-STUB_V8_WRAPPER(V8GPUMapMode)
+STUB_V8_NAMESPACE_WRAPPER(V8GPUMapMode)
 STUB_V8_WRAPPER(V8GPUMemoryHeapInfo)
 STUB_V8_WRAPPER(V8GPUOutOfMemoryError)
 STUB_V8_WRAPPER(V8GPUPipelineError)
@@ -223,18 +241,19 @@ STUB_V8_WRAPPER(V8GPURenderPassEncoder)
 STUB_V8_WRAPPER(V8GPURenderPipeline)
 STUB_V8_WRAPPER(V8GPUSampler)
 STUB_V8_WRAPPER(V8GPUShaderModule)
-STUB_V8_WRAPPER(V8GPUShaderStage)
+STUB_V8_NAMESPACE_WRAPPER(V8GPUShaderStage)
 STUB_V8_WRAPPER(V8GPUSubgroupMatrixConfig)
 STUB_V8_WRAPPER(V8GPUSupportedFeatures)
 STUB_V8_WRAPPER(V8GPUSupportedLimits)
 STUB_V8_WRAPPER(V8GPUTexture)
-STUB_V8_WRAPPER(V8GPUTextureUsage)
+STUB_V8_NAMESPACE_WRAPPER(V8GPUTextureUsage)
 STUB_V8_WRAPPER(V8GPUTextureView)
 STUB_V8_WRAPPER(V8GPUUncapturedErrorEvent)
 STUB_V8_WRAPPER(V8GPUValidationError)
 
 
 #undef STUB_V8_WRAPPER
+#undef STUB_V8_NAMESPACE_WRAPPER
 
 // --- Web Bluetooth, WebUSB, WebHID, and Web Serial C++ Stubs ---
 
