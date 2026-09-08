@@ -65,11 +65,8 @@ void Done(base::OnceCallback<
             if (success) {
               return out_file;
             }
-<<<<<<< HEAD
             DeleteFileAndEmptyParentDirectory(out_file);
-=======
 #endif  // BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             return base::unexpected<CategorizedError>(
                 {.category = ErrorCategory::kUnpack,
                  .code = static_cast<int>(UnpackerError::kXzFailed)});
