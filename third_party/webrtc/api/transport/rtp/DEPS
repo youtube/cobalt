@@ -1,5 +1,0 @@
-specific_include_rules = {
-  "rtp_source\.h": [
-    "+absl/strings/str_format.h",
-  ],
-}
