@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
 from base_resolver import (
+    AgentChangeRecord,
     BaseResolver,
     execute_local_tool,
     is_unmodified_third_party,
@@ -303,6 +304,7 @@ def resolve_file_conflicts(
     engine: Optional[Any] = None,
     token_tracker: Optional[TokenUsage] = None,
     escalations: Optional[List[EscalationItem]] = None,
+    session_changes: Optional[List[AgentChangeRecord]] = None,
     max_tool_rounds: int = 5,
     mock_mode: bool = False,
 ) -> bool:
@@ -330,6 +332,19 @@ def resolve_file_conflicts(
     )
     for block in blocks:
       content = content.replace(block.raw_block, block.theirs_content, 1)
+      if session_changes is not None:
+        session_changes.append(
+            AgentChangeRecord(
+                phase="resolve_conflicts",
+                iteration=block.index,
+                target_file=rel_path,
+                changes=(
+                    f"Unmodified third_party resolved with upstream (theirs):\n"
+                    f"{block.theirs_content}"),
+                error=None,
+                applied_cleanly=True,
+                modified_files=[rel_path],
+            ))
     with open(file_path, "w", encoding="utf-8") as f:
       f.write(content)
     print(
@@ -353,6 +368,31 @@ def resolve_file_conflicts(
     )
 
     # Step 1: Pre-Flight Strategic Review by Expert Agent
+    trajectory_str = git_context
+    if session_changes:
+      default_count = 10
+      total_records = len(session_changes)
+      if total_records > default_count:
+        header = (
+            f"Showing the last {default_count} of {total_records} changes in "
+            "this session. Use `TOOL_GET_HISTORY: <count_or_iteration_number>` "
+            "to inspect earlier records or specific iterations.")
+        traj_slice = session_changes[-default_count:]
+        trajectory_str = (f"{git_context}\n\n{header}\n\n" +
+                          "\n\n".join(r.to_prompt_str() for r in traj_slice))
+      else:
+        trajectory_str = (
+            f"{git_context}\n\n" +
+            "\n\n".join(r.to_prompt_str() for r in session_changes))
+      if total_records > 0:
+        injected_count = min(total_records, default_count)
+        print(
+            f"  [resolve_conflicts] [TIER-2 ARCHITECT] Injected "
+            f"{injected_count} of {total_records} session change records "
+            "into expert prompt.",
+            file=sys.stderr,
+        )
+
     expert_guidance = ""
     if engine is not None and not mock_mode:
       try:
@@ -363,7 +403,7 @@ def resolve_file_conflicts(
             source_contexts=(
                 f"Context before conflict:\n{block.context_before}\n\n"
                 f"Context after conflict:\n{block.context_after}"),
-            trajectory_history=git_context,
+            trajectory_history=trajectory_str,
             mode="conflict",
         )
         expert_guidance = guidance_res.get("guidance", "")
@@ -373,7 +413,8 @@ def resolve_file_conflicts(
                                  expert_guidance.strip(), re.MULTILINE)
           if tool_match:
             t_cmd = tool_match.group(1).strip()
-            t_out = execute_local_tool(t_cmd, repo_path)
+            t_out = execute_local_tool(
+                t_cmd, repo_path, session_changes=session_changes)
             expert_guidance += (
                 f"\n\nTool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
         if expert_guidance:
@@ -440,7 +481,8 @@ def resolve_file_conflicts(
         if tool_match:
           tool_cmd = tool_match.group(1).strip()
           print(f"    [TOOL_USE] Model requested: {tool_cmd}", file=sys.stderr)
-          tool_output = execute_local_tool(tool_cmd, repo_path)
+          tool_output = execute_local_tool(
+              tool_cmd, repo_path, session_changes=session_changes)
           investigation_history += (
               f"\n\nTool Call: `{tool_cmd}`\nResult:\n```\n{tool_output}\n```")
           continue
@@ -456,6 +498,17 @@ def resolve_file_conflicts(
           f"    [ESCALATE] Block #{block.index} could not be cleanly resolved.",
           file=sys.stderr,
       )
+      if session_changes is not None:
+        session_changes.append(
+            AgentChangeRecord(
+                phase="resolve_conflicts",
+                iteration=block.index,
+                target_file=rel_path,
+                changes=block.raw_block,
+                error=f"Unresolved conflict markers in block #{block.index}",
+                applied_cleanly=False,
+                modified_files=[rel_path],
+            ))
       if escalations is not None:
         escalations.append(
             EscalationItem(rel_path, block.index,
@@ -463,6 +516,18 @@ def resolve_file_conflicts(
       return False
 
     content = content.replace(block.raw_block, resolved_code, 1)
+    if session_changes is not None:
+      session_changes.append(
+          AgentChangeRecord(
+              phase="resolve_conflicts",
+              iteration=block.index,
+              target_file=rel_path,
+              changes=(f"Conflict Block #{block.index}:\n{block.raw_block}\n\n"
+                       f"Resolved Code:\n{resolved_code}"),
+              error=None,
+              applied_cleanly=True,
+              modified_files=[rel_path],
+          ))
     print(f"    [OK] Resolved Block #{block.index}", file=sys.stderr)
 
   if os.path.basename(file_path) == "DEPS":
@@ -471,6 +536,17 @@ def resolve_file_conflicts(
       print("  [OK] DEPS Python AST syntax validated.", file=sys.stderr)
     except SyntaxError as e:
       print(f"  [FAIL] DEPS AST Syntax Error: {e}", file=sys.stderr)
+      if session_changes is not None:
+        session_changes.append(
+            AgentChangeRecord(
+                phase="resolve_conflicts",
+                iteration=0,
+                target_file=rel_path,
+                changes="DEPS AST Validation",
+                error=f"DEPS AST Syntax Error: {e}",
+                applied_cleanly=False,
+                modified_files=[rel_path],
+            ))
       if escalations is not None:
         escalations.append(
             EscalationItem(rel_path, 0, f"DEPS AST Syntax Error: {e}"))
@@ -496,13 +572,17 @@ class ConflictResolver(BaseResolver):
       max_iterations: int = 5,
       files: Optional[List[str]] = None,
       skip_sync: bool = False,
+      session_changes: Optional[List[AgentChangeRecord]] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
+      **kwargs: Any,
   ):
     super().__init__(
         repo_path=repo_path,
         engine=engine,
         max_iterations=max_iterations,
+        session_changes=session_changes,
         on_patch_applied_fn=on_patch_applied_fn,
+        **kwargs,
     )
     self.explicit_files = files
     self.skip_sync = skip_sync
@@ -587,6 +667,7 @@ class ConflictResolver(BaseResolver):
         token_tracker=self.token_tracker,
         escalations=self.escalations,
         engine=self.reasoning_engine,
+        session_changes=self.session_changes,
     )
     if ok:
       self.resolved_list.append(tf)
@@ -634,6 +715,7 @@ class ConflictResolver(BaseResolver):
           token_tracker=self.token_tracker,
           escalations=self.escalations,
           engine=self.reasoning_engine,
+          session_changes=self.session_changes,
       ):
         self.resolved_list.append(tf)
         if os.path.basename(tf) == "DEPS":

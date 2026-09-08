@@ -11,6 +11,7 @@ Executes all rebase phases in sequence:
 """
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -18,7 +19,7 @@ from typing import List
 import warnings
 
 from autoninja import AutoninjaResolver
-from base_resolver import write_rebase_report
+from base_resolver import AgentChangeRecord, write_rebase_report
 from conflicts import ConflictResolver
 from gclient_sync import GClientSyncResolver
 from gn_gen import GNGenResolver
@@ -87,13 +88,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
   )
   parser.add_argument(
       "--model",
-      default=os.environ.get("GEMINI_MODEL"),
-      help="Optional Gemini model override (e.g. gemini-3.7-flash).",
+      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
+      help="Workhorse Gemini model (default: gemini-3.7-flash).",
   )
   parser.add_argument(
       "--expert-model",
-      default=os.environ.get("EXPERT_MODEL", "claude-sonnet-5"),
-      help="Optional Tier-2 Expert model override (e.g. zai-org/glm-5.2-maas).",
+      default=os.environ.get("EXPERT_MODEL", "gemini-3.8-flash"),
+      help="Tier-2 Expert model (default: gemini-3.8-flash).",
   )
   parser.add_argument(
       "--skip-conflicts",
@@ -176,11 +177,13 @@ def run_pipeline(args: argparse.Namespace) -> int:
       "[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE",
       file=sys.stderr,
   )
+  effective_model = args.model or "gemini-3.7-flash"
+  effective_expert = args.expert_model or "gemini-3.8-flash"
   if args.reasoning_engine_id:
     print(f"  - Reasoning Engine: {args.reasoning_engine_id}", file=sys.stderr)
   else:
-    effective_model = args.model or "gemini-2.5-flash"
-    print(f"  - Model:      {effective_model}", file=sys.stderr)
+    print(f"  - Workhorse Model: {effective_model}", file=sys.stderr)
+    print(f"  - Expert Model:    {effective_expert}", file=sys.stderr)
   print(f"  - Platform:   {args.platform}", file=sys.stderr)
   print(f"  - Config:     {args.build_type}", file=sys.stderr)
   print(f"  - Out Dir:    out/{out_dir}", file=sys.stderr)
@@ -196,17 +199,21 @@ def run_pipeline(args: argparse.Namespace) -> int:
       resource_id=args.reasoning_engine_id,
       project_id=args.project_id,
       location=args.location,
-      flash_model=args.model or "gemini-3.7-flash",
-      expert_model=args.expert_model,
+      flash_model=effective_model,
+      expert_model=effective_expert,
       skills_dir=args.skills_dir,
       gcs_memory_uri=args.gcs_memory_uri,
       local=args.local,
   )
 
+  # Omniscient change trajectory tracked across all phases
+  shared_session_changes: List[AgentChangeRecord] = []
+
   # Phase 1: Conflict Resolver
   conflict_resolver = ConflictResolver(
       repo_path=args.repo_path,
       engine=reasoning_engine,
+      session_changes=shared_session_changes,
       skip_sync=True,  # Phase 2 handles gclient sync
   )
 
@@ -214,6 +221,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
   sync_resolver = GClientSyncResolver(
       repo_path=args.repo_path,
       engine=reasoning_engine,
+      session_changes=shared_session_changes,
       max_iterations=10,
   )
 
@@ -234,6 +242,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       gn_check=True,
       max_iterations=args.max_gn_iterations,
       engine=reasoning_engine,
+      session_changes=shared_session_changes,
       on_patch_applied_fn=on_gn_patch_applied,
   )
 
@@ -260,16 +269,38 @@ def run_pipeline(args: argparse.Namespace) -> int:
       target=effective_target,
       max_iterations=args.max_build_iterations,
       engine=reasoning_engine,
+      session_changes=shared_session_changes,
       on_patch_applied_fn=on_build_patch_applied,
   )
 
+  def dump_change_history() -> None:
+    history_file = os.path.join(args.repo_path, "out", "rebase_results",
+                                "change_history.json")
+    try:
+      os.makedirs(os.path.dirname(history_file), exist_ok=True)
+      with open(history_file, "w", encoding="utf-8") as f:
+        json.dump([rec.to_dict() for rec in shared_session_changes],
+                  f,
+                  indent=2)
+      print(
+          f"  - Change History: {history_file} "
+          f"({len(shared_session_changes)} records)",
+          file=sys.stderr,
+      )
+    except OSError as e:
+      print(
+          f"  - Warning: Failed to write change history: {e}", file=sys.stderr)
+
   def write_report(status_str: str) -> str:
+    dump_change_history()
     return write_rebase_report(
         rebase_dir=rebase_dir,
         platform=args.platform,
         build_type=args.build_type,
         target=effective_target,
-        model=args.model,
+        model=effective_model,
+        expert_model=effective_expert,
+        session_changes=shared_session_changes,
         status=status_str,
         elapsed_seconds=time.time() - start_time,
         repo_path=args.repo_path,

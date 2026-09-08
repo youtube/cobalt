@@ -59,8 +59,12 @@ class ReasoningEngineClient:
         os.environ.get("GOOGLE_CLOUD_PROJECT"))
     self.location = location
     self.flash_model = flash_model
-    self.expert_model = expert_model or os.environ.get("EXPERT_MODEL")
-    self.expert_provider = expert_provider or os.environ.get("EXPERT_PROVIDER")
+    self.expert_model = (
+        expert_model or os.environ.get("EXPERT_MODEL") or "gemini-3.8-flash")
+    self.expert_provider = (
+        expert_provider or os.environ.get("EXPERT_PROVIDER") or
+        ("anthropic" if "claude" in self.expert_model.lower() else
+         ("glm" if "glm" in self.expert_model.lower() else "gemini")))
     self.expert_location = expert_location or os.environ.get("EXPERT_LOCATION")
     self.skills_dir = skills_dir
     self.gcs_memory_uri = gcs_memory_uri
@@ -242,6 +246,8 @@ class ReasoningEngineClient:
       trajectory_history: str = "",
       working_diff: str = "",
       investigation_history: str = "",
+      raw_log: str = "",
+      all_diagnostics: str = "",
       mode: str = "compiler",
       expert_model: Optional[str] = None,
   ) -> Dict[str, Any]:
@@ -257,6 +263,8 @@ class ReasoningEngineClient:
         trajectory_history=trajectory_history,
         working_diff=working_diff,
         investigation_history=investigation_history,
+        raw_log=raw_log,
+        all_diagnostics=all_diagnostics,
         mode=mode,
         expert_model=expert_model,
     )

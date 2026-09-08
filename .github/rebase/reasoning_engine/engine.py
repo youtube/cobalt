@@ -99,7 +99,7 @@ class CobaltReasoningEngine:
     self.flash_model = flash_model or "gemini-3.7-flash"
     self.expert_model = (
         expert_model or pro_model or os.environ.get("EXPERT_MODEL") or
-        "claude-sonnet-5")
+        "gemini-3.8-flash")
     self.pro_model = pro_model or self.expert_model
     self.expert_provider = (
         expert_provider or os.environ.get("EXPERT_PROVIDER") or
@@ -404,7 +404,7 @@ class CobaltReasoningEngine:
       temperature: float = 0.1,
   ) -> Optional[str]:
     """Generates content via Tier-2 Expert LLM (Sonnet 5, GLM 5.2)."""
-    expert_name = expert_model or self.expert_model or "claude-sonnet-5"
+    expert_name = expert_model or self.expert_model or "gemini-3.8-flash"
     provider = ("anthropic" if "claude" in expert_name.lower() else
                 ("glm" if "glm" in expert_name.lower() else "gemini"))
 
@@ -483,6 +483,7 @@ class CobaltReasoningEngine:
         model=target_gemini_model,
         contents=contents,
         config=cfg,
+        tier_label="",
     )
     return resp.text.strip() if resp and resp.text else ""
 
@@ -500,15 +501,22 @@ class CobaltReasoningEngine:
       *,
       max_retries: int = 5,
       initial_backoff: float = 4.0,
+      tier_label: Optional[str] = None,
   ) -> Optional[types.GenerateContentResponse]:
     """Calls generate_content with exponential backoff for 429/503 errors."""
     client = self._get_client()
     backoff = initial_backoff
-    print(
-        f"  [REASONING_ENGINE] [WORKHORSE_TIER] Dispatching to {model} "
-        "(thinking tokens enabled)...",
-        file=sys.stderr,
-    )
+    if tier_label is None:
+      if self.expert_model and model == self.expert_model:
+        tier_label = "EXPERT_TIER"
+      else:
+        tier_label = "WORKHORSE_TIER"
+    if tier_label:
+      print(
+          f"  [REASONING_ENGINE] [{tier_label}] Dispatching to {model} "
+          "(thinking tokens enabled)...",
+          file=sys.stderr,
+      )
     for attempt in range(1, max_retries + 1):
       try:
         return client.models.generate_content(
@@ -614,20 +622,22 @@ class CobaltReasoningEngine:
       trajectory_history: str = "",
       working_diff: str = "",
       investigation_history: str = "",
+      raw_log: str = "",
+      all_diagnostics: str = "",
       mode: str = "compiler",
       expert_model: Optional[str] = None,
       **kwargs,
   ) -> Dict[str, Any]:
-    """Tier-2 Senior Architect (Claude Sonnet 5 / Gemini / GLM).
+    """Tier-2 Senior Architect (Gemini 3.8 Flash / Claude / GLM).
 
-    Analyzes full failure trajectory, session git diffs, and diagnostics
-    to produce strategic root-cause guidance and actionable refactoring
-    directives for Tier-1 (Worker Agent).
+    Analyzes full failure trajectory, session git diffs, raw logs, and
+    diagnostics to produce strategic root-cause guidance and actionable
+    refactoring directives for Tier-1 (Worker Agent).
     """
     eff_target = target or target_file or "cobalt"
     eff_diag = diagnostics or error_trace
     eff_ctx = source_contexts or file_context
-    chosen_expert = expert_model or self.expert_model or "claude-sonnet-5"
+    chosen_expert = expert_model or self.expert_model or "gemini-3.8-flash"
 
     rebase_skill = self._get_skill("cobalt_rebase")
     domain_skill = self._get_skill(
@@ -641,12 +651,17 @@ class CobaltReasoningEngine:
         "Your role is NOT to write syntax diffs, but to strategically diagnose "
         "conflicts, complex build failures, V8/Blink/Starboard refactorings, "
         "and multi-iteration loops.\n\n"
-        "You will receive:\n"
-        "1. Trajectory of what Tier-1 Worker attempted so far.\n"
-        "2. Git diff of modifications made in working tree this session.\n"
-        "3. Current conflict block or compiler/GN diagnostic and source "
-        "context.\n\n"
+        "You have OMNISCIENT visibility into the entire agent session:\n"
+        "1. Complete chronological trajectory of every change, patch, and "
+        "compiler/gn error Tier-1 Worker encountered.\n"
+        "2. Complete Git diff of modifications made in the working tree "
+        "across all iterations.\n"
+        "3. Raw compiler/build output logs and all extracted diagnostics.\n"
+        "4. Offending source code and investigation tool results.\n\n"
         "Responsibilities:\n"
+        "- Analyze why the worker agent is stuck or cycling in a loop.\n"
+        "- Diagnose whether prior patches introduced unintended side effects, "
+        "incorrect stub signatures, or broke other translation units.\n"
         "- Perform deep root-cause analysis: identify what upstream changed.\n"
         "- Upstream Roll Commits: Commit #3 contains pure Chromium changes. "
         "Use TOOL_UPSTREAM_DIFF to inspect upstream Chromium evolutions.\n"
@@ -660,6 +675,11 @@ class CobaltReasoningEngine:
         "    TOOL_GIT_DIFF: <rev1>..<rev2>\n"
         "    TOOL_READ_PR: <pr_number>\n"
         "    TOOL_PR_DIFF: <pr_number>\n"
+        "    TOOL_GET_HISTORY: <count | all | iteration_number>\n"
+        "- Change History: By default you are shown the last 10 change "
+        "records. If you need to inspect earlier records or a specific "
+        "iteration that caused the issue, call TOOL_GET_HISTORY: <count> or "
+        "TOOL_GET_HISTORY: iteration <number>.\n"
         "- Explain why Tier 1 is stuck and list anti-patterns to avoid.\n"
         "- Provide clear, concrete, step-by-step instructions for Tier 1:\n"
         "  * For conflicts: state whether to choose HEAD, incoming (theirs), "
@@ -673,7 +693,12 @@ class CobaltReasoningEngine:
         f"{roll_history_skill}\n")
 
     diff_section = (f"--- Git Diff of Modifications in Current Session ---\n"
-                    f"{working_diff[:16384]}\n\n" if working_diff else "")
+                    f"{working_diff[:200000]}\n\n" if working_diff else "")
+    raw_log_section = (f"--- Full Raw Build Output Log (Tail) ---\n"
+                       f"```\n{raw_log[:40000]}\n```\n\n" if raw_log else "")
+    all_diags_section = (f"--- All Extracted Diagnostics in Current Build ---\n"
+                         f"{all_diagnostics[:40000]}\n\n"
+                         if all_diagnostics else "")
     traj_section = (f"--- Prior Iteration Attempt Trajectory ---\n"
                     f"{trajectory_history}\n\n" if trajectory_history else "")
     inv_section = (f"--- Investigation Tool Results ---\n"
@@ -688,6 +713,7 @@ class CobaltReasoningEngine:
           f"--------------------\n\n"
           f"Surrounding File Context:\n{eff_ctx}\n\n"
           f"{traj_section}"
+          f"{diff_section}"
           f"{inv_section}"
           "Architectural Guidance Request:\n"
           "1. Analyze what HEAD (our branch) vs incoming (theirs) are trying "
@@ -701,8 +727,10 @@ class CobaltReasoningEngine:
           f"Mode: {mode}\n\n"
           f"Compiler/Build Diagnostics:\n--------------------\n{eff_diag}\n"
           f"--------------------\n\n"
+          f"{all_diags_section}"
           f"{traj_section}"
           f"{diff_section}"
+          f"{raw_log_section}"
           f"{inv_section}"
           f"Offending Source Code:\n{eff_ctx}\n\n"
           "Architectural Directive Request:\n"

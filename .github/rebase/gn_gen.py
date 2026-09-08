@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
 from base_resolver import (
+    AgentChangeRecord,
     BaseResolver,
     get_clean_build_env,
 )
@@ -140,13 +141,17 @@ class GNGenResolver(BaseResolver):
       gn_check: bool = True,
       engine: Optional[Any] = None,
       max_iterations: int = 50,
+      session_changes: Optional[List[AgentChangeRecord]] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
+      **kwargs: Any,
   ):
     super().__init__(
         repo_path=repo_path,
         engine=engine,
         max_iterations=max_iterations,
+        session_changes=session_changes,
         on_patch_applied_fn=on_patch_applied_fn,
+        **kwargs,
     )
     self.platform = platform
     self.build_type = build_type

@@ -15,6 +15,7 @@ from autoninja import (
     parse_compiler_errors,
 )
 from base_resolver import (
+    AgentChangeRecord,
     BaseResolver,
     _COBALT_GIT_HISTORY_CACHE,
     apply_patch_or_replacement,
@@ -1608,6 +1609,202 @@ target("foo") {{}}
     self.assertTrue(hasattr(gn_diag, "file_path"))
     self.assertEqual(gn_diag.file_path, "BUILD.gn")
     self.assertEqual(gn_diag.line_number, 10)
+
+  def test_agent_change_record_data_structure(self):
+    """Verifies AgentChangeRecord initialization, dict, and prompt string."""
+    record = AgentChangeRecord(
+        phase="autoninja",
+        iteration=3,
+        target_file="cobalt/browser/features.cc",
+        changes="<<<<<<< SEARCH\nfoo();\n=======\nbar();\n>>>>>>> REPLACE",
+        error="features.cc:42: error: undefined symbol bar",
+        command_output=("FAILED: obj/cobalt/browser/features.o\n"
+                        "features.cc:42: error: undefined symbol bar"),
+        modified_files=["cobalt/browser/features.cc"],
+        applied_cleanly=True,
+    )
+    d = record.to_dict()
+    self.assertEqual(d["phase"], "autoninja")
+    self.assertEqual(d["iteration"], 3)
+    self.assertEqual(d["target_file"], "cobalt/browser/features.cc")
+    self.assertEqual(d["error"], "features.cc:42: error: undefined symbol bar")
+    self.assertTrue(d["applied_cleanly"])
+    self.assertEqual(d["modified_files"], ["cobalt/browser/features.cc"])
+
+    p_str = record.to_prompt_str()
+    self.assertIn(
+        "#### [autoninja] Iteration 3 -> Target: `cobalt/browser/features.cc`",
+        p_str)
+    self.assertIn("Patch Applied Cleanly: True", p_str)
+    self.assertIn("FAILED: features.cc:42: error: undefined symbol bar", p_str)
+    self.assertIn("bar();", p_str)
+    self.assertIn("features.cc:42: error: undefined symbol bar", p_str)
+
+  def test_expert_agent_omniscience_and_model_defaults(self):
+    """Verifies workhorse and expert defaults and omniscience guidance."""
+    engine = CobaltReasoningEngine(project_id="test-proj")
+    self.assertEqual(engine.flash_model, "gemini-3.7-flash")
+    self.assertEqual(engine.expert_model, "gemini-3.8-flash")
+
+    client = ReasoningEngineClient(project_id="test-proj", local=True)
+    self.assertEqual(client.flash_model, "gemini-3.7-flash")
+    self.assertEqual(client.expert_model, "gemini-3.8-flash")
+
+    captured_prompts = []
+
+    def mock_expert_content(contents, system_inst, expert_model=None, **kwargs):
+      del kwargs
+      captured_prompts.append((str(contents), system_inst, expert_model))
+      return "Directives:\n1. Update header include\n2. Fix type signature"
+
+    # pylint: disable=protected-access
+    engine._generate_expert_content = mock_expert_content
+
+    res = engine.generate_expert_guidance(
+        target="cobalt",
+        diagnostics="fatal error: 'v8.h' file not found",
+        source_contexts="void Init() { ... }",
+        trajectory_history="#### Iteration 1: Attempted #include <v8.h>",
+        working_diff="diff --git a/file.cc b/file.cc\n+#include <v8.h>",
+        raw_log="[1/100] CXX obj/test.o\nfatal error: 'v8.h' file not found",
+        all_diagnostics="1. fatal error: 'v8.h' file not found",
+        mode="compiler",
+    )
+
+    self.assertEqual(res["status"], "SUCCESS")
+    self.assertIn("Directives:", res["guidance"])
+    self.assertEqual(res["model_used"], "gemini-3.8-flash")
+    self.assertEqual(len(captured_prompts), 1)
+
+    prompt_text, sys_inst, model_called = captured_prompts[0]
+    self.assertEqual(model_called, "gemini-3.8-flash")
+    self.assertIn("OMNISCIENT visibility", sys_inst)
+    self.assertIn("--- Full Raw Build Output Log (Tail) ---", prompt_text)
+    self.assertIn("--- All Extracted Diagnostics in Current Build ---",
+                  prompt_text)
+    self.assertIn("--- Git Diff of Modifications in Current Session ---",
+                  prompt_text)
+    self.assertIn("--- Prior Iteration Attempt Trajectory ---", prompt_text)
+
+  def test_base_resolver_session_changes_tracking(self):
+    """Verifies BaseResolver records AgentChangeRecord into session_changes."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "cobalt", "sample.cc")
+      os.makedirs(os.path.dirname(test_file), exist_ok=True)
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write("int value = 1;\n")
+
+      session_changes = []
+
+      class DummyTrackingResolver(BaseResolver):
+        """Dummy tracking resolver for testing session changes."""
+
+        @property
+        def name(self):
+          return "DummyTracking"
+
+        def run_command(self, iteration):
+          if iteration == 1:
+            return False, "sample.cc:1: error: mismatch", ""
+          return True, "Build succeeded", ""
+
+        def extract_diagnostics(self, build_output, siso_output):
+          del build_output, siso_output
+          return ["sample.cc:1: error: mismatch"]
+
+        def resolve_diagnostic(self, diagnostic, history_records, **kwargs):
+          del diagnostic, history_records, kwargs
+          patch = ("### **FILE**: `cobalt/sample.cc`\n"
+                   "<<<<<<< SEARCH\n"
+                   "int value = 1;\n"
+                   "=======\n"
+                   "int value = 2;\n"
+                   ">>>>>>> REPLACE\n")
+          return patch, "gemini-3.7-flash", "cobalt/sample.cc"
+
+      resolver = DummyTrackingResolver(
+          repo_path=tmpdir,
+          max_iterations=5,
+          session_changes=session_changes,
+      )
+
+      # Run resolution loop: Iteration 1 will apply patch and record it;
+      # Iteration 2 will succeed.
+      ok = resolver.run_resolution_loop()
+      self.assertTrue(ok)
+      self.assertGreaterEqual(len(session_changes), 1)
+      first_change = session_changes[0]
+      self.assertEqual(first_change.phase, "DummyTracking")
+      self.assertEqual(first_change.target_file, "cobalt/sample.cc")
+      self.assertTrue(first_change.applied_cleanly)
+      self.assertIn("int value = 2;", first_change.changes)
+
+  def test_conflict_resolver_records_session_changes(self):
+    """Verifies resolve_file_conflicts appends records to session_changes."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "sample_conflict.cc")
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write(SAMPLE_CPP_CONFLICT)
+
+      session_changes = []
+      ok = resolve_file_conflicts(
+          file_path=test_file,
+          repo_path=tmpdir,
+          git_context="branch: test",
+          session_changes=session_changes,
+          mock_mode=True,
+      )
+      self.assertTrue(ok)
+      self.assertEqual(len(session_changes), 1)
+      rec = session_changes[0]
+      self.assertEqual(rec.phase, "resolve_conflicts")
+      self.assertEqual(rec.target_file, "sample_conflict.cc")
+      self.assertTrue(rec.applied_cleanly)
+      self.assertIn("InitChromiumDefaultMediaPipeline()", rec.changes)
+
+  def test_tool_get_history_and_last_ten_default(self):
+    """Verifies trajectory defaults to 10 and TOOL_GET_HISTORY handler."""
+    session_changes = [
+        AgentChangeRecord(
+            phase="Phase4",
+            iteration=i,
+            target_file=f"file_{i}.cc",
+            changes=f"// change {i}",
+            error=f"error in {i}" if i % 2 == 0 else None,
+        ) for i in range(1, 26)  # 25 records
+    ]
+
+    # 1. TOOL_GET_HISTORY: 5 (last 5 records)
+    res_last_5 = execute_local_tool(
+        "TOOL_GET_HISTORY: 5", ".", session_changes=session_changes)
+    self.assertIn("=== Last 5 Change Records (out of 25) ===", res_last_5)
+    self.assertIn("file_25.cc", res_last_5)
+    self.assertIn("file_21.cc", res_last_5)
+    self.assertNotIn("file_19.cc", res_last_5)
+
+    # 2. TOOL_GET_HISTORY: iteration 3
+    res_iter_3 = execute_local_tool(
+        "TOOL_GET_HISTORY: iteration 3", ".", session_changes=session_changes)
+    self.assertIn("=== Change Record for Iteration 3 ===", res_iter_3)
+    self.assertIn("file_3.cc", res_iter_3)
+    self.assertNotIn("file_4.cc", res_iter_3)
+
+    # 3. TOOL_GET_HISTORY: 2-4 (iteration range)
+    res_range = execute_local_tool(
+        "TOOL_GET_HISTORY: 2-4", ".", session_changes=session_changes)
+    self.assertIn("=== Change Records for Iterations 2-4 (3 records) ===",
+                  res_range)
+    self.assertIn("file_2.cc", res_range)
+    self.assertIn("file_3.cc", res_range)
+    self.assertIn("file_4.cc", res_range)
+    self.assertNotIn("file_5.cc", res_range)
+
+    # 4. TOOL_GET_HISTORY: all
+    res_all = execute_local_tool(
+        "TOOL_GET_HISTORY: all", ".", session_changes=session_changes)
+    self.assertIn("=== Full Change History (25 records) ===", res_all)
+    self.assertIn("file_1.cc", res_all)
+    self.assertIn("file_25.cc", res_all)
 
 
 if __name__ == "__main__":

@@ -8,15 +8,69 @@ shared by all rebase phases (gclient sync, gn gen, and autoninja).
 
 import abc
 import collections
+import dataclasses
 import os
 import re
 import subprocess
 import sys
+import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
+
+
+@dataclasses.dataclass
+class AgentChangeRecord:
+  """Tracks an agent modification and resulting build/command status."""
+
+  phase: str
+  iteration: int
+  target_file: str
+  changes: str
+  error: Optional[str] = None
+  command_output: Optional[str] = None
+  modified_files: List[str] = dataclasses.field(default_factory=list)
+  applied_cleanly: bool = True
+  timestamp: float = dataclasses.field(default_factory=time.time)
+
+  def to_dict(self) -> Dict[str, Any]:
+    return {
+        "phase": self.phase,
+        "iteration": self.iteration,
+        "target_file": self.target_file,
+        "changes": self.changes,
+        "error": self.error,
+        "command_output": self.command_output,
+        "modified_files": self.modified_files,
+        "applied_cleanly": self.applied_cleanly,
+        "timestamp": self.timestamp,
+    }
+
+  def to_prompt_str(self) -> str:
+    """Formats this record for LLM trajectory consumption."""
+    status_label = ("CLEAN (Build Passed)"
+                    if self.error is None else f"FAILED: {self.error}")
+    lines = [
+        (f"#### [{self.phase}] Iteration {self.iteration} -> "
+         f"Target: `{self.target_file}`"),
+        f"- Patch Applied Cleanly: {self.applied_cleanly}",
+        f"- Outcome Status: {status_label}",
+    ]
+    if self.changes:
+      lines.append("Patch Attempted:")
+      lines.append("```diff")
+      lines.append(self.changes.strip())
+      lines.append("```")
+    if self.error:
+      lines.append(f"- Resulting Command Error: `{self.error}`")
+    if self.command_output:
+      lines.append("Command Output Snippet:")
+      lines.append("```")
+      lines.append(self.command_output[-2500:].strip())
+      lines.append("```")
+    return "\n".join(lines)
 
 
 def get_clean_build_env(
@@ -555,7 +609,11 @@ def extract_tool_commands(text: str) -> List[str]:
   return commands
 
 
-def execute_local_tool(cmd: str, repo_path: str) -> str:
+def execute_local_tool(
+    cmd: str,
+    repo_path: str,
+    session_changes: Optional[List[AgentChangeRecord]] = None,
+) -> str:
   """Executes safe read-only multi-turn inspection tools for LLM."""
   clean_cmd = cmd.strip()
 
@@ -858,6 +916,54 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
     except Exception as e:  # pylint: disable=broad-exception-caught
       return f"[ERROR] gclient sync failed: {e}"
 
+  # 10. TOOL_GET_HISTORY: <count | all | iteration_number | start-end>
+  if clean_cmd.startswith(
+      ("TOOL_GET_HISTORY:", "TOOL_CHANGE_HISTORY:", "TOOL_HISTORY:")):
+    raw_args = clean_cmd.split(":", 1)[1].strip()
+    if not session_changes:
+      return (
+          "[NOTICE] No recorded change history available in this session yet.")
+
+    if raw_args.lower() in ("all", "full"):
+      return (
+          f"=== Full Change History ({len(session_changes)} records) ===\n\n" +
+          "\n\n".join(r.to_prompt_str() for r in session_changes))
+
+    # Check for iteration range: e.g. "1-5" or "1..5"
+    m_range = re.search(r"(\d+)\s*(?:-|to|\.\.)\s*(\d+)", raw_args)
+    if m_range:
+      s_iter = int(m_range.group(1))
+      e_iter = int(m_range.group(2))
+      matched = [r for r in session_changes if s_iter <= r.iteration <= e_iter]
+      if not matched:
+        return ("[NOTICE] No change records found in iteration range "
+                f"{s_iter}-{e_iter}.")
+      return (f"=== Change Records for Iterations {s_iter}-{e_iter} "
+              f"({len(matched)} records) ===\n\n" +
+              "\n\n".join(r.to_prompt_str() for r in matched))
+
+    # Check for specific iteration or count
+    m_iter = re.search(r"(?:iteration|iter|#)?\s*(\d+)", raw_args,
+                       re.IGNORECASE)
+    if m_iter:
+      num = int(m_iter.group(1))
+      if "iter" in raw_args.lower():
+        matched = [r for r in session_changes if r.iteration == num]
+        if not matched:
+          return f"[NOTICE] No change record found for iteration {num}."
+        return (f"=== Change Record for Iteration {num} ===\n\n" +
+                "\n\n".join(r.to_prompt_str() for r in matched))
+      matched = (
+          session_changes[-num:]
+          if num < len(session_changes) else session_changes)
+      return (f"=== Last {len(matched)} Change Records (out of "
+              f"{len(session_changes)}) ===\n\n" +
+              "\n\n".join(r.to_prompt_str() for r in matched))
+
+    return (
+        f"=== Full Change History ({len(session_changes)} records) ===\n\n" +
+        "\n\n".join(r.to_prompt_str() for r in session_changes))
+
   return f"[ERROR] Unknown tool command: {clean_cmd}"
 
 
@@ -890,6 +996,8 @@ def write_rebase_report(
     status: str,
     elapsed_seconds: float,
     repo_path: Optional[str] = None,
+    expert_model: Optional[str] = None,
+    session_changes: Optional[List[AgentChangeRecord]] = None,
 ) -> str:
   """Generates the final comprehensive rebase summary report."""
   milestone = get_chromium_milestone(repo_path)
@@ -899,6 +1007,23 @@ def write_rebase_report(
   report_path = os.path.join(results_dir, report_filename)
   comp_status = ("[OK] Clean"
                  if "SUCCESS" in status else "[WARNING] Requires Attention")
+  workhorse = model or "gemini-3.7-flash"
+  expert = expert_model or "gemini-3.8-flash"
+
+  changes_section = ""
+  if session_changes:
+    phase_counts = collections.Counter(c.phase for c in session_changes)
+    clean_counts = sum(1 for c in session_changes if c.applied_cleanly)
+    error_counts = sum(1 for c in session_changes if c.error is not None)
+    phase_breakdown = ", ".join(f"`{k}`: {v}" for k, v in phase_counts.items())
+    changes_section = f"""
+## 3. Autonomous Change Trajectory Summary
+- **Total Changes Recorded**: `{len(session_changes)}`
+- **Clean Patches Applied**: `{clean_counts}`
+- **Subsequent Errors/Breaks**: `{error_counts}`
+- **Changes by Phase**: {phase_breakdown}
+"""
+
   content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
 
 ## 1. Executive Summary
@@ -907,7 +1032,8 @@ def write_rebase_report(
 - **Platform**: `{platform}`
 - **Build Type**: `{build_type}`
 - **Target**: `{target}`
-- **Reasoning Model**: `{model}` (with `gemini-2.5-pro` escalation)
+- **Workhorse Model**: `{workhorse}`
+- **Expert Model**: `{expert}`
 - **Total Execution Time**: `{elapsed_seconds:.1f}s`
 
 ## 2. Rebase Pipeline Stages
@@ -917,7 +1043,7 @@ def write_rebase_report(
 | **Phase 2** | Toolchain Sync | `gclient sync -D` toolchain & CIPD sync | [OK] Completed |
 | **Phase 3** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
 | **Phase 4** | autoninja Loop | autoninja compiler healing | {comp_status} |
-"""
+{changes_section}"""
   try:
     with open(report_path, "w", encoding="utf-8") as f:
       f.write(content)
@@ -943,12 +1069,17 @@ class BaseResolver(abc.ABC):
       engine: Optional[Any] = None,
       max_iterations: int = 50,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
+      session_changes: Optional[List[AgentChangeRecord]] = None,
+      **kwargs: Any,
   ):
+    del kwargs
     self.repo_path = repo_path
     self.max_iterations = max_iterations
     self.on_patch_applied_fn = on_patch_applied_fn
     self.reasoning_engine = engine
     self.file_error_counts: Dict[str, int] = collections.defaultdict(int)
+    self.session_changes: List[AgentChangeRecord] = (
+        session_changes if session_changes is not None else [])
 
   @property
   def model(self) -> str:
@@ -988,7 +1119,7 @@ class BaseResolver(abc.ABC):
     if self.on_patch_applied_fn:
       self.on_patch_applied_fn(modified_files)
 
-  def get_working_diff(self) -> str:
+  def get_working_diff(self, max_chars: int = 200000) -> str:
     """Returns git diff of uncommitted modifications in repository."""
     try:
       proc = subprocess.run(
@@ -1001,7 +1132,7 @@ class BaseResolver(abc.ABC):
           check=False,
       )
       if proc.returncode == 0 and proc.stdout:
-        return proc.stdout[:16384]
+        return proc.stdout[:max_chars]
     except Exception:  # pylint: disable=broad-exception-caught
       pass
     return ""
@@ -1062,7 +1193,8 @@ class BaseResolver(abc.ABC):
             f"{prefix}Model requested: {tool_cmd}",
             file=sys.stderr,
         )
-        tool_output = execute_local_tool(tool_cmd, self.repo_path)
+        tool_output = execute_local_tool(
+            tool_cmd, self.repo_path, session_changes=self.session_changes)
         if len(tool_cmds) > 1:
           batch_outputs.append(
               f"=== Result for {tool_cmd} ===\n{tool_output}\n")
@@ -1107,6 +1239,7 @@ class BaseResolver(abc.ABC):
     stuck_count = 0
     history_records: List[Dict[str, Any]] = []
     pending_fix: Optional[Dict[str, Any]] = None
+    pending_record: Optional[AgentChangeRecord] = None
 
     for iteration in range(1, self.max_iterations + 1):
       print(
@@ -1120,6 +1253,8 @@ class BaseResolver(abc.ABC):
             f"{iteration}/{self.max_iterations}!",
             file=sys.stderr,
         )
+        if pending_record is not None:
+          pending_record.error = None
         if pending_fix and self.reasoning_engine is not None:
           self.reasoning_engine.record_successful_fix(
               issue_description=pending_fix["error"],
@@ -1156,6 +1291,12 @@ class BaseResolver(abc.ABC):
           loc_str = f" in {diag_file}:{diag_line}"
 
       error_summary = diag_msg.strip().splitlines()[0] if diag_msg else ""
+
+      # Update the outcome of the previous patch attempt
+      if pending_record is not None:
+        pending_record.error = error_summary
+        pending_record.command_output = (output + "\n" +
+                                         (siso_out or ""))[-4000:]
 
       # If previous fix succeeded in eliminating that error, record it
       if pending_fix and self.reasoning_engine is not None:
@@ -1218,15 +1359,28 @@ class BaseResolver(abc.ABC):
               check=False,
           )
           self.on_patch_applied([target_f])
+          revert_msg = (
+              f"Reverted {rel_target_file} to clean baseline due to "
+              f"repeated failed fix attempts ({error_summary}). Please "
+              "re-investigate with an alternative approach.")
           history_records.append({
               "iteration": iteration,
               "file": rel_target_file,
-              "error":
-                  (f"Reverted {rel_target_file} to clean baseline due to "
-                   f"repeated failed fix attempts ({error_summary}). Please "
-                   "re-investigate with an alternative approach."),
+              "error": revert_msg,
               "status": "REVERTED_TO_BASELINE",
           })
+          self.session_changes.append(
+              AgentChangeRecord(
+                  phase=self.name,
+                  iteration=iteration,
+                  target_file=rel_target_file,
+                  changes=(
+                      f"# Reverted {rel_target_file} to clean baseline HEAD"),
+                  error=(f"Repeated failure ({error_summary}); reverted to "
+                         "baseline"),
+                  modified_files=[target_f],
+                  applied_cleanly=True,
+              ))
         except (OSError, subprocess.SubprocessError) as rev_err:
           print(
               f"  [{self.name}] Notice: Revert failed for "
@@ -1258,15 +1412,37 @@ class BaseResolver(abc.ABC):
             f"{target_f or self.name}...",
             file=sys.stderr,
         )
-        working_diff = self.get_working_diff()
-        history_lines = []
-        for h in history_records[-6:]:
-          it = h.get("iteration", "")
-          hf = h.get("file", "")
-          he = h.get("error", "")
-          history_lines.append(
-              f"- Iteration {it}: Modified {hf} -> Error: {he}")
-        traj_str = "\n".join(history_lines)
+        working_diff = self.get_working_diff(max_chars=200000)
+        default_count = 10
+        total_records = len(self.session_changes)
+        if total_records > default_count:
+          header = (
+              f"Showing the last {default_count} of {total_records} changes in "
+              "this session. Use "
+              "`TOOL_GET_HISTORY: <count_or_iteration_number>` to inspect "
+              "earlier records or specific iterations.")
+          trajectory_slice = self.session_changes[-default_count:]
+          full_trajectory = header + "\n\n" + "\n\n".join(
+              r.to_prompt_str() for r in trajectory_slice)
+        else:
+          full_trajectory = "\n\n".join(
+              r.to_prompt_str() for r in self.session_changes)
+        if total_records > 0:
+          injected_count = min(total_records, default_count)
+          print(
+              f"  [{self.name}] [TIER-2 ARCHITECT] Injected {injected_count} "
+              f"of {total_records} session change records into expert prompt.",
+              file=sys.stderr,
+          )
+        raw_cmd_tail = (output + "\n" + (siso_out or ""))[-30000:]
+
+        def _format_diag(d: Any) -> str:
+          fp = getattr(d, "file_path", "")
+          ln = getattr(d, "line_number", 1)
+          msg = getattr(d, "error_message", str(d))
+          return f"- {fp}:{ln} {msg}"
+
+        all_diags_str = "\n".join(_format_diag(d) for d in diagnostics[:20])
 
         if hasattr(first_diag, "error_message"):
           notes_part = ("\n" + "\n".join(first_diag.notes)) if getattr(
@@ -1297,32 +1473,57 @@ class BaseResolver(abc.ABC):
           except OSError:
             pass
 
-        try:
-          guidance_res = self.reasoning_engine.generate_expert_guidance(
-              target=getattr(first_diag, "file_path", self.name),
-              diagnostics=diag_trace,
-              source_contexts=file_ctx,
-              trajectory_history=traj_str,
-              working_diff=working_diff,
-              mode="gn" if "gn" in self.name.lower() else "compiler",
-          )
-          expert_guidance = guidance_res.get("guidance", "")
-          if expert_guidance and re.search(
-              r"^(TOOL_[A-Z_]+:.*)$", expert_guidance.strip(), re.MULTILINE):
-            expert_guidance, _ = self.execute_investigation_tools(
-                initial_patch=expert_guidance,
-                diagnostic=first_diag,
+        expert_investigation_history = ""
+        for expert_round in range(1, 4):
+          try:
+            guidance_res = self.reasoning_engine.generate_expert_guidance(
+                target=getattr(first_diag, "file_path", self.name),
+                diagnostics=diag_trace,
+                source_contexts=file_ctx,
+                trajectory_history=full_trajectory,
+                working_diff=working_diff,
+                raw_log=raw_cmd_tail,
+                all_diagnostics=all_diags_str,
+                investigation_history=expert_investigation_history,
+                mode="gn" if "gn" in self.name.lower() else
+                ("sync" if "sync" in self.name.lower() else "compiler"),
+                expert_model=getattr(self.reasoning_engine, "expert_model",
+                                     "gemini-3.8-flash"),
             )
-          if expert_guidance:
-            first_g_line = expert_guidance.splitlines()[0][:100]
+            expert_guidance = guidance_res.get("guidance", "")
+            tool_cmds = extract_tool_commands(expert_guidance)
+            if tool_cmds and expert_round < 3:
+              batch_tool_res = []
+              for t_cmd in tool_cmds:
+                print(
+                    f"  [{self.name}] [TIER-2 ARCHITECT] Tool requested: "
+                    f"{t_cmd}",
+                    file=sys.stderr,
+                )
+                t_out = execute_local_tool(
+                    t_cmd,
+                    self.repo_path,
+                    session_changes=self.session_changes,
+                )
+                batch_tool_res.append(
+                    f"Tool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
+              expert_investigation_history += ("\n\n" +
+                                               "\n\n".join(batch_tool_res))
+              continue
+            break
+          except Exception as e:  # pylint: disable=broad-exception-caught
             print(
-                f"  [{self.name}] [TIER-2 ARCHITECT] Pre-Flight Plan:\n"
-                f"  >>> {first_g_line}...",
+                f"  [{self.name}] Notice: Pre-flight expert guidance query: "
+                f"{e}",
                 file=sys.stderr,
             )
-        except Exception as e:  # pylint: disable=broad-exception-caught
+            break
+
+        if expert_guidance:
+          first_g_line = expert_guidance.splitlines()[0][:100]
           print(
-              f"  [{self.name}] Notice: Pre-flight expert guidance query: {e}",
+              f"  [{self.name}] [TIER-2 ARCHITECT] Pre-Flight Plan:\n"
+              f"  >>> {first_g_line}...",
               file=sys.stderr,
           )
 
@@ -1369,6 +1570,18 @@ class BaseResolver(abc.ABC):
               "patch": patch,
               "file": rel_target,
           }
+        new_record = AgentChangeRecord(
+            phase=self.name,
+            iteration=iteration,
+            target_file=rel_target,
+            changes=patch,
+            error=None,
+            command_output=None,
+            modified_files=list(modified_files),
+            applied_cleanly=True,
+        )
+        self.session_changes.append(new_record)
+        pending_record = new_record
         history_records.append({
             "iteration": iteration,
             "file": rel_target,
@@ -1382,6 +1595,18 @@ class BaseResolver(abc.ABC):
             f"  {patch[:300].strip()}",
             file=sys.stderr,
         )
+        fail_record = AgentChangeRecord(
+            phase=self.name,
+            iteration=iteration,
+            target_file=rel_target,
+            changes=patch,
+            error=f"Patch failed to apply to {rel_target}",
+            command_output=None,
+            modified_files=[],
+            applied_cleanly=False,
+        )
+        self.session_changes.append(fail_record)
+        pending_record = None
         history_records.append({
             "iteration": iteration,
             "file": rel_target,
