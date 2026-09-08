@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.BuildInfo;
 import org.chromium.base.CommandLine;
-import org.chromium.base.CommandLineInitUtil;
 
 // ==========
 // IMPORTANT:
@@ -31,16 +30,6 @@ import org.chromium.base.CommandLineInitUtil;
 /** Helper class to provide commandLine Overrides. */
 public final class CommandLineOverrideHelper {
   private CommandLineOverrideHelper() {} // Prevent instantiation.
-
-  /**
-   * Initializes the command line from the "content-shell-command-line" file if present (used by
-   * Telemetry and automated tests).
-   */
-  public static void initializeContentShellCommandLine() {
-    if (!CommandLine.isInitialized()) {
-      CommandLineInitUtil.initCommandLine("content-shell-command-line", () -> true);
-    }
-  }
 
   /** Param class to simplify #getFlagOverrides method signature */
   public static class CommandLineOverrideHelperParams {
