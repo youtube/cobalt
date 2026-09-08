@@ -663,18 +663,18 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
           defer_v8_code_cache_write) {
         // Route V8 cache write through ThreadScheduler's Idle queue to free up thread
         // space for more critical work on startup.
-        auto code_cache_task = WTF::BindOnce(&DelayedProduceCodeCacheTask,
-                                             WrapPersistent(script_state),
-                                             v8::Global<v8::Script>(isolate, script),
-                                             WrapPersistent(cache_handler),
-                                             classic_script->SourceText().length(),
-                                             classic_script->SourceUrl(),
-                                             classic_script->StartPosition());
+        auto code_cache_task = BindOnce(&DelayedProduceCodeCacheTask,
+                                        WrapPersistent(script_state),
+                                        v8::Global<v8::Script>(isolate, script),
+                                        WrapPersistent(cache_handler),
+                                        classic_script->SourceText().length(),
+                                        classic_script->SourceUrl(),
+                                        classic_script->StartPosition());
 
         if (auto* scheduler = ThreadScheduler::Current()) {
           scheduler->PostDelayedIdleTask(
               FROM_HERE, base::Milliseconds(1),
-              WTF::BindOnce(
+              base::BindOnce(
                   [](base::OnceClosure task, base::TimeTicks /* deadline */) {
                     std::move(task).Run();
                   },
