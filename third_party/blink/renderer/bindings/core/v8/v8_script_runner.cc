@@ -654,7 +654,7 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
           cache_handler) {
         cache_handler->WillProduceCodeCache();
       }
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
       static const bool defer_v8_code_cache_write =
           base::CommandLine::ForCurrentProcess()->HasSwitch(
               "defer-v8-code-cache-write");
