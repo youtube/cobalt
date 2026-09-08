@@ -101,8 +101,8 @@ jobs:
           # 1. Checkout starting target: PR (with optional commit SHA) or direct commit SHA
           if [[ -n "${PR_NUM}" ]]; then
             echo "Fetching PR #${PR_NUM}..."
-            git fetch origin "pull/${PR_NUM}/head:pr-${PR_NUM}"
-            git checkout "pr-${PR_NUM}"
+            git fetch origin "pull/${PR_NUM}/head"
+            git checkout -B "pr-${PR_NUM}" FETCH_HEAD
 
             if [[ -n "${COMMIT_SHA}" ]]; then
               echo "Checking out target commit SHA inside PR #${PR_NUM}: ${COMMIT_SHA}..."
@@ -134,8 +134,8 @@ jobs:
           # 3. Download rebase scripts to an isolated directory outside the src/ git repository
           echo "Fetching latest rebase pipeline scripts into ${GITHUB_WORKSPACE}/rebase_agent..."
           mkdir -p "${GITHUB_WORKSPACE}/rebase_agent"
-          git fetch origin "${AGENT_REF}:${AGENT_REF}" || true
-          git --work-tree="${GITHUB_WORKSPACE}/rebase_agent" checkout "origin/${AGENT_REF}" -- .github/rebase
+          git fetch origin "${AGENT_REF}"
+          git --work-tree="${GITHUB_WORKSPACE}/rebase_agent" checkout FETCH_HEAD -- .github/rebase
 
           echo "pr_num=${PR_NUM}" >> "${GITHUB_OUTPUT}"
           echo "base_branch=${BASE_NAME}" >> "${GITHUB_OUTPUT}"
