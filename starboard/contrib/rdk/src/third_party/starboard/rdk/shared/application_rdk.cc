@@ -247,22 +247,27 @@ SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
     error = true;
   }
 
-  if (resize_pending_) {
+  if (!error && resize_pending_) {
     EssContextResizeWindow(ctx_, window_width_, window_height_);
     resize_pending_ = false;
   }
 
-  if (!EssContextCreateNativeWindow(ctx_, window_width_, window_height_,
-                                    &native_window_)) {
-    error = true;
-  } else if (!EssContextStart(ctx_)) {
-    error = true;
+  if (!error) {
+    if (!EssContextCreateNativeWindow(ctx_, window_width_, window_height_,
+                                      &native_window_)) {
+      error = true;
+    } else if (!EssContextStart(ctx_)) {
+      error = true;
+      EssContextDestroyNativeWindow(ctx_, native_window_);
+      native_window_ = 0;
+    }
   }
 
   if (error) {
     const char* detail = EssContextGetLastErrorDetail(ctx_);
     SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
     FatalError();
+    return kSbWindowInvalid;
   }
 
   window_ = new SbWindowPrivate(options);
@@ -337,6 +342,7 @@ void ApplicationRdk::OnResume() {
   if (!EssContextStart(ctx_)) {
     const char* detail = EssContextGetLastErrorDetail(ctx_);
     SB_LOG(ERROR) << "Essos error on start: '" << detail << '\'';
+    FatalError();
   }
 
   if (!(monitor_timer_fd_ < 0) && hang_monitor_) {
