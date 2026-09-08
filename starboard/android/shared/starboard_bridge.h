@@ -99,7 +99,7 @@ class StarboardBridge {
       JNIEnv* env,
       jlong native_service,
       const char* service_name);
-  void CloseCobaltService(JNIEnv* env, const char* service_name);
+  void CloseCobaltService(JNIEnv* env, jlong native_service);
   bool HasCobaltService(JNIEnv* env, const char* service_name);
   void CloseAllCobaltService(JNIEnv* env) const;
 
