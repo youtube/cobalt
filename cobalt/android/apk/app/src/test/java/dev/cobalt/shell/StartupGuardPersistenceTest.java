@@ -21,23 +21,23 @@ public class StartupGuardPersistenceTest {
   public void setUp() {
     context = ApplicationProvider.getApplicationContext();
     // Clean up previous files if any
-    new File(context.getFilesDir(), "java_startup_state.bin").delete();
-    new File(context.getFilesDir(), "java_startup_state_previous.bin").delete();
+    new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME).delete();
+    new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_PREVIOUS_FILE_NAME).delete();
     StartupGuard.getInstance().resetForTesting();
   }
 
   @Test
   public void testInitializeRenamesPreviousFile() throws Exception {
-    File priorFile = new File(context.getFilesDir(), "java_startup_state.bin");
+    File priorFile = new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME);
     priorFile.createNewFile();
 
     StartupGuard guard = StartupGuard.getInstance();
     guard.initializePersistenceInternal(context, context.getFilesDir());
 
     // Assert the prior file was moved to _previous
-    File prevFile = new File(context.getFilesDir(), "java_startup_state_previous.bin");
+    File prevFile = new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_PREVIOUS_FILE_NAME);
     assertTrue(prevFile.exists());
-    assertTrue(new File(context.getFilesDir(), "java_startup_state.bin").exists());
+    assertTrue(new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME).exists());
   }
 
   @Test
@@ -49,7 +49,7 @@ public class StartupGuardPersistenceTest {
     guard.setStartupMilestone(1);
     guard.setStartupMilestone(3);
 
-    File currentStateFile = new File(context.getFilesDir(), "java_startup_state.bin");
+    File currentStateFile = new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME);
     assertTrue(currentStateFile.exists());
 
     try (RandomAccessFile raf = new RandomAccessFile(currentStateFile, "r")) {

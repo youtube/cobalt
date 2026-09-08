@@ -35,6 +35,9 @@ import org.chromium.base.PathUtils;
  * `Cobalt.Startup.MilestoneReached`.
  */
 public class StartupGuard {
+  public static final String STARTUP_STATE_FILE_NAME = "java_startup_state.bin";
+  public static final String STARTUP_STATE_PREVIOUS_FILE_NAME = "java_startup_state_previous.bin";
+
   private final Handler handler;
   private final Runnable crashRunnable;
   private final AtomicLong startupStatus = new AtomicLong(0L);
@@ -79,12 +82,12 @@ public class StartupGuard {
         dir.mkdirs();
       }
 
-      File file = new File(dir, "java_startup_state.bin");
+      File file = new File(dir, STARTUP_STATE_FILE_NAME);
       // If a file from the previous session exists, rename it so C++ can harvest the previous
       // session's
       // state without racing with this fresh session's writes.
       if (file.exists()) {
-        File prevFile = new File(dir, "java_startup_state_previous.bin");
+        File prevFile = new File(dir, STARTUP_STATE_PREVIOUS_FILE_NAME);
         if (prevFile.exists()) {
           prevFile.delete();
         }

@@ -225,25 +225,30 @@ void HarvestJavaStartupMetrics() {
   // intentionally fires *after* PMA mounts in `PreEarlyInitialization` to
   // ensure these writes survive secondary crashes.
   base::FilePath app_data_dir;
-  if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
-    base::FilePath state_file =
-        app_data_dir.AppendASCII("java_startup_state_previous.bin");
-    if (base::PathExists(state_file)) {
-      std::string content;
-      if (base::ReadFileToString(state_file, &content) && content.size() == 8) {
-        uint64_t startup_status = 0;
-        memcpy(&startup_status, content.data(), 8);
-        // We exclusively rescue Java Milestones 1-4 that spin up before JNI is
-        // available.
-        for (int i = 1; i <= 4; ++i) {
-          if (startup_status & (1ULL << i)) {
-            base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", i);
-          }
-        }
+  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
+    return;
+  }
+
+  base::FilePath state_file =
+      app_data_dir.AppendASCII("java_startup_state_previous.bin");
+  if (!base::PathExists(state_file)) {
+    return;
+  }
+
+  std::string content;
+  if (base::ReadFileToString(state_file, &content) && content.size() == 8) {
+    uint64_t startup_status = 0;
+    memcpy(&startup_status, content.data(), 8);
+    // We exclusively rescue Java Milestones 1-4 that spin up before JNI is
+    // available.
+    for (int i = 1; i <= 4; ++i) {
+      if (startup_status & (1ULL << i)) {
+        base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", i);
       }
-      base::DeleteFile(state_file);
     }
   }
+
+  base::DeleteFile(state_file);
 }
 #endif
 
