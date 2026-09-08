@@ -32,7 +32,7 @@ public class StartupGuardPersistenceTest {
     priorFile.createNewFile();
 
     StartupGuard guard = StartupGuard.getInstance();
-    guard.initializePersistence(context);
+    guard.initializePersistenceInternal(context, context.getFilesDir());
 
     // Assert the prior file was moved to _previous
     File prevFile = new File(context.getFilesDir(), "java_startup_state_previous.bin");
@@ -43,7 +43,7 @@ public class StartupGuardPersistenceTest {
   @Test
   public void testSetStartupMilestoneWritesToBuffer() throws Exception {
     StartupGuard guard = StartupGuard.getInstance();
-    guard.initializePersistence(context);
+    guard.initializePersistenceInternal(context, context.getFilesDir());
 
     // Flip bits 1 and 3 (0x0A)
     guard.setStartupMilestone(1);
