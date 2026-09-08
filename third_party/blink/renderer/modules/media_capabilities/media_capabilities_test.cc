@@ -528,8 +528,8 @@ TEST(MediaCapabilitiesTests, CobaltExtraMimeParameters) {
     MediaCapabilitiesTestContext context;
 
     MediaDecodingConfiguration* decoding_config =
-        CreateAudioConfig<MediaDecodingConfiguration>(mime_type,
-                                                      "media-source");
+        CreateAudioConfig<MediaDecodingConfiguration>(
+            mime_type, V8MediaDecodingType::Enum::kMediaSource);
 
     MediaCapabilitiesInfo* info = DecodingInfo(decoding_config, &context);
     EXPECT_TRUE(info->supported())
@@ -546,8 +546,8 @@ TEST(MediaCapabilitiesTests, CobaltMissingCodecsWithParameters) {
       "audio/webm; enableflushduringseek=true; enableresetaudiodecoder=true";
 
   MediaDecodingConfiguration* decoding_config =
-      CreateAudioConfig<MediaDecodingConfiguration>(kInvalidCobaltMimeType,
-                                                    "media-source");
+      CreateAudioConfig<MediaDecodingConfiguration>(
+          kInvalidCobaltMimeType, V8MediaDecodingType::Enum::kMediaSource);
 
   context.GetMediaCapabilities()->decodingInfo(
       context.GetScriptState(), decoding_config,
