@@ -2,5 +2,5 @@ import("//cobalt/build/configs/linux_modular_common.gn")
 
 use_evergreen = true
 
-# Decouple ICU data file to reduce runtime anonymous dirty memory footprint (b/552779286).
+# Decouple ICU data file to reduce runtime anonymous dirty memory footprint.
 icu_use_data_file = true
