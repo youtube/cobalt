@@ -33,6 +33,11 @@ declare_args() {
   use_evergreen = false
 
   use_tsan = false
+
+  # Optional path to a prebuilt libcobalt shared library (.so).
+  # When specified, Evergreen and AOSP builds will copy this prebuilt library
+  # into libcobalt.so rather than compiling it from source.
+  prebuilt_libcobalt_path = ""
 }
 
 declare_args() {

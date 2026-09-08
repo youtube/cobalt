@@ -70,9 +70,23 @@ template("loader_final_target") {
       write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
     }
 
-    shared_library(original_target_name) {
-      forward_variables_from(invoker, "*")
-      not_needed("*")
+    if (prebuilt_libcobalt_path != "" && original_target_name == "cobalt") {
+      not_needed(invoker,
+                 "*",
+                 [
+                   "testonly",
+                   "visibility",
+                 ])
+      copy(original_target_name) {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+        sources = [ prebuilt_libcobalt_path ]
+        outputs = [ "$root_out_dir/lib${original_target_name}.so" ]
+      }
+    } else {
+      shared_library(original_target_name) {
+        forward_variables_from(invoker, "*")
+        not_needed("*")
+      }
     }
 
     # TODO: b/421951995 - Use original loader target instead of copy target.
@@ -221,8 +235,23 @@ template("evergreen_final_target") {
       data_deps = deps  # Needed for the .runtime_deps file.
     }
 
-    shared_library(original_target_name) {
-      forward_variables_from(invoker, "*", [ "lib_name" ])
+    if (prebuilt_libcobalt_path != "" &&
+        (original_target_name == "cobalt" || lib_name == "libcobalt")) {
+      not_needed(invoker,
+                 "*",
+                 [
+                   "testonly",
+                   "visibility",
+                 ])
+      copy(original_target_name) {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+        sources = [ prebuilt_libcobalt_path ]
+        outputs = [ "$root_out_dir/${lib_name}.so" ]
+      }
+    } else {
+      shared_library(original_target_name) {
+        forward_variables_from(invoker, "*", [ "lib_name" ])
+      }
     }
   }
 }
@@ -244,9 +273,21 @@ template("modular_executable") {
   }
 
   if (is_android) {
-    target("executable", _name) {
-      forward_variables_from(invoker, "*")
-      not_needed("*")
+    if (prebuilt_libcobalt_path != "" && _name == "cobalt") {
+      not_needed(invoker,
+                 "*",
+                 [
+                   "testonly",
+                   "visibility",
+                 ])
+      group(_name) {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      }
+    } else {
+      target("executable", _name) {
+        forward_variables_from(invoker, "*")
+        not_needed("*")
+      }
     }
     modular_apk("${_name}_apk") {
       forward_variables_from(invoker, [ "testonly" ])
