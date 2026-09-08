@@ -414,11 +414,10 @@ ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
       ConvertUTF8ToJavaString(env, service_name));
 }
 
-void StarboardBridge::CloseCobaltService(JNIEnv* env,
-                                         const char* service_name) {
+void StarboardBridge::CloseCobaltService(JNIEnv* env, jlong native_service) {
   SB_CHECK(env);
-  Java_BaseStarboardBridge_closeCobaltService(
-      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+  Java_BaseStarboardBridge_closeCobaltService(env, j_starboard_bridge_,
+                                              native_service);
 }
 
 bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
