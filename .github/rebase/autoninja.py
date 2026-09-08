@@ -147,8 +147,9 @@ def parse_compiler_errors(build_output: str,
       col_no = int(col_str) if col_str else 0
       abs_path = resolve_repo_file_path(raw_path, repo_path)
 
-      # Grab surrounding lines as snippet
-      snippet_lines = lines[max(0, idx - 4):min(len(lines), idx + 16)]
+      # Grab surrounding compiler lines (up to 30 lines before to capture
+      # include stacks, 20 lines after)
+      snippet_lines = lines[max(0, idx - 30):min(len(lines), idx + 20)]
       diagnostics.append(
           CompilerDiagnostic(
               file_path=abs_path,
@@ -379,10 +380,8 @@ class AutoninjaResolver(BaseResolver):
 
     file_context = ""
     is_text_file = diagnostic.file_path.endswith(TEXT_FILE_EXTENSIONS)
-    is_linker_error = diagnostic.error_message.startswith("Linker error:")
 
-    if not is_linker_error and is_text_file and os.path.isfile(
-        diagnostic.file_path):
+    if is_text_file and os.path.isfile(diagnostic.file_path):
       try:
         # Protect against opening abnormally huge files into memory
         if os.path.getsize(diagnostic.file_path) <= MAX_CONTEXT_FILE_SIZE_BYTES:
@@ -395,8 +394,8 @@ class AutoninjaResolver(BaseResolver):
             lines = f.readlines()
           is_build_file = diagnostic.file_path.endswith(BUILD_FILE_EXTENSIONS)
           # Send full context for small build files or repeated errors (>= 3)
-          send_full_file = (len(lines) <= 250 and is_build_file) or (
-              len(lines) <= 250 and
+          send_full_file = (len(lines) <= 300 and is_build_file) or (
+              len(lines) <= 300 and
               self.file_error_counts.get(diagnostic.file_path, 0) >= 3)
           if send_full_file:
             rel_path = os.path.relpath(diagnostic.file_path, self.repo_path)

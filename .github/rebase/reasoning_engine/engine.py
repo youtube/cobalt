@@ -122,6 +122,8 @@ class CobaltReasoningEngine:
     self.skill_cache: Dict[str, str] = {
         "cobalt_rebase":
             load_skill("cobalt_rebase", self.skills_dir),
+        "cobalt_rebase_patterns":
+            load_skill("cobalt_rebase_patterns", self.skills_dir),
         "conflict_resolution":
             load_skill("conflict_resolution", self.skills_dir),
         "gn_healing":
@@ -631,6 +633,7 @@ class CobaltReasoningEngine:
     domain_skill = self._get_skill(
         "conflict_resolution" if mode == "conflict" else (
             "gn_healing" if mode == "gn" else "compiler_healing"))
+    patterns_skill = self._get_skill("cobalt_rebase_patterns")
     roll_history_skill = self._get_skill("roll_history")
 
     sys_inst = (
@@ -665,6 +668,7 @@ class CobaltReasoningEngine:
         "type substitution, or header include to apply.\n\n"
         f"--- Rebase Guidelines ---\n{rebase_skill}\n\n"
         f"--- Domain Skill ---\n{domain_skill}\n\n"
+        f"--- Cobalt Rebase Patterns & Stubs Hygiene ---\n{patterns_skill}\n\n"
         f"--- Historical Ground-Truth Roll References (M139-M141) ---\n"
         f"{roll_history_skill}\n")
 
@@ -900,6 +904,7 @@ class CobaltReasoningEngine:
                     self.expert_model) if use_expert else self.flash_model
     rebase_skill = self._get_skill("cobalt_rebase")
     compiler_skill = self._get_skill("compiler_healing")
+    patterns_skill = self._get_skill("cobalt_rebase_patterns")
 
     effective_past = (
         past_experience or self.get_past_experience(f"{eff_target} {eff_diag}"))
@@ -923,10 +928,12 @@ class CobaltReasoningEngine:
     gn_skill_section = (f"\n\n--- GN Healing Skill ---\n{gn_skill_text}"
                         if is_gn_target else "")
 
-    sys_inst = ("You are an expert Chromium and Cobalt systems engineer.\n\n"
-                f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
-                f"--- Compiler Healing Skill ---\n{compiler_skill}"
-                f"{gn_skill_section}\n")
+    sys_inst = (
+        "You are an expert Chromium and Cobalt systems engineer.\n\n"
+        f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
+        f"--- Compiler Healing Skill ---\n{compiler_skill}\n\n"
+        f"--- Cobalt Rebase Patterns & Stubs Hygiene ---\n{patterns_skill}"
+        f"{gn_skill_section}\n")
     prompt = (
         f"autoninja build for \"{eff_target}\" failed.\n\n"
         f"{expert_section}"

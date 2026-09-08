@@ -15,6 +15,7 @@ from autoninja import (
     parse_compiler_errors,
 )
 from base_resolver import (
+    BaseResolver,
     _COBALT_GIT_HISTORY_CACHE,
     apply_patch_or_replacement,
     execute_local_tool,
@@ -1289,6 +1290,301 @@ target("foo") {{}}
       with mock.patch(
           "base_resolver.has_cobalt_git_history", return_value=False):
         self.assertFalse(is_unmodified_third_party(cobalt_tp, tmpdir))
+
+  def test_base_resolver_circuit_breaker_abort(self):
+    """Verifies BaseResolver aborts loops when error repeats 8 times."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      iteration_count = 0
+
+      class DummyBreakerResolver(BaseResolver):
+        """Mock resolver for testing circuit breaker abort."""
+
+        @property
+        def name(self) -> str:
+          return "DummyBreakerResolver"
+
+        def run_command(self, iteration: int):
+          del iteration  # Unused.
+          nonlocal iteration_count
+          iteration_count += 1
+          return False, "persistent_syntax_error.cc:10: error: bad token", ""
+
+        def extract_diagnostics(self, output: str, siso_out: str):
+          del siso_out  # Unused.
+          return [output]
+
+        def resolve_diagnostic(
+            self,
+            diagnostic,
+            history_records,
+            use_expert=False,
+            expert_guidance="",
+        ):
+          del diagnostic, history_records  # Unused.
+          del use_expert, expert_guidance  # Unused.
+          return "", "flash", "persistent_syntax_error.cc"
+
+      resolver = DummyBreakerResolver(repo_path=tmpdir, max_iterations=20)
+      res = resolver.run_resolution_loop()
+      self.assertFalse(res)
+      # Iteration 1: stuck_count = 0; Iteration 2: stuck_count = 1; ...
+      # Iteration 9: stuck_count = 8 -> circuit breaker triggers and halts loop
+      self.assertEqual(iteration_count, 9)
+
+  def test_base_resolver_delayed_fix_recording(self):
+    """Verifies fix is only recorded in engine when verified cleared."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "cobalt", "test.cc")
+      os.makedirs(os.path.dirname(test_file), exist_ok=True)
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write("original code\n")
+
+      clean_patch = ("FILE: cobalt/test.cc\n"
+                     "<<<<<<< SEARCH\n"
+                     "original code\n"
+                     "=======\n"
+                     "fixed code\n"
+                     ">>>>>>> REPLACE\n")
+
+      call_step = 0
+      recorded_fixes = []
+
+      class MockEngine:
+
+        def record_successful_fix(self, **kwargs):
+          recorded_fixes.append(kwargs)
+
+      class DummyVerifyResolver(BaseResolver):
+        """Mock resolver for verifying delayed fix recording."""
+
+        @property
+        def name(self) -> str:
+          return "DummyVerifyResolver"
+
+        def run_command(self, iteration: int):
+          del iteration  # Unused.
+          nonlocal call_step
+          call_step += 1
+          if call_step == 1:
+            return False, "cobalt/test.cc:1: error: original error", ""
+          # Iteration 2: build succeeds
+          return True, "", ""
+
+        def extract_diagnostics(self, output: str, siso_out: str):
+          del siso_out  # Unused.
+          return [output]
+
+        def resolve_diagnostic(
+            self,
+            diagnostic,
+            history_records,
+            use_expert=False,
+            expert_guidance="",
+        ):
+          del diagnostic, history_records  # Unused.
+          del use_expert, expert_guidance  # Unused.
+          return clean_patch, "flash", "cobalt/test.cc"
+
+      resolver = DummyVerifyResolver(repo_path=tmpdir, max_iterations=5)
+      resolver.reasoning_engine = MockEngine()
+      success = resolver.run_resolution_loop()
+      self.assertTrue(success)
+      # Fix should be recorded upon verified success on iteration 2
+      self.assertEqual(len(recorded_fixes), 1)
+      self.assertEqual(recorded_fixes[0]["target_file"], "cobalt/test.cc")
+      self.assertIn("original error", recorded_fixes[0]["issue_description"])
+
+  def test_parse_compiler_errors_full_include_stack(self):
+    """Verifies parse_compiler_errors captures up to 30 lines of stack."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      leaf_file = os.path.join(tmpdir, "mojo", "public", "cpp", "bindings",
+                               "pending_receiver.h")
+      os.makedirs(os.path.dirname(leaf_file), exist_ok=True)
+      with open(leaf_file, "w", encoding="utf-8") as f:
+        f.write("// header\n")
+
+      build_output = (
+          "In file included from ../../third_party/blink/renderer/modules/"
+          "cobalt_modules_stubs.cc:451:\n"
+          "In file included from ../../third_party/blink/renderer/modules/xr/"
+          "xr_webgl_layer.h:11:\n"
+          "In file included from ../../third_party/blink/renderer/modules/xr/"
+          "xr_webgl_rendering_context.h:11:\n"
+          "In file included from ../../third_party/blink/renderer/platform/"
+          "mojo/cross_variant_mojo_util.h:15:\n"
+          "../../mojo/public/cpp/bindings/pending_receiver.h:25:3: error: "
+          "no template named 'PendingReceiverConverter'; did you mean "
+          "'::mojo::PendingReceiverConverter'?\n"
+          "  PendingReceiverConverter<T>::Convert();\n"
+          "  ^~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+      diags = parse_compiler_errors(build_output, tmpdir)
+      self.assertEqual(len(diags), 1)
+      diag = diags[0]
+      self.assertEqual(diag.file_path, leaf_file)
+      self.assertEqual(diag.line_number, 25)
+      self.assertEqual(diag.column, 3)
+      self.assertIn("no template named 'PendingReceiverConverter'",
+                    diag.error_message)
+      # Full 30-line window ensures the entire include stack is in raw_snippet
+      self.assertIn("cobalt_modules_stubs.cc:451", diag.raw_snippet)
+      self.assertIn("xr_webgl_layer.h:11", diag.raw_snippet)
+      self.assertIn("cross_variant_mojo_util.h:15", diag.raw_snippet)
+
+  def test_autoninja_resolve_diagnostic_passes_full_snippet_and_guard(self):
+    """Verifies resolve_diagnostic passes raw_snippet and guard directly."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      source_file = os.path.join(tmpdir, "third_party", "blink", "util.h")
+      os.makedirs(os.path.dirname(source_file), exist_ok=True)
+      with open(source_file, "w", encoding="utf-8") as f:
+        f.write("// third party header\n")
+
+      resolver = AutoninjaResolver(
+          repo_path=tmpdir, out_dir="out/test", target="cobalt_apk")
+      snippet_with_stack = (
+          "In file included from ../../cobalt/stubs.cc:451:\n"
+          "../../third_party/blink/util.h:25:3: error: invalid type\n")
+      diag = CompilerDiagnostic(
+          file_path=source_file,
+          line_number=25,
+          column=3,
+          error_message="invalid type",
+          raw_snippet=snippet_with_stack,
+          notes=[],
+      )
+
+      called_error_trace = []
+
+      class MockEngine:
+        flash_model = "gemini-2.5-flash"
+        pro_model = "gemini-2.5-pro"
+
+        def heal_compiler_error(self, **kwargs):
+          called_error_trace.append(kwargs.get("error_trace", ""))
+          return {"status": "SUCCESS", "patch": "", "model_used": "flash"}
+
+      resolver.reasoning_engine = MockEngine()
+      with unittest.mock.patch(
+          "autoninja.is_unmodified_third_party", return_value=True):
+        resolver.resolve_diagnostic(diag, [])
+
+      self.assertEqual(len(called_error_trace), 1)
+      # Verifies snippet with stack was passed unadulterated to the LLM
+      self.assertIn("cobalt/stubs.cc:451", called_error_trace[0])
+      self.assertIn("invalid type", called_error_trace[0])
+      # Verifies standard read-only guard is included
+      self.assertIn("CRITICAL GUARD", called_error_trace[0])
+      self.assertIn("strictly READ-ONLY", called_error_trace[0])
+
+  def test_parse_compiler_errors_linker_build_file_mapping(self):
+    """Verifies that linker errors map archives to their BUILD.gn."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      build_gn = os.path.join(tmpdir, "third_party", "blink", "renderer",
+                              "bindings", "modules", "v8", "BUILD.gn")
+      os.makedirs(os.path.dirname(build_gn), exist_ok=True)
+      with open(build_gn, "w", encoding="utf-8") as f:
+        f.write("# BUILD.gn\n")
+
+      build_output = (
+          "ld.lld: error: undefined symbol: "
+          "blink::V8GPUTextureViewDimension::string_table_\n"
+          ">>> referenced by xr_gpu_sub_image.h:0 "
+          "(../../third_party/blink/renderer/modules/xr/xr_gpu_sub_image.h:0)\n"
+          ">>>               v8/v8_xr_gpu_sub_image.o:"
+          "(blink::XRGPUSubImage::getViewDescriptor() const) in archive "
+          "obj/third_party/blink/renderer/bindings/modules/v8/libv8.a\n"
+          "ld.lld: error: undefined symbol: "
+          "blink::GPUTextureViewDescriptor::GPUTextureViewDescriptor()\n")
+
+      diags = parse_compiler_errors(build_output, tmpdir)
+      self.assertEqual(len(diags), 1)
+      diag = diags[0]
+      self.assertEqual(diag.file_path, build_gn)
+      self.assertIn(
+          "undefined symbol: blink::V8GPUTextureViewDimension::string_table_",
+          diag.error_message)
+      self.assertIn("v8_xr_gpu_sub_image.o", diag.raw_snippet)
+
+  def test_apply_patch_or_replacement_code_fence_and_bold_file(self):
+    """Verifies parser handles code fences between FILE and SEARCH."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "cobalt", "config.gni")
+      os.makedirs(os.path.dirname(test_file), exist_ok=True)
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write('target_os = "linux"\nfoo_flag = false\n')
+
+      patch_text = ("Let me analyze the build failure.\n"
+                    "### **FILE**: `cobalt/config.gni`\n"
+                    "```gn\n"
+                    "<<<<<<< SEARCH\n"
+                    "foo_flag = false\n"
+                    "=======\n"
+                    "foo_flag = true\n"
+                    ">>>>>>> REPLACE\n"
+                    "```\n")
+
+      modified = apply_patch_or_replacement(patch_text, tmpdir)
+      self.assertEqual(len(modified), 1)
+      with open(test_file, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertIn("foo_flag = true", content)
+
+  def test_apply_patch_or_replacement_with_default_file(self):
+    """Verifies apply_patch_or_replacement falls back to default_file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "cobalt", "settings.cc")
+      os.makedirs(os.path.dirname(test_file), exist_ok=True)
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write("void Init() {\n  int val = 1;\n}\n")
+
+      patch_text = ("Fixing settings:\n"
+                    "<<<<<<< SEARCH\n"
+                    "  int val = 1;\n"
+                    "=======\n"
+                    "  int val = 2;\n"
+                    ">>>>>>> REPLACE\n")
+
+      modified = apply_patch_or_replacement(
+          patch_text, tmpdir, default_file="cobalt/settings.cc")
+      self.assertEqual(len(modified), 1)
+      with open(test_file, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertIn("int val = 2;", content)
+
+  def test_linker_diagnostic_file_context_inclusion(self):
+    """Verifies file_context is sent for text files on linker diagnostics."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      gni_file = os.path.join(tmpdir, "cobalt", "build.gni")
+      os.makedirs(os.path.dirname(gni_file), exist_ok=True)
+      with open(gni_file, "w", encoding="utf-8") as f:
+        f.write('cobalt_exclude = [\n  "pattern1",\n]\n')
+
+      resolver = AutoninjaResolver(
+          repo_path=tmpdir, out_dir="out/test", target="cobalt_apk")
+      diag = CompilerDiagnostic(
+          file_path=gni_file,
+          line_number=2,
+          column=1,
+          error_message="Linker error: undefined symbol: foo",
+          raw_snippet="ld.lld: error: undefined symbol: foo",
+          notes=[],
+      )
+
+      captured_context = []
+
+      class MockEngine:
+        flash_model = "gemini-2.5-flash"
+        pro_model = "gemini-2.5-pro"
+
+        def heal_compiler_error(self, **kwargs):
+          captured_context.append(kwargs.get("file_context", ""))
+          return {"status": "SUCCESS", "patch": "", "model_used": "flash"}
+
+      resolver.reasoning_engine = MockEngine()
+      resolver.resolve_diagnostic(diag, [])
+
+      self.assertEqual(len(captured_context), 1)
+      self.assertIn("cobalt_exclude = [", captured_context[0])
 
 
 if __name__ == "__main__":

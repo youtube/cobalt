@@ -126,12 +126,13 @@ def has_cobalt_git_history(rel_path: str, repo_path: str) -> bool:
         repo_path,
         "log",
         "-n",
-        "30",
+        "50",
         "--format=%ae%x09%s",
         "--",
         rel_path,
     ]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    res = subprocess.run(
+        cmd, cwd=repo_path, capture_output=True, text=True, check=False)
     if res.returncode != 0:
       _COBALT_GIT_HISTORY_CACHE[cache_key] = False
       return False
@@ -306,6 +307,11 @@ def apply_search_replace(file_path: str, search_block: str,
   with open(file_path, "r", encoding="utf-8", errors="replace") as f:
     content = f.read()
 
+  # Normalize CRLF to LF across search, replace, and file content
+  search_block = search_block.replace("\r\n", "\n")
+  clean_replace = clean_replace.replace("\r\n", "\n")
+  content = content.replace("\r\n", "\n")
+
   # 1. Exact match
   if search_block in content:
     new_content = content.replace(search_block, clean_replace, 1)
@@ -422,7 +428,11 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
     return []
 
 
-def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
+def apply_patch_or_replacement(
+    patch_text: str,
+    repo_path: str,
+    default_file: Optional[str] = None,
+) -> List[str]:
   """Parses and dispatches AI patch responses (SEARCH/REPLACE, DELETE, diffs).
   """
   clean_text = patch_text.strip()
@@ -432,67 +442,83 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
   # 1. Explicit DELETE block: <<<<<<< DELETE ... >>>>>>> DELETE
   if "<<<<<<< DELETE" in clean_text and ">>>>>>> DELETE" in clean_text:
     del_pattern = re.compile(
-        r"(?:FILE|Target File|\*\*FILE\*\*|\*\*Target File\*\*):\s*"
-        r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*\s*[\r\n]+"
-        r"(?:\s*[\r\n]+)*"
-        r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE",
-        re.DOTALL,
+        r"(?:(?:#{1,6}\s*)?(?:FILE|File|TARGET FILE|Target File|"
+        r"\*\*FILE\*\*|\*\*Target File\*\*|\*\*File\*\*):\s*"
+        r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*\s*[\r\n]+)?"
+        r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
+        r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE"
+        r"(?:\s*```)?",
+        re.DOTALL | re.IGNORECASE,
     )
     matches = del_pattern.findall(clean_text)
     if matches:
       modified_files = []
       for rel_file, delete_b in matches:
-        target_file = resolve_repo_file_path(rel_file, repo_path)
+        target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
+            default_file or "")
+        if not target_rel:
+          continue
+        target_file = resolve_repo_file_path(target_rel, repo_path)
         if not validate_patch_target(
-            target_file, rel_file, repo_path, operation_name="DELETE"):
+            target_file, target_rel, repo_path, operation_name="DELETE"):
           return []
         applied = apply_search_replace(target_file, delete_b, "")
         if applied:
           modified_files.append(target_file)
         else:
           return []
-      return modified_files
+      if modified_files:
+        return modified_files
 
   # 2. SEARCH / REPLACE format: <<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE
   if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
     sr_pattern = re.compile(
-        r"(?:FILE|Target File|\*\*FILE\*\*|\*\*Target File\*\*):\s*"
-        r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*\s*[\r\n]+"
-        r"(?:\s*[\r\n]+)*"
+        r"(?:(?:#{1,6}\s*)?(?:FILE|File|TARGET FILE|Target File|"
+        r"\*\*FILE\*\*|\*\*Target File\*\*|\*\*File\*\*):\s*"
+        r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*\s*[\r\n]+)?"
+        r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
         r"<<<<<<<\s*SEARCH\r?\n(.*?)\r?\n"
-        r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE",
-        re.DOTALL,
+        r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE"
+        r"(?:\s*```)?",
+        re.DOTALL | re.IGNORECASE,
     )
     matches = sr_pattern.findall(clean_text)
     if matches:
       modified_files = []
       for rel_file, search_b, replace_b in matches:
-        if not replace_b.strip() and len(search_b.splitlines()) > 80:
+        target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
+            default_file or "")
+        if not target_rel:
+          continue
+        # Strip trailing ``` from replace_b if any leaked in
+        clean_replace = re.sub(r"\n```\s*$", "", replace_b)
+        if not clean_replace.strip() and len(search_b.splitlines()) > 80:
           print(
               f"  [GUARD] Rejecting bulk empty REPLACE block "
-              f"({len(search_b.splitlines())} lines) in {rel_file}. Use "
+              f"({len(search_b.splitlines())} lines) in {target_rel}. Use "
               "<<<<<<< DELETE ... >>>>>>> DELETE for intentional bulk "
               "removals.",
               file=sys.stderr,
           )
           return []
-        if re.search(r"^(?:FILE|Target File):", replace_b, re.MULTILINE):
+        if re.search(r"^(?:FILE|Target File):", clean_replace, re.MULTILINE):
           print(
-              f"  [GUARD] Rejecting malformed REPLACE block in {rel_file} "
+              f"  [GUARD] Rejecting malformed REPLACE block in {target_rel} "
               "containing nested FILE directives.",
               file=sys.stderr,
           )
           return []
-        target_file = resolve_repo_file_path(rel_file, repo_path)
+        target_file = resolve_repo_file_path(target_rel, repo_path)
         if not validate_patch_target(
-            target_file, rel_file, repo_path, operation_name="patch"):
+            target_file, target_rel, repo_path, operation_name="patch"):
           return []
-        applied = apply_search_replace(target_file, search_b, replace_b)
+        applied = apply_search_replace(target_file, search_b, clean_replace)
         if applied:
           modified_files.append(target_file)
         else:
           return []
-      return modified_files
+      if modified_files:
+        return modified_files
 
   return apply_unified_diff(clean_text, repo_path)
 
@@ -1043,12 +1069,6 @@ class BaseResolver(abc.ABC):
         else:
           batch_outputs.append(tool_output)
 
-        read_m = re.search(r"TOOL_READ_FILE:\s*([^\s]+)", tool_cmd)
-        if read_m and hasattr(diagnostic, "file_path"):
-          cand_path = resolve_repo_file_path(read_m.group(1), self.repo_path)
-          if os.path.isfile(cand_path):
-            diagnostic.file_path = cand_path
-
       if repeated:
         batch_outputs.append(
             "\n=== SYSTEM NOTICE: Repeated tool request. You have already "
@@ -1086,6 +1106,7 @@ class BaseResolver(abc.ABC):
     last_error_summary = ""
     stuck_count = 0
     history_records: List[Dict[str, Any]] = []
+    pending_fix: Optional[Dict[str, Any]] = None
 
     for iteration in range(1, self.max_iterations + 1):
       print(
@@ -1099,6 +1120,12 @@ class BaseResolver(abc.ABC):
             f"{iteration}/{self.max_iterations}!",
             file=sys.stderr,
         )
+        if pending_fix and self.reasoning_engine is not None:
+          self.reasoning_engine.record_successful_fix(
+              issue_description=pending_fix["error"],
+              solution_diff=pending_fix["patch"],
+              target_file=pending_fix["file"],
+          )
         return True
 
       diagnostics = self.extract_diagnostics(output, siso_out)
@@ -1119,14 +1146,28 @@ class BaseResolver(abc.ABC):
       diag_file = getattr(first_diag, "file_path", "")
       diag_line = getattr(first_diag, "line_number", 0)
       loc_str = ""
+      rel_f = ""
       if diag_file:
         try:
           rel_f = os.path.relpath(diag_file, self.repo_path)
           loc_str = f" in {rel_f}:{diag_line}"
         except ValueError:
+          rel_f = diag_file
           loc_str = f" in {diag_file}:{diag_line}"
 
       error_summary = diag_msg.strip().splitlines()[0] if diag_msg else ""
+
+      # If previous fix succeeded in eliminating that error, record it
+      if pending_fix and self.reasoning_engine is not None:
+        if (pending_fix["error"] != error_summary or
+            pending_fix["file"] != rel_f):
+          self.reasoning_engine.record_successful_fix(
+              issue_description=pending_fix["error"],
+              solution_diff=pending_fix["patch"],
+              target_file=pending_fix["file"],
+          )
+      pending_fix = None
+
       print(
           f"[{self.name}] Detected {len(diagnostics)} error(s):\n"
           f"  - Error{loc_str}: {error_summary}",
@@ -1147,6 +1188,8 @@ class BaseResolver(abc.ABC):
           file_diag_counts[f_path] += 1
 
       target_f = getattr(first_diag, "file_path", "")
+      rel_target_file = (
+          os.path.relpath(target_f, self.repo_path) if target_f else "")
       if target_f:
         self.file_error_counts[target_f] += 1
 
@@ -1157,6 +1200,49 @@ class BaseResolver(abc.ABC):
       else:
         stuck_count = 0
       last_error_summary = error_summary
+
+      # --- Anti-Loop: Revert bad edits after repeated failures ---
+      if stuck_count in (3, 5) and rel_target_file and os.path.isfile(target_f):
+        print(
+            f"  [{self.name}] [Anti-Loop] Error '{error_summary}' repeated "
+            f"{stuck_count} times on {rel_target_file}. Reverting local edits "
+            f"in {rel_target_file} to clean baseline HEAD...",
+            file=sys.stderr,
+        )
+        try:
+          subprocess.run(
+              ["git", "checkout", "HEAD", "--", rel_target_file],
+              cwd=self.repo_path,
+              capture_output=True,
+              text=True,
+              check=False,
+          )
+          self.on_patch_applied([target_f])
+          history_records.append({
+              "iteration": iteration,
+              "file": rel_target_file,
+              "error":
+                  (f"Reverted {rel_target_file} to clean baseline due to "
+                   f"repeated failed fix attempts ({error_summary}). Please "
+                   "re-investigate with an alternative approach."),
+              "status": "REVERTED_TO_BASELINE",
+          })
+        except (OSError, subprocess.SubprocessError) as rev_err:
+          print(
+              f"  [{self.name}] Notice: Revert failed for "
+              f"{rel_target_file}: {rev_err}",
+              file=sys.stderr,
+          )
+
+      # --- Anti-Loop Circuit Breaker: Abort runaway build loops ---
+      if stuck_count >= 8:
+        print(
+            f"\n[{self.name}] [CIRCUIT BREAKER] Aborting resolution loop: "
+            f"exceeded maximum repetition limit ({stuck_count}) on "
+            f"{rel_target_file or error_summary}. Halting runaway build.",
+            file=sys.stderr,
+        )
+        break
 
       use_expert = stuck_count >= 2 or self.file_error_counts.get(target_f,
                                                                   0) >= 3
@@ -1182,9 +1268,17 @@ class BaseResolver(abc.ABC):
               f"- Iteration {it}: Modified {hf} -> Error: {he}")
         traj_str = "\n".join(history_lines)
 
-        diag_trace = (
-            first_diag.error_message
-            if hasattr(first_diag, "error_message") else str(first_diag))
+        if hasattr(first_diag, "error_message"):
+          notes_part = ("\n" + "\n".join(first_diag.notes)) if getattr(
+              first_diag, "notes", None) else ""
+          snippet_part = (f"\nSnippet:\n{first_diag.raw_snippet}") if getattr(
+              first_diag, "raw_snippet", None) else ""
+          diag_line = getattr(first_diag, "line_number", 1)
+          diag_trace = (f"{first_diag.file_path}:{diag_line}: "
+                        f"{first_diag.error_message}{snippet_part}{notes_part}")
+        else:
+          diag_trace = str(first_diag)
+
         file_ctx = ""
         if hasattr(first_diag, "file_path") and os.path.isfile(
             first_diag.file_path):
@@ -1257,7 +1351,8 @@ class BaseResolver(abc.ABC):
           f"{rel_target}...",
           file=sys.stderr,
       )
-      modified_files = apply_patch_or_replacement(patch, self.repo_path)
+      modified_files = apply_patch_or_replacement(
+          patch, self.repo_path, default_file=rel_target)
       if modified_files:
         mod_summary = ", ".join(
             os.path.relpath(f, self.repo_path) for f in modified_files)
@@ -1266,11 +1361,12 @@ class BaseResolver(abc.ABC):
             file=sys.stderr,
         )
         self.on_patch_applied(modified_files)
-        self.reasoning_engine.record_successful_fix(
-            issue_description=error_summary,
-            solution_diff=patch,
-            target_file=rel_target,
-        )
+        if self.reasoning_engine is not None:
+          pending_fix = {
+              "error": error_summary,
+              "patch": patch,
+              "file": rel_target,
+          }
         history_records.append({
             "iteration": iteration,
             "file": rel_target,

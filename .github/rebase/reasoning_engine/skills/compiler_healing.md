@@ -118,7 +118,65 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
    - When a feature is disabled via GN flags (e.g., `enable_privacy_sandbox_apis = false`, `enable_vulkan = false`):
      * DO NOT re-add excluded sources to `BUILD.gn` to satisfy linker errors.
      * DO wrap referencing call sites in core C++ files with `#if BUILDFLAG(...)` to completely strip dead code and minimize `libchrobalt.so` binary footprint.
+7. MISPLACED `#include` DIRECTIVES INSIDE NAMESPACE BLOCKS (NAMESPACE HIJACKING):
+   - When Clang reports:
+     `error: no template named 'X'; did you mean '::ns::X'?`
+     `error: unknown type name 'Y'; did you mean '::ns::Y'?`
+     inside a third-party or system header that defines `namespace ns`:
+   - ROOT CAUSE: An upstream or first-party file (e.g., `cobalt_modules_stubs.cc` or custom shims) placed `#include` directives in the middle of the file after an open `namespace` block (e.g. `namespace blink { #include ... }`).
+   - When a header is included inside an open namespace, C++ evaluates all namespaces inside that header as nested namespaces (e.g. `::blink::mojo` or `::blink::media`), breaking root-level lookup.
+   - HEALING PROCEDURE:
+     * Inspect the `In file included from ...` call stack to trace back to the root first-party `.cc` file.
+     * Use `TOOL_READ_FILE` around the inclusion site in the root file.
+     * Move ALL `#include` directives to the top of the file before any `namespace` declarations.
+     * Ensure the outer namespace is properly closed before any mid-file stubs or includes.
+8. REDUNDANT OR NESTED NAMESPACE DECLARATIONS (`namespace blink::blink` / `does not enclose namespace`):
+   - When Clang reports:
+     `error: cannot define or redeclare 'X' here because namespace 'blink' does not enclose namespace 'Y'`
+     `error: no member named 'Z' in namespace 'blink::blink'; did you mean simply 'Z'?`
+   - ROOT CAUSE: An inner `namespace blink {` block was opened while an outer `namespace blink {` was still active without a closing brace `}`. This nests the namespace into `namespace blink::blink`.
+   - HEALING PROCEDURE:
+     * Use `TOOL_READ_FILE` to inspect preceding lines above the error site.
+     * Check if an earlier `namespace blink {` (e.g. at line 50) was already opened and not closed.
+     * Remove the redundant inner `namespace blink {` opening line, OR insert a closing `}  // namespace blink` prior to declaring new stubs/classes.
+     * Check brace depth across the entire stub file to ensure every `{` has a matching `}`.
 
+9. LINKER ERRORS FROM PRUNED MODULES & V8 BINDINGS (WebXR / WebGPU / WebNN / AI / Hardware):
+   - When `ld.lld: error: undefined symbol: blink::XR*`, `blink::GPU*`, `blink::V8GPU*`, or symbols in `obj/third_party/blink/renderer/bindings/modules/v8/libv8.a` fail to link in `libchrobalt.so`:
+   - DIAGNOSTIC TARGET: The build runner maps `obj/.../libv8.a` to its enclosing build file: `third_party/blink/renderer/bindings/modules/v8/BUILD.gn`.
+   - ROOT CAUSE: Cobalt prunes heavy subsystems (WebXR, WebGPU, WebNN, AI, Bluetooth, HID, USB) to minimize binary footprint. Their C++ module implementations are excluded from the build. Their generated V8 bindings MUST be excluded from `third_party/blink/renderer/bindings/modules/v8/BUILD.gn` using exclude patterns defined in `third_party/blink/renderer/bindings/bindings.gni`.
+   - If cherry-picks or conflict resolution accidentally removed entries from `cobalt_webgpu_exclude_patterns` in `bindings.gni`, all V8 binding files are pulled into `libv8.a`, producing dozens of undefined symbol linker errors.
+   - HEALING PROCEDURE:
+     * When `third_party/blink/renderer/bindings/modules/v8/BUILD.gn` is reported as the failing file: DO NOT edit `modules/v8/BUILD.gn`!
+     * DO NOT implement dozens of dummy stubs in `cobalt_modules_stubs.cc`.
+     * Inspect `third_party/blink/renderer/bindings/bindings.gni` using `TOOL_READ_FILE: third_party/blink/renderer/bindings/bindings.gni 280-320`.
+     * Verify that `cobalt_webgpu_exclude_patterns` contains `"*v8_xr.*"` and `"*v8_xr_*"`.
+     * If they are missing, restore them immediately by targeting `FILE: third_party/blink/renderer/bindings/bindings.gni`:
+       ```gn
+       FILE: third_party/blink/renderer/bindings/bindings.gni
+       <<<<<<< SEARCH
+         cobalt_webgpu_exclude_patterns = [
+           "*v8_canvas_2d_gpu_*",
+           "*v8_gpu.*",
+           "*v8_gpu_*",
+           "*v8_ml.*",
+           "*v8_ml_*",
+           "*v8_union_*gpu*",
+         ]
+       =======
+         cobalt_webgpu_exclude_patterns = [
+           "*v8_canvas_2d_gpu_*",
+           "*v8_gpu.*",
+           "*v8_gpu_*",
+           "*v8_ml.*",
+           "*v8_ml_*",
+           "*v8_xr.*",
+           "*v8_xr_*",
+           "*v8_union_*gpu*",
+         ]
+       >>>>>>> REPLACE
+       ```
+     * When to use `cobalt_modules_stubs.cc`: Use `cobalt_modules_stubs.cc` ONLY when a non-pruned subsystem (or core Blink) requires a specific single symbol from a stripped module (e.g. a minimal constructor/destructor or `STUB_V8_WRAPPER`).
 
 ---
 
