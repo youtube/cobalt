@@ -31,6 +31,8 @@ class GNDiagnostic:
   raw_output: str
   target_files: Dict[str, Optional[int]]
   is_structural_break: bool
+  file_path: str = ""
+  line_number: int = 1
 
 
 def extract_gn_target_files(
@@ -199,12 +201,16 @@ class GNGenResolver(BaseResolver):
         "expecting assignment",
         "syntax error",
     ))
+    first_file = next(iter(target_files.keys()), "") if target_files else ""
+    first_line = target_files.get(first_file) or 1 if first_file else 1
     return [
         GNDiagnostic(
             error_message=error_summary,
             raw_output=build_output,
             target_files=target_files,
             is_structural_break=is_structural,
+            file_path=first_file,
+            line_number=first_line,
         )
     ]
 

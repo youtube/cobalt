@@ -31,6 +31,7 @@ from conflicts import (
     resolve_file_conflicts,
 )
 from engine_client import ReasoningEngineClient
+from gclient_sync import GClientSyncDiagnostic
 from gn_gen import GNDiagnostic, GNGenResolver, extract_gn_target_files
 from reasoning_engine import CobaltReasoningEngine
 from reasoning_engine import deploy
@@ -1585,6 +1586,28 @@ target("foo") {{}}
 
       self.assertEqual(len(captured_context), 1)
       self.assertIn("cobalt_exclude = [", captured_context[0])
+
+  def test_tier2_preflight_diagnostic_attribute_safety(self):
+    """Verifies that diagnostics work without missing attribute errors."""
+    sync_diag = GClientSyncDiagnostic(
+        error_message="Hook 'python3 configure_siso.py' failed",
+        raw_output="raw error",
+        diagnostic_trace="diagnostic trace text",
+    )
+    self.assertTrue(hasattr(sync_diag, "file_path"))
+    self.assertTrue(hasattr(sync_diag, "line_number"))
+
+    gn_diag = GNDiagnostic(
+        error_message="GN Error",
+        raw_output="raw gn output",
+        target_files={"BUILD.gn": 10},
+        is_structural_break=False,
+        file_path="BUILD.gn",
+        line_number=10,
+    )
+    self.assertTrue(hasattr(gn_diag, "file_path"))
+    self.assertEqual(gn_diag.file_path, "BUILD.gn")
+    self.assertEqual(gn_diag.line_number, 10)
 
 
 if __name__ == "__main__":

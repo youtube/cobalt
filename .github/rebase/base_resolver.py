@@ -1274,8 +1274,10 @@ class BaseResolver(abc.ABC):
           snippet_part = (f"\nSnippet:\n{first_diag.raw_snippet}") if getattr(
               first_diag, "raw_snippet", None) else ""
           diag_line = getattr(first_diag, "line_number", 1)
-          diag_trace = (f"{first_diag.file_path}:{diag_line}: "
-                        f"{first_diag.error_message}{snippet_part}{notes_part}")
+          diag_file = getattr(first_diag, "file_path", "")
+          prefix = f"{diag_file}:{diag_line}: " if diag_file else ""
+          diag_trace = getattr(first_diag, "diagnostic_trace", None) or (
+              f"{prefix}{first_diag.error_message}{snippet_part}{notes_part}")
         else:
           diag_trace = str(first_diag)
 

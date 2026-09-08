@@ -58,6 +58,8 @@ class GClientSyncDiagnostic:
   error_message: str
   raw_output: str
   diagnostic_trace: str
+  file_path: str = "DEPS"
+  line_number: int = 1
 
 
 def extract_sync_diagnostic_trace(output: str) -> str:
@@ -121,7 +123,12 @@ class GClientSyncResolver(BaseResolver):
           file=sys.stderr,
       )
       subprocess.run(
-          [sys.executable, cfg_script, f"--rbe_instance={rbe_inst}"],
+          [
+              sys.executable,
+              cfg_script,
+              f"--rbe_instance={rbe_inst}",
+              "--reapi_backend_config_path=cobalt.star",
+          ],
           cwd=self.repo_path,
           env=env,
           capture_output=True,
