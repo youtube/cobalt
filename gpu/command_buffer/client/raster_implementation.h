@@ -301,8 +301,10 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
 #if BUILDFLAG(IS_COBALT)
   // Fast path for Cobalt in-process direct raster. Passes a pointer payload
   // wrapping the finalized DisplayItemList and image transfer cache IDs to
-  // the GPU raster decoder, bypassing PaintOp serialization.
-  void RasterCHROMIUMInProcess(
+  // the GPU raster decoder, bypassing PaintOp serialization. Returns false if
+  // any unsupported features (e.g. gainmap images) require fallback to
+  // standard serialization.
+  bool RasterCHROMIUMInProcess(
       const cc::DisplayItemList* list,
       cc::ImageProvider* provider,
       const gfx::Size& content_size,
