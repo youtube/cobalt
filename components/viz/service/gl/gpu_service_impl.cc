@@ -135,11 +135,6 @@
 #include "ui/ozone/public/surface_factory_ozone.h"
 #endif  // BUILDFLAG(IS_OZONE)
 
-#if BUILDFLAG(IS_COBALT)
-#include "ui/gl/gl_display.h"
-#include "ui/gl/gl_surface_egl.h"
-#endif  // BUILDFLAG(IS_COBALT)
-
 namespace viz {
 
 namespace {
@@ -288,29 +283,6 @@ GpuServiceImpl::GpuServiceImpl(
 
   weak_ptr_ = weak_ptr_factory_.GetWeakPtr();
 }
-
-#if BUILDFLAG(IS_COBALT)
-GpuServiceImpl::PendingEstablishGpuChannelRequest::
-    PendingEstablishGpuChannelRequest(int32_t client_id,
-                                      uint64_t client_tracing_id,
-                                      bool is_gpu_host,
-                                      EstablishGpuChannelCallback callback)
-    : client_id(client_id),
-      client_tracing_id(client_tracing_id),
-      is_gpu_host(is_gpu_host),
-      callback(std::move(callback)) {}
-
-GpuServiceImpl::PendingEstablishGpuChannelRequest::
-    PendingEstablishGpuChannelRequest(
-        PendingEstablishGpuChannelRequest&& other) = default;
-
-GpuServiceImpl::PendingEstablishGpuChannelRequest&
-GpuServiceImpl::PendingEstablishGpuChannelRequest::operator=(
-    PendingEstablishGpuChannelRequest&& other) = default;
-
-GpuServiceImpl::PendingEstablishGpuChannelRequest::
-    ~PendingEstablishGpuChannelRequest() = default;
-#endif  // BUILDFLAG(IS_COBALT)
 
 GpuServiceImpl::GpuServiceImpl()
     : clear_shader_cache_(base::FeatureList::IsEnabled(
@@ -947,18 +919,6 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
     return;
   }
 
-#if BUILDFLAG(IS_COBALT)
-  // Queue requests received while the display is shut down for backgrounding
-  // rather than returning a transient failure, avoiding an infinite retry loop
-  // from clients during suspend.
-  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-  if (display && !display->IsInitialized()) {
-    pending_establish_gpu_channel_requests_.push_back(
-        {client_id, client_tracing_id, is_gpu_host, std::move(callback)});
-    return;
-  }
-#endif
-
   auto channel_token = base::UnguessableToken::Create();
   gpu::GpuChannel* gpu_channel = gpu_channel_manager_->EstablishChannel(
       channel_token, client_id, client_tracing_id, is_gpu_host, gpu_extra_info_,
@@ -1127,8 +1087,8 @@ void GpuServiceImpl::OnBackgroundCleanup() {
 }
 
 void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
-  // Currently called on Android and Cobalt.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
+  // Currently only called on Android.
+#if BUILDFLAG(IS_ANDROID)
   if (!main_runner_->BelongsToCurrentThread()) {
     main_runner_->PostTask(
         FROM_HERE,
@@ -1138,22 +1098,14 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
   }
   DVLOG(1) << "GPU: Performing background cleanup";
   gpu_channel_manager_->OnBackgroundCleanup();
-#if BUILDFLAG(IS_COBALT)
-  // Shut down the GL display synchronously after all channels, shared contexts,
-  // and surfaces have been released so the barrier reply guarantees total teardown.
-  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-  if (display && display->IsInitialized()) {
-    display->Shutdown();
-  }
-#endif
 #else
   NOTREACHED();
 #endif
 }
 
 void GpuServiceImpl::OnBackgroundCleanupCompositorGpuThread() {
-  // Currently called on Android and Cobalt.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
+  // Currently only called on Android.
+#if BUILDFLAG(IS_ANDROID)
   if (compositor_gpu_thread_)
     compositor_gpu_thread_->OnBackgroundCleanup();
 #else
@@ -1200,52 +1152,6 @@ void GpuServiceImpl::OnForegrounded() {
 }
 
 void GpuServiceImpl::OnForegroundedOnMainThread() {
-#if BUILDFLAG(IS_COBALT)
-  // Re-initialize the EGL display and default offscreen surface before servicing
-  // any channel establishment requests. On background cleanup, the display is
-  // shut down to release all GPU resources. Re-initializing the platform display
-  // here at the top-level service boundary ensures that GpuChannelManager has a
-  // valid default offscreen surface before any queued or new GPU channels
-  // attempt to initialize SharedContextState or bind textures. Doing this
-  // centrally in GpuServiceImpl keeps GpuChannelManager's offscreen surface
-  // accessor simple and avoids lazy-initialization races across client threads.
-  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-  if (display) {
-    if (!display->IsInitialized()) {
-      gl::init::GetOrInitializeGLOneOffPlatformImplementation(
-          /*fallback_to_software_gl=*/false,
-          /*disable_gl_drawing=*/false,
-          /*init_extensions=*/true,
-          gl::GpuPreference::kDefault);
-    }
-    if (display->IsInitialized() &&
-        !gpu_channel_manager_->default_offscreen_surface()) {
-      scoped_refptr<gl::GLSurface> surface =
-          gl::init::CreateOffscreenGLSurface(display, gfx::Size());
-      gpu_channel_manager_->SetDefaultOffscreenSurface(std::move(surface));
-    }
-  }
-
-  // Fulfill all channel establishment requests that arrived while backgrounded,
-  // now that the display and default offscreen surface are re-initialized.
-  bool display_ready = display && display->IsInitialized();
-  auto pending_requests = std::move(pending_establish_gpu_channel_requests_);
-  pending_establish_gpu_channel_requests_.clear();
-  for (auto& request : pending_requests) {
-    if (display_ready) {
-      EstablishGpuChannel(request.client_id, request.client_tracing_id,
-                          request.is_gpu_host, std::move(request.callback));
-    } else {
-      LOG(ERROR)
-          << "Failed to initialize display on foreground, rejecting pending "
-             "GPU channel request.";
-      std::move(request.callback)
-          .Run(mojo::ScopedMessagePipeHandle(), gpu_info_, gpu_feature_info_,
-               gpu::SharedImageCapabilities());
-    }
-  }
-#endif
-
   if (visibility_changed_callback_) {
     visibility_changed_callback_.Run(true);
     if (gpu_preferences_.enable_gpu_benchmarking_extension) {

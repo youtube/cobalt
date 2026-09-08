@@ -20,7 +20,7 @@ class ShellContentGpuClient;
 class ShellContentRendererClient;
 class ShellContentUtilityClient;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID)
 class WebTestBrowserMainRunner;
 #endif
 

@@ -70,9 +70,6 @@ class PRTimeTest : public testing::Test {
 
 // Tests the PR_ParseTimeString nspr helper function for
 // a variety of time strings.
-
-// Tests the PR_ParseTimeString nspr helper function for
-// a variety of time strings.
 TEST_F(PRTimeTest, ParseTimeTest1) {
   time_t current_time = 0;
   time(&current_time);

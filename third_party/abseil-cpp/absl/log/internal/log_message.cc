@@ -60,7 +60,6 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
-#include "build/build_config.h"
 
 extern "C" ABSL_ATTRIBUTE_WEAK void ABSL_INTERNAL_C_SYMBOL(
     AbslInternalOnFatalLogMessage)(const absl::LogEntry&) {
@@ -361,7 +360,7 @@ LogMessage& LogMessage::ToSinkOnly(absl::LogSink* absl_nonnull sink) {
   return *this;
 }
 
-#if defined(__ELF__) && !BUILDFLAG(IS_STARBOARD)
+#ifdef __ELF__
 extern "C" void __gcov_dump() ABSL_ATTRIBUTE_WEAK;
 extern "C" void __gcov_flush() ABSL_ATTRIBUTE_WEAK;
 #endif
@@ -374,7 +373,7 @@ void LogMessage::FailWithoutStackTrace() {
   __debugbreak();
 #endif
 
-#if defined(__ELF__) && !BUILDFLAG(IS_STARBOARD)
+#ifdef __ELF__
   // For b/8737634, flush coverage if we are in coverage mode.
   if (&__gcov_dump != nullptr) {
     __gcov_dump();
