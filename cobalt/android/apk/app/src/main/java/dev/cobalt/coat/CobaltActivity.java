@@ -221,7 +221,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
-      FontUtil.copyFontsXml(getApplicationContext());
+      if (CommandLine.getInstance().hasSwitch("enable-optimized-font-loading")
+          || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+        FontUtil.copyFontsXml(getApplicationContext());
+      }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
