@@ -19,6 +19,17 @@ namespace starboard {
 
 const void* GetLowMemoryKillApi();
 
+namespace testing {
+
+// Allows tests to access the evaluation logic directly without reading or
+// writing the cached value.
+bool EvaluateLowMemoryKill();
+
+// Resets the cached WasLowMemoryKilled() session state for testing.
+void ResetLowMemoryKillStateForTesting();
+
+}  // namespace testing
+
 }  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_LOW_MEMORY_KILL_H_

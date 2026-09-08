@@ -114,6 +114,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   using BufferedRangesCB =
       base::RepeatingCallback<void(base::TimeDelta start,
                                    base::TimeDelta length)>;
+  using EncryptedMediaInitDataCB =
+      base::RepeatingCallback<void(const std::string& init_data_type,
+                                   const std::vector<uint8_t>& init_data)>;
 
   void SetDurationChangeCB(DurationChangeCB cb) {
     duration_change_cb_ = std::move(cb);
@@ -121,10 +124,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void SetBufferedRangesCB(BufferedRangesCB cb) {
     buffered_ranges_cb_ = std::move(cb);
   }
+  void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) {
+    encrypted_media_init_data_cb_ = std::move(cb);
+  }
   void SetSourceUrl(const std::string& source_url);
-  void OnEncryptedMediaInitDataEncountered(const char* init_data_type,
-                                           const unsigned char* init_data,
-                                           unsigned int init_data_length);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -174,6 +177,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void OnUrlPlayerPresenting();
   // Reads and propagates a valid URL-player resolution when it changes.
   void UpdateUrlPlayerVideoResolution();
+  void OnEncryptedMediaInitDataEncountered(
+      const std::string& init_data_type,
+      const std::vector<uint8_t>& init_data);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   void UpdateAudioWriteDuration();
@@ -252,8 +258,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   GetSbWindowHandleCallback get_sb_window_handle_cb_;
 #if BUILDFLAG(IS_IOS_TVOS)
   std::string source_url_;
+
   DurationChangeCB duration_change_cb_;
   BufferedRangesCB buffered_ranges_cb_;
+  EncryptedMediaInitDataCB encrypted_media_init_data_cb_;
 
   // Cached values for change-detection; only notify upstream when they differ.
   TimeDelta last_buffer_start_;

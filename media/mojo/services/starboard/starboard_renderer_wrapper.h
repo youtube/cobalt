@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -141,6 +142,8 @@ class StarboardRendererWrapper
       const StarboardRenderingMode mode);
   void OnGetSbWindowHandle();
 #if BUILDFLAG(IS_IOS_TVOS)
+  void OnEncryptedMediaInitData(const std::string& init_data_type,
+                                const std::vector<uint8_t>& init_data);
   void OnDurationChange(base::TimeDelta duration);
   void OnBufferedTimeRangesChange(base::TimeDelta start,
                                   base::TimeDelta length);

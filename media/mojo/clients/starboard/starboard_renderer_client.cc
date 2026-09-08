@@ -291,6 +291,13 @@ void StarboardRendererClient::GetSbWindowHandle() {
 }
 
 #if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererClient::OnEncryptedMediaInitDataEncountered(
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  // TODO(b/498421484): Forward this to blink so the `encrypted` event fires.
+}
+
 void StarboardRendererClient::OnDurationChange(base::TimeDelta duration) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   if (media_resource_) {

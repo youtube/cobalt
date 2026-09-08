@@ -10,6 +10,7 @@
 #endif
 
 #include "base/feature_list.h"
+#include "build/build_config.h"
 #include "services/network/public/mojom/content_security_policy.mojom-blink.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/csp/csp_source.h"
@@ -97,6 +98,19 @@ CSPCheckResult CSPSourceListAllows(
       IsIPInLocalNetwork(url.Host().Utf8())) {
     return network::CSPCheckResult(true);
   }
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Allow HLS data: URLs to bypass CSP on tvOS for the URL player path.
+  if (url.ProtocolIs("data")) {
+    String url_string = url.GetString();
+    wtf_size_t comma = url_string.find(',');
+    String header =
+        (comma != kNotFound) ? url_string.Left(comma) : url_string;
+    if (header.Contains("application/x-mpegurl") ||
+        header.Contains("application/vnd.apple.mpegurl")) {
+      return network::CSPCheckResult(true);
+    }
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif
 
   return CSPCheckResult::Blocked();

@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import "starboard/tvos/shared/media/audio_queue_buffer.h"
+#include "starboard/aosp/shared/application_aosp.h"
+#include "starboard/window.h"
 
-#import "starboard/tvos/shared/defines.h"
-
-@implementation SBDAudioQueueBuffer
-
-- (instancetype)initWithAudioQueue:(AudioQueueRef)audioQueue
-                              size:(uint32_t)size {
-  self = [super init];
-  if (self) {
-    AudioQueueAllocateBuffer(audioQueue, size, &_buffer);
-  }
-  return self;
+SbWindow SbWindowCreate(const SbWindowOptions* options) {
+  return starboard::ApplicationAOSP::Get()->CreateWindow(options);
 }
-
-@end

@@ -17,9 +17,33 @@ import("//starboard/build/config/toolchain_variables.gni")
 assert(is_starboard_toolchain)
 
 static_library("starboard_platform") {
-  sources = [ "run_starboard_main.cc" ]
+  sources = [
+    "//starboard/shared/starboard/queue_application.cc",
+    "//starboard/shared/starboard/queue_application.h",
+    "application_aosp.cc",
+    "application_aosp.h",
+    "key_map.cc",
+    "key_map.h",
+    "run_starboard_main.cc",
+    "window_create.cc",
+    "window_destroy.cc",
+    "window_get_platform_handle.cc",
+    "window_get_size.cc",
+    "window_internal.h",
+    "window_surface.cc",
+    "window_surface.h",
+  ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    # window_get_size.cc includes starboard_bridge.h, whose
+    # base/memory/singleton.h pulls in absl headers. //base is a private dep of
+    # //starboard/android/shared:starboard_platform, so the absl include dir
+    # isn't propagated.
+    "//starboard/common",
+    "//third_party/abseil-cpp:absl",
+  ]
 
   public_deps = [ "//starboard/android/shared:starboard_platform" ]
 }
@@ -30,9 +54,16 @@ source_set("aosp_loader_glue") {
     "starboard_library_loader.cc",
   ]
 
+  # main_activity.cc calls ApplicationAOSP::GetIfExists()->InjectKeyEvent(),
+  # which pulls in the internal QueueApplication header.
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
   deps = [
+    ":starboard_platform",
     "//base",
+    "//cobalt/android:app_event_bridge",
     "//cobalt/aosp:jni_headers",
     "//starboard/android/shared:starboard_platform",
+    "//starboard/common",
   ]
 }

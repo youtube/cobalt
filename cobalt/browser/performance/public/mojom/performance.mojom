@@ -24,6 +24,7 @@ struct SystemMemoryInfo {
   uint64 total_cpu_memory;
   uint64 used_pss_memory;
   uint64 application_limit_memory;
+  uint64 application_usage_memory;
   uint64? used_gpu_memory;
 };
 
@@ -76,6 +77,11 @@ interface CobaltPerformance {
   // Get the application CPU memory limit in bytes.
   [Sync]
   MeasureApplicationLimitMemory() => (uint64 bytes);
+
+  // Returns the application CPU memory usage in bytes.
+  [Sync]
+  MeasureApplicationUsageMemory() => (uint64 bytes);
+
   // Get the amount of GPU memory used by the application, in bytes.
   [Sync]
   MeasureUsedGpuMemory() => (bool is_supported, uint64 bytes);

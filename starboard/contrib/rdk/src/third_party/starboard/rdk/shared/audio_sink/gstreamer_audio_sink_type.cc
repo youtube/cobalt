@@ -289,11 +289,9 @@ void* GStreamerAudioSink::AudioThreadEntryPoint(void* context) {
 }
 
 // static
-gboolean GStreamerAudioSink::BusMessageCallback(GstBus* bus,
+gboolean GStreamerAudioSink::BusMessageCallback(GstBus* /*bus*/,
                                                 GstMessage* message,
                                                 gpointer user_data) {
-  SB_UNREFERENCED_PARAMETER(bus);
-
   GStreamerAudioSink* sink = static_cast<GStreamerAudioSink*>(user_data);
 
   GST_TRACE_OBJECT(sink->pipeline_, "TID: %d", gettid());
@@ -353,11 +351,9 @@ gboolean GStreamerAudioSink::BusMessageCallback(GstBus* bus,
 }
 
 // static
-void GStreamerAudioSink::AppSrcNeedData(GstAppSrc* src,
+void GStreamerAudioSink::AppSrcNeedData(GstAppSrc* /*src*/,
                                         guint length,
                                         gpointer user_data) {
-  SB_UNREFERENCED_PARAMETER(src);
-
   GStreamerAudioSink* sink = reinterpret_cast<GStreamerAudioSink*>(user_data);
 
   GST_TRACE_OBJECT(sink->pipeline_, "TID: %d", gettid());
@@ -461,8 +457,8 @@ void GStreamerAudioSink::AppSrcNeedData(GstAppSrc* src,
 }
 
 // static
-void GStreamerAudioSink::AppSrcEnoughData(GstAppSrc* src, gpointer user_data) {
-  SB_UNREFERENCED_PARAMETER(src);
+void GStreamerAudioSink::AppSrcEnoughData(GstAppSrc* /*src*/,
+                                          gpointer user_data) {
   GStreamerAudioSink* sink = static_cast<GStreamerAudioSink*>(user_data);
 
   sink->enough_data_ = true;
@@ -470,12 +466,11 @@ void GStreamerAudioSink::AppSrcEnoughData(GstAppSrc* src, gpointer user_data) {
 }
 
 // static
-void GStreamerAudioSink::AutoAudioSinkChildAddedCallback(GstChildProxy* obj,
-                                                         GObject* object,
-                                                         gchar* name,
-                                                         gpointer user_data) {
-  SB_UNREFERENCED_PARAMETER(obj);
-  SB_UNREFERENCED_PARAMETER(name);
+void GStreamerAudioSink::AutoAudioSinkChildAddedCallback(
+    GstChildProxy* /*obj*/,
+    GObject* object,
+    gchar* /*name*/,
+    gpointer user_data) {
   GStreamerAudioSink* sink = static_cast<GStreamerAudioSink*>(user_data);
   if (GST_IS_AUDIO_BASE_SINK(object)) {
     static constexpr int kLatencyTimeValue = 50;

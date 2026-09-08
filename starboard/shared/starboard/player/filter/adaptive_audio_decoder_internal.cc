@@ -162,8 +162,6 @@ std::optional<DecodedAudio> AdaptiveAudioDecoder::Read(
   SB_DCHECK(ret->is_end_of_stream() ||
             ret->sample_type() == output_sample_type_);
   SB_DCHECK(ret->is_end_of_stream() ||
-            ret->storage_type() == output_storage_type_);
-  SB_DCHECK(ret->is_end_of_stream() ||
             ret->channels() == output_number_of_channels_);
 
   SB_DCHECK(first_output_received_ || ret->is_end_of_stream());
@@ -237,10 +235,9 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   if (!first_output_received_) {
     first_output_received_ = true;
     output_sample_type_ = decoded_audio->sample_type();
-    output_storage_type_ = decoded_audio->storage_type();
     output_samples_per_second_ = decoded_sample_rate;
     if (output_adjustment_callback_) {
-      output_adjustment_callback_(&output_sample_type_, &output_storage_type_,
+      output_adjustment_callback_(&output_sample_type_,
                                   &output_samples_per_second_,
                                   &output_number_of_channels_);
     }
@@ -280,19 +277,16 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     SB_DCHECK(!channel_mixer_);
     output_format_checked_ = true;
     if (output_sample_type_ != decoded_audio->sample_type() ||
-        output_storage_type_ != decoded_audio->storage_type() ||
         output_samples_per_second_ != decoded_sample_rate) {
       resampler_ = AudioResampler::Create(
-          decoded_audio->sample_type(), decoded_audio->storage_type(),
-          decoded_sample_rate, output_sample_type_, output_storage_type_,
-          output_samples_per_second_,
+          decoded_audio->sample_type(), decoded_sample_rate,
+          output_sample_type_, output_samples_per_second_,
           input_audio_stream_info_.number_of_channels);
     }
     if (input_audio_stream_info_.number_of_channels !=
         output_number_of_channels_) {
       channel_mixer_ = AudioChannelLayoutMixer::Create(
-          output_sample_type_, output_storage_type_,
-          output_number_of_channels_);
+          output_sample_type_, output_number_of_channels_);
     }
   }
   if (resampler_) {

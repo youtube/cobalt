@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/audio_sink.h"
+#ifndef STARBOARD_AOSP_SHARED_WINDOW_INTERNAL_H_
+#define STARBOARD_AOSP_SHARED_WINDOW_INTERNAL_H_
 
-bool SbAudioSinkIsAudioSampleTypeSupported(
-    SbMediaAudioSampleType audio_sample_type) {
-  return audio_sample_type == kSbMediaAudioSampleTypeFloat32;
-}
+#include <android/native_window.h>
+
+#include "starboard/window.h"
+
+struct SbWindowPrivate {
+  ANativeWindow* native_window;
+};
+
+#endif  // STARBOARD_AOSP_SHARED_WINDOW_INTERNAL_H_

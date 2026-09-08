@@ -42,6 +42,9 @@ dictionary SystemMemoryInfo {
     // Maximum memory limit allocated to Cobalt by Starboard.
     unsigned long long applicationLimitMemory;
 
+    // The application CPU memory usage in bytes.
+    unsigned long long applicationUsageMemory;
+
     // GPU memory used by the process, or null if unsupported on the platform.
     unsigned long long? usedGpuMemory = null;
 

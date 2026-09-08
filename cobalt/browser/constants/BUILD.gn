@@ -15,3 +15,7 @@
 source_set("cobalt_experiment_names") {
   sources = [ "cobalt_experiment_names.h" ]
 }
+
+source_set("cobalt_pref_names") {
+  sources = [ "cobalt_pref_names.h" ]
+}
