@@ -150,6 +150,9 @@ STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
 // By default, stub audio decoder is disabled.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
 
+// By default, stub audio sink is disabled.
+STARBOARD_FEATURE(kUseStubAudioSink, "UseStubAudioSink", false)
+
 // By default, stub video decoder is disabled.
 STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 
@@ -163,11 +166,6 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
-
-// Set the following variable to true to reduce starboard thread stack size.
-STARBOARD_FEATURE(kReduceStarboardThreadStackSize,
-                  "ReduceStarboardThreadStackSize",
-                  false)
 
 // Set the following variable to true to reduce android thread stack size.
 STARBOARD_FEATURE(kReduceAndroidThreadStackSize,

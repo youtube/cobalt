@@ -247,6 +247,18 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Wire duration and buffered ranges callbacks.
+  GetRenderer()->SetDurationChangeCB(base::BindRepeating(
+      &StarboardRendererWrapper::OnDurationChange, weak_factory_.GetWeakPtr()));
+  GetRenderer()->SetBufferedRangesCB(
+      base::BindRepeating(&StarboardRendererWrapper::OnBufferedTimeRangesChange,
+                          weak_factory_.GetWeakPtr()));
+  GetRenderer()->SetEncryptedMediaInitDataCB(
+      base::BindRepeating(&StarboardRendererWrapper::OnEncryptedMediaInitData,
+                          weak_factory_.GetWeakPtr()));
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   base::ScopedClosureRunner scoped_init_cb(
       base::BindOnce(&StarboardRendererWrapper::ContinueInitialization,
                      weak_factory_.GetWeakPtr(), std::move(media_resource),
@@ -624,6 +636,28 @@ void StarboardRendererWrapper::OnGetSbWindowHandle() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->GetSbWindowHandle();
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererWrapper::OnEncryptedMediaInitData(
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnEncryptedMediaInitDataEncountered(init_data_type,
+                                                                init_data);
+}
+
+void StarboardRendererWrapper::OnDurationChange(base::TimeDelta duration) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnDurationChange(duration);
+}
+
+void StarboardRendererWrapper::OnBufferedTimeRangesChange(
+    base::TimeDelta start,
+    base::TimeDelta length) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnBufferedTimeRangesChange(start, length);
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 void StarboardRendererWrapper::OnSubscribeToVideoGeometryChange(
     MediaResource* /* media_resource */,

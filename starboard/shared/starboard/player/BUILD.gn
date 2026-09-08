@@ -14,7 +14,7 @@
 
 import("//starboard/shared/starboard/player/testdata/sha1_files.gni")
 
-if (is_android && !is_androidtv) {
+if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
@@ -96,10 +96,13 @@ if (is_apple) {
   group("player_test_data") {
     testonly = true
     data_deps = [ ":player_download_test_data" ]
+    if (is_android) {
+      deps = [ ":player_test_data_assets" ]
+    }
   }
 }
 
-if (is_android && !is_androidtv) {
+if (is_android) {
   # Android internal_rules.gni forces the use of "_assets" suffix.
   android_assets("player_test_data_assets") {
     testonly = true
@@ -109,8 +112,8 @@ if (is_android && !is_androidtv) {
     renaming_destinations = []
     foreach(_dmp, renaming_sources) {
       renaming_destinations +=
-          [ "test/starboard/shared/starboard/player/testdata/" +
-            get_path_info(_dmp, "file") ]
+          [ "app/cobalt/content/test/starboard/shared/starboard/player/" +
+            "testdata/" + get_path_info(_dmp, "file") ]
     }
 
     deps = [ ":player_download_test_data" ]

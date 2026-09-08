@@ -37,5 +37,7 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
 
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
-  drm_system->UpdateServerCertificate(ticket, certificate, certificate_size);
+  drm_system->UpdateServerCertificate(
+      ticket, std::string_view(static_cast<const char*>(certificate),
+                               certificate_size));
 }

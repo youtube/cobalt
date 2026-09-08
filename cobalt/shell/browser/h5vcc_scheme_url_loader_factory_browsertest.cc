@@ -329,8 +329,10 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
 
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_LoadStaticImageFallback DISABLED_LoadStaticImageFallback
+#define MAYBE_LoadMusicStaticImageFallback DISABLED_LoadMusicStaticImageFallback
 #else
 #define MAYBE_LoadStaticImageFallback LoadStaticImageFallback
+#define MAYBE_LoadMusicStaticImageFallback LoadMusicStaticImageFallback
 #endif
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
                        MAYBE_LoadStaticImageFallback) {
@@ -338,7 +340,17 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 
   // verify fall back for static image when device does not support VP9
-  EXPECT_EQ("Dimensions: 1920x1080", EvalJs(shell(), CheckImageDimension()));
+  EXPECT_EQ("Dimensions: 484x114", EvalJs(shell(), CheckImageDimension()));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       MAYBE_LoadMusicStaticImageFallback) {
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?cache=music");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // verify fall back for music static image when device does not support VP9
+  EXPECT_EQ("Dimensions: 724x138", EvalJs(shell(), CheckImageDimension()));
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,

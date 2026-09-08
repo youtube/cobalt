@@ -26,6 +26,7 @@ typedef struct _GstCaps GstCaps;
 
 namespace starboard {
 
+void EnsureGstInit();
 bool GstRegistryHasElementForMediaType(SbMediaVideoCodec codec);
 bool GstRegistryHasElementForMediaType(SbMediaAudioCodec codec);
 GstCaps* CodecToGstCaps(SbMediaAudioCodec codec, const SbMediaAudioStreamInfo* info = nullptr);

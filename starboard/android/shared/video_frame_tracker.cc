@@ -124,6 +124,9 @@ void VideoFrameTracker::Seek(int64_t seek_to_time) {
 
   frames_to_be_rendered_.clear();
   seek_to_time_ = seek_to_time;
+  if (ignore_stale_rendered_frames_after_seek_) {
+    awaiting_first_frame_after_seek_ = true;
+  }
 }
 
 int VideoFrameTracker::UpdateAndGetDroppedFrames() {
@@ -163,11 +166,17 @@ void VideoFrameTracker::UpdateDroppedFrames() {
       if (std::abs(*to_render_timestamp - rendered_timestamp) <=
           kMaxAllowedSkew) {
         // This frame was rendered, remove it from frames_to_be_rendered_.
+        awaiting_first_frame_after_seek_ = false;
         to_render_timestamp = frames_to_be_rendered_.erase(to_render_timestamp);
       } else {
         // Here we know rendered_timestamp - *to_render_timestamp >
         // kMaxAllowedSkew, because the while loop condition guarantees
         // *to_render_timestamp - rendered_timestamp <= kMaxAllowedSkew.
+        if (awaiting_first_frame_after_seek_) {
+          // Ignore stale rendered frame callbacks from flushed pre-seek
+          // frames until the first post-seek frame match is found.
+          break;
+        }
         // The rendered frame is too far ahead. The to_render_timestamp frame
         // was dropped.
         SB_LOG(WARNING) << "Video frame dropped:" << *to_render_timestamp

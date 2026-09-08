@@ -5,6 +5,12 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_BACKGROUND_SERVICES_CONTEXT_IMPL_H_
 #define CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_BACKGROUND_SERVICES_CONTEXT_IMPL_H_
 
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/cobalt/devtools_background_services_context_impl_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <array>
 #include <map>
 #include <memory>
@@ -20,10 +26,11 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
-#include "content/browser/devtools/devtools_background_services.pb.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/devtools_background_services_context.h"
+
+#include "content/browser/devtools/devtools_background_services.pb.h"
 
 namespace content {
 
@@ -129,5 +136,7 @@ class CONTENT_EXPORT DevToolsBackgroundServicesContextImpl
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_BACKGROUND_SERVICES_CONTEXT_IMPL_H_

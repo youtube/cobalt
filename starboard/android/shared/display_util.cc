@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/display_util.h"
 
+#include "base/android/jni_array.h"
 #include "cobalt/android/jni_headers/DisplayUtil_jni.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
@@ -30,6 +31,17 @@ DisplayUtil::Dpi DisplayUtil::GetDisplayDpi() {
 
   return {Java_DisplayDpi_getX(env, display_dpi_obj),
           Java_DisplayDpi_getY(env, display_dpi_obj)};
+}
+
+// static
+std::vector<int> DisplayUtil::GetSupportedHdrTypes(JNIEnv* env) {
+  std::vector<int> hdr_types;
+  ScopedJavaLocalRef<jintArray> j_hdr_types =
+      Java_DisplayUtil_getSupportedHdrTypes(env);
+  if (j_hdr_types) {
+    base::android::JavaIntArrayToIntVector(env, j_hdr_types, &hdr_types);
+  }
+  return hdr_types;
 }
 
 void JNI_DisplayUtil_OnDisplayChanged(JNIEnv* env) {

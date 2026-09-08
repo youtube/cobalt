@@ -38,10 +38,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            int64_t bitrate,
                            int fps,
                            bool decode_to_texture_required) {
-  if (video_codec == kSbMediaVideoCodecAv1) {
-    return false;
-  }
-
   @autoreleasepool {
     if (bitrate > kSbMediaMaxVideoBitrateInBitsPerSecond) {
       return false;
@@ -66,20 +62,21 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     if (video_codec == kSbMediaVideoCodecH264) {
       return !is_hdr && frame_height <= 1080 && frame_width <= 1920;
     }
-    if (video_codec == kSbMediaVideoCodecVp9) {
-#if defined(COBALT_INTERNAL_BUILD)
-      if (is_hdr) {
-        if (transfer_id == kSbMediaTransferIdSmpteSt2084 ||
-            transfer_id == kSbMediaTransferIdAribStdB67) {
-          NSInteger available_hdr_modes = AVPlayer.availableHDRModes;
-          if (!(available_hdr_modes & AVPlayerHDRModeHDR10)) {
-            return false;
-          }
-        } else {
+
+    if (is_hdr) {
+      if (transfer_id == kSbMediaTransferIdSmpteSt2084 ||
+          transfer_id == kSbMediaTransferIdAribStdB67) {
+        NSInteger available_hdr_modes = AVPlayer.availableHDRModes;
+        if (!(available_hdr_modes & AVPlayerHDRModeHDR10)) {
           return false;
         }
+      } else {
+        return false;
       }
+    }
 
+    if (video_codec == kSbMediaVideoCodecVp9) {
+#if defined(COBALT_INTERNAL_BUILD)
       if (PlaybackCapabilities::IsHwVp9Supported()) {
         return frame_height <= 2160 && frame_width <= 3840;
       }
@@ -127,6 +124,15 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #else
       SB_LOG(INFO) << "Non-internal build, accepting all VP9";
       return true;
+#endif  // defined(COBALT_INTERNAL_BUILD)
+    }
+
+    if (video_codec == kSbMediaVideoCodecAv1) {
+#if defined(COBALT_INTERNAL_BUILD)
+      if (PlaybackCapabilities::IsHwAv1Supported()) {
+        // Cap resolution to 4k for AV1 implementation verification.
+        return frame_height <= 2160 && frame_width <= 3840;
+      }
 #endif  // defined(COBALT_INTERNAL_BUILD)
     }
   }  // @autoreleasepool

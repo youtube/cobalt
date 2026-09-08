@@ -39,6 +39,8 @@
 #include "third_party/starboard/rdk/shared/window/window_internal.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 #include "third_party/starboard/rdk/shared/time_constants.h"
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
+#include "third_party/starboard/rdk/shared/libcobalt.h"
 
 #include <fcntl.h>
 #include <poll.h>
@@ -140,18 +142,17 @@ void ApplicationRdk::Initialize() {
 #endif
 
   SbAudioSinkImpl::Initialize();
-  ::starboard::Initialize();
+  libcobalt_api::Initialize();
   MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
   KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 
   ScheduleMemoryUsageCheck(kSbTimeSecond);
-  NetworkInfo::Initialize();
 }
 
 void ApplicationRdk::Teardown() {
   SbAudioSinkImpl::TearDown();
-  ::starboard::Teardown();
-  TeardownJSONRPCLink();
+  libcobalt_api::Teardown();
+  platform::PlatformInterface::get().teardown();
 
   close(ess_timer_fd_);
   close(wakeup_fd_);
@@ -280,7 +281,8 @@ void ApplicationRdk::OnSuspend() {
     DestroyNativeWindow();
   }
 
-  TeardownJSONRPCLink();
+  setTimerInterval(ess_timer_fd_, 1s);
+  platform::PlatformInterface::get().suspend();
 }
 
 void ApplicationRdk::OnResume() {
@@ -296,6 +298,8 @@ void ApplicationRdk::OnResume() {
 
   // Only restart the Essos timer run loop once the window is materialized.
   setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
+  MaterializeNativeWindow();
+  platform::PlatformInterface::get().resume();
 }
 
 void ApplicationRdk::OnTerminated() {
@@ -463,11 +467,15 @@ int64_t ApplicationRdk::CheckMemoryUsage() {
   return kSbTimeSecond;
 }
 
-void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged(bool enabled) {
-  bool* enabled_data = new bool(enabled);
-  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
-                   enabled_data,
-                   &ApplicationRdk::DeleteDestructor<bool>));
+void ApplicationRdk::InjectAccessibilitySettingsChanged() {
+  // Event deprecated in Starboard 17+
 }
 
+void ApplicationRdk::InjectAccessibilityCaptionSettingsChanged() {
+  // Event deprecated in Starboard 17+
+}
+
+void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged() {
+  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged, NULL, NULL));
+}
 }  // namespace starboard

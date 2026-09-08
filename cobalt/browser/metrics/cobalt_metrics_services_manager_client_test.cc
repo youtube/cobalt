@@ -25,6 +25,7 @@
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/common/shell_paths.h"
+#include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -56,6 +57,9 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
         base::DIR_CACHE, temp_dir_.GetPath());
 
     metrics::MetricsService::RegisterPrefs(prefs_.registry());
+    metrics::FileMetricsProvider::RegisterPrefs(prefs_.registry());
+    metrics::FileMetricsProvider::RegisterSourcePrefs(
+        prefs_.registry(), "BrowserStabilityMetrics");
     // Add any other prefs that might be accessed.
     prefs_.registry()->RegisterBooleanPref(
         metrics::prefs::kMetricsReportingEnabled, false);

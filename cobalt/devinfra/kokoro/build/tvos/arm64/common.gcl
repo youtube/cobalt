@@ -31,6 +31,7 @@ build = common.build {
       define_artifacts = {
         regex = [
           '**/*.tar.gz',
+          '**/*.zip',
         ]
       }
     },

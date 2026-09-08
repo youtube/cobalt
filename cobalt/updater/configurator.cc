@@ -54,6 +54,7 @@ const char kUpdaterJSONDefaultUrl[] =
 // Whether to request, download, and install uncompressed (rather than
 // compressed) Evergreen binaries.
 constexpr char kUseUncompressedUpdates[] = "use_uncompressed_updates";
+constexpr char kLoaderUseMemoryMappedFile[] = "loader_use_mmap_file";
 
 // Uses the QA update server to test the changes to the configuration of the
 // PROD update server.
@@ -102,6 +103,8 @@ Configurator::Configurator(
     SetChannel(persisted_channel);
   }
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          kLoaderUseMemoryMappedFile) ||
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
           kUseUncompressedUpdates)) {
     use_compressed_updates_.store(false);
   } else {

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.BuildInfo;
 import org.chromium.base.CommandLine;
+import org.chromium.base.CommandLineInitUtil;
 
 // ==========
 // IMPORTANT:
@@ -30,6 +31,16 @@ import org.chromium.base.CommandLine;
 /** Helper class to provide commandLine Overrides. */
 public final class CommandLineOverrideHelper {
   private CommandLineOverrideHelper() {} // Prevent instantiation.
+
+  /**
+   * Initializes the command line from the "content-shell-command-line" file if present (used by
+   * Telemetry and automated tests).
+   */
+  public static void initializeContentShellCommandLine() {
+    if (!CommandLine.isInitialized()) {
+      CommandLineInitUtil.initCommandLine("content-shell-command-line", () -> true);
+    }
+  }
 
   /** Param class to simplify #getFlagOverrides method signature */
   public static class CommandLineOverrideHelperParams {
@@ -76,8 +87,6 @@ public final class CommandLineOverrideHelper {
     }
     // Hide scrollbars to avoid memory allocation.
     paramOverrides.add("--hide-scrollbars");
-    // Force GPU memory available to 64MB.
-    paramOverrides.add("--force-gpu-mem-available-mb=64");
 
     return paramOverrides;
   }
@@ -87,18 +96,12 @@ public final class CommandLineOverrideHelper {
 
     // Trades a little V8 performance for significant memory savings.
     paramOverrides.add("--optimize-for-size");
-    // Set max old space size to 512MB.
-    paramOverrides.add("--max-old-space-size=512");
 
     // Disable decommitting pooled pages to prevent virtual memory fragmentation.
     paramOverrides.add("--no-decommit-pooled-pages");
 
     // Disable v8 concurrent marking by default.
     paramOverrides.add("--no-concurrent-marking");
-
-    // Disable v8 optimizing compilers (maglev, turbofan, sparkplug).
-    paramOverrides.add("--disable-optimizing-compilers");
-    paramOverrides.add("--no-sparkplug");
 
     return paramOverrides;
   }
@@ -117,6 +120,13 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("SmallerInterestArea");
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
+
+    // Reduce default thread stacks from the platform default (1MB on
+    // bionic) to 256KB. High-risk threads are carved out explicitly:
+    // the in-process renderer and GPU main threads, and all Blink
+    // NonMainThreads. Both features are needed for full coverage --
+    // Starboard threads bypass base::PlatformThread entirely.
+    paramOverrides.add("ReduceAndroidThreadStackSize");
 
     return paramOverrides;
   }
@@ -162,6 +172,7 @@ public final class CommandLineOverrideHelper {
     StringJoiner enableFeatureOverrides = getDefaultEnableFeatureOverridesList();
     StringJoiner disableFeatureOverrides = getDefaultDisableFeatureOverridesList();
     StringJoiner blinkEnableFeatureOverrides = getDefaultBlinkEnableFeatureOverridesList();
+    StringJoiner traceStartupOverrides = new StringJoiner(",");
     StringJoiner enableH5vccSettings = new StringJoiner(";");
 
     if (params != null) {
@@ -189,6 +200,8 @@ public final class CommandLineOverrideHelper {
                 disableFeatureOverrides.add(v);
               } else if (key.equals("--enable-blink-features")) {
                 blinkEnableFeatureOverrides.add(v);
+              } else if (key.equals("--trace-startup")) {
+                traceStartupOverrides.add(v);
               } else if (key.equals("--enable-h5vcc-settings")) {
                 enableH5vccSettings.add(v);
               } else {
@@ -214,6 +227,11 @@ public final class CommandLineOverrideHelper {
     CommandLine.getInstance()
         .appendSwitchesAndArguments(
             new String[] {"--enable-blink-features=" + blinkEnableFeatureOverrides.toString()});
+    if (traceStartupOverrides.length() > 0) {
+      CommandLine.getInstance()
+          .appendSwitchesAndArguments(
+              new String[] {"--trace-startup=" + traceStartupOverrides.toString()});
+    }
     if (enableH5vccSettings.length() > 0) {
       CommandLine.getInstance()
           .appendSwitchesAndArguments(

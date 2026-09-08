@@ -28,7 +28,7 @@ jobs:
       docker_content_sha: ${{ steps.set-docker-hash.outputs.docker_content_sha }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -57,7 +57,7 @@ jobs:
       packages: write
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -89,7 +89,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 2
           filter: blob:none
@@ -114,8 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Bug ID Check
-        # v2
-        uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
+        uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee # v2.0.0
         with:
           accessToken: ${{ secrets.GITHUB_TOKEN }}
           pattern: '^(Bug|Fix|Fixed|Fixes|Issue): \d+$'

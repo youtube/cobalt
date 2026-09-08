@@ -19,104 +19,82 @@
 #define THIRD_PARTY_STARBOARD_RDK_SHARED_RDKSERVICES_H_
 
 #include "starboard/configuration.h"
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
 
 #include <string>
 
-struct SbAccessibilityCaptionSettings;
-struct SbAccessibilityDisplaySettings;
-struct SbMediaAudioConfiguration;
-
+namespace third_party {
 namespace starboard {
-
-struct ResolutionInfo {
-  ResolutionInfo() {}
-  ResolutionInfo(int32_t w, int32_t h)
-    : Width(w), Height(h) {}
-  int32_t Width { 1920 };
-  int32_t Height { 1080 };
-};
-
-class DisplayInfo {
-public:
-  enum HdrCaps : uint8_t {
-    kHdrNone        = 0u,
-    kHdr10          = (1u << 0),
-    kHdr10Plus      = (1u << 1),
-    kHdrHlg         = (1u << 2),
-    kHdrDolbyVision = (1u << 3),
-    kHdrTechnicolor = (1u << 4),
-  };
-
-  static ResolutionInfo GetResolution();
-  static float GetDiagonalSizeInInches();
-  static uint32_t GetHDRCaps();
-};
-
-class DeviceIdentification {
-public:
-  static std::string GetChipset();
-  static std::string GetFirmwareVersion();
-};
-
-class NetworkInfo {
-public:
-  static void Initialize();
-  static bool IsConnectionTypeWireless();
-  static bool IsDisconnected();
-};
-
-class TextToSpeech {
-public:
-  static bool IsEnabled();
-  static void Speak(const std::string& text);
-  static void Cancel();
-};
+namespace rdk {
+namespace shared {
 
 class Accessibility {
 public:
-  static void SetSettings(const std::string& json);
+  static void SetSettings(const std::string& json, bool notify_app);
   static bool GetSettings(std::string& out_json);
-  static bool GetCaptionSettings(SbAccessibilityCaptionSettings* out);
-  static bool GetDisplaySettings(SbAccessibilityDisplaySettings* out);
 };
 
-class SystemProperties {
+namespace platform {
+
+class RDKServicesInterface final : public PlatformInterface {
+private:
+  struct RDKDevice final : public IDevice {
+    std::optional<Resolution> video_resolution() override;
+    std::optional<float> diagonal_size_in_inches() override;
+    std::optional<HDRFormat> hdr() override;
+    std::optional<bool> audio_configuration(int index, SbMediaAudioConfiguration* out) override;
+    std::optional<std::string> brand_name() override;
+    std::optional<std::string> chipset() override;
+    std::optional<std::string> device_type() override;
+    std::optional<std::string> firmware_version() override;
+    std::optional<bool> is_connection_type_wireless() override;
+    std::optional<bool> is_disconnected() override;
+  };
+
+  struct RDKTextToSpeech final : public ITextToSpeech {
+    std::optional<bool> cancel() override;
+    std::optional<bool> speak(const std::string& text) override;
+    std::optional<bool> is_available() override;
+    std::optional<bool> is_enabled() override;
+  };
+
+  struct RDKAccessibility final : public IAccessibility {
+    std::optional<bool> display_settings(SbAccessibilityDisplaySettings& out) override;
+    std::optional<bool> caption_settings(SbAccessibilityCaptionSettings& out) override;
+  };
+
+  struct RDKAdvertising final : public IAdvertising {
+    std::optional<Ifa> advertising_id() override;
+  };
 public:
-  static void SetSettings(const std::string& json);
-  static bool GetSettings(std::string& out_json);
-  static bool GetChipset(std::string &out);
-  static bool GetFirmwareVersion(std::string &out);
-  static bool GetIntegratorName(std::string &out);
-  static bool GetBrandName(std::string &out);
-  static bool GetModelName(std::string &out);
-  static bool GetModelYear(std::string &out);
-  static bool GetFriendlyName(std::string &out);
-  static bool GetDeviceType(std::string &out);
+  RDKServicesInterface();
+
+  void teardown() override;
+  void suspend() override;
+  void resume() override;
+
+  IDevice& device() override { return device_; }
+  ITextToSpeech& text_to_speech() override { return text_to_speech_; }
+  IAccessibility& accessibility() override { return accessibility_; }
+  IAdvertising& advertising() override { return advertising_; }
+
+  static bool is_available();
+private:
+  RDKDevice device_;
+  RDKTextToSpeech text_to_speech_;
+  RDKAccessibility accessibility_;
+  RDKAdvertising advertising_;
 };
 
-class AdvertisingId {
-public:
-  static void SetSettings(const std::string& json);
-  static bool GetSettings(std::string& out_json);
-  static bool GetIfa(std::string &out);
-  static bool GetIfaType(std::string &out);
-  static bool GetLmtAdTracking(std::string &out);
-};
+}  // namespace platform
+}  // namespace shared
+}  // namespace rdk
+}  // namespace starboard
+}  // namespace third_party
 
-class AuthService {
-public:
-  static bool IsAvailable();
-  static bool GetExperience(std::string &out);
-};
-
-class DeviceInfo {
-public:
-  static bool GetAudioConfiguration(int index, SbMediaAudioConfiguration* out_audio_configuration);
-  static bool GetBrandName(std::string& out);
-};
-
-void TeardownJSONRPCLink();
-
+namespace starboard {
+using ::third_party::starboard::rdk::shared::Accessibility;
+namespace platform = ::third_party::starboard::rdk::shared::platform;
 }  // namespace starboard
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_RDKSERVICES_H_

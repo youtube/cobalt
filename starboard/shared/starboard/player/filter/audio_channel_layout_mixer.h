@@ -18,7 +18,6 @@
 #include <memory>
 #include <vector>
 
-#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -29,12 +28,10 @@ class AudioChannelLayoutMixer {
  public:
   virtual ~AudioChannelLayoutMixer() {}
 
-  virtual scoped_refptr<DecodedAudio> Mix(
-      const scoped_refptr<DecodedAudio>& audio_data) = 0;
+  virtual DecodedAudio Mix(DecodedAudio audio_data) = 0;
 
   static std::unique_ptr<AudioChannelLayoutMixer> Create(
       SbMediaAudioSampleType sample_type,
-      SbMediaAudioFrameStorageType storage_type,
       int output_channels);
 };
 

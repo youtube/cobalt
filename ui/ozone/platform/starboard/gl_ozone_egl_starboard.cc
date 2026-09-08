@@ -247,8 +247,16 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
     gl::GLDisplay* display,
     const gfx::Size& size) {
-  return gl::InitializeGLSurface(
-      new gl::PbufferGLSurfaceEGL(display->GetAs<gl::GLDisplayEGL>(), size));
+  gl::GLDisplayEGL* egl_display = display->GetAs<gl::GLDisplayEGL>();
+  // For zero-sized default offscreen surfaces, prefer SurfacelessEGL when
+  // supported by the EGL driver. Surfaceless contexts pass EGL_NO_SURFACE,
+  // avoiding allocating an unnecessary dummy pbuffer in GPU memory.
+  if (egl_display->IsEGLSurfacelessContextSupported() && size.IsZero()) {
+    return gl::InitializeGLSurface(new gl::SurfacelessEGL(egl_display, size));
+  } else {
+    return gl::InitializeGLSurface(new gl::PbufferGLSurfaceEGL(
+        egl_display, size.IsZero() ? gfx::Size(1, 1) : size));
+  }
 }
 
 gl::EGLDisplayPlatform GLOzoneEGLStarboard::GetNativeDisplay() {

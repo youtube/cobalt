@@ -36,23 +36,7 @@ if (current_toolchain == default_toolchain) {
     }
 
     copy("copy_fonts") {
-      if (copy_font_files) {
-        fonts =
-            exec_script("scripts/filter_fonts.py",
-                        [
-                              "-i",
-                              rebase_path("$source_font_config_dir/fonts.xml",
-                                          root_build_dir),
-                              "-f",
-                              source_font_files_dir,
-                            ] + package_categories,
-                        "trim list lines",
-                        [ "$source_font_config_dir/fonts.xml" ])
-      } else {
-        # Copy at least the fallback Roboto Subsetted font.
-        fonts = [ "$source_font_files_dir/Roboto-Regular-Subsetted.woff2" ]
-      }
-      sources = fonts
+      sources = font_files
       outputs =
           [ "$sb_static_contents_output_data_dir/fonts/{{source_file_part}}" ]
     }

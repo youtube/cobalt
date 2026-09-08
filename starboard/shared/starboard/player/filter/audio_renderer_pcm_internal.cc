@@ -35,16 +35,15 @@ namespace {
 class IdentityAudioResampler : public AudioResampler {
  public:
   IdentityAudioResampler() : eos_reached_(false) {}
-  scoped_refptr<DecodedAudio> Resample(
-      scoped_refptr<DecodedAudio> audio_data) override {
+  std::optional<DecodedAudio> Resample(DecodedAudio audio_data) override {
     SB_DCHECK(!eos_reached_);
 
     return audio_data;
   }
-  scoped_refptr<DecodedAudio> WriteEndOfStream() override {
+  std::optional<DecodedAudio> WriteEndOfStream() override {
     SB_DCHECK(!eos_reached_);
     eos_reached_ = true;
-    return new DecodedAudio();
+    return std::nullopt;
   }
 
  private:
@@ -569,7 +568,6 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
 
 void AudioRendererPcm::OnFirstOutput(
     const SbMediaAudioSampleType decoded_sample_type,
-    const SbMediaAudioFrameStorageType decoded_storage_type,
     const int decoded_sample_rate) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoder_sample_rate_);
@@ -587,13 +585,10 @@ void AudioRendererPcm::OnFirstOutput(
   // kSbMediaAudioFrameStorageTypeInterleaved, so we resample the audio to that
   // format to avoid unnecessary extra conversion.
   if (decoded_sample_rate != destination_sample_rate ||
-      decoded_sample_type != kSbMediaAudioSampleTypeFloat32 ||
-      decoded_storage_type != kSbMediaAudioFrameStorageTypeInterleaved) {
+      decoded_sample_type != kSbMediaAudioSampleTypeFloat32) {
     resampler_ = AudioResampler::Create(
-        decoded_sample_type, decoded_storage_type, decoded_sample_rate,
-        kSbMediaAudioSampleTypeFloat32,
-        kSbMediaAudioFrameStorageTypeInterleaved, destination_sample_rate,
-        channels_);
+        decoded_sample_type, decoded_sample_rate,
+        kSbMediaAudioSampleTypeFloat32, destination_sample_rate, channels_);
     SB_DCHECK(resampler_);
   } else {
     resampler_.reset(new IdentityAudioResampler);
@@ -661,18 +656,17 @@ void AudioRendererPcm::ProcessAudioData() {
       return;
     }
 
-    scoped_refptr<DecodedAudio> resampled_audio;
+    std::optional<DecodedAudio> resampled_audio;
     int decoded_audio_sample_rate;
-    scoped_refptr<DecodedAudio> decoded_audio =
+    std::optional<DecodedAudio> decoded_audio =
         decoder_->Read(&decoded_audio_sample_rate);
-    SB_DCHECK(decoded_audio);
+    SB_DCHECK(decoded_audio.has_value());
     if (!audio_renderer_sink_->HasStarted()) {
       if (!decoded_audio->is_end_of_stream()) {
         decoded_audio->AdjustForSeekTime(decoded_audio_sample_rate,
                                          seeking_to_time_);
       }
-      OnFirstOutput(decoded_audio->sample_type(), decoded_audio->storage_type(),
-                    decoded_audio_sample_rate);
+      OnFirstOutput(decoded_audio->sample_type(), decoded_audio_sample_rate);
     }
     SB_DCHECK(resampler_);
 
@@ -699,20 +693,16 @@ void AudioRendererPcm::ProcessAudioData() {
         continue;
       }
 
-      resampled_audio = resampler_->Resample(decoded_audio);
+      resampled_audio = resampler_->Resample(std::move(*decoded_audio));
     }
 
     if (resampled_audio && resampled_audio->size_in_bytes() > 0) {
-      // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and
-      // kSbMediaAudioFrameStorageTypeInterleaved.
-      if (!resampled_audio->IsFormat(
-              kSbMediaAudioSampleTypeFloat32,
-              kSbMediaAudioFrameStorageTypeInterleaved)) {
-        resampled_audio = resampled_audio->SwitchFormatTo(
-            kSbMediaAudioSampleTypeFloat32,
-            kSbMediaAudioFrameStorageTypeInterleaved);
+      // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32.
+      if (resampled_audio->sample_type() != kSbMediaAudioSampleTypeFloat32) {
+        resampled_audio =
+            resampled_audio->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32);
       }
-      time_stretcher_.EnqueueBuffer(resampled_audio);
+      time_stretcher_.EnqueueBuffer(std::move(*resampled_audio));
     }
 
     // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
@@ -773,28 +763,24 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
     adjusted_playback_rate = 1.0;
   }
 
-  scoped_refptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
+  DecodedAudio decoded_audio = time_stretcher_.Read(
       max_cached_frames_ - frames_in_buffer, adjusted_playback_rate);
-  SB_DCHECK(decoded_audio);
 
   {
     std::lock_guard lock(mutex_);
-    if (decoded_audio->frames() == 0 && eos_state_ == kEOSDecoded) {
+    if (decoded_audio.frames() == 0 && eos_state_ == kEOSDecoded) {
       eos_state_ = kEOSSentToSink;
     }
-    audio_frame_tracker_.AddFrames(decoded_audio->frames(),
+    audio_frame_tracker_.AddFrames(decoded_audio.frames(),
                                    adjusted_playback_rate);
   }
 
-  // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and
-  // kSbMediaAudioFrameStorageTypeInterleaved.
-  if (!decoded_audio->IsFormat(sink_sample_type_,
-                               kSbMediaAudioFrameStorageTypeInterleaved)) {
-    decoded_audio = decoded_audio->SwitchFormatTo(
-        sink_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved);
+  // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32.
+  if (decoded_audio.sample_type() != sink_sample_type_) {
+    decoded_audio = decoded_audio.SwitchFormatTo(sink_sample_type_);
   }
-  const uint8_t* source_buffer = decoded_audio->data();
-  int frames_to_append = decoded_audio->frames();
+  const uint8_t* source_buffer = decoded_audio.data();
+  int frames_to_append = decoded_audio.frames();
   int frames_appended = 0;
 
   if (frames_to_append > max_cached_frames_ - offset_to_append) {

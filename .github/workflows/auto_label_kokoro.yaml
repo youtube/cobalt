@@ -2,10 +2,9 @@
 # strictly to edit PR labels (pull-requests: write) without checking out or executing
 # untrusted code from PR branches.
 # actionlint: disable dangerous-triggers
-# zizmor: ignore[dangerous-triggers]
 name: Auto Label Kokoro
 
-on:
+on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types:
       - opened
@@ -15,18 +14,22 @@ on:
     branches:
       - main
       - staging
+      - autoroll-chromium/main-to-staging
       - experimental/*
+      - 'stack/**'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}'
   cancel-in-progress: true
 
 permissions:
-  pull-requests: write
+  contents: read
 
 jobs:
   label-kokoro-run:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     if: github.event.pull_request.draft == false
     steps:
       - name: Apply kokoro:run label to PR for collaborators/committers
@@ -36,10 +39,14 @@ jobs:
           PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
           AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
         run: |
           echo "Author '${PR_AUTHOR}' association: ${AUTHOR_ASSOC}"
 
-          if [[ "${AUTHOR_ASSOC}" == "OWNER" || "${AUTHOR_ASSOC}" == "MEMBER" || "${AUTHOR_ASSOC}" == "COLLABORATOR" ]]; then
+          PERMISSION=$(gh api "repos/${REPO}/collaborators/${PR_AUTHOR}/permission" --jq '.permission' 2>/dev/null || echo "none")
+          echo "Author '${PR_AUTHOR}' permission: ${PERMISSION}"
+
+          if [[ "${AUTHOR_ASSOC}" == "OWNER" || "${AUTHOR_ASSOC}" == "MEMBER" || "${AUTHOR_ASSOC}" == "COLLABORATOR" || "${PERMISSION}" == "admin" || "${PERMISSION}" == "write" ]]; then
             if ! echo "$PR_LABELS" | jq -e '.[] | select(.name == "kokoro:run")' > /dev/null; then
               echo "Author is a collaborator/committer. Applying kokoro:run label..."
               gh pr edit "$PR_URL" --add-label "kokoro:run"
@@ -47,5 +54,5 @@ jobs:
               echo "kokoro:run label is already present."
             fi
           else
-            echo "Author '${PR_AUTHOR}' association is '${AUTHOR_ASSOC}'. Skipping auto-labeling."
+            echo "Author '${PR_AUTHOR}' (assoc: '${AUTHOR_ASSOC}', perm: '${PERMISSION}') is not a committer. Skipping auto-labeling."
           fi

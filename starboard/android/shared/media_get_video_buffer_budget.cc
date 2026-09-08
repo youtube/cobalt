@@ -14,6 +14,8 @@
 
 #include <algorithm>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
@@ -74,8 +76,15 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
   int video_buffer_budget = 0;
   starboard::Size resolution(resolution_width, resolution_height);
 
-  if (starboard::features::FeatureList::IsEnabled(
-          starboard::features::kAreaBasedVideoBufferBudget)) {
+#if !BUILDFLAG(IS_STARBOARD)
+  const bool use_area_based_budget =
+      starboard::features::FeatureList::IsEnabled(
+          starboard::features::kAreaBasedVideoBufferBudget);
+#else
+  const bool use_area_based_budget = false;
+#endif
+
+  if (use_area_based_budget) {
     if (resolution.IsEmpty() ||
         resolution.GetArea() <= starboard::Resolution::k1080p.GetArea()) {
       video_buffer_budget = kVideoBufferBudget1080p;

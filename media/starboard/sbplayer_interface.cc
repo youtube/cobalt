@@ -14,12 +14,19 @@
 
 #include "media/starboard/sbplayer_interface.h"
 
+#include <atomic>
 #include <string>
 
 #include "base/logging.h"
 #include "starboard/system.h"
 
 namespace media {
+
+namespace {
+
+std::atomic<SbPlayerInterface*> g_sbplayer_interface_for_testing{nullptr};
+
+}  // namespace
 
 SbPlayer DefaultSbPlayerInterface::Create(
     SbWindow window,
@@ -177,6 +184,24 @@ bool DefaultSbPlayerInterface::GetAudioConfiguration(
   media_metrics_provider_.EndTrackingAction(
       MediaAction::SBPLAYER_GET_AUDIO_CONFIG);
   return audio_configuration;
+}
+
+void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface) {
+  g_sbplayer_interface_for_testing.store(interface, std::memory_order_release);
+}
+
+SbPlayerInterface* GetSbPlayerInterfaceForTesting() {
+  return g_sbplayer_interface_for_testing.load(std::memory_order_acquire);
+}
+
+ScopedSbPlayerInterfaceForTesting::ScopedSbPlayerInterfaceForTesting(
+    SbPlayerInterface* interface)
+    : previous_interface_(GetSbPlayerInterfaceForTesting()) {
+  SetSbPlayerInterfaceForTesting(interface);
+}
+
+ScopedSbPlayerInterfaceForTesting::~ScopedSbPlayerInterfaceForTesting() {
+  SetSbPlayerInterfaceForTesting(previous_interface_);
 }
 
 }  // namespace media

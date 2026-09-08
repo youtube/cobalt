@@ -4,9 +4,7 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "base/test/scoped_command_line.h"
-#endif
+
 
 #include "third_party/blink/renderer/platform/fonts/font_fallback_iterator.h"
 
@@ -51,13 +49,10 @@ TEST_P(TestReset, TestResetWithFallbackPriority) {
   EXPECT_EQ(fallback_iterator_reset, fallback_iterator);
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
 class FontFallbackIteratorTest : public FontTestBase {};
 
 TEST_F(FontFallbackIteratorTest, MissingFontFallbackDoesNotCrash) {
-  base::test::ScopedCommandLine scoped_command_line;
-  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
-      "enable-optimized-font-loading");
 
   FontDescription font_description;
   font_description.SetGenericFamily(FontDescription::kSerifFamily);

@@ -92,11 +92,20 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
     auto command_line = std::make_unique<CommandLine>(GetArgs());
     LogInit(*command_line);
     ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+#if BUILDFLAG(IS_STARBOARD)
+    // Just initialize file_internal directories and asset manager here,
+    // ApplicationAOSP will be created in SbRunStarboardMain
+    SbFileAndroidInitialize(std::move(asset_manager),
+                            ConvertJavaStringToUTF8(env, j_files_dir),
+                            ConvertJavaStringToUTF8(env, j_cache_dir),
+                            ConvertJavaStringToUTF8(env, j_native_library_dir));
+#else
     g_native_app_instance = new ApplicationAndroid(
         std::move(command_line), std::move(asset_manager),
         ConvertJavaStringToUTF8(env, j_files_dir),
         ConvertJavaStringToUTF8(env, j_cache_dir),
         ConvertJavaStringToUTF8(env, j_native_library_dir));
+#endif
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
@@ -180,23 +189,6 @@ void JNI_BaseStarboardBridge_SetYoutubeCertificationScope(
 #endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
-jboolean JNI_BaseStarboardBridge_IsReleaseBuild(JNIEnv* env) {
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  return true;
-#else
-  return false;
-#endif
-}
-
-jboolean JNI_BaseStarboardBridge_IsDevelopmentBuild(JNIEnv* env) {
-// OFFICIAL_BUILD is set for Cobalt QA and Gold releases
-#if defined(OFFICIAL_BUILD)
-  return false;
-#else
-  return true;
-#endif
-}
-
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include
 // this header they don't end up with different copies of the inlined code
@@ -232,13 +224,6 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   ScopedJavaLocalRef<jobjectArray> args_java =
       Java_BaseStarboardBridge_getArgs(env, j_starboard_bridge_);
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
-}
-
-ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
-    JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_BaseStarboardBridge_getSupportedHdrTypes(env,
-                                                       j_starboard_bridge_);
 }
 
 void StarboardBridge::RaisePlatformError(JNIEnv* env,

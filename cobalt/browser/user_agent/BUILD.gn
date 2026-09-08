@@ -29,14 +29,14 @@ static_library("user_agent") {
     "//v8:v8_version",
   ]
 
+  deps = [ "//cobalt/browser:features" ]
+
   if (is_android) {
     defines = [
       # Enable compile-time decisions based on the ABI
       "ANDROID_ABI=$android_app_abi",
     ]
   }
-
-  deps = []
 
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]

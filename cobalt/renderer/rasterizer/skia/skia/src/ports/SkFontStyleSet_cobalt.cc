@@ -23,6 +23,7 @@
 #include "base/notreached.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.h"
 #include "src/core/SkOSFile.h"
 #include "src/core/SkTraceEvent.h"
 #include "src/utils/SkOSPath.h"
@@ -403,6 +404,10 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
   // the font style set's page ranges. Now, verify that the specific character
   // is supported by the font style set.
 
+  if (styles_.empty()) {
+    return false;
+  }
+
   // The character map is lazily generated. Generate it now if it isn't already
   // generated.
   int style_index = GetClosestStyleIndex(style);
@@ -412,6 +417,27 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
     // set, the logic will be attempted again.
     while (styles_.size() > 0) {
       SkFontStyleSetEntry_Cobalt* closest_style = styles_[style_index].get();
+
+      // When the mmap font cache is active for this entry, scan the cached
+      // decompressed SFNT via an mmap-backed stream instead of routing the
+      // WOFF2 file through FreeType's in-heap brotli reconstruction.
+      if (std::unique_ptr<SkStreamAsset> mmap_stream =
+              OpenMmapCacheStream(closest_style)) {
+        if (GenerateStyleFaceInfo(closest_style, mmap_stream.get(),
+                                  style_index)) {
+          if (!CharacterMapContainsCharacter(character,
+                                             character_maps_[style_index])) {
+            return false;
+          }
+          CreateStreamProviderTypeface(closest_style, style_index);
+          return true;
+        }
+        // Scanning the cached file failed (e.g. corrupt cache); fall back to
+        // the regular WOFF2 path below for the remainder of the session.
+        LOG(ERROR) << "Failed to scan cached font, falling back to WOFF2: "
+                   << closest_style->font_file_path.c_str();
+        closest_style->mmap_cache_path.reset();
+      }
 
       SkFileMemoryChunkStreamProvider* stream_provider =
           local_typeface_stream_manager_->GetStreamProvider(
@@ -448,7 +474,10 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
     }
   }
 
-  DCHECK(character_maps_[style_index]);
+  if (styles_.empty() || !character_maps_[style_index]) {
+    // Every font style failed to load and was removed from the set.
+    return false;
+  }
   return CharacterMapContainsCharacter(character, character_maps_[style_index]);
 }
 
@@ -470,17 +499,25 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
   // Providing a pointer to the character map will cause it to be generated
   // during ScanFont. Only provide it if it hasn't already been generated.
 
-  font_character_map::CharacterMap* character_map = NULL;
+  bool created_character_map = false;
+  font_character_map::CharacterMap* character_map = nullptr;
   if (!character_maps_[style_index]) {
     character_maps_[style_index] =
         base::MakeRefCounted<font_character_map::CharacterMap>();
     character_map = character_maps_[style_index].get();
+    created_character_map = true;
   }
 
   SkFontStyle old_style = style->font_style;
   if (!sk_freetype_cobalt::ScanFont(
           stream, style->face_index, &style->face_name, &style->font_style,
           &style->face_is_fixed_pitch, nullptr, character_map)) {
+    // If the character map was created by this call, discard it so that a
+    // retry (e.g. after falling back from the mmap font cache to the WOFF2
+    // path) regenerates it rather than treating the empty map as complete.
+    if (created_character_map) {
+      character_maps_[style_index] = nullptr;
+    }
     return false;
   }
 
@@ -511,11 +548,63 @@ int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
   return closest_index;
 }
 
+std::unique_ptr<SkStreamAsset> SkFontStyleSet_Cobalt::OpenMmapCacheStream(
+    SkFontStyleSetEntry_Cobalt* entry) {
+  if (!sk_woff2_cache_cobalt::IsMmapFontCacheEnabled()) {
+    return nullptr;
+  }
+  if (!entry->mmap_cache_checked) {
+    entry->mmap_cache_checked = true;
+    entry->mmap_cache_path =
+        sk_woff2_cache_cobalt::GetOrCreateCachedSfntPath(entry->font_file_path);
+  }
+  if (entry->mmap_cache_path.isEmpty()) {
+    return nullptr;
+  }
+  // SkStream::MakeFromFile mmaps the file (with a path-keyed shared SkData
+  // cache), so duplicated streams and the FreeType face all share the same
+  // clean, file-backed pages via FT_OPEN_MEMORY.
+  std::unique_ptr<SkStreamAsset> stream =
+      SkStream::MakeFromFile(entry->mmap_cache_path.c_str());
+  if (!stream) {
+    // The cache file disappeared; fall back to the WOFF2 path.
+    entry->mmap_cache_path.reset();
+  }
+  return stream;
+}
+
 void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
     SkFontStyleSetEntry_Cobalt* style_entry,
     int style_index,
     SkFileMemoryChunkStreamProvider* stream_provider /*=NULL*/) {
   if (!stream_provider) {
+    // When the mmap font cache is active for this entry, create the typeface
+    // from an mmap-backed stream of the cached decompressed SFNT. FreeType
+    // then reads the mapped bytes directly (FT_OPEN_MEMORY) instead of
+    // decompressing the WOFF2 file onto the heap and retaining the ~16MB
+    // reconstruction buffer for the lifetime of the face.
+    if (std::unique_ptr<SkStreamAsset> mmap_stream =
+            OpenMmapCacheStream(style_entry)) {
+      if (GenerateStyleFaceInfo(style_entry, mmap_stream.get(), style_index)) {
+        LOG(INFO) << "Scanned font from mmap cache: "
+                  << style_entry->face_name.c_str() << "("
+                  << style_entry->font_style.weight() << ", "
+                  << style_entry->font_style.width() << ", "
+                  << style_entry->font_style.slant() << "); File: \""
+                  << style_entry->mmap_cache_path.c_str() << "\"";
+        style_entry->typeface.reset(new SkTypeface_CobaltStream(
+            std::move(mmap_stream), style_entry->face_index,
+            style_entry->font_style, style_entry->face_is_fixed_pitch,
+            family_name_,
+            disable_character_map_ ? nullptr : character_maps_[style_index],
+            style_entry->disable_synthetic_bolding,
+            style_entry->computed_variation_position));
+        return;
+      }
+      LOG(ERROR) << "Failed to scan cached font, falling back to WOFF2: "
+                 << style_entry->font_file_path.c_str();
+      style_entry->mmap_cache_path.reset();
+    }
     stream_provider = local_typeface_stream_manager_->GetStreamProvider(
         style_entry->font_file_path.c_str());
   }

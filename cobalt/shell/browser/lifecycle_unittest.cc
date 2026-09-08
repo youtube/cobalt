@@ -139,6 +139,7 @@ TEST_F(LifecycleTest, Conceal) {
   // on the platform manager base class.
   static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
       ->OnAllFramesConcealed(shell_->web_contents());
+  base::RunLoop().RunUntilIdle();
 
   EXPECT_FALSE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);

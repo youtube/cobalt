@@ -16,9 +16,12 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <variant>
 
+#include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
+#include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -366,12 +369,18 @@ void CobaltContentRendererClient::PostSandboxInitialized() {
   CHECK(content::RenderThread::IsMainThread());
 
   // Register the current thread (which is the InProcessRendererThread in
-  // single- process mode) for hang watching. Store the ScopedClosureRunner to
-  // keep the registration active until this client object is destroyed.
+  // single-process mode) for hang watching. HangWatcher is a leaky singleton,
+  // and InProcessRendererThread runs for the duration of the web application.
+  // Release the ScopedClosureRunner instead of storing it on
+  // CobaltContentRendererClient (which is destroyed on the main thread during
+  // shutdown), and avoid thread_local ScopedClosureRunner which pulls in
+  // __cxa_thread_atexit_impl (an illegal API leak in Evergreen).
   if (base::HangWatcher::IsEnabled() && base::HangWatcher::GetInstance()) {
     // Use kRendererThread as the type for this in-process renderer thread.
-    unregister_thread_closure = base::HangWatcher::RegisterThread(
-        base::HangWatcher::ThreadType::kRendererThread);
+    base::ScopedClosureRunner unregister_thread_closure =
+        base::HangWatcher::RegisterThread(
+            base::HangWatcher::ThreadType::kRendererThread);
+    std::ignore = unregister_thread_closure.Release();
   }
 }
 

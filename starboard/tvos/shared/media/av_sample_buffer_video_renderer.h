@@ -132,6 +132,7 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
   bool error_occurred_ = false;
   bool is_underflow_ = false;
   bool eos_written_ = false;
+  bool ended_cb_called_ = false;
   bool is_first_sample_written_ = false;
   bool is_cached_frames_below_low_watermark = false;
   std::atomic_bool is_display_layer_flushing_ = {false};

@@ -158,18 +158,6 @@ TEST_F(PosixReadlinkTest, PermissionDeniedFails) {
   chmod(protected_dir.c_str(), user_rwx);
 }
 
-TEST_F(PosixReadlinkTest, InvalidBufferSizeFails) {
-  char buf[1];
-
-  errno = 0;
-  EXPECT_EQ(readlink(link_path_.c_str(), buf, 0), -1);
-  EXPECT_EQ(errno, EINVAL);
-
-  errno = 0;
-  EXPECT_EQ(readlink(link_path_.c_str(), buf, -1), -1);
-  EXPECT_EQ(errno, EINVAL);
-}
-
 TEST_F(PosixReadlinkTest, SymlinkLoopFails) {
   std::string link_a_path = temp_dir_.path() + "/link_a";
   std::string link_b_path = temp_dir_.path() + "/link_b";

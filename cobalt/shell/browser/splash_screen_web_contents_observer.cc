@@ -14,6 +14,7 @@
 
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 
+#include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/navigation_handle.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -68,6 +69,10 @@ void SplashScreenWebContentsObserver::DidStopLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(28);
 #endif
+}
+
+void SplashScreenWebContentsObserver::DidFirstVisuallyNonEmptyPaint() {
+  Shell::MaybeHideSystemSplashScreen();
 }
 
 }  // namespace content

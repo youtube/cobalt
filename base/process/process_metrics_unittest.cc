@@ -759,6 +759,12 @@ TEST_F(SystemMetricsTest, TestValidMemoryInfo) {
 #if BUILDFLAG(IS_WIN)
   EXPECT_GT(memory_info->private_bytes, 0U);
 #endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_COBALT) && \
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+  EXPECT_GT(memory_info->vm_size_bytes, 0U);
+  EXPECT_GT(memory_info->vm_hwm_bytes, 0U);
+#endif  // BUILDFLAG(IS_COBALT) && ...
 }
 
 #if BUILDFLAG(IS_CHROMEOS)

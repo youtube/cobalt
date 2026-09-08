@@ -21,9 +21,11 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
+#include "starboard/extension/low_memory_kill.h"
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/linux/shared/configuration.h"
 #include "starboard/linux/shared/ifa.h"
+#include "starboard/linux/shared/low_memory_kill.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
 
@@ -82,5 +84,8 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetLoaderAppMetricsApi();
   }
 #endif
+  if (strcmp(name, kStarboardExtensionLowMemoryKillName) == 0) {
+    return starboard::GetLowMemoryKillApi();
+  }
   return NULL;
 }

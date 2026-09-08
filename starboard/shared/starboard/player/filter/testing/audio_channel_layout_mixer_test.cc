@@ -28,23 +28,17 @@
 namespace starboard {
 namespace {
 
-using ::testing::Combine;
 using ::testing::Values;
 
 class AudioChannelLayoutMixerTest
-    : public ::testing::TestWithParam<
-          std::tuple<SbMediaAudioSampleType, SbMediaAudioFrameStorageType>> {
+    : public ::testing::TestWithParam<SbMediaAudioSampleType> {
  protected:
-  AudioChannelLayoutMixerTest()
-      : sample_type_(std::get<0>(GetParam())),
-        storage_type_(std::get<1>(GetParam())) {
+  AudioChannelLayoutMixerTest() : sample_type_(GetParam()) {
     SB_DCHECK(sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ||
               sample_type_ == kSbMediaAudioSampleTypeFloat32);
-    SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved ||
-              storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
   }
 
-  scoped_refptr<DecodedAudio> GetTestDecodedAudio(int num_of_channels) {
+  DecodedAudio GetTestDecodedAudio(int num_of_channels) {
     // Interleaved test audio data, stored in float.
     const float kMonoInputAudioData[] = {
         -1.0f, -0.5f, 0.0f, 0.5f, 1.0f,
@@ -80,76 +74,57 @@ class AudioChannelLayoutMixerTest
       SB_NOTREACHED() << "Invalid number of channels.";
     }
 
-    scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
-        num_of_channels, sample_type_, storage_type_, 0,
+    DecodedAudio decoded_audio(
+        num_of_channels, sample_type_, /*timestamp=*/0,
         kInputFrames * num_of_channels *
-            (sample_type_ == kSbMediaAudioSampleTypeFloat32 ? 4 : 2)));
+            (sample_type_ == kSbMediaAudioSampleTypeFloat32 ? 4 : 2));
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-      float* dest_buffer = reinterpret_cast<float*>(decoded_audio->data());
+      float* dest_buffer = reinterpret_cast<float*>(decoded_audio.data());
       for (size_t i = 0; i < num_of_channels * kInputFrames; i++) {
-        int src_index = i;
-        if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
-          src_index = i % kInputFrames * num_of_channels + i / kInputFrames;
-        }
-        dest_buffer[i] = data_buffer[src_index];
+        dest_buffer[i] = data_buffer[i];
       }
     } else {
-      int16_t* dest_buffer = reinterpret_cast<int16_t*>(decoded_audio->data());
+      int16_t* dest_buffer = reinterpret_cast<int16_t*>(decoded_audio.data());
       for (size_t i = 0; i < num_of_channels * kInputFrames; i++) {
-        int src_index = i;
-        if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
-          src_index = i % kInputFrames * num_of_channels + i / kInputFrames;
-        }
-        dest_buffer[i] =
-            data_buffer[src_index] * std::numeric_limits<int16_t>::max();
+        dest_buffer[i] = data_buffer[i] * std::numeric_limits<int16_t>::max();
       }
     }
     return decoded_audio;
   }
 
-  void AssertExpectedAndOutputMatch(const scoped_refptr<DecodedAudio>& input,
-                                    const scoped_refptr<DecodedAudio>& output,
+  void AssertExpectedAndOutputMatch(const DecodedAudio& input,
+                                    const DecodedAudio& output,
                                     int output_num_of_channels,
                                     const float* expected_output) {
-    ASSERT_EQ(output_num_of_channels, output->channels());
-    ASSERT_EQ(input->sample_type(), output->sample_type());
-    ASSERT_EQ(input->storage_type(), output->storage_type());
-    ASSERT_EQ(input->timestamp(), output->timestamp());
-    ASSERT_EQ(input->size_in_bytes() * output->channels(),
-              output->size_in_bytes() * input->channels());
+    ASSERT_EQ(output_num_of_channels, output.channels());
+    ASSERT_EQ(input.sample_type(), output.sample_type());
+    ASSERT_EQ(input.timestamp(), output.timestamp());
+    ASSERT_EQ(input.size_in_bytes() * output.channels(),
+              output.size_in_bytes() * input.channels());
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-      float* output_buffer = reinterpret_cast<float*>(output->data());
+      const float* output_buffer =
+          reinterpret_cast<const float*>(output.data());
       for (size_t i = 0;
-           i < static_cast<size_t>(output->frames()) * output_num_of_channels;
+           i < static_cast<size_t>(output.frames()) * output_num_of_channels;
            i++) {
-        size_t src_index = i;
-        if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
-          src_index = i % output->frames() * output_num_of_channels +
-                      i / output->frames();
-        }
-        if (expected_output[src_index] >= 1.0f) {
+        if (expected_output[i] >= 1.0f) {
           ASSERT_GE(output_buffer[i], 0.999f);
-        } else if (expected_output[src_index] <= -0.999f) {
+        } else if (expected_output[i] <= -0.999f) {
           ASSERT_LE(output_buffer[i], -1.0f);
         } else {
-          ASSERT_LE(fabs(expected_output[src_index] - output_buffer[i]),
-                    0.001f);
+          ASSERT_LE(fabs(expected_output[i] - output_buffer[i]), 0.001f);
         }
       }
     } else {
-      int16_t* output_buffer = reinterpret_cast<int16_t*>(output->data());
+      const int16_t* output_buffer =
+          reinterpret_cast<const int16_t*>(output.data());
       for (size_t i = 0;
-           i < static_cast<size_t>(output->frames()) * output_num_of_channels;
+           i < static_cast<size_t>(output.frames()) * output_num_of_channels;
            i++) {
-        size_t src_index = i;
-        if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
-          src_index = i % output->frames() * output_num_of_channels +
-                      i / output->frames();
-        }
         ASSERT_LE(
-            fabs(expected_output[src_index] -
+            fabs(expected_output[i] -
                  static_cast<float>(output_buffer[i]) /
                      static_cast<float>(std::numeric_limits<int16_t>::max())),
             0.001f);
@@ -158,114 +133,104 @@ class AudioChannelLayoutMixerTest
   }
 
   SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
 };
 
 std::string GetAudioChannelLayoutMixerTestConfigName(
-    ::testing::TestParamInfo<std::tuple<SbMediaAudioSampleType,
-                                        SbMediaAudioFrameStorageType>> info) {
-  SbMediaAudioSampleType sample_type = std::get<0>(info.param);
-  SbMediaAudioFrameStorageType frame_storage_type = std::get<1>(info.param);
-
-  return FormatString(
-      "%s_%s",
-      sample_type == kSbMediaAudioSampleTypeInt16Deprecated
-          ? "SampleTypeInt16"
-          : "SampleTypeFloat32",
-      frame_storage_type == kSbMediaAudioFrameStorageTypeInterleaved
-          ? "StorageTypeInterleaved"
-          : "StorageTypePlanar");
+    ::testing::TestParamInfo<SbMediaAudioSampleType> info) {
+  return info.param == kSbMediaAudioSampleTypeInt16Deprecated
+             ? "SampleTypeInt16"
+             : "SampleTypeFloat32";
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToMono) {
   std::unique_ptr<AudioChannelLayoutMixer> mixer =
-      AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 1);
+      AudioChannelLayoutMixer::Create(sample_type_, 1);
   ASSERT_TRUE(mixer);
 
   const float kExpectedMonoToMonoOutput[] = {
       -1.0f, -0.5f, 0.0f, 0.5f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> mono_input = GetTestDecodedAudio(1);
-  scoped_refptr<DecodedAudio> mono_output = mixer->Mix(mono_input);
+  DecodedAudio mono_input = GetTestDecodedAudio(1);
+  DecodedAudio mono_output = mixer->Mix(mono_input.CloneForTesting());
   AssertExpectedAndOutputMatch(mono_input, mono_output, 1,
                                kExpectedMonoToMonoOutput);
 
   const float kExpectedStereoToMonoOutput[] = {
       -0.25f, 0.0f, 0.0f, 0.5f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> stereo_input = GetTestDecodedAudio(2);
-  scoped_refptr<DecodedAudio> stereo_output = mixer->Mix(stereo_input);
+  DecodedAudio stereo_input = GetTestDecodedAudio(2);
+  DecodedAudio stereo_output = mixer->Mix(stereo_input.CloneForTesting());
   AssertExpectedAndOutputMatch(stereo_input, stereo_output, 1,
                                kExpectedStereoToMonoOutput);
 
   const float kExpectedQuadToMonoOutput[] = {
       0.0f, -0.25f, 0.0f, 0.5f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> quad_input = GetTestDecodedAudio(4);
-  scoped_refptr<DecodedAudio> quad_output = mixer->Mix(quad_input);
+  DecodedAudio quad_input = GetTestDecodedAudio(4);
+  DecodedAudio quad_output = mixer->Mix(quad_input.CloneForTesting());
   AssertExpectedAndOutputMatch(quad_input, quad_output, 1,
                                kExpectedQuadToMonoOutput);
 
   const float kExpectedFivePointOneToMonoOutput[] = {
       0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> five_point_one_input = GetTestDecodedAudio(6);
-  scoped_refptr<DecodedAudio> five_point_one_output =
-      mixer->Mix(five_point_one_input);
+  DecodedAudio five_point_one_input = GetTestDecodedAudio(6);
+  DecodedAudio five_point_one_output =
+      mixer->Mix(five_point_one_input.CloneForTesting());
   AssertExpectedAndOutputMatch(five_point_one_input, five_point_one_output, 1,
                                kExpectedFivePointOneToMonoOutput);
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToStereo) {
   std::unique_ptr<AudioChannelLayoutMixer> mixer =
-      AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 2);
+      AudioChannelLayoutMixer::Create(sample_type_, 2);
   ASSERT_TRUE(mixer);
 
   const float kExpectedMonoToStereoOutput[] = {
       -1.0f, -1.0f, -0.5f, -0.5f, 0.0f, 0.0f, 0.5f, 0.5f, 1.0f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> mono_input = GetTestDecodedAudio(1);
-  scoped_refptr<DecodedAudio> mono_output = mixer->Mix(mono_input);
+  DecodedAudio mono_input = GetTestDecodedAudio(1);
+  DecodedAudio mono_output = mixer->Mix(mono_input.CloneForTesting());
   AssertExpectedAndOutputMatch(mono_input, mono_output, 2,
                                kExpectedMonoToStereoOutput);
 
   const float kExpectedStereoToStereoOutput[] = {
       -1.0f, 0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 0.5f, 0.5f, 1.0f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> stereo_input = GetTestDecodedAudio(2);
-  scoped_refptr<DecodedAudio> stereo_output = mixer->Mix(stereo_input);
+  DecodedAudio stereo_input = GetTestDecodedAudio(2);
+  DecodedAudio stereo_output = mixer->Mix(stereo_input.CloneForTesting());
   AssertExpectedAndOutputMatch(stereo_input, stereo_output, 2,
                                kExpectedStereoToStereoOutput);
 
   const float kExpectedQuadToStereoOutput[] = {
       -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 1.0f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> quad_input = GetTestDecodedAudio(4);
-  scoped_refptr<DecodedAudio> quad_output = mixer->Mix(quad_input);
+  DecodedAudio quad_input = GetTestDecodedAudio(4);
+  DecodedAudio quad_output = mixer->Mix(quad_input.CloneForTesting());
   AssertExpectedAndOutputMatch(quad_input, quad_output, 2,
                                kExpectedQuadToStereoOutput);
 
   const float kExpectedFivePointOneToStereoOutput[] = {
       -1.0f, 1.0f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> five_point_one_input = GetTestDecodedAudio(6);
-  scoped_refptr<DecodedAudio> five_point_one_output =
-      mixer->Mix(five_point_one_input);
+  DecodedAudio five_point_one_input = GetTestDecodedAudio(6);
+  DecodedAudio five_point_one_output =
+      mixer->Mix(five_point_one_input.CloneForTesting());
   AssertExpectedAndOutputMatch(five_point_one_input, five_point_one_output, 2,
                                kExpectedFivePointOneToStereoOutput);
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToQuad) {
   std::unique_ptr<AudioChannelLayoutMixer> mixer =
-      AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 4);
+      AudioChannelLayoutMixer::Create(sample_type_, 4);
   ASSERT_TRUE(mixer);
 
   const float kExpectedMonoToQuadOutput[] = {
       -1.0f, -1.0f, 0.0f, 0.0f, -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f,
       0.0f,  0.0f,  0.5f, 0.5f, 0.0f,  0.0f,  1.0f, 1.0f, 0.0f, 0.0f,
   };
-  scoped_refptr<DecodedAudio> mono_input = GetTestDecodedAudio(1);
-  scoped_refptr<DecodedAudio> mono_output = mixer->Mix(mono_input);
+  DecodedAudio mono_input = GetTestDecodedAudio(1);
+  DecodedAudio mono_output = mixer->Mix(mono_input.CloneForTesting());
   AssertExpectedAndOutputMatch(mono_input, mono_output, 4,
                                kExpectedMonoToQuadOutput);
 
@@ -273,8 +238,8 @@ TEST_P(AudioChannelLayoutMixerTest, MixToQuad) {
       -1.0f, 0.5f, 0.0f, 0.0f, -0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f,
       0.0f,  0.0f, 0.5f, 0.5f, 0.0f,  0.0f, 1.0f, 1.0f, 0.0f, 0.0f,
   };
-  scoped_refptr<DecodedAudio> stereo_input = GetTestDecodedAudio(2);
-  scoped_refptr<DecodedAudio> stereo_output = mixer->Mix(stereo_input);
+  DecodedAudio stereo_input = GetTestDecodedAudio(2);
+  DecodedAudio stereo_output = mixer->Mix(stereo_input.CloneForTesting());
   AssertExpectedAndOutputMatch(stereo_input, stereo_output, 4,
                                kExpectedStereoToQuadOutput);
 
@@ -282,8 +247,8 @@ TEST_P(AudioChannelLayoutMixerTest, MixToQuad) {
       -1.0f, 1.0f, 0.0f, 0.0f, -0.5f, 0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
       0.0f,  0.0f, 0.5f, 0.5f, 0.5f,  0.5f, 1.0f,  1.0f,  1.0f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> quad_input = GetTestDecodedAudio(4);
-  scoped_refptr<DecodedAudio> quad_output = mixer->Mix(quad_input);
+  DecodedAudio quad_input = GetTestDecodedAudio(4);
+  DecodedAudio quad_output = mixer->Mix(quad_input.CloneForTesting());
   AssertExpectedAndOutputMatch(quad_input, quad_output, 4,
                                kExpectedQuadToQuadOutput);
 
@@ -292,16 +257,16 @@ TEST_P(AudioChannelLayoutMixerTest, MixToQuad) {
       -0.5f,    0.0f, 0.0f,  0.0f,  0.0f,     0.8535f, 0.8535f,
       0.5f,     0.5f, 1.0f,  1.0f,  1.0f,     1.0f,
   };
-  scoped_refptr<DecodedAudio> five_point_one_input = GetTestDecodedAudio(6);
-  scoped_refptr<DecodedAudio> five_point_one_output =
-      mixer->Mix(five_point_one_input);
+  DecodedAudio five_point_one_input = GetTestDecodedAudio(6);
+  DecodedAudio five_point_one_output =
+      mixer->Mix(five_point_one_input.CloneForTesting());
   AssertExpectedAndOutputMatch(five_point_one_input, five_point_one_output, 4,
                                kExpectedFivePointOneToQuadOutput);
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
   std::unique_ptr<AudioChannelLayoutMixer> mixer =
-      AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 6);
+      AudioChannelLayoutMixer::Create(sample_type_, 6);
   ASSERT_TRUE(mixer);
 
   const float kExpectedMonoToFivePointOneOutput[] = {
@@ -309,8 +274,8 @@ TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
       0.0f, 0.0f, 0.0f,  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f,
       0.5f, 0.0f, 0.0f,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  0.0f,
   };
-  scoped_refptr<DecodedAudio> mono_input = GetTestDecodedAudio(1);
-  scoped_refptr<DecodedAudio> mono_output = mixer->Mix(mono_input);
+  DecodedAudio mono_input = GetTestDecodedAudio(1);
+  DecodedAudio mono_output = mixer->Mix(mono_input.CloneForTesting());
   AssertExpectedAndOutputMatch(mono_input, mono_output, 6,
                                kExpectedMonoToFivePointOneOutput);
 
@@ -319,8 +284,8 @@ TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
       0.0f,  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 0.5f, 0.5f,
       0.0f,  0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,  0.0f, 0.0f, 0.0f,
   };
-  scoped_refptr<DecodedAudio> stereo_input = GetTestDecodedAudio(2);
-  scoped_refptr<DecodedAudio> stereo_output = mixer->Mix(stereo_input);
+  DecodedAudio stereo_input = GetTestDecodedAudio(2);
+  DecodedAudio stereo_output = mixer->Mix(stereo_input.CloneForTesting());
   AssertExpectedAndOutputMatch(stereo_input, stereo_output, 6,
                                kExpectedStereoToFivePointOneOutput);
 
@@ -329,8 +294,8 @@ TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
       -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 0.5f, 0.5f,
       0.0f,  0.0f,  0.5f, 0.5f, 1.0f, 1.0f, 0.0f,  0.0f, 1.0f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> quad_input = GetTestDecodedAudio(4);
-  scoped_refptr<DecodedAudio> quad_output = mixer->Mix(quad_input);
+  DecodedAudio quad_input = GetTestDecodedAudio(4);
+  DecodedAudio quad_output = mixer->Mix(quad_input.CloneForTesting());
   AssertExpectedAndOutputMatch(quad_input, quad_output, 6,
                                kExpectedQuadToFivePointOneOutput);
 
@@ -339,21 +304,18 @@ TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
       -0.5f, -0.5f, 0.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 0.5f, 0.5f,
       0.5f,  0.5f,  0.5f, 0.5f,  1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
   };
-  scoped_refptr<DecodedAudio> five_point_one_input = GetTestDecodedAudio(6);
-  scoped_refptr<DecodedAudio> five_point_one_output =
-      mixer->Mix(five_point_one_input);
+  DecodedAudio five_point_one_input = GetTestDecodedAudio(6);
+  DecodedAudio five_point_one_output =
+      mixer->Mix(five_point_one_input.CloneForTesting());
   AssertExpectedAndOutputMatch(five_point_one_input, five_point_one_output, 6,
                                kExpectedFivePointOneToFivePointOneOutput);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    AudioChannelLayoutMixerTests,
-    AudioChannelLayoutMixerTest,
-    Combine(Values(kSbMediaAudioSampleTypeInt16Deprecated,
-                   kSbMediaAudioSampleTypeFloat32),
-            Values(kSbMediaAudioFrameStorageTypeInterleaved,
-                   kSbMediaAudioFrameStorageTypePlanar)),
-    GetAudioChannelLayoutMixerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(AudioChannelLayoutMixerTests,
+                         AudioChannelLayoutMixerTest,
+                         Values(kSbMediaAudioSampleTypeInt16Deprecated,
+                                kSbMediaAudioSampleTypeFloat32),
+                         GetAudioChannelLayoutMixerTestConfigName);
 
 }  // namespace
 

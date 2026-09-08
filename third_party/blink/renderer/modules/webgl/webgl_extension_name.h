@@ -34,9 +34,6 @@ enum WebGLExtensionName {
   kKHRParallelShaderCompileName,
   kNVShaderNoperspectiveInterpolationName,
   kOESDrawBuffersIndexedName,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  kOESEGLImageExternalName,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   kOESElementIndexUintName,
   kOESFboRenderMipmapName,
   kOESSampleVariablesName,
@@ -74,6 +71,12 @@ enum WebGLExtensionName {
   kWebGLShaderPixelLocalStorageName,
   kWebGLStencilTexturingName,
   kWebGLWebCodecsVideoFrameName,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  kOESEGLImageExternalName,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+  kCobaltVideoTextureTransformName,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   kWebGLExtensionNameCount,  // Must be the last entry
 };
 }  // namespace blink

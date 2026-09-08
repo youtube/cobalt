@@ -18,6 +18,7 @@
 #include <map>
 
 #include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -65,6 +66,8 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
            mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
       controllers_;
   int64_t latest_navigation_id_ = 0;
+  base::TimeTicks navigation_start_ticks_;
+  bool has_recorded_startup_navigation_ = false;
 #if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
   int platform_error_raised_count_ = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)

@@ -2394,14 +2394,6 @@ component("base") {
         "profiler/suspendable_thread_delegate_mac.h",
       ]
     }
-    if (!use_allocator_shim) {
-      sources -= [
-        "sampling_heap_profiler/poisson_allocation_sampler.cc",
-        "sampling_heap_profiler/poisson_allocation_sampler.h",
-        "sampling_heap_profiler/sampling_heap_profiler.cc",
-        "sampling_heap_profiler/sampling_heap_profiler.h",
-      ]
-    }
 
     frameworks += [
       "Foundation.framework",

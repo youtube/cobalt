@@ -2,6 +2,7 @@
 """Script to automatically roll branch."""
 import argparse
 import autoroll_lib as lib
+import sys
 
 
 def cherry_pick(sha, metadata, first_commit, autoroll_metadata):
@@ -23,7 +24,7 @@ def main():
 
   if autoroll_start is None:
     lib.log('Autoroll branch has an unresolved CONFLICTED commit.')
-    return
+    sys.exit(1)
 
   if args.existing_pr_sha:
     lib.run(['git', 'fetch', 'origin', args.existing_pr_sha])
@@ -32,7 +33,7 @@ def main():
     if commit_title.startswith('CONFLICTED'):
       lib.log('Autoroll branch has a resolved CONFLICTED commit. '
               'Squash and merge before autoroll will continue.')
-      return
+      sys.exit(1)
 
   # Commits in source but not in target
   commits_to_target = lib.get_commits(args.source_branch, target_start)

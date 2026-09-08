@@ -41,6 +41,8 @@
 #include "starboard/shared/signal/suspend_signals.h"
 
 #include "third_party/starboard/rdk/shared/application_rdk.h"
+#include "third_party/starboard/rdk/shared/media/gst_media_utils.h"
+#include <cstdio>
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/command_line.h"
@@ -48,6 +50,23 @@
 #include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #endif
+
+namespace {
+
+void debug_log_override(GstDebugCategory *category, GstDebugLevel level,
+                        const gchar *file, const gchar *function, gint line,
+                        GObject *object, GstDebugMessage *message,
+                        gpointer data) {
+  gchar *log_line = gst_debug_log_get_line(category, level, file, function,
+                                           line, object, message);
+  gint64 ts = g_get_monotonic_time();
+  fprintf(stderr, "%.010" G_GINT64_FORMAT ".%.06" G_GINT64_FORMAT " %s",
+          reinterpret_cast<gint64>(ts / G_USEC_PER_SEC),
+          reinterpret_cast<gint64>(ts % G_USEC_PER_SEC), log_line);
+  g_free(log_line);
+}
+
+} // namespace
 
 namespace starboard {
 
@@ -85,9 +104,13 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   starboard::InstallSuspendSignalHandlers();
   starboard::InstallStopSignalHandlers();
 
-  GError* error = NULL;
-  gst_init_check(NULL, NULL, &error);
-  g_free(error);
+  starboard::EnsureGstInit();
+
+  if (const char *env = std::getenv("COBALT_OVERRIDE_GST_DEBUG_LOG");
+      env && g_str_equal(env, "1")) {
+    gst_debug_remove_log_function(gst_debug_log_default);
+    gst_debug_add_log_function(debug_log_override, nullptr, nullptr);
+  }
 
   starboard::ApplicationRdk application(callback);
   int result = application.Run(argc, argv);

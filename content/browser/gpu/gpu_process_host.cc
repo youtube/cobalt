@@ -885,7 +885,7 @@ bool GpuProcessHost::Init() {
             process_->GetInProcessMojoInvitation(), GetIOThreadTaskRunner()),
         gpu_preferences));
     base::Thread::Options options;
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
     // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
     // helper threads is reduced to 256KB to save virtual memory. We explicitly
     // set the GPU main thread stack to 1MB for safety, as GPU workloads can

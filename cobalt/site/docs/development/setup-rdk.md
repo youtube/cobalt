@@ -120,11 +120,8 @@ Generate the build files and compile Cobalt:
 3.  **Compile targets**:
 
     ```
-    autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt_loader nplb_loader loader_app_rdk_plugin
+    autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt_loader nplb_loader
     ```
-
-> [!NOTE]
-> The compile target name contains `_plugin` (`loader_app_rdk_plugin`) because this target compiles both the standalone executable (`loader_app`) and the WPE plugin library (`libloader_app.so`). Both build successfully.
 
 
 ### Generate Archive

@@ -18,7 +18,6 @@
 #include <optional>
 #include <ostream>
 
-#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/buffer_internal.h"
@@ -27,30 +26,32 @@ namespace starboard {
 
 // Decoded audio frames produced by an audio decoder.  It can contain multiple
 // frames with continuous timestamps.
-class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
+class DecodedAudio {
  public:
-  DecodedAudio();  // Signal an EOS.
-  // TODO(b/272837615): Remove `storage_type` support and always store data in
-  // interleaved. Refactor the places that store sample in planar to convert the
-  // samples to interleaved on creation.
+  static DecodedAudio CreateEOSBuffer();
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
-               SbMediaAudioFrameStorageType storage_type,
                int64_t timestamp,
                int size_in_bytes);
 
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
-               SbMediaAudioFrameStorageType storage_type,
                int64_t timestamp,
                int size_in_bytes,
                Buffer&& storage);
+
+  // Move-only semantics
+  DecodedAudio(DecodedAudio&& other) noexcept;
+  DecodedAudio& operator=(DecodedAudio&& other) noexcept;
+
+  // Disable copy and assignment.
+  DecodedAudio(const DecodedAudio&) = delete;
+  DecodedAudio& operator=(const DecodedAudio&) = delete;
 
   static void EnableSimdBasedAudioFormatSwitching();
 
   int channels() const { return channels_; }
   SbMediaAudioSampleType sample_type() const { return sample_type_; }
-  SbMediaAudioFrameStorageType storage_type() const { return storage_type_; }
 
   bool is_end_of_stream() const { return channels_ == 0; }
   int64_t timestamp() const { return timestamp_; }
@@ -82,45 +83,33 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
                                    int64_t discarded_duration_from_front,
                                    int64_t discarded_duration_from_back);
 
-  bool IsFormat(SbMediaAudioSampleType sample_type,
-                SbMediaAudioFrameStorageType storage_type) const;
-  // During format switching, this method can perform the layout/sample type
-  // conversions on-the-fly.
+  // During format switching, this method can perform sample type conversions
+  // on-the-fly.
   // Note: The `force_simd` parameter allows explicitly forcing or disabling
   // the SIMD path, which is primarily intended for unit testing different
   // execution paths. When left as `nullopt` (default), it automatically
   // resolves to the global experimental setting.
-  scoped_refptr<DecodedAudio> SwitchFormatTo(
-      SbMediaAudioSampleType new_sample_type,
-      SbMediaAudioFrameStorageType new_storage_type,
-      std::optional<bool> force_simd = std::nullopt) const
-      SB_WARN_UNUSED_RESULT;
+  DecodedAudio SwitchFormatTo(SbMediaAudioSampleType new_sample_type,
+                              std::optional<bool> force_simd =
+                                  std::nullopt) const SB_WARN_UNUSED_RESULT;
 
-  scoped_refptr<DecodedAudio> Clone() const;
+  DecodedAudio CloneForTesting() const;
 
  private:
-  scoped_refptr<DecodedAudio> SwitchSampleTypeTo(
-      SbMediaAudioSampleType new_sample_type,
-      bool enable_simd) const;
-  scoped_refptr<DecodedAudio> SwitchStorageTypeTo(
-      SbMediaAudioFrameStorageType new_storage_type,
-      bool enable_simd) const;
+  DecodedAudio();
+
+  DecodedAudio SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type,
+                                  bool enable_simd) const;
 
   // These NEON helper methods are always declared to avoid leaking platform-
   // specific preprocessor macros (like USE_NEON_FOR_AUDIO) to this header
   // file. They are only defined and called in the implementation (.cc) file
   // when NEON is enabled on the target platform.
-  bool SwitchFormatTo_NEON(SbMediaAudioSampleType new_sample_type,
-                           SbMediaAudioFrameStorageType new_storage_type,
-                           DecodedAudio* destination_audio) const;
   bool SwitchSampleTypeTo_NEON(SbMediaAudioSampleType new_sample_type,
                                DecodedAudio* destination_audio) const;
-  bool SwitchStorageTypeTo_NEON(SbMediaAudioFrameStorageType new_storage_type,
-                                DecodedAudio* destination_audio) const;
 
-  const int channels_;
-  const SbMediaAudioSampleType sample_type_;
-  const SbMediaAudioFrameStorageType storage_type_;
+  int channels_;
+  SbMediaAudioSampleType sample_type_;
   // The timestamp of the first audio frame in microseconds.
   int64_t timestamp_;
   Buffer storage_;
@@ -128,9 +117,6 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   // `storage_.data() + offset_in_bytes_`, `size_in_bytes_` bytes in total.
   int offset_in_bytes_ = 0;
   int size_in_bytes_ = 0;
-
-  DecodedAudio(const DecodedAudio&) = delete;
-  void operator=(const DecodedAudio&) = delete;
 };
 
 bool operator==(const DecodedAudio& left, const DecodedAudio& right);

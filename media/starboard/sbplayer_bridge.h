@@ -72,6 +72,7 @@ class SbPlayerBridge {
     uint64_t* audio_bytes_decoded;
     uint64_t* video_bytes_decoded;
     base::TimeDelta* media_time;
+    base::TimeDelta* duration;
   };
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
@@ -79,8 +80,11 @@ class SbPlayerBridge {
       base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>;
 
 #if BUILDFLAG(IS_IOS_TVOS)
-  using OnEncryptedMediaInitDataEncounteredCB = base::RepeatingCallback<
-      void(const char*, const unsigned char*, unsigned)>;
+  // Invoked on |task_runner_| with owned copies, since the static
+  // callback originates from the native Starboard player thread.
+  using OnEncryptedMediaInitDataEncounteredCB =
+      base::RepeatingCallback<void(const std::string& init_data_type,
+                                   const std::vector<uint8_t>& init_data)>;
   // Create an SbPlayerBridge with url-based player.
   SbPlayerBridge(SbPlayerInterface* interface,
                  const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -147,7 +151,6 @@ class SbPlayerBridge {
   void GetUrlPlayerBufferedTimeRanges(base::TimeDelta* buffer_start_time,
                                       base::TimeDelta* buffer_length_time);
   void GetVideoResolution(int* frame_width, int* frame_height);
-  base::TimeDelta GetDuration();
   base::TimeDelta GetStartDate();
   void SetDrmSystem(SbDrmSystem drm_system);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
@@ -218,6 +221,9 @@ class SbPlayerBridge {
       const char* init_data_type,
       const unsigned char* init_data,
       unsigned int init_data_length);
+
+  void OnEncryptedMediaInitDataEncountered(std::string init_data_type,
+                                           std::vector<uint8_t> init_data);
 
   void CreateUrlPlayer(const std::string& url);
 #endif  // BUILDFLAG(IS_IOS_TVOS)

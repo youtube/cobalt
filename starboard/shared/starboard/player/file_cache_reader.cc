@@ -60,6 +60,13 @@ std::string ResolveTestFileName(const char* filename) {
            path_inside_content;
     does_path_exist = stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
   }
+  if (!does_path_exist) {
+    // Check fallback location where test_runner.py pushes files on Android
+    // device storage.
+    path = std::string("/sdcard/chromium_tests_root/content/data") +
+           path_inside_content;
+    does_path_exist = stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+  }
   SB_CHECK(does_path_exist) << "Cannot open directory: " << path;
   return path + kSbFileSepChar + filename;
 }

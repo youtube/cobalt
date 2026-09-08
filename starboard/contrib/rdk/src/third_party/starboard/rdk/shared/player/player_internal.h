@@ -27,9 +27,9 @@ struct SB_EXPORT Player {
   virtual ~Player() {}
   static int MaxNumberOfSamplesPerWrite();
   virtual void MarkEOS(SbMediaType stream_type) = 0;
-  virtual void WriteSample(SbMediaType sample_type,
-                           const SbPlayerSampleInfo* sample_infos,
-                           int number_of_sample_infos) = 0;
+  virtual void WriteSamples(SbMediaType sample_type,
+                            const SbPlayerSampleInfo* sample_infos,
+                            int number_of_sample_infos) = 0;
   virtual void SetVolume(double volume) = 0;
   virtual void Seek(int64_t seek_to_timestamp, int ticket) = 0;
   virtual bool SetRate(double rate) = 0;

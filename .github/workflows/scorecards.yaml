@@ -30,18 +30,43 @@ jobs:
       security-events: write
       # Needed to publish results and get a badge (see publish_results below).
       id-token: write
-      # Uncomment the permissions below if installing in a private repository.
-      # contents: read
-      # actions: read
+      # Required to checkout the repository and scan the code.
+      contents: read
+      # Required to check GHA workflow permissions/configuration.
+      actions: read
+      # Required to query PR modified files.
+      pull-requests: read
 
     steps:
-      - name: "Checkout code"
+      - name: "Checkout code (sparse for pull requests)"
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            cobalt
+            starboard
+
+      - name: "Checkout code (full for postsubmit)"
+        if: github.event_name != 'pull_request'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
+      # Dynamically check out directories containing modified files in this PR
+      # to ensure they are scanned by Scorecard.
+      - name: "Include modified files in sparse checkout"
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          DIRS=$(gh pr view "$PR_NUM" --json files --jq '[.files[].path | split("/") | .[:-1] | join("/")] | unique | .[] | select(. != "")')
+          echo "$DIRS" | xargs -r git sparse-checkout add
+
       - name: "Run analysis"
-        uses: ossf/scorecard-action@f49aabe0b5af0936a0987cfb85d86b75731b0186 # v2.4.1
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
         with:
           results_file: results.sarif
           results_format: sarif
@@ -75,6 +100,6 @@ jobs:
       # Upload the results to GitHub's code scanning dashboard (optional).
       # Commenting out will disable upload of results to your repo's Code Scanning dashboard
       - name: "Upload to code-scanning"
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           sarif_file: results.sarif

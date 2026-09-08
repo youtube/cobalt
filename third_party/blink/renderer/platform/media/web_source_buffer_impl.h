@@ -53,10 +53,15 @@ class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
       double* timestamp_offset) override;
   void ResetParserState() override;
   void Remove(double start, double end) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool CanChangeType(const WebString& mime_type) override;
+  void ChangeType(const WebString& mime_type) override;
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool CanChangeType(const WebString& content_type,
                      const WebString& codecs) override;
   void ChangeType(const WebString& content_type,
                   const WebString& codecs) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool SetTimestampOffset(double offset) override;
   void SetAppendWindowStart(double start) override;
   void SetAppendWindowEnd(double end) override;

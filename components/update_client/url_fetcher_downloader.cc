@@ -271,7 +271,7 @@ void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
       base::BindRepeating(&UrlFetcherDownloader::OnDownloadProgress, this),
       base::BindOnce(&UrlFetcherDownloader::OnNetworkFetcherComplete, this));
 #else
-  file_path_ = download_dir_.AppendASCII(url.ExtractFileName());
+  file_path_ = download_dir_.AppendASCII("update.crx");
   LOG(INFO) << "UrlFetcherDownloader::StartURLFetch, file_path_ =" << file_path_.value().c_str();
   network_fetcher_->DownloadToFile(
       url, file_path_,

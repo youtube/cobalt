@@ -97,6 +97,8 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
 
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
-  drm_system->GenerateSessionUpdateRequest(ticket, type, initialization_data,
-                                           initialization_data_size);
+  drm_system->GenerateSessionUpdateRequest(
+      ticket, type,
+      std::string_view(static_cast<const char*>(initialization_data),
+                       initialization_data_size));
 }

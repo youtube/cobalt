@@ -45,7 +45,9 @@ void CallMessagePumpDelayed(void* context) {
 
 }  // namespace
 
-MessagePumpUIStarboard::MessagePumpUIStarboard() : delegate_(nullptr) {}
+MessagePumpUIStarboard::MessagePumpUIStarboard() : delegate_(nullptr) {
+  wakeup_event_.declare_only_used_while_idle();
+}
 
 void MessagePumpUIStarboard::CancelDelayed() {
   base::AutoLock auto_lock(outstanding_events_lock_);

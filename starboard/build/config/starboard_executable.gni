@@ -19,13 +19,24 @@ if (is_android) {
 template("starboard_executable") {
   if (is_android) {
     _target_type = "shared_library_with_jni"
+  } else if (defined(invoker.target_type)) {
+    _target_type = invoker.target_type
   } else {
     _target_type = starboard_level_final_executable_type
   }
 
   target(_target_type, target_name) {
-    forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
+    forward_variables_from(invoker,
+                           "*",
+                           TESTONLY_AND_VISIBILITY + [
+                                 "target_type",
+                                 "extra_configs",
+                               ])
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+
+    if (defined(invoker.extra_configs)) {
+      configs += invoker.extra_configs
+    }
 
     if (is_android) {
       java_targets = [
@@ -49,13 +60,5 @@ template("starboard_executable") {
         }
       }
     }
-  }
-}
-
-set_defaults("starboard_executable") {
-  if (!is_android && starboard_level_final_executable_type == "executable") {
-    configs = default_executable_configs
-  } else {
-    configs = default_shared_library_configs
   }
 }
