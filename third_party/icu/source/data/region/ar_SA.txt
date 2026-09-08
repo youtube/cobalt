@@ -1,0 +1,15 @@
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+ar_SA{
+    Countries{
+        AC{"جزيرة أسينشين"}
+        EA{"سبتة ومليلية"}
+        MO{"ماكاو"}
+        MS{"مونتيسيرات"}
+        UY{"أوروغواي"}
+    }
+    Countries%variant{
+        CZ{"التشيك"}
+    }
+}

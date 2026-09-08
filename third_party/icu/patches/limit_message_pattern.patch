@@ -1,0 +1,25 @@
+diff --git a/source/common/messagepattern.cpp b/source/common/messagepattern.cpp
+index 82cb638e..08474597 100644
+--- a/source/common/messagepattern.cpp
++++ b/source/common/messagepattern.cpp
+@@ -437,7 +437,7 @@ MessagePattern::parseMessage(int32_t index, int32_t msgStartLength,
+     if(U_FAILURE(errorCode)) {
+         return 0;
+     }
+-    if(nestingLevel>Part::MAX_VALUE) {
++    if(nestingLevel>Part::MAX_NESTED_LEVELS) {
+         errorCode=U_INDEX_OUTOFBOUNDS_ERROR;
+         return 0;
+     }
+diff --git a/source/common/unicode/messagepattern.h b/source/common/unicode/messagepattern.h
+index 55b09bfb..daa7b623 100644
+--- a/source/common/unicode/messagepattern.h
++++ b/source/common/unicode/messagepattern.h
+@@ -821,6 +821,7 @@ public:
+ 
+         static const int32_t MAX_LENGTH=0xffff;
+         static const int32_t MAX_VALUE=0x7fff;
++        static const int32_t MAX_NESTED_LEVELS=0x03ff;
+ 
+         // Some fields are not final because they are modified during pattern parsing.
+         // After pattern parsing, the parts are effectively immutable.
