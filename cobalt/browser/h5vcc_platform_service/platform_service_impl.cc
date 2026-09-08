@@ -162,9 +162,21 @@ void PlatformServiceImpl::Send(base::span<const uint8_t> data,
     return;
   }
 
+  if (output_length == 0) {
+    std::move(callback).Run(mojo_base::BigBuffer(), std::nullopt);
+    return;
+  }
+
+  if (!response_ptr) {
+    LOG(ERROR) << "Send failed: null response with non-zero length for "
+               << service_name_;
+    std::move(callback).Run(std::nullopt, "Failed to retrieve response data.");
+    return;
+  }
+
   std::move(callback).Run(
-      base::span<const uint8_t>(response_ptr.get(),
-                                base::checked_cast<size_t>(output_length)),
+      mojo_base::BigBuffer(base::span<const uint8_t>(
+          response_ptr.get(), base::checked_cast<size_t>(output_length))),
       std::nullopt);
 }
 

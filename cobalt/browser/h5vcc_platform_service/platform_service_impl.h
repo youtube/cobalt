@@ -21,6 +21,7 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 #include "content/public/browser/document_service.h"
+#include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "starboard/extension/platform_service.h"
