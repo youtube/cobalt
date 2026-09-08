@@ -32,7 +32,6 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
              int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
-             SbMediaAudioFrameStorageType audio_frame_storage_type,
              SbAudioSinkFrameBuffers frame_buffers,
              int frame_buffers_size_in_frames,
              SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -41,9 +40,9 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
              void* context) {
             return SbAudioSinkImpl::Create(
                 channels, sampling_frequency_hz, audio_sample_type,
-                audio_frame_storage_type, frame_buffers,
-                frame_buffers_size_in_frames, update_source_status_func,
-                consume_frames_func, error_func, context);
+                frame_buffers, frame_buffers_size_in_frames,
+                update_source_status_func, consume_frames_func, error_func,
+                context);
           }) {}
 
 AudioRendererSinkImpl::AudioRendererSinkImpl(
@@ -108,8 +107,8 @@ void AudioRendererSinkImpl::Start(int64_t media_start_time,
   render_callback_ = render_callback;
   audio_sink_ = create_audio_sink_func_(
       media_start_time, channels, sampling_frequency_hz, audio_sample_type,
-      kSbMediaAudioFrameStorageTypeInterleaved, frame_buffers,
-      frames_per_channel, &AudioRendererSinkImpl::UpdateSourceStatusFunc,
+      frame_buffers, frames_per_channel,
+      &AudioRendererSinkImpl::UpdateSourceStatusFunc,
       &AudioRendererSinkImpl::ConsumeFramesFunc,
       &AudioRendererSinkImpl::ErrorFunc, this);
   if (!SbAudioSinkIsValid(audio_sink_)) {
