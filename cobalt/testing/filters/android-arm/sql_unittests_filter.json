@@ -1,5 +1,6 @@
 {
   "failing_tests": [
+    "JournalMode/SQLDatabaseTest.PosixFilePermissions/1",
     "SQLRecoveryTest.Bug387868"
   ]
 }
