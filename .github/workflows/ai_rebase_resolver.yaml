@@ -38,14 +38,23 @@ on:
           - gn-gen
           - build-only
         default: full-pipeline
+      model:
+        description: 'Workhorse AI model'
+        required: false
+        type: string
+        default: 'gemini-3.7-flash'
+      expert_model:
+        description: 'Tier-2 Expert AI model'
+        required: false
+        type: string
+        default: 'gemini-3.8-flash'
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   ai_resolve:
     name: Rebase Agent
-    permissions:
-      contents: read
     runs-on: [self-hosted, chrobalt-linux-runner]
     container:
       image: ghcr.io/youtube/cobalt/linux:main
@@ -185,10 +194,14 @@ jobs:
         continue-on-error: true
         env:
           MODE: ${{ inputs.mode }}
+          MODEL: ${{ inputs.model || 'gemini-3.7-flash' }}
+          EXPERT_MODEL: ${{ inputs.expert_model || 'gemini-3.8-flash' }}
         run: |
           set +e
           python3 "${GITHUB_WORKSPACE}/rebase_agent/.github/rebase/run_rebase_pipeline.py" \
             --repo-path . \
+            --model "${MODEL}" \
+            --expert-model "${EXPERT_MODEL}" \
             --mode "${MODE}"
           EXIT_CODE=$?
 
