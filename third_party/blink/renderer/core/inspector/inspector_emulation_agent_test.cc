@@ -13,7 +13,7 @@ namespace blink {
 class InspectorEmulationAgentTest : public testing::Test {};
 
 TEST_F(InspectorEmulationAgentTest, ModifiesAcceptHeader) {
-#if BUILDFLAG(ENABLE_DAV1D_DECODER)
+#if BUILDFLAG(ENABLE_AV1_DECODER)
   String expected_default =
       "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
   String expected_no_webp =
