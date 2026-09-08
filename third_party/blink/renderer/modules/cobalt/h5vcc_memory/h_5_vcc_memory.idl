@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
-#include "starboard/media.h"
-#include "starboard/tvos/shared/media/playback_capabilities.h"
-
-bool SbMediaGetAudioConfiguration(
-    int output_index,
-    SbMediaAudioConfiguration* out_configuration) {
-  SB_DCHECK(output_index >= 0);
-  SB_DCHECK(out_configuration);
-
-  return starboard::shared::uikit::PlaybackCapabilities::GetAudioConfiguration(
-      output_index, out_configuration);
-}
+[
+    Exposed=Window,
+    SecureContext
+]
+interface H5vccMemory : EventTarget {
+    attribute EventHandler onlowmemory;
+};
