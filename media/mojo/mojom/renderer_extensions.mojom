@@ -96,7 +96,7 @@ interface StarboardRendererClientExtension {
 
   [EnableIf=is_android]
   // Request OverlayInfo from StarboardRendererClient.
-  RequestOverlayInfo(bool restart_for_transitions);
+  RequestOverlayInfo();
 };
 
 // The Media Foundation Media Engine has two modes for playback.
