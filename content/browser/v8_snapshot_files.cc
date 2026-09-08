@@ -16,13 +16,8 @@
 
 namespace content {
 
-<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROID) && (BUILDFLAG(USE_V8_CONTEXT_SNAPSHOT) || \
                               BUILDFLAG(INCLUDE_BOTH_V8_SNAPSHOTS))
-=======
-#if BUILDFLAG(IS_ANDROID) && \
-    (BUILDFLAG(USE_V8_CONTEXT_SNAPSHOT) || BUILDFLAG(INCLUDE_BOTH_V8_SNAPSHOTS))
->>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace {
 void registerContextSnapshotAndroid(
     std::map<std::string, std::variant<base::FilePath, base::ScopedFD>>&
