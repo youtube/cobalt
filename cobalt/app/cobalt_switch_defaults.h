@@ -33,6 +33,7 @@ class CommandLinePreprocessor {
   CommandLinePreprocessor(int argc, const char* const* argv);
 
   const base::CommandLine::StringVector argv() const;
+  const base::CommandLine& cmd_line() const { return cmd_line_; }
 
 #ifdef UNIT_TEST
   const base::CommandLine& get_cmd_line_for_test() const { return cmd_line_; }

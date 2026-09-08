@@ -346,6 +346,7 @@ class AppEventRunnerImpl : public AppEventRunner,
           const char* initial_deep_link) {
     CreateMainDelegate(startup_timestamp, is_visible, initial_deep_link);
     content::ContentMainParams params(GetMainDelegate());
+    std::string fallback_link;
 #if BUILDFLAG(IS_STARBOARD)
     cobalt::CommandLinePreprocessor init_cmd_line(argc, argv);
     const auto& init_argv = init_cmd_line.argv();
@@ -355,6 +356,10 @@ class AppEventRunnerImpl : public AppEventRunner,
     std::vector<const char*> args;
     for (const auto& arg : init_argv) {
       args.push_back(arg.c_str());
+    }
+    if (!initial_deep_link && init_cmd_line.cmd_line().HasSwitch("link")) {
+      fallback_link = init_cmd_line.cmd_line().GetSwitchValueASCII("link");
+      initial_deep_link = fallback_link.c_str();
     }
 #endif
     if (initial_deep_link) {

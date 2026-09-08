@@ -24,6 +24,7 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
+#include "build/buildflag.h"
 #include "cobalt/shell/common/shell_switches.h"
 
 namespace {
@@ -117,6 +118,25 @@ CommandLinePreprocessor::CommandLinePreprocessor(
     startup_url_ = first_arg;
   }
   CHECK(!startup_url_.empty());
+
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  // In Gold builds, Cobalt must only load YouTube Living Room (YTLR).
+  // If the provided startup URL does not start with
+  // "https://www.youtube.com/tv", redirect it to YTLR and forward the given URL
+  // as a deep link.
+  if (!startup_url_.starts_with(::switches::kDefaultURL)) {
+    LOG(WARNING) << "Non-YTLR startup URL \"" << startup_url_
+                 << "\" provided in Gold build. Forcing startup URL to \""
+                 << ::switches::kDefaultURL << "\"";
+    if (!cmd_line_.HasSwitch("link") ||
+        cmd_line_.GetSwitchValueASCII("link").empty()) {
+      cmd_line_.AppendSwitchNative("link", startup_url_);
+    }
+    startup_url_ = ::switches::kDefaultURL;
+    cmd_line_.AppendSwitchNative(cobalt::switches::kInitialURL,
+                                 ::switches::kDefaultURL);
+  }
+#endif
 }
 
 const base::CommandLine::StringVector CommandLinePreprocessor::argv() const {

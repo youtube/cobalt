@@ -147,6 +147,7 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   // Other default switches are subject to changes later down the line.
 }
 
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 TEST(CobaltSwitchDefaultsTest, StartupURLSwitch) {
   const auto input_argv = std::to_array<const char*>({
       "PROGRAM",
@@ -178,6 +179,38 @@ TEST(CobaltSwitchDefaultsTest, StartupURLArg) {
   EXPECT_EQ("data:,",
             GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
 }
+#else
+TEST(CobaltSwitchDefaultsTest, GoldStartupURLRedirectsNonYTLRToDeepLink) {
+  const auto input_argv = std::to_array<const char*>({
+      "PROGRAM",
+      "--url=https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  });
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  EXPECT_EQ("https://www.youtube.com/tv",
+            cmd_line_pxr.get_startup_url_for_test());
+  EXPECT_EQ("https://www.youtube.com/tv",
+            GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
+  EXPECT_EQ("https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            GetSwitchValue(cmd_line_pxr, "link"));
+}
+
+TEST(CobaltSwitchDefaultsTest, GoldStartupURLPreservesValidYTLR) {
+  const auto input_argv = std::to_array<const char*>({
+      "PROGRAM",
+      "--url=https://www.youtube.com/tv?v=dQw4w9WgXcQ",
+  });
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  EXPECT_EQ("https://www.youtube.com/tv?v=dQw4w9WgXcQ",
+            cmd_line_pxr.get_startup_url_for_test());
+  EXPECT_EQ("https://www.youtube.com/tv?v=dQw4w9WgXcQ",
+            GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
+  EXPECT_FALSE(HasSwitch(cmd_line_pxr, "link"));
+}
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 TEST(CobaltSwitchDefaultsTest, StartupURLDefault) {
   const auto input_argv = std::to_array<const char*>({"PROGRAM"});
