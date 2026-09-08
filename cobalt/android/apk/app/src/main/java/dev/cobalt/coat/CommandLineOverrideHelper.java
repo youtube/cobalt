@@ -18,11 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
-<<<<<<< HEAD
-import org.chromium.base.CommandLineInitUtil;
 import org.chromium.base.DeviceInfo;
-=======
->>>>>>> 08c8f3e593 (Revert "Run telemetry against cobalt browser" (#12498))
 
 // ==========
 // IMPORTANT:
