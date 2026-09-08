@@ -88,23 +88,19 @@ bool AudioRendererSinkImpl::HasStarted() const {
   return SbAudioSinkIsValid(audio_sink_);
 }
 
-void AudioRendererSinkImpl::Start(
-    int64_t media_start_time,
-    int channels,
-    int sampling_frequency_hz,
-    SbMediaAudioSampleType audio_sample_type,
-    SbMediaAudioFrameStorageType audio_frame_storage_type,
-    SbAudioSinkFrameBuffers frame_buffers,
-    int frames_per_channel,
-    RenderCallback* render_callback) {
+void AudioRendererSinkImpl::Start(int64_t media_start_time,
+                                  int channels,
+                                  int sampling_frequency_hz,
+                                  SbMediaAudioSampleType audio_sample_type,
+                                  SbAudioSinkFrameBuffers frame_buffers,
+                                  int frames_per_channel,
+                                  RenderCallback* render_callback) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
   SB_DCHECK_GT(channels, 0);
   SB_DCHECK_LE(channels, SbAudioSinkGetMaxChannels());
   SB_DCHECK_GT(sampling_frequency_hz, 0);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type));
-  SB_DCHECK(
-      SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type));
   SB_DCHECK(frame_buffers);
   SB_DCHECK_GT(frames_per_channel, 0);
 
@@ -112,8 +108,8 @@ void AudioRendererSinkImpl::Start(
   render_callback_ = render_callback;
   audio_sink_ = create_audio_sink_func_(
       media_start_time, channels, sampling_frequency_hz, audio_sample_type,
-      audio_frame_storage_type, frame_buffers, frames_per_channel,
-      &AudioRendererSinkImpl::UpdateSourceStatusFunc,
+      kSbMediaAudioFrameStorageTypeInterleaved, frame_buffers,
+      frames_per_channel, &AudioRendererSinkImpl::UpdateSourceStatusFunc,
       &AudioRendererSinkImpl::ConsumeFramesFunc,
       &AudioRendererSinkImpl::ErrorFunc, this);
   if (!SbAudioSinkIsValid(audio_sink_)) {
@@ -128,11 +124,6 @@ void AudioRendererSinkImpl::Start(
 bool AudioRendererSinkImpl::IsAudioSampleTypeSupported(
     SbMediaAudioSampleType audio_sample_type) const {
   return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
-}
-
-bool AudioRendererSinkImpl::IsAudioFrameStorageTypeSupported(
-    SbMediaAudioFrameStorageType audio_frame_storage_type) const {
-  return SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type);
 }
 
 int AudioRendererSinkImpl::GetNearestSupportedSampleFrequency(

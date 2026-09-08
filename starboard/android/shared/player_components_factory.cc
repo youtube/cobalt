@@ -242,7 +242,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
              int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
-             SbMediaAudioFrameStorageType audio_frame_storage_type,
              SbAudioSinkFrameBuffers frame_buffers,
              int frames_per_channel,
              RenderCallback* render_callback) override {
@@ -254,8 +253,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
         audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) &&
         channels == channels_ &&
         sampling_frequency_hz == sampling_frequency_hz_ &&
-        audio_sample_type == audio_sample_type_ &&
-        audio_frame_storage_type == audio_frame_storage_type_) {
+        audio_sample_type == audio_sample_type_) {
       SB_LOG(INFO) << "Audio track is already started with the same config, "
                    << "skipping Start().";
       auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
@@ -272,12 +270,10 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     channels_ = channels;
     sampling_frequency_hz_ = sampling_frequency_hz;
     audio_sample_type_ = audio_sample_type;
-    audio_frame_storage_type_ = audio_frame_storage_type;
 
-    AudioRendererSinkImpl::Start(media_start_time, channels,
-                                 sampling_frequency_hz, audio_sample_type,
-                                 audio_frame_storage_type, frame_buffers,
-                                 frames_per_channel, render_callback);
+    AudioRendererSinkImpl::Start(
+        media_start_time, channels, sampling_frequency_hz, audio_sample_type,
+        frame_buffers, frames_per_channel, render_callback);
   }
 
  private:
@@ -322,8 +318,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
   int sampling_frequency_hz_ = -1;
   SbMediaAudioSampleType audio_sample_type_ =
       kSbMediaAudioSampleTypeInt16Deprecated;
-  SbMediaAudioFrameStorageType audio_frame_storage_type_ =
-      kSbMediaAudioFrameStorageTypeInterleaved;
 };
 
 class PlayerComponentsPassthrough : public PlayerComponents {
