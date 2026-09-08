@@ -65,7 +65,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE, "2048");
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
-    switches.put(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING, "1");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
     switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
     switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
@@ -75,7 +74,7 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
     switches.put(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE, "1");
-    switches.put(JavaSwitches.DIRECT_WINDOW_RENDERING, "1");
+    switches.put(JavaSwitches.SURFACE_VIEW_UI_RENDERING, "1");
     switches.put(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET, "1");
     switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
     switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
@@ -97,7 +96,6 @@ public class JavaSwitchesTest {
             "--enable-features=CobaltDynamicMojoPipeSizing:subresource_size/1024/media_size/2048");
     assertThat(args)
         .contains("--enable-features=SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5");
-    assertThat(args).contains("--enable-optimized-font-loading");
     assertThat(args).contains("--defer-v8-code-cache-write");
     assertThat(args).contains("--enable-gpu-shader-disk-cache");
     assertThat(args).contains("--max-http-cache-size=50000000");
@@ -107,7 +105,7 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--enable-features=CobaltBypassResourceLoadScheduler");
     assertThat(args).contains("--enable-features=CobaltBypassHTMLPreloadScanner");
     assertThat(args).contains("--enable-features=CobaltMmapFontCache");
-    assertThat(args).contains("--use-window-surface-for-ui");
+    assertThat(args).contains("--use-surface-view-for-ui");
     assertThat(args).contains("--enable-features=AreaBasedVideoBufferBudget");
     assertThat(args).contains("--allow-critical-memory-pressure-handling-in-foreground");
     assertThat(args).contains("--enable-features=EvictMemoryCacheOnCriticalMemoryPressure");

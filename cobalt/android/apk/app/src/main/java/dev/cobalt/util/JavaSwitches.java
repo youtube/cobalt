@@ -28,14 +28,25 @@ public class JavaSwitches {
   public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
 
   public static final String ENABLE_QUIC = "EnableQUIC";
+
+  /**
+   * Java switch key set via Intent or Android metadata bundle to enable Starboard lifecycle
+   * migration.
+   */
+  public static final String USE_STARBOARD_LIFECYCLE = "UseStarboardLifeCycle";
+
+  /**
+   * Command-line switch name passed to CommandLine when USE_STARBOARD_LIFECYCLE is set. Allows C++
+   * code and non-Activity Java classes (e.g. NetworkStatus) to query CommandLine.
+   */
+  public static final String USE_STARBOARD_LIFECYCLE_SWITCH = "use-starboard-lifecycle";
+
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
   /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
   public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
       "EnableAutoRetryOnNetworkRecovery";
-
-  public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
 
   /** flag to enable deferred V8 bytecode serialization in background/idle */
   public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
@@ -110,8 +121,10 @@ public class JavaSwitches {
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
 
-  /** Flag for enable go/cobalt-direct-window-rendering */
-  public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
+  /** Flag to force SurfaceView for UI rendering (legacy fallback). */
+  // We keep this fallback for emergency brake.
+  // TODO: b/542337082 - Remove this after 09/17 (2-weeks after full-launch).
+  public static final String SURFACE_VIEW_UI_RENDERING = "SurfaceViewUiRendering";
 
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
   public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
@@ -261,10 +274,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
-      extraCommandLineArgs.add("--enable-optimized-font-loading");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
     }
@@ -309,8 +318,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
-      extraCommandLineArgs.add("--use-window-surface-for-ui");
+    if (javaSwitches.containsKey(JavaSwitches.SURFACE_VIEW_UI_RENDERING)) {
+      extraCommandLineArgs.add("--use-surface-view-for-ui");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
@@ -333,6 +342,13 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
       extraCommandLineArgs.add("--disable-back-forward-cache");
+    }
+
+    // Convert the Java switch to a command-line flag so C++ code and non-Activity Java components
+    // (such as NetworkStatus) can query
+    // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
+    if (javaSwitches.containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)) {
+      extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
     }
 
     return extraCommandLineArgs;

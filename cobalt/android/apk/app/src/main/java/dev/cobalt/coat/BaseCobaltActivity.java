@@ -230,4 +230,8 @@ public abstract class BaseCobaltActivity extends Activity {
   public long getAppStartTimestamp() {
     return mTimeInNanoseconds;
   }
+
+  public boolean useStarboardLifeCycle() {
+    return false;
+  }
 }

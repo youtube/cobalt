@@ -53,6 +53,7 @@ source_set("browser") {
   }
 
   public_deps = [
+    "//cobalt/browser/h5vcc_memory",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/lifecycle",
@@ -73,6 +74,8 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//cobalt/browser/h5vcc_experiments",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
+    "//cobalt/browser/h5vcc_memory",
+    "//cobalt/browser/h5vcc_memory/public/mojom",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_native_stability",
     "//cobalt/browser/h5vcc_native_stability/public/mojom",
