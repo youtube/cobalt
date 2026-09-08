@@ -56,7 +56,6 @@ class AudioRendererSinkImpl : public AudioRendererSink {
              int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
-             SbMediaAudioFrameStorageType audio_frame_storage_type,
              SbAudioSinkFrameBuffers frame_buffers,
              int frames_per_channel,
              RenderCallback* render_callback) override;
@@ -71,8 +70,6 @@ class AudioRendererSinkImpl : public AudioRendererSink {
   // AudioRendererSink methods
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override;
-  bool IsAudioFrameStorageTypeSupported(
-      SbMediaAudioFrameStorageType audio_frame_storage_type) const override;
   int GetNearestSupportedSampleFrequency(
       int sampling_frequency_hz) const override;
 
