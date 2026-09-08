@@ -50,7 +50,7 @@ BASE_FEATURE(kCobaltMemoryPressureCooldown,
 BASE_FEATURE_PARAM(int,
                    kCobaltMemoryPressureCooldownSeconds,
                    &kCobaltMemoryPressureCooldown,
-                   "cooldown_seconds",
+                   "cooldown-seconds",
                    60);
 
 // When enabled, image transfer cache entries bypass serialization and transfer

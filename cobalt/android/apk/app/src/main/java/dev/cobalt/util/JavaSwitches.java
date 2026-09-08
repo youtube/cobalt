@@ -352,18 +352,17 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_MODERATE_MEMORY_PRESSURE)) {
       enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
     }
-
     if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
-      String cooldown =
-          javaSwitches
-              .get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)
-              .replaceAll("[^0-9]", "");
-      if (!cooldown.isEmpty()) {
-        enabledMemoryPressureFeatures.add(
-            "CobaltMemoryPressureCooldown:cooldown_seconds/" + cooldown);
+      String cooldown = 
+          javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
+      if (cooldown != null) {
+        String cooldownVal = cooldown.replaceAll("[^0-9]", "");
+        if (!cooldownVal.isEmpty()) {
+          enabledMemoryPressureFeatures.add(
+              "CobaltMemoryPressureCooldown:cooldown-seconds/" + cooldownVal);
+        }
       }
     }
-
     if (!enabledMemoryPressureFeatures.isEmpty()) {
       extraCommandLineArgs.add(
           "--enable-features=" + String.join(",", enabledMemoryPressureFeatures));
