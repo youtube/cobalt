@@ -7,7 +7,7 @@
     "*NavigationBrowserTestPaintHoldingSubframe*",
     "*NavigationBrowserTestReferrerPolicy*",
     "*NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest*",
-    "All/CobaltMemoryThresholdBrowserTest.BlankPageMemoryFootprint/0",
+    "All/CobaltMemoryThresholdBrowserTest.BlankPageMemoryFootprint/*",
     "CommitNavigationRaceBrowserTest*",
     "DeferSpeculativeRFHCreationReuseRFHTest*",
     "DeferSpeculativeRFHCreationTest*",

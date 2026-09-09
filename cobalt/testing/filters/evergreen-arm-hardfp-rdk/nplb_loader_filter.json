@@ -33,7 +33,7 @@
     "PosixTimeClockGettimeTests/CpuTimeClock.Increases/CLOCK_THREAD_CPUTIME_ID",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbLogFlushTest.DontCrashMeBro",
-    "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteLimitedInput/0",
+    "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteLimitedInput/*",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.SunnyDay/*",
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/*",

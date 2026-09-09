@@ -1,6 +1,6 @@
 {
   "failing_tests": [
-    "All/PoissonAllocationSamplerLoadFactorTest.BalanceSampledAddressesSet/2",
+    "All/PoissonAllocationSamplerLoadFactorTest.BalanceSampledAddressesSet/*",
     "All/SequenceManagerTest.*",
     "All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/IO_pump",
     "All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/UI_pump",

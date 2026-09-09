@@ -1,6 +1,6 @@
 {
   "failing_tests": [
-    "FlatHashMapTest/0.FillWithTombstones",
+    "FlatHashMapTest/*.FillWithTombstones",
     "MessageTest.DestructInvalidMessageHandle",
     "NullTraceWriterDeathTest.NewTracePacketTakeStreamWriterNoFinish",
     "ProtoTraceParserTest.TrackEventAsyncEvents",

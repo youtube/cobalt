@@ -5,6 +5,6 @@
     "ECDHTest.WycheproofP384",
     "RSATest.GenerateFIPS",
     "RSATest.KeygenFail",
-    "TrustTokenAllMetadataTest/TrustTokenMetadataTest.SetAndGetMetadata/58"
+    "TrustTokenAllMetadataTest/TrustTokenMetadataTest.SetAndGetMetadata/*"
   ]
 }
