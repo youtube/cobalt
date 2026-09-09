@@ -274,7 +274,6 @@ std::vector<base::FilePath> FontUniqueNameLookup::GetFontFilePaths() const {
     }
   }
   return font_files;
-#endif
 }
 
 FontUniqueNameLookup::CallbackOnTaskRunner::CallbackOnTaskRunner(

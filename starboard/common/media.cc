@@ -809,18 +809,6 @@ const char* GetMediaAudioSampleTypeName(SbMediaAudioSampleType sample_type) {
   return "Invalid";
 }
 
-const char* GetMediaAudioStorageTypeName(
-    SbMediaAudioFrameStorageType storage_type) {
-  switch (storage_type) {
-    case kSbMediaAudioFrameStorageTypeInterleaved:
-      return "interleaved";
-    case kSbMediaAudioFrameStorageTypePlanar:
-      return "planar";
-  }
-  SB_NOTREACHED();
-  return "Invalid";
-}
-
 bool ParseVideoCodec(const char* codec_string,
                      SbMediaVideoCodec* codec,
                      int* profile,

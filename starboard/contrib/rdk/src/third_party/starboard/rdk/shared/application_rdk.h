@@ -42,6 +42,9 @@
 #include "third_party/starboard/rdk/shared/hang_detector.h"
 
 #include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_set>
 #include <essos-app.h>
 #include <chrono>
 
@@ -72,6 +75,8 @@ class ApplicationRdk : public QueueApplication {
   void InjectAccessibilitySettingsChanged();
   void InjectAccessibilityCaptionSettingsChanged();
   void InjectAccessibilityTextToSpeechSettingsChanged();
+
+  const char* GetLocaleId();
 
  protected:
   // --- Application overrides ---
@@ -122,6 +127,9 @@ class ApplicationRdk : public QueueApplication {
   int monitor_timer_fd_ { -1 };
 
   std::unique_ptr<HangMonitor> hang_monitor_ { nullptr };
+
+  mutable std::mutex locale_mutex_;
+  std::unordered_set<std::string> locale_pool_;
 };
 
 }  // namespace starboard

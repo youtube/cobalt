@@ -64,7 +64,6 @@ import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
@@ -178,7 +177,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       CommandLine.init(null);
 
       String[] commandLineArgs = null;
-      if (!VersionInfo.isReleaseBuild()) {
+      if (!isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
       commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
@@ -194,7 +193,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              VersionInfo.isOfficialBuild(), commandLineArgs));
+              !isDevelopmentBuild(), commandLineArgs));
     }
     mIsCobaltUsingAndroidOverlay =
         CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
@@ -226,6 +225,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
+      starboardBridge.onActivityCreate(this);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
       if (savedInstanceState == null) {
@@ -284,6 +284,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
       Log.i(TAG, "Browser process init succeeded");
 
+      if (isDestroyed() || isFinishing()) {
+        Log.w(TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
+        return;
+      }
       finishInitialization(savedInstanceState);
     } else {
       BrowserStartupController.getInstance()
@@ -300,6 +304,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
                   // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test
                   // suite.
                   Log.i(TAG, "Browser process init succeeded");
+
+                  if (isDestroyed() || isFinishing()) {
+                    Log.w(TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
+                    return;
+                  }
 
                   finishInitialization(savedInstanceState);
                   getStarboardBridge().measureAppStartTimestamp();
@@ -473,10 +482,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     setupStartupGuard();
     createContent(savedInstanceState);
-    MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
-    MemoryPressureUma.initializeForBrowser();
-    NetworkChangeNotifier.init();
-    NetworkChangeNotifier.setAutoDetectConnectivityState(true);
+    if (!NetworkChangeNotifier.isInitialized()) {
+      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+      MemoryPressureUma.initializeForBrowser();
+      NetworkChangeNotifier.init();
+      NetworkChangeNotifier.setAutoDetectConnectivityState(true);
+    }
 
     if (!mIsCobaltUsingAndroidOverlay) {
       mVideoSurfaceView = new VideoSurfaceView(this);
@@ -535,6 +546,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
    */
   protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
+  @Override
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
@@ -689,7 +701,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mShellManager != null) {
       mShellManager.destroy();
     }
-    mWindowAndroid.destroy();
+    if (mWindowAndroid != null) {
+      mWindowAndroid.destroy();
+    }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
       mBackInvokedCallback = null;
