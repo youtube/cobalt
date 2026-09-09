@@ -5,12 +5,8 @@
 #ifndef MEDIA_BASE_AUDIO_CODECS_H_
 #define MEDIA_BASE_AUDIO_CODECS_H_
 
-<<<<<<< HEAD
 #include <stdint.h>
 
-=======
-#include <cstdint>
->>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include <string>
 #include <string_view>
 
