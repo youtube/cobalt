@@ -115,7 +115,7 @@ ApplicationRdk::~ApplicationRdk() {
   if (SbWindowIsValid(window_)) {
     DestroySbWindow(window_);
   }
-  if (native_window_ != 0) {
+  if (ctx_ && native_window_ != 0) {
     if (!EssContextDestroyNativeWindow(ctx_, native_window_)) {
       const char* detail = EssContextGetLastErrorDetail(ctx_);
       SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
@@ -244,7 +244,7 @@ void ApplicationRdk::WakeSystemEventWait() {
 
 SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
   SB_DCHECK(window_ == nullptr);
-  if (window_ != nullptr) {
+  if (window_ != nullptr || !ctx_) {
     return kSbWindowInvalid;
   }
 
@@ -278,7 +278,9 @@ SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
       return kSbWindowInvalid;
     }
   } else if (resize_pending_) {
-    EssContextResizeWindow(ctx_, window_width_, window_height_);
+    if (EssContextGetDisplaySize(ctx_, &window_width_, &window_height_)) {
+      EssContextResizeWindow(ctx_, window_width_, window_height_);
+    }
     resize_pending_ = false;
   }
 
@@ -327,26 +329,34 @@ void ApplicationRdk::OnSuspend() {
     setTimerInterval(ess_timer_fd_, 0s);
   }
 
-  // Unset the Essos terminate listener to prevent callback loops
-  // when the window is destroyed during suspend.
-  EssContextSetTerminateListener(ctx_, nullptr, nullptr);
+  if (ctx_) {
+    // Unset the Essos terminate listener to prevent callback loops
+    // when the window is destroyed during suspend.
+    EssContextSetTerminateListener(ctx_, nullptr, nullptr);
 
-  // Stop Essos event dispatching while keeping the native window plane alive.
-  // Keeping the Wayland wl_surface handle registered prevents Westeros from
-  // encountering invalid object protocol errors when dispatching background
-  // state events to the client.
-  EssContextStop(ctx_);
+    // Stop Essos event dispatching while keeping the native window plane alive.
+    // Keeping the Wayland wl_surface handle registered prevents Westeros from
+    // encountering invalid object protocol errors when dispatching background
+    // state events to the client.
+    if (native_window_ != 0) {
+      EssContextStop(ctx_);
+    }
+  }
 
   platform::PlatformInterface::get().suspend();
 }
 
 void ApplicationRdk::OnResume() {
-  EssContextSetTerminateListener(ctx_, this, &terminateListener);
+  if (ctx_) {
+    EssContextSetTerminateListener(ctx_, this, &terminateListener);
 
-  if (!EssContextStart(ctx_)) {
-    const char* detail = EssContextGetLastErrorDetail(ctx_);
-    SB_LOG(ERROR) << "Essos error on start: '" << detail << '\'';
-    FatalError();
+    if (native_window_ != 0) {
+      if (!EssContextStart(ctx_)) {
+        const char* detail = EssContextGetLastErrorDetail(ctx_);
+        SB_LOG(ERROR) << "Essos error on start: '" << detail << '\'';
+        FatalError();
+      }
+    }
   }
 
   if (!(monitor_timer_fd_ < 0) && hang_monitor_) {
