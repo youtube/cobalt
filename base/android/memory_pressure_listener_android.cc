@@ -5,13 +5,10 @@
 #include "base/android/memory_pressure_listener_android.h"
 
 #include "base/android/pre_freeze_background_memory_trimmer.h"
-<<<<<<< HEAD
-#include "base/functional/bind.h"
-#include "base/location.h"
-=======
 #include "base/feature_list.h"
 #include "base/features.h"
->>>>>>> db06035afb (android: add feature flags to control memory pressure events (#12472))
+#include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/task/single_thread_task_runner.h"
 
