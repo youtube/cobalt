@@ -32,6 +32,7 @@ namespace maglev {
 class CheckedInternalizedString;
 class BuiltinStringFromCharCode;
 class MaglevGraphBuilder;
+class VirtualObject;
 }  // namespace maglev
 
 namespace wasm {
@@ -1053,6 +1054,7 @@ V8_OBJECT class ConsString : public String {
   friend class SandboxTesting;
   friend class maglev::MaglevAssembler;
   friend class maglev::MaglevGraphBuilder;
+  friend class maglev::VirtualObject;
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedConsStringAsserts;
 
@@ -1096,6 +1098,7 @@ V8_OBJECT class ThinString : public String {
   friend class V8HeapExplorer;
   friend class CodeStubAssembler;
   friend class ToDirectStringAssembler;
+  friend class CollectionsBuiltinsAssembler;
   friend class StringBuiltinsAssembler;
   friend class maglev::MaglevAssembler;
   friend class maglev::CheckedInternalizedString;

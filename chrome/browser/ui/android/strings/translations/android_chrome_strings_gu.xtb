@@ -3,6 +3,7 @@
 <translationbundle lang="gu">
 <translation id="1010283278930414892">આ ડિવાઇસ પર સાચવેલો કોઈ પાસવર્ડ નથી</translation>
 <translation id="1011749477052068769">અહીં ખસેડો</translation>
+<translation id="1014083013111769343">વાંચન મોડની પસંદગીઓ પૂર્ણ ઊંચાઈએ ખોલી</translation>
 <translation id="1014147525163127655"><ph name="ORIGIN" /> માટે આ ડિવાઇસ પર કોઈપણ પાસકી ઉપલબ્ધ નથી</translation>
 <translation id="1016498331642356377">તમારા અવાજ વડે ઝડપથી શોધો. આ શૉર્ટકટમાં ફેરફાર કરવા માટે, ટચ કરીને થોડીવાર દબાવી રાખો.</translation>
 <translation id="1028699632127661925"><ph name="DEVICE_NAME" /> પર મોકલી રહ્યાં છીએ...</translation>
@@ -98,6 +99,7 @@
 <translation id="1407135791313364759">બધું ખોલો</translation>
 <translation id="1409879593029778104"><ph name="FILE_NAME" /> ડાઉનલોડ રોકાયું કારણકે ફાઇલ પહેલેથી અસ્તિત્વ ધરાવે છે.</translation>
 <translation id="1413446866325418126">તમારા Google એકાઉન્ટમાં ડેટા સાચવો</translation>
+<translation id="1414919006379339073">વર્તમાન વિન્ડો બંધ કરો</translation>
 <translation id="1416550906796893042">ઍપ્લિકેશન વર્ઝન</translation>
 <translation id="1419753403124156396">Chromeને ફરી શરૂ કરીએ?</translation>
 <translation id="1428770807407000502">સિંક બંધ કરીએ?</translation>
@@ -207,6 +209,7 @@
 <translation id="197288927597451399">Keep</translation>
 <translation id="1973912524893600642">ડેટા રાખો</translation>
 <translation id="1974060860693918893">વિગતવાર</translation>
+<translation id="1982274314082047220">પસંદગીઓ માટે વાંચન મોડને ઉપર સ્વાઇપ કરો</translation>
 <translation id="1984087999855033707">ફોન નંબર</translation>
 <translation id="1984417487208496350">કોઈ સંરક્ષણ નથી (સુઝાવ આપતા નથી)</translation>
 <translation id="1986685561493779662">નામ પહેલેથી જ અસ્તિત્વમાં છે</translation>
@@ -428,6 +431,7 @@
 <translation id="2992473221983447149">છબીના વર્ણનો</translation>
 <translation id="2996291259634659425">પાસફ્રેઝ બનાવો</translation>
 <translation id="2996809686854298943">URL આવશ્યક છે</translation>
+<translation id="3024215143424744261">વાંચન મોડની પસંદગીઓ બંધ કરી</translation>
 <translation id="3026955690410463085">લિંકનો સમાવેશ કરો</translation>
 <translation id="3027644380269727216">કોઈ સાઇટ પરની તમારી પ્રવૃત્તિના આધારે. આ સેટિંગ ચાલુ છે.</translation>
 <translation id="3027950907978057636"><ph name="APP_LABEL" />માંથી</translation>
@@ -1275,7 +1279,7 @@
 <translation id="6864459304226931083">છબી ડાઉનલોડ કરો</translation>
 <translation id="686490460830618322">ઍપ ફિલ્ટર શીટ</translation>
 <translation id="6865313869410766144">સ્વતઃભરણ ફોર્મ ડેટા</translation>
-<translation id="6867400383614725881">નવી છૂપી ટૅબ</translation>
+<translation id="6867400383614725881">નવું છૂપું ટૅબ</translation>
 <translation id="686899695320434745">સરનામાઓને તમારા પાસફ્રેઝ વડે એન્ક્રિપ્ટ કરવામાં આવતા નથી. આ તમને Googleની અન્ય સેવાઓમાં તેનો ઉપયોગ કરવા દે છે.</translation>
 <translation id="687838958001010630">લિંક ધરાવતી કોઈપણ વ્યક્તિ બધા ટૅબમાં ફેરફારો કરી શકે છે</translation>
 <translation id="6880903702195291049">પરવાનગીઓ ઠીક લાગે છે</translation>
@@ -1311,6 +1315,7 @@
 <translation id="696447261358045621">છૂપો મોડ છોડો</translation>
 <translation id="6965382102122355670">બરાબર, સમજાઇ ગયું</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{શેર કરેલા ટૅબના ગ્રૂપમાં નવી ઍક્ટિવિટી ધરાવતું <ph name="TABS_COUNT_ONE" /> ટૅબ જુઓ}one{શેર કરેલા ટૅબના ગ્રૂપમાં નવી ઍક્ટિવિટી ધરાવતું <ph name="TABS_COUNT_MANY" /> ટૅબ જુઓ}other{શેર કરેલા ટૅબના ગ્રૂપમાં નવી ઍક્ટિવિટી ધરાવતા <ph name="TABS_COUNT_MANY" /> ટૅબ જુઓ}}</translation>
+<translation id="6971555615916967190">વાંચન મોડની પસંદગીઓ અડધી ઊંચાઈએ ખોલી</translation>
 <translation id="6971862865055170158">મંજૂરી આપશો નહીં</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />, નવું કે અપડેટ કરેલું ટૅબ</translation>
 <translation id="6976811588313110624">નવો શૉર્ટકટ ઉમેરો.</translation>
@@ -1695,7 +1700,6 @@
 <translation id="8617240290563765734">ડાઉનલોડ કરેલી કન્ટેન્ટમાં ઉલ્લેખિત, સૂચવેલ URL ખોલીએ?</translation>
 <translation id="8635399646025169806">ટૅબનું ગ્રૂપ રાખીએ?</translation>
 <translation id="8636825310635137004">તમારા અન્ય ઉપકરણો પરથી તમારા ટૅબ્સ મેળવવા માટે, સમન્વયન ચાલુ કરો.</translation>
-<translation id="864544049772947936">વિન્ડો મેનેજ કરો (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487"><ph name="SITE_ETLD_PLUS_ONE" />માં સાઇન ઇન કરો</translation>
 <translation id="8664979001105139458">ફાઇલનું નામ પહેલેથી અસ્તિત્વમાં છે</translation>
 <translation id="8676276370198826499"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> વડે <ph name="SITE_ETLD_PLUS_ONE" /> માટે સાઇન અપ કરો</translation>

@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
@@ -137,59 +138,109 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     const std::string& session_id,
     const std::string& session_version,
     std::unique_ptr<SessionDescription> description) {
-  if (!description && type != SdpType::kRollback)
-    return nullptr;
-  return std::make_unique<JsepSessionDescription>(type, std::move(description),
-                                                  session_id, session_version);
+  return SessionDescriptionInterface::Create(type, std::move(description),
+                                             session_id, session_version);
 }
 
 std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
     absl::string_view session_id,
     absl::string_view session_version) {
-  return std::make_unique<JsepSessionDescription>(
+  return SessionDescriptionInterface::Create(
       SdpType::kRollback, /*description=*/nullptr, session_id, session_version);
 }
 
-JsepSessionDescription::JsepSessionDescription(SdpType type) : type_(type) {}
-
-JsepSessionDescription::JsepSessionDescription(
+// static
+std::unique_ptr<SessionDescriptionInterface>
+SessionDescriptionInterface::Create(
     SdpType type,
     std::unique_ptr<SessionDescription> description,
-    absl::string_view session_id,
-    absl::string_view session_version,
+    absl::string_view id,
+    absl::string_view version,
+    std::vector<IceCandidateCollection> candidates) {
+  if (!description && type != SdpType::kRollback)
+    return nullptr;
+  return absl::WrapUnique(new SessionDescriptionInterface(
+      type, std::move(description), id, version, std::move(candidates)));
+}
+
+SessionDescriptionInternal::SessionDescriptionInternal(
+    SdpType type,
+    std::unique_ptr<SessionDescription> description,
+    absl::string_view id,
+    absl::string_view version)
+    : sdp_type_(type),
+      id_(id),
+      version_(version),
+      description_(std::move(description)) {
+  RTC_DCHECK(description_ || sdp_type_ == SdpType::kRollback);
+}
+
+SessionDescriptionInternal::~SessionDescriptionInternal() = default;
+
+size_t SessionDescriptionInternal::mediasection_count() const {
+  return description_ ? description_->contents().size() : 0u;
+}
+
+void SessionDescriptionInternal::RelinquishThreadOwnership() {
+  // Ideally we should require that the method can only be called from the
+  // thread that the sequence checker is currently attached to. However that's
+  // not compatible with some cases outside of webrtc where initializations
+  // happens on one thread and then the object is moved to a second thread (e.g.
+  // signaling) where a call is made into webrtc. At that point we'd hit a
+  // dcheck like this in webrtc: RTC_DCHECK_RUN_ON(&sequence_checker_);
+  sequence_checker_.Detach();
+}
+
+SessionDescriptionInterface::SessionDescriptionInterface(
+    SdpType type,
+    std::unique_ptr<SessionDescription> desc,
+    absl::string_view id,
+    absl::string_view version,
     std::vector<IceCandidateCollection> candidates)
-    : description_(std::move(description)),
-      session_id_(session_id),
-      session_version_(session_version),
-      type_(type),
+    : SessionDescriptionInternal(type, std::move(desc), id, version),
       candidate_collection_(std::move(candidates)) {
-  RTC_DCHECK(description_ || type == SdpType::kRollback);
+  RTC_DCHECK(description() || type == SdpType::kRollback);
   RTC_DCHECK(candidate_collection_.empty() ||
              candidate_collection_.size() == number_of_mediasections());
   candidate_collection_.resize(number_of_mediasections());
 }
 
+JsepSessionDescription::JsepSessionDescription(SdpType type)
+    : SessionDescriptionInterface(type, nullptr, "", "") {}
+
+JsepSessionDescription::JsepSessionDescription(
+    SdpType type,
+    std::unique_ptr<SessionDescription> desc,
+    absl::string_view session_id,
+    absl::string_view session_version,
+    std::vector<IceCandidateCollection> candidates)
+    : SessionDescriptionInterface(type,
+                                  std::move(desc),
+                                  session_id,
+                                  session_version,
+                                  std::move(candidates)) {}
+
 JsepSessionDescription::~JsepSessionDescription() {}
 
-std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
-    const {
-  return std::make_unique<JsepSessionDescription>(
-      GetType(), description_.get() ? description_->Clone() : nullptr,
-      session_id_, session_version_,
-      CloneCandidateCollection(candidate_collection_));
+std::unique_ptr<SessionDescriptionInterface>
+SessionDescriptionInterface::Clone() const {
+  RTC_DCHECK_RUN_ON(sequence_checker());
+  return SessionDescriptionInterface::Create(
+      sdp_type(), description() ? description()->Clone() : nullptr, id(),
+      version(), CloneCandidateCollection(candidate_collection_));
 }
 
-bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
+bool SessionDescriptionInterface::AddCandidate(const IceCandidate* candidate) {
+  RTC_DCHECK_RUN_ON(sequence_checker());
   if (!candidate)
     return false;
-  size_t mediasection_index = 0;
-  if (!GetMediasectionIndex(candidate, &mediasection_index)) {
+  size_t index = 0;
+  if (!GetMediasectionIndex(candidate, &index)) {
     return false;
   }
-  const std::string& mediasection_mid =
-      description_->contents()[mediasection_index].mid();
+  ContentInfo& content = description()->contents()[index];
   const TransportInfo* transport_info =
-      description_->GetTransportInfoByName(mediasection_mid);
+      description()->GetTransportInfoByName(content.mid());
   if (!transport_info) {
     return false;
   }
@@ -202,73 +253,67 @@ bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
     updated_candidate.set_password(transport_info->description.ice_pwd);
   }
 
-  // Use `mediasection_mid` as the mid for the updated candidate. The
+  // Use `content.mid()` as the mid for the updated candidate. The
   // `candidate->sdp_mid()` property *should* be the same. However, in some
   // cases specifying an empty mid but a valid index is a way to add a candidate
   // without knowing (or caring about) the mid. This is done in several tests.
   RTC_DCHECK(candidate->sdp_mid().empty() ||
-             candidate->sdp_mid() == mediasection_mid)
-      << "sdp_mid='" << candidate->sdp_mid() << "' mediasection_mid='"
-      << mediasection_mid << "'";
+             candidate->sdp_mid() == content.mid())
+      << "sdp_mid='" << candidate->sdp_mid() << "' content.mid()='"
+      << content.mid() << "'";
   auto updated_candidate_wrapper = std::make_unique<IceCandidate>(
-      mediasection_mid, static_cast<int>(mediasection_index),
-      updated_candidate);
-  if (!candidate_collection_[mediasection_index].HasCandidate(
-          updated_candidate_wrapper.get())) {
-    candidate_collection_[mediasection_index].add(
-        std::move(updated_candidate_wrapper));
-    UpdateConnectionAddress(
-        candidate_collection_[mediasection_index],
-        description_->contents()[mediasection_index].media_description());
+      content.mid(), static_cast<int>(index), updated_candidate);
+  IceCandidateCollection& candidates = candidate_collection_[index];
+  if (!candidates.HasCandidate(updated_candidate_wrapper.get())) {
+    candidates.add(std::move(updated_candidate_wrapper));
+    UpdateConnectionAddress(candidates, content.media_description());
   }
 
   return true;
 }
 
-bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
-  size_t mediasection_index = 0u;
-  if (!GetMediasectionIndex(candidate, &mediasection_index)) {
+bool SessionDescriptionInterface::RemoveCandidate(
+    const IceCandidate* candidate) {
+  RTC_DCHECK_RUN_ON(sequence_checker());
+  size_t index = 0u;
+  if (!GetMediasectionIndex(candidate, &index)) {
     return false;
   }
-  if (!candidate_collection_[mediasection_index].remove(candidate)) {
+  IceCandidateCollection& candidates = candidate_collection_[index];
+  if (!candidates.remove(candidate)) {
     return false;
   }
-  UpdateConnectionAddress(
-      candidate_collection_[mediasection_index],
-      description_->contents()[mediasection_index].media_description());
+  UpdateConnectionAddress(candidates,
+                          description()->contents()[index].media_description());
   return true;
 }
 
-size_t JsepSessionDescription::number_of_mediasections() const {
-  if (!description_)
-    return 0;
-  return description_->contents().size();
-}
-
-const IceCandidateCollection* JsepSessionDescription::candidates(
+const IceCandidateCollection* SessionDescriptionInterface::candidates(
     size_t mediasection_index) const {
+  RTC_DCHECK_RUN_ON(sequence_checker());
   if (mediasection_index >= candidate_collection_.size())
     return nullptr;
   return &candidate_collection_[mediasection_index];
 }
 
-bool JsepSessionDescription::ToString(std::string* out) const {
-  if (!description_ || !out) {
+bool SessionDescriptionInterface::ToString(std::string* out) const {
+  if (!description() || !out) {
     return false;
   }
   *out = SdpSerialize(*this);
   return !out->empty();
 }
 
-bool JsepSessionDescription::IsValidMLineIndex(int index) const {
-  RTC_DCHECK(description_);
+bool SessionDescriptionInterface::IsValidMLineIndex(int index) const {
+  RTC_DCHECK(description());
   return index >= 0 &&
-         index < static_cast<int>(description_->contents().size());
+         index < static_cast<int>(description()->contents().size());
 }
 
-bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
-                                                  size_t* index) const {
-  if (!candidate || !index || !description_) {
+bool SessionDescriptionInterface::GetMediasectionIndex(
+    const IceCandidate* candidate,
+    size_t* index) const {
+  if (!candidate || !index || !description()) {
     return false;
   }
 
@@ -282,8 +327,9 @@ bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
   return IsValidMLineIndex(*index);
 }
 
-int JsepSessionDescription::GetMediasectionIndex(absl::string_view mid) const {
-  const auto& contents = description_->contents();
+int SessionDescriptionInterface::GetMediasectionIndex(
+    absl::string_view mid) const {
+  const auto& contents = description()->contents();
   auto it =
       std::find_if(contents.begin(), contents.end(),
                    [&](const auto& content) { return mid == content.mid(); });

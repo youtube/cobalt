@@ -194,6 +194,10 @@ int asn1_parse_any_as_string(CBS *cbs, ASN1_STRING *out);
 // result to |out|. It returns one on success and zeron on error.
 int asn1_marshal_any(CBB *out, const ASN1_TYPE *in);
 
+// asn1_marshal_any_string marshals |in| as a DER-encoded ASN.1 value and writes
+// the result to |out|. It returns one on success and zeron on error.
+int asn1_marshal_any_string(CBB *out, const ASN1_STRING *in);
+
 
 // Support structures for the template-based encoder.
 
@@ -314,8 +318,8 @@ typedef struct ASN1_EXTERN_FUNCS_st {
   ASN1_ex_i2d *asn1_ex_i2d;
 } ASN1_EXTERN_FUNCS;
 
-#define IMPLEMENT_EXTERN_ASN1_SIMPLE(name, new_func, free_func, parse_func,    \
-                                     i2d_func)                                 \
+#define IMPLEMENT_EXTERN_ASN1_SIMPLE(name, new_func, free_func, tag,           \
+                                     parse_func, i2d_func)                     \
   static int name##_new_cb(ASN1_VALUE **pval, const ASN1_ITEM *it) {           \
     *pval = (ASN1_VALUE *)new_func();                                          \
     return *pval != nullptr;                                                   \
@@ -328,7 +332,7 @@ typedef struct ASN1_EXTERN_FUNCS_st {
                                                                                \
   static int name##_parse_cb(ASN1_VALUE **pval, CBS *cbs, const ASN1_ITEM *it, \
                              int opt) {                                        \
-    if (opt && !CBS_peek_asn1_tag(cbs, CBS_ASN1_SEQUENCE)) {                   \
+    if (opt && !CBS_peek_asn1_tag(cbs, (tag))) {                               \
       return 1;                                                                \
     }                                                                          \
                                                                                \
@@ -360,11 +364,6 @@ DECLARE_ASN1_ITEM(DIRECTORYSTRING)
 // DISPLAYTEXT is an |ASN1_ITEM| whose ASN.1 type is X.509 DisplayText (RFC
 // 5280) and C type is |ASN1_STRING*|.
 DECLARE_ASN1_ITEM(DISPLAYTEXT)
-
-// ASN1_ANY_AS_STRING is an |ASN1_ITEM| with ASN.1 type ANY and C type
-// |ASN1_STRING*|. Types which are not represented with |ASN1_STRING|, such as
-// |ASN1_OBJECT|, are represented with type |V_ASN1_OTHER|.
-DECLARE_ASN1_ITEM(ASN1_ANY_AS_STRING)
 
 
 #if defined(__cplusplus)

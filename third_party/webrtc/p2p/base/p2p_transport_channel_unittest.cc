@@ -310,7 +310,6 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         ss_(new FirewallSocketServer(nss_.get())),
         socket_factory_(new BasicPacketSocketFactory(ss_.get())),
         main_(ss_.get()),
-        stun_server_(TestStunServer::Create(ss_.get(), kStunAddr, main_)),
         force_relay_(false) {
     ep1_.role_ = ICEROLE_CONTROLLING;
     ep2_.role_ = ICEROLE_CONTROLLED;
@@ -319,6 +318,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   }
 
   void CreatePortAllocators(const Environment& env) {
+    stun_server_ = TestStunServer::Create(env, kStunAddr, *ss_, main_);
     turn_server_.emplace(env, &main_, ss_.get(), kTurnUdpIntAddr,
                          kTurnUdpExtAddr);
     ServerAddresses stun_servers = {kStunAddr};
@@ -496,8 +496,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         GetEndpoint(endpoint)->async_dns_resolver_factory_);
     auto channel = P2PTransportChannel::Create("test content name", component,
                                                std::move(init));
-    channel->SignalReadyToSend.connect(
-        this, &P2PTransportChannelTestBase::OnReadyToSend);
+    channel->SubscribeReadyToSend(this,
+                                  [this](PacketTransportInternal* transport) {
+                                    OnReadyToSend(transport);
+                                  });
     channel->SubscribeCandidateGathered(
         [this](IceTransportInternal* transport, const Candidate& candidate) {
           OnCandidateGathered(transport, candidate);
@@ -513,8 +515,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         });
     channel->SubscribeRoleConflict(
         [this](IceTransportInternal* transport) { OnRoleConflict(transport); });
-    channel->SignalNetworkRouteChanged.connect(
-        this, &P2PTransportChannelTestBase::OnNetworkRouteChanged);
+    channel->SubscribeNetworkRouteChanged(
+        this, [this](std::optional<NetworkRoute> network_route) {
+          OnNetworkRouteChanged(network_route);
+        });
     channel->SignalSentPacket.connect(
         this, &P2PTransportChannelTestBase::OnSentPacket);
     channel->SetIceParameters(local_ice);
@@ -3597,10 +3601,13 @@ class P2PTransportChannelPingTest : public ::testing::Test,
     ch->SetIceRole(ICEROLE_CONTROLLING);
     ch->SetIceParameters(kIceParams[0]);
     ch->SetRemoteIceParameters(kIceParams[1]);
-    ch->SignalNetworkRouteChanged.connect(
-        this, &P2PTransportChannelPingTest::OnNetworkRouteChanged);
-    ch->SignalReadyToSend.connect(this,
-                                  &P2PTransportChannelPingTest::OnReadyToSend);
+    ch->SubscribeNetworkRouteChanged(
+        this, [this](std::optional<NetworkRoute> network_route) {
+          OnNetworkRouteChanged(network_route);
+        });
+    ch->SubscribeReadyToSend(this, [this](PacketTransportInternal* transport) {
+      OnReadyToSend(transport);
+    });
     ch->SubscribeIceTransportStateChanged(
         [this](IceTransportInternal* transport) {
           OnChannelStateChanged(transport);
@@ -3691,7 +3698,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
 
   void NominateConnection(Connection* conn, uint32_t remote_nomination = 1U) {
     conn->set_remote_nomination(remote_nomination);
-    conn->SignalNominated(conn);
+    conn->NotifyNominatedForTesting(conn);
   }
 
   void OnNetworkRouteChanged(std::optional<NetworkRoute> network_route) {
@@ -3981,7 +3988,7 @@ TEST_F(P2PTransportChannelPingTest, PingingStartedAsSoonAsPossible) {
                                                              prflx_priority));
   Port* port = GetPort(&ch);
   ASSERT_NE(nullptr, port);
-  port->SignalUnknownAddress(port, SocketAddress("1.1.1.1", 1), PROTO_UDP,
+  port->NotifyUnknownAddress(port, SocketAddress("1.1.1.1", 1), PROTO_UDP,
                              &request, kIceUfrag[1], false);
   Connection* conn = GetConnectionTo(&ch, "1.1.1.1", 1);
   ASSERT_NE(nullptr, conn);
@@ -4171,14 +4178,14 @@ TEST_F(P2PTransportChannelPingTest, ConnectionResurrection) {
 
   Port* port = GetPort(&ch);
   // conn1 should be resurrected with original priority.
-  port->SignalUnknownAddress(port, SocketAddress("1.1.1.1", 1), PROTO_UDP,
+  port->NotifyUnknownAddress(port, SocketAddress("1.1.1.1", 1), PROTO_UDP,
                              &request, kIceUfrag[1], false);
   conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1);
   ASSERT_TRUE(conn1 != nullptr);
   EXPECT_EQ(conn1->remote_candidate().priority(), remote_priority);
 
   // conn3, a real prflx connection, should have prflx priority.
-  port->SignalUnknownAddress(port, SocketAddress("3.3.3.3", 1), PROTO_UDP,
+  port->NotifyUnknownAddress(port, SocketAddress("3.3.3.3", 1), PROTO_UDP,
                              &request, kIceUfrag[1], false);
   Connection* conn3 = WaitForConnectionTo(&ch, "3.3.3.3", 1);
   ASSERT_TRUE(conn3 != nullptr);
@@ -4456,7 +4463,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
   request.AddAttribute(std::make_unique<StunUInt32Attribute>(STUN_ATTR_PRIORITY,
                                                              prflx_priority));
   TestUDPPort* port = static_cast<TestUDPPort*>(GetPort(&ch));
-  port->SignalUnknownAddress(port, SocketAddress("1.1.1.1", 1), PROTO_UDP,
+  port->NotifyUnknownAddress(port, SocketAddress("1.1.1.1", 1), PROTO_UDP,
                              &request, kIceUfrag[1], false);
   Connection* conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1);
   ASSERT_TRUE(conn1 != nullptr);
@@ -4483,7 +4490,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
   // Another request with unknown address, it will not be set as the selected
   // connection because the selected connection was nominated by the controlling
   // side.
-  port->SignalUnknownAddress(port, SocketAddress("3.3.3.3", 3), PROTO_UDP,
+  port->NotifyUnknownAddress(port, SocketAddress("3.3.3.3", 3), PROTO_UDP,
                              &request, kIceUfrag[1], false);
   Connection* conn3 = WaitForConnectionTo(&ch, "3.3.3.3", 3);
   ASSERT_TRUE(conn3 != nullptr);
@@ -4495,7 +4502,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
   // selected as the selected connection.
   request.AddAttribute(
       std::make_unique<StunByteStringAttribute>(STUN_ATTR_USE_CANDIDATE));
-  port->SignalUnknownAddress(port, SocketAddress("4.4.4.4", 4), PROTO_UDP,
+  port->NotifyUnknownAddress(port, SocketAddress("4.4.4.4", 4), PROTO_UDP,
                              &request, kIceUfrag[1], false);
   Connection* conn4 = WaitForConnectionTo(&ch, "4.4.4.4", 4);
   ASSERT_TRUE(conn4 != nullptr);
@@ -4512,7 +4519,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
   // port->set_sent_binding_response(false);
   ch.SetRemoteIceParameters(kIceParams[2]);
   ch.SetRemoteIceParameters(kIceParams[3]);
-  port->SignalUnknownAddress(port, SocketAddress("5.5.5.5", 5), PROTO_UDP,
+  port->NotifyUnknownAddress(port, SocketAddress("5.5.5.5", 5), PROTO_UDP,
                              &request, kIceUfrag[2], false);
   Connection* conn5 = WaitForConnectionTo(&ch, "5.5.5.5", 5);
   ASSERT_TRUE(conn5 != nullptr);
@@ -4564,7 +4571,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
   request.AddAttribute(
       std::make_unique<StunByteStringAttribute>(STUN_ATTR_USE_CANDIDATE));
   Port* port = GetPort(&ch);
-  port->SignalUnknownAddress(port, SocketAddress("3.3.3.3", 3), PROTO_UDP,
+  port->NotifyUnknownAddress(port, SocketAddress("3.3.3.3", 3), PROTO_UDP,
                              &request, kIceUfrag[1], false);
   Connection* conn3 = WaitForConnectionTo(&ch, "3.3.3.3", 3);
   ASSERT_TRUE(conn3 != nullptr);

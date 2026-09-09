@@ -388,7 +388,7 @@ class FakeIceTransport : public IceTransportInternal {
     network_route_ = network_route;
     SendTask(network_thread_, [this] {
       RTC_DCHECK_RUN_ON(network_thread_);
-      SignalNetworkRouteChanged(network_route_);
+      NotifyNetworkRouteChanged(network_route_);
     });
   }
 
@@ -505,9 +505,9 @@ class FakeIceTransport : public IceTransportInternal {
     RTC_LOG(LS_INFO) << "Change writable_ to " << writable;
     writable_ = writable;
     if (writable_) {
-      SignalReadyToSend(this);
+      NotifyReadyToSend(this);
     }
-    SignalWritableState(this);
+    NotifyWritableState(this);
   }
 
   void set_receiving(bool receiving)
@@ -516,7 +516,7 @@ class FakeIceTransport : public IceTransportInternal {
       return;
     }
     receiving_ = receiving;
-    SignalReceivingState(this);
+    NotifyReceivingState(this);
   }
 
   bool SendPacketInternal(const CopyOnWriteBuffer& packet,

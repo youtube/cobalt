@@ -164,7 +164,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     for (const auto& addr : stun_server_addresses) {
       RTC_CHECK(addr.family() == address.family());
       stun_servers_.push_back(
-          webrtc::TestStunServer::Create(ss_.get(), addr, thread_));
+          webrtc::TestStunServer::Create(env_, addr, *ss_, thread_));
     }
   }
 

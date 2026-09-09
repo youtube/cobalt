@@ -20,12 +20,15 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "components/viz/common/surfaces/surface_info.h"
+#include "components/viz/common/view_transition_element_resource_id.h"
+#include "components/viz/service/frame_sinks/frame_sink_observer.h"
 #include "components/viz/service/surfaces/frame_index_constants.h"
 #include "components/viz/service/surfaces/pending_copy_output_request.h"
 #include "components/viz/service/surfaces/surface_client.h"
@@ -91,7 +94,7 @@ class SurfaceManager;
 // the queue, and when the display compositor draws, frames are committed from
 // the queue to the pending or active frame.
 
-class VIZ_SERVICE_EXPORT Surface final {
+class VIZ_SERVICE_EXPORT Surface final : public FrameSinkObserver {
  public:
   class PresentationHelper {
    public:
@@ -144,7 +147,11 @@ class VIZ_SERVICE_EXPORT Surface final {
   Surface(const Surface&) = delete;
   Surface& operator=(const Surface&) = delete;
 
-  ~Surface();
+  ~Surface() override;
+
+  // FrameSinkObserver implementation
+  void OnViewTransitionSaved(
+      const blink::ViewTransitionToken& transition_token) override;
 
   void SetDependencyDeadline(
       std::unique_ptr<SurfaceDependencyDeadline> deadline);
@@ -418,6 +425,15 @@ class VIZ_SERVICE_EXPORT Surface final {
   // The set of the SurfaceIds that are blocking the pending frame from being
   // activated.
   base::flat_set<SurfaceId> activation_dependencies_;
+
+  // The set of ViewTransitionTokens that are blocking the pending frame from
+  // being activated.
+  base::flat_set<blink::ViewTransitionToken> view_transition_dependencies_;
+
+  // Observes FrameSinkManager over SurfaceManager in order to manage view
+  // transition dependencies.
+  base::ScopedObservation<SurfaceManager, FrameSinkObserver>
+      frame_sink_manager_observation_{this};
 
   // The SurfaceAllocationGroups corresponding to the surfaces in
   // |activation_dependencies_|. When an activation dependency is

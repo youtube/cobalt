@@ -109,16 +109,17 @@ PROXY_METHOD2(RTCErrorOr<scoped_refptr<DataChannelInterface>>,
               CreateDataChannelOrError,
               const std::string&,
               const DataChannelInit*)
-PROXY_CONSTMETHOD0(const SessionDescriptionInterface*, local_description)
-PROXY_CONSTMETHOD0(const SessionDescriptionInterface*, remote_description)
-PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
-                   current_local_description)
-PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
-                   current_remote_description)
-PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
-                   pending_local_description)
-PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
-                   pending_remote_description)
+BYPASS_PROXY_CONSTMETHOD0(const SessionDescriptionInterface*, local_description)
+BYPASS_PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
+                          remote_description)
+BYPASS_PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
+                          current_local_description)
+BYPASS_PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
+                          current_remote_description)
+BYPASS_PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
+                          pending_local_description)
+BYPASS_PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
+                          pending_remote_description)
 PROXY_METHOD0(void, RestartIce)
 PROXY_METHOD2(void,
               CreateOffer,
@@ -128,26 +129,26 @@ PROXY_METHOD2(void,
               CreateAnswer,
               CreateSessionDescriptionObserver*,
               const RTCOfferAnswerOptions&)
-PROXY_METHOD2(void,
-              SetLocalDescription,
-              std::unique_ptr<SessionDescriptionInterface>,
-              scoped_refptr<SetLocalDescriptionObserverInterface>)
+BYPASS_PROXY_METHOD2(void,
+                     SetLocalDescription,
+                     std::unique_ptr<SessionDescriptionInterface>,
+                     scoped_refptr<SetLocalDescriptionObserverInterface>)
 PROXY_METHOD1(void,
               SetLocalDescription,
               scoped_refptr<SetLocalDescriptionObserverInterface>)
-PROXY_METHOD2(void,
-              SetLocalDescription,
-              SetSessionDescriptionObserver*,
-              SessionDescriptionInterface*)
+BYPASS_PROXY_METHOD2(void,
+                     SetLocalDescription,
+                     SetSessionDescriptionObserver*,
+                     SessionDescriptionInterface*)
 PROXY_METHOD1(void, SetLocalDescription, SetSessionDescriptionObserver*)
-PROXY_METHOD2(void,
-              SetRemoteDescription,
-              std::unique_ptr<SessionDescriptionInterface>,
-              scoped_refptr<SetRemoteDescriptionObserverInterface>)
-PROXY_METHOD2(void,
-              SetRemoteDescription,
-              SetSessionDescriptionObserver*,
-              SessionDescriptionInterface*)
+BYPASS_PROXY_METHOD2(void,
+                     SetRemoteDescription,
+                     std::unique_ptr<SessionDescriptionInterface>,
+                     scoped_refptr<SetRemoteDescriptionObserverInterface>)
+BYPASS_PROXY_METHOD2(void,
+                     SetRemoteDescription,
+                     SetSessionDescriptionObserver*,
+                     SessionDescriptionInterface*)
 PROXY_METHOD1(bool, ShouldFireNegotiationNeededEvent, uint32_t)
 PROXY_METHOD0(PeerConnectionInterface::RTCConfiguration, GetConfiguration)
 PROXY_METHOD1(RTCError,

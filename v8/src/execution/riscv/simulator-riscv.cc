@@ -5506,6 +5506,15 @@ void Simulator::DecodeRVIType() {
       }
       break;
     }
+    case RO_MOP: {
+      if ((instr_.InstructionBits() & kMopMask) == RO_MOP_R_N) {
+        set_rd(0);
+      } else {
+        CHECK((instr_.InstructionBits() & kMopMask) == RO_MOP_RR_N);
+        set_rd(0);
+      }
+      break;
+    }
       // TODO(riscv): use Zifencei Standard Extension macro block
     case RO_FENCE_I: {
       // spike: flush icache.
@@ -5802,6 +5811,7 @@ void Simulator::DecodeCIType() {
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_LWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_lwsp();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       int64_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rvc_rd(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rd_reg()));
@@ -5809,6 +5819,7 @@ void Simulator::DecodeCIType() {
     }
     case RO_C_LDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_ldsp();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       int64_t val = ReadMem<int64_t>(addr, instr_.instr());
       set_rvc_rd(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rd_reg()));
@@ -5817,6 +5828,7 @@ void Simulator::DecodeCIType() {
 #elif V8_TARGET_ARCH_RISCV32
     case RO_C_FLWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_ldsp();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       uint32_t val = ReadMem<uint32_t>(addr, instr_.instr());
       set_rvc_frd(Float32::FromBits(val), false);
       TraceMemRdFloat(addr, Float32::FromBits(val),
@@ -5825,6 +5837,7 @@ void Simulator::DecodeCIType() {
     }
     case RO_C_LWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_lwsp();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       int32_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rvc_rd(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rd_reg()));
@@ -5884,6 +5897,7 @@ void Simulator::DecodeCLType() {
   switch (instr_.RvcOpcode()) {
     case RO_C_LW: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_w();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       int64_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rvc_rs2s(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
@@ -5891,6 +5905,7 @@ void Simulator::DecodeCLType() {
     }
     case RO_C_FLD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       uint64_t val = ReadMem<uint64_t>(addr, instr_.instr());
       set_rvc_drs2s(Float64::FromBits(val), false);
       break;
@@ -5898,6 +5913,7 @@ void Simulator::DecodeCLType() {
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_LD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       int64_t val = ReadMem<int64_t>(addr, instr_.instr());
       set_rvc_rs2s(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
@@ -5906,6 +5922,7 @@ void Simulator::DecodeCLType() {
 #elif V8_TARGET_ARCH_RISCV32
     case RO_C_FLW: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       uint32_t val = ReadMem<uint32_t>(addr, instr_.instr());
       set_rvc_frs2s(Float32::FromBits(val), false);
       break;
@@ -5920,18 +5937,21 @@ void Simulator::DecodeCSType() {
   switch (instr_.RvcOpcode()) {
     case RO_C_SW: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_w();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       WriteMem<int32_t>(addr, (int32_t)rvc_rs2s(), instr_.instr());
       break;
     }
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_SD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       WriteMem<int64_t>(addr, (int64_t)rvc_rs2s(), instr_.instr());
       break;
     }
 #endif
     case RO_C_FSD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       WriteMem<double>(addr, static_cast<double>(rvc_drs2s()), instr_.instr());
       break;
     }
@@ -5967,7 +5987,9 @@ void Simulator::DecodeCBType() {
       break;
     case RO_C_MISC_ALU:
       if (instr_.RvcFunct2BValue() == 0b00) {  // c.srli
-        set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));
+        // c.srli performs a logical right shift, so zero extension is needed
+        // instead of sign extension.
+        set_rvc_rs1s(sext_xlen(zext_xlen(rvc_rs1s()) >> rvc_shamt6()));
       } else if (instr_.RvcFunct2BValue() == 0b01) {  // c.srai
         require(rvc_shamt6() < xlen);
         set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));

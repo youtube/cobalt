@@ -38,6 +38,20 @@ constexpr auto enabled_by_default_non_arm32 =
     base::FEATURE_ENABLED_BY_DEFAULT;
 #endif
 
+constexpr char enabled_all_mobile_locales_en_us_desktop_only[] =
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+    "*";
+#else
+    "en-US";
+#endif
+
+constexpr char enabled_all_mobile_countries_us_desktop_only[] =
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+    "*";
+#else
+    "us";
+#endif
+
 // Returns whether |locale| is a supported locale for |feature|.
 //
 // This matches |locale| with the "supported_locales" feature param value in
@@ -124,43 +138,36 @@ const base::FeatureParam<std::string> kAnnotatedPageContentMode{
 }  // namespace
 
 // Enables page content to be annotated.
-BASE_FEATURE(kPageContentAnnotations,
-             "PageContentAnnotations",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kPageContentAnnotations, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the page visibility model to be annotated on every page load.
 BASE_FEATURE(kPageVisibilityPageContentAnnotations,
-             "PageVisibilityPageContentAnnotations",
              enabled_by_default_non_arm32);
 
 BASE_FEATURE(kPageContentAnnotationsValidation,
-             "PageContentAnnotationsValidation",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables fetching page metadata from the remote Optimization Guide service.
-BASE_FEATURE(kRemotePageMetadata,
-             "RemotePageMetadata",
-             enabled_by_default_desktop_only);
+BASE_FEATURE(kRemotePageMetadata, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOptimizationGuideUseContinueOnShutdownForPageContentAnnotations,
-             "OptimizationGuideUseContinueOnShutdownForPageContentAnnotations",
              enabled_by_default_non_ios);
 
 BASE_FEATURE(kPageContentAnnotationsPersistSalientImageMetadata,
-             "PageContentAnnotationsPersistSalientImageMetadata",
-             enabled_by_default_desktop_only);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtractRelatedSearchesFromPrefetchedZPSResponse,
-             "ExtractRelatedSearchesFromPrefetchedZPSResponse",
              enabled_by_default_desktop_only);
 
 BASE_FEATURE(kAnnotatedPageContentExtraction,
-             "AnnotatedPageContentExtraction",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kOnDeviceCategoryClassifier,
-             "OnDeviceCategoryClassifier",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kOnDeviceCategoryClassifier, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPageContentCache, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kPageContentCacheMaxCacheAgeInDays{
+    &kPageContentCache, "max_cache_age_in_days", 7};
 
 base::TimeDelta PCAServiceWaitForTitleDelayDuration() {
   return base::Milliseconds(GetFieldTrialParamByFeatureAsInt(
@@ -206,8 +213,12 @@ bool ShouldExecutePageVisibilityModelOnPageContent(const std::string& locale) {
 bool RemotePageMetadataEnabled(const std::string& locale,
                                const std::string& country_code) {
   return base::FeatureList::IsEnabled(kRemotePageMetadata) &&
-         IsSupportedLocaleForFeature(locale, kRemotePageMetadata, "en-US") &&
-         IsSupportedCountryForFeature(country_code, kRemotePageMetadata, "us");
+         IsSupportedLocaleForFeature(
+             locale, kRemotePageMetadata,
+             enabled_all_mobile_locales_en_us_desktop_only) &&
+         IsSupportedCountryForFeature(
+             country_code, kRemotePageMetadata,
+             enabled_all_mobile_countries_us_desktop_only);
 }
 
 int GetMinimumPageCategoryScoreToPersist() {
@@ -270,10 +281,10 @@ bool ShouldPersistSalientImageMetadata(const std::string& locale,
              kPageContentAnnotationsPersistSalientImageMetadata) &&
          IsSupportedLocaleForFeature(
              locale, kPageContentAnnotationsPersistSalientImageMetadata,
-             "en-US") &&
+             enabled_all_mobile_locales_en_us_desktop_only) &&
          IsSupportedCountryForFeature(
              country_code, kPageContentAnnotationsPersistSalientImageMetadata,
-             "us");
+             enabled_all_mobile_countries_us_desktop_only);
 }
 
 size_t MaxRelatedSearchesCacheSize() {

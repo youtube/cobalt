@@ -239,7 +239,7 @@
   'wasm/table-grow': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
-  'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
+  'weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
 
   # Needs deterministic test helpers for concurrent maglev tiering.
   # TODO(jgruber,v8:7700): Implement ASAP.
@@ -495,7 +495,7 @@
   'harmony/regress/regress-369010108': [SKIP],
 
   # The --stress-compaction flag prevents minor GCs.
-  'harmony/weakrefs/minor-gc-*': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
@@ -506,31 +506,31 @@
   # there are no unexpected, externally triggered GCs that would interfere
   # with the tests. Therefore, they are unsuitable for modes that stress
   # activities which can trigger GC.
-  'harmony/weakrefs/cleanup': [SKIP],
-  'harmony/weakrefs/cleanup-is-not-a-microtask': [SKIP],
-  'harmony/weakrefs/cleanup-on-detached-realm': [SKIP],
-  'harmony/weakrefs/finalizationregistry-and-weakref': [SKIP],
-  'harmony/weakrefs/finalizationregistry-independent-lifetime': [SKIP],
-  'harmony/weakrefs/finalizationregistry-independent-lifetime-multiple': [SKIP],
-  'harmony/weakrefs/finalizationregistry-keeps-holdings-alive': [SKIP],
-  'harmony/weakrefs/finalizationregistry-scheduled-for-cleanup-multiple-times': [SKIP],
-  'harmony/weakrefs/multiple-dirty-finalization-groups': [SKIP],
-  'harmony/weakrefs/reentrant-gc-from-cleanup': [SKIP],
-  'harmony/weakrefs/symbol-as-weakref-target-gc': [SKIP],
-  'harmony/weakrefs/symbol-in-finalizationregistry': [SKIP],
-  'harmony/weakrefs/two-weakrefs': [SKIP],
-  'harmony/weakrefs/undefined-holdings': [SKIP],
-  'harmony/weakrefs/unregister-after-cleanup': [SKIP],
-  'harmony/weakrefs/unregister-before-cleanup': [SKIP],
-  'harmony/weakrefs/unregister-called-twice': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup2': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup3': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup': [SKIP],
-  'harmony/weakrefs/unregister-many': [SKIP],
-  'harmony/weakrefs/unregister-when-cleanup-already-scheduled': [SKIP],
-  'harmony/weakrefs/weak-cell-basics': [SKIP],
-  'harmony/weakrefs/weakref-creation-keeps-alive': [SKIP],
-  'harmony/weakrefs/weakref-deref-keeps-alive': [SKIP],
+  'weakrefs/cleanup': [SKIP],
+  'weakrefs/cleanup-is-not-a-microtask': [SKIP],
+  'weakrefs/cleanup-on-detached-realm': [SKIP],
+  'weakrefs/finalizationregistry-and-weakref': [SKIP],
+  'weakrefs/finalizationregistry-independent-lifetime': [SKIP],
+  'weakrefs/finalizationregistry-independent-lifetime-multiple': [SKIP],
+  'weakrefs/finalizationregistry-keeps-holdings-alive': [SKIP],
+  'weakrefs/finalizationregistry-scheduled-for-cleanup-multiple-times': [SKIP],
+  'weakrefs/multiple-dirty-finalization-groups': [SKIP],
+  'weakrefs/reentrant-gc-from-cleanup': [SKIP],
+  'weakrefs/symbol-as-weakref-target-gc': [SKIP],
+  'weakrefs/symbol-in-finalizationregistry': [SKIP],
+  'weakrefs/two-weakrefs': [SKIP],
+  'weakrefs/undefined-holdings': [SKIP],
+  'weakrefs/unregister-after-cleanup': [SKIP],
+  'weakrefs/unregister-before-cleanup': [SKIP],
+  'weakrefs/unregister-called-twice': [SKIP],
+  'weakrefs/unregister-inside-cleanup2': [SKIP],
+  'weakrefs/unregister-inside-cleanup3': [SKIP],
+  'weakrefs/unregister-inside-cleanup': [SKIP],
+  'weakrefs/unregister-many': [SKIP],
+  'weakrefs/unregister-when-cleanup-already-scheduled': [SKIP],
+  'weakrefs/weak-cell-basics': [SKIP],
+  'weakrefs/weakref-creation-keeps-alive': [SKIP],
+  'weakrefs/weakref-deref-keeps-alive': [SKIP],
 }],  # 'gc_stress or variant == stress_concurrent_allocation'
 
 ##############################################################################
@@ -633,6 +633,7 @@
   'regress/wasm/regress-372261626': [SKIP],
   'regress/wasm/regress-377620832': [SKIP],
   'regress/wasm/regress-410295354': [SKIP],
+  'regress/wasm/regress-434008619': [SKIP],
   'wasm/exnref*': [SKIP],
   'wasm/gc-casts-exnref': [SKIP],
   'wasm/gc-casts-invalid': [SKIP],
@@ -683,7 +684,6 @@
   'regress/wasm/regress-crbug-1466312': [SKIP],
   'regress/wasm/regress-v8-14710': [SKIP],
   'wasm/gc-casts-from-any': [SKIP],
-  'wasm/origin-trial-flags': [SKIP],
   'wasm/reference-globals-import': [SKIP],
   'wasm/reference-table-js-interop': [SKIP],
   'wasm/stringref*': [SKIP],
@@ -737,7 +737,7 @@
   'regress/wasm/regress-334687959': [SKIP],
   'regress/wasm/regress-366350766': [SKIP],
 
-  # --experimental-wasm-imported-strings
+  # Wasm imported strings
   'wasm/imported-strings*': [SKIP],
   'regress/wasm/regress-324747822': [SKIP],
   'regress/wasm/regress-326091470': [SKIP],
@@ -755,8 +755,6 @@
   'wasm/subtyping-invalid': [SKIP],
 
   # --experimental-wasm-jspi
-  'regress/regress-333926321': [SKIP],
-  'regress/wasm/regress-331383939': [SKIP],
   'regress/wasm/regress-336358915': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],
   'regress/wasm/regress-342522151': [SKIP],
@@ -943,6 +941,7 @@
 
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
+  'regress/wasm/regress-438770394': [SKIP],
 
   'maglev/extras-cped': [SKIP],
   'turboshaft/extras-cped': [SKIP],
@@ -959,6 +958,9 @@
   # Flag --interpreted-frames-native-stack incompatible with jitless
   'regress/regress-10138': [SKIP],
   'regress/regress-1078913': [SKIP],
+
+  # Flag --no-jitless incompatible with jitless
+  'ignition/opt-proto-seq/*': [SKIP],
 
   # Baseline incompatible with jitless
   'baseline/*': [SKIP],
@@ -1066,6 +1068,7 @@
   # Float parameters are not supported in the fast api on these platforms
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
+  'regress/wasm/regress-438770394': [SKIP],
 
   # Needs a huge Uint8Array.
   'regress/regress-1432470': [SKIP],
@@ -1884,7 +1887,7 @@
   'wasm/multiple-code-spaces': [SKIP],
 
   # Tests calling quit are not supported: https://crbug.com/341021498
-  'harmony/weakrefs/clearkeptobjects-on-quit': [SKIP],
+  'weakrefs/clearkeptobjects-on-quit': [SKIP],
   'd8/d8-finalization-registry-quit': [SKIP],
 
   # This waits for background compilation to finish, thus times out in
@@ -1898,6 +1901,7 @@
   # Float parameters are not supported in the fast api
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
+  'regress/wasm/regress-438770394': [SKIP],
 
   # Flush to zero is not supported yet.
   'd8/flush-denormals-flag': [SKIP],
@@ -2313,7 +2317,7 @@
 ##############################################################################
 ['variant == stress_sampling', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=10915
-  'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
+  'weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
   'regress/regress-484544': [SKIP],
   'regress/regress-543994': [SKIP],
   'regress/regress-crbug-1041232': [SKIP],
@@ -2369,6 +2373,7 @@
   'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/shuffles': [SKIP],
   'wasm/half-shuffles': [SKIP],
+  'wasm/half-dup-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],
@@ -2522,8 +2527,8 @@
   'regress/wasm/regress-388934347-a': [SKIP],
   'regress/wasm/regress-434008619': [SKIP],
 
-  # harmony/weakrefs/minor-gc-* tests require a young generation.
-  'harmony/weakrefs/minor-gc-*': [SKIP],
+  # weakrefs/minor-gc-* tests require a young generation.
+  'weakrefs/minor-gc-*': [SKIP],
 }], # single_generation
 
 ################################################################################
@@ -2534,17 +2539,17 @@
   # These tests need to disable conservative stack scanning and are thus not
   # compatible with direct handles.
   'wasm/compiled-module-management': [SKIP],
+  'weakrefs/minor-gc-two-weakrefs': [SKIP],
+  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
 }], # direct_handle
 
 ##############################################################################
 ['arch == mips64el', {
   # Stack switching is not supported on MIPS64 platform.
   'wasm/jspi': [SKIP],
-  'wasm/jspi-conditional': [SKIP],
   'wasm/jspi-export': [SKIP],
   'wasm/jspi-generic-wrapper': [SKIP],
   'wasm/jspi-no-stress': [SKIP],
-  'wasm/jspi-init-safe': [SKIP],
   'wasm/jspi-notraps': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],
@@ -2687,7 +2692,7 @@
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
-['variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)', {
+['variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
   # Maglev deopts on non-int division, even if the result is truncated after.
   'shift-for-integer-div': [FAIL],
   # Maglev deopts on negative zero for int32, even if truncated afterward.
@@ -2735,6 +2740,7 @@
   'compiler/fast-api-sequences*': [FAIL],
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
+  'regress/wasm/regress-438770394': [SKIP],
   'regress/regress-366323469': [FAIL],
   'regress/regress-366635361': [FAIL],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.
@@ -2752,15 +2758,15 @@
   'regress-398879933': [SKIP],
   'regress-399698534': [SKIP],
   'regress-414738826': [SKIP],
-}], # variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)
+}], # variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)
 
 ##############################################################################
-['(variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)) and (arch != arm)', {
+['(variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)) and (arch != arm)', {
   # Maglev doesn't suppress BigInt size errors on truncation.
   # On Arm that works, since we always _and_ the shift amount first.
   'compiler/bigint-shift-left': [FAIL],
   'compiler/bigint-multiply-truncate': [FAIL],
-}], # (variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev))' and (arch != arm)
+}], # (variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future))' and (arch != arm)
 
 ##############################################################################
 ['variant == stress_maglev_tracing', {
@@ -2769,7 +2775,7 @@
 }], # variant == stress_maglev_tracing
 
 ##############################################################################
-['variant == turbolev', {
+['variant in (turbolev, turbolev_future, stress_turbolev_future)', {
   # Because of frontend lowerings being different in Maglev and Turbofan, some
   # unit tests don't pass when using Maglev as a frontend for Turboshaft.
 
@@ -2853,15 +2859,15 @@
   'regress/regress-992389': [SKIP],
   'regress/regress-crbug-419454582': [SKIP],
 
-}], # variant == turbolev
+}], # 'variant in (turbolev, turbolev_future, stress_turbolev_future)'
 
 ##############################################################################
-['(variant == turbolev) and (arch == arm64)', {
+['(variant in (turbolev, turbolev_future, stress_turbolev_future)) and (arch == arm64)', {
   # Turboshaft cannot call Construct_WithFeedback, which is required to make
   # this test  pass with Maglev as a frontend (Turbofan does other lowering
   # that don't require calling Construct_WithFeedback).
   'array-constructor-feedback': [SKIP],
-}], # (variant == turbolev) and (arch == arm64)
+}], # (variant in (turbolev, turbolev_future, stress_turbolev_future)) and (arch == arm64)
 
 ##############################################################################
 ['clang_coverage and mode == debug', {
@@ -2928,8 +2934,8 @@
   'ignition/regress-672027': [PASS, SLOW],
 
   # Test checks that object is reclaimed but cannot use async GCs.
-  'harmony/weakrefs/minor-gc-two-weakrefs': [SKIP],
-
+  'weakrefs/minor-gc-two-weakrefs': [SKIP],
+  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
 }],  # variant == conservative_stack_scanning
 
 ##############################################################################
@@ -3000,7 +3006,7 @@
 }], # sandbox_hardware_support
 
 ['variant == minor_ms', {
-  'harmony/weakrefs/minor-gc-*': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == minor_ms
 
 ]

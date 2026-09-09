@@ -103,7 +103,7 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
 
 template <typename BaseT>
 template <typename NodeT, typename... Args>
-NodeT* MaglevReducer<BaseT>::AddNewNode(
+ReduceResult MaglevReducer<BaseT>::AddNewNode(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
   static_assert(IsFixedInputNode<NodeT>());
   if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
@@ -115,7 +115,25 @@ NodeT* MaglevReducer<BaseT>::AddNewNode(
   }
   NodeT* node =
       NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
-  SetNodeInputs(node, inputs);
+  RETURN_IF_ABORT(SetNodeInputs(node, inputs));
+  return AttachExtraInfoAndAddToGraph(node);
+}
+
+template <typename BaseT>
+template <typename NodeT, typename... Args>
+NodeT* MaglevReducer<BaseT>::AddNewNodeNoAbort(
+    std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  static_assert(IsFixedInputNode<NodeT>());
+  if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
+                ReducerBaseWithKNA<BaseT>) {
+    if (v8_flags.maglev_cse) {
+      return AddNewNodeOrGetEquivalent<NodeT>(true, inputs,
+                                              std::forward<Args>(args)...);
+    }
+  }
+  NodeT* node =
+      NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
+  SetNodeInputsOld(node, inputs);
   return AttachExtraInfoAndAddToGraph(node);
 }
 
@@ -157,7 +175,7 @@ void MaglevReducer<BaseT>::AddNewControlNode(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
   ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
       zone(), inputs.size(), std::forward<Args>(args)...);
-  SetNodeInputs(control_node, inputs);
+  SetNodeInputsOld(control_node, inputs);
   AttachEagerDeoptInfo(control_node);
   AttachDeoptCheckpoint(control_node);
   static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
@@ -297,7 +315,15 @@ ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
 
 template <typename BaseT>
 template <typename NodeT, typename InputsT>
-void MaglevReducer<BaseT>::SetNodeInputs(NodeT* node, InputsT inputs) {
+ReduceResult MaglevReducer<BaseT>::SetNodeInputs(NodeT* node, InputsT inputs) {
+  // TODO(marja): Abort if input conversion fails.
+  SetNodeInputsOld(node, inputs);
+  return ReduceResult::Done();
+}
+
+template <typename BaseT>
+template <typename NodeT, typename InputsT>
+void MaglevReducer<BaseT>::SetNodeInputsOld(NodeT* node, InputsT inputs) {
   // Nodes with zero input count don't have kInputTypes defined.
   if constexpr (NodeT::kInputCount > 0) {
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
@@ -344,12 +370,7 @@ NodeT* MaglevReducer<BaseT>::AttachExtraInfoAndAddToGraph(NodeT* node) {
   if constexpr (ReducerBaseWithEffectTracking<NodeT, BaseT>) {
     base_->template MarkPossibleSideEffect<NodeT>(node);
   }
-  if constexpr (NodeT::kProperties.value_representation() ==
-                ValueRepresentation::kFloat64) {
-    if (v8_flags.maglev_truncation) {
-      UpdateRange(node);
-    }
-  }
+  MarkForInt32Truncation(node);
   return node;
 }
 
@@ -379,7 +400,7 @@ void MaglevReducer<BaseT>::AttachLazyDeoptInfo(NodeT* node) {
   if constexpr (NodeT::kProperties.can_lazy_deopt()) {
     static_assert(ReducerBaseWithLazyDeopt<BaseT>);
     auto [top_frame, result_location, result_size] =
-        base_->GetDeoptFrameForLazyDeopt();
+        base_->GetDeoptFrameForLazyDeopt(NodeT::kProperties.can_throw());
     graph_->AddLazyTopFrame(top_frame, result_location, result_size);
     new (node->lazy_deopt_info())
         LazyDeoptInfo(zone(), top_frame, result_location, result_size,
@@ -408,6 +429,22 @@ void MaglevReducer<BaseT>::MarkPossibleSideEffect(NodeT* node) {
 
   if constexpr (ReducerBaseWithKNA<BaseT>) {
     known_node_aspects().increment_effect_epoch();
+  }
+}
+
+template <typename BaseT>
+template <typename NodeT>
+void MaglevReducer<BaseT>::MarkForInt32Truncation(NodeT* node) {
+  if (!v8_flags.maglev_truncation) return;
+  if constexpr (NodeT::kProperties.value_representation() ==
+                ValueRepresentation::kFloat64) {
+    UpdateRange(node);
+  }
+  if constexpr (NodeT::template opcode_of<NodeT> ==
+                    Opcode::kInt32AddWithOverflow ||
+                NodeT::template opcode_of<NodeT> ==
+                    Opcode::kInt32SubtractWithOverflow) {
+    node->set_can_truncate_to_int32(true);
   }
 }
 
@@ -535,7 +572,6 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
       }
-      // TODO(victorgomes): Do not tag Float64Constant on runtime.
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<Float64ToTagged>(
               {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
@@ -603,7 +639,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       if (!IsEmptyNodeType(known_node_aspects().GetType(broker(), value)) &&
           node_info->is_smi()) {
         return alternative.set_int32(
-            AddNewNode<TruncateUint32ToInt32>({value}));
+            AddNewNodeNoAbort<TruncateUint32ToInt32>({value}));
       }
       return alternative.set_int32(
           AddNewNodeNoInputConversion<CheckedUint32ToInt32>({value}));
@@ -613,7 +649,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
     // HoleyFloat64 as Float64.
     case ValueRepresentation::kHoleyFloat64: {
       return alternative.set_int32(
-          AddNewNode<CheckedHoleyFloat64ToInt32>({value}));
+          AddNewNodeNoAbort<CheckedHoleyFloat64ToInt32>({value}));
     }
 
     case ValueRepresentation::kIntPtr:
@@ -836,10 +872,11 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
       return BuildNumberOrOddballToFloat64(value, allowed_input_type);
     }
     case ValueRepresentation::kInt32:
-      return alternative.set_float64(AddNewNode<ChangeInt32ToFloat64>({value}));
+      return alternative.set_float64(
+          AddNewNodeNoAbort<ChangeInt32ToFloat64>({value}));
     case ValueRepresentation::kUint32:
       return alternative.set_float64(
-          AddNewNode<ChangeUint32ToFloat64>({value}));
+          AddNewNodeNoAbort<ChangeUint32ToFloat64>({value}));
     case ValueRepresentation::kHoleyFloat64: {
       switch (allowed_input_type) {
         case NodeType::kSmi:
@@ -851,19 +888,19 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
           // booleans cannot occur here and kNumberOrBoolean can be grouped with
           // kNumber.
           return alternative.set_float64(
-              AddNewNode<CheckedHoleyFloat64ToFloat64>({value}));
+              AddNewNodeNoAbort<CheckedHoleyFloat64ToFloat64>({value}));
         case NodeType::kNumberOrOddball:
           // NumberOrOddball->Float64 conversions are not exact alternatives,
           // since they lose the information that this is an oddball, so they
           // cannot become the canonical float64_alternative.
-          return AddNewNode<HoleyFloat64ToMaybeNanFloat64>({value});
+          return AddNewNodeNoAbort<HoleyFloat64ToMaybeNanFloat64>({value});
         default:
           UNREACHABLE();
       }
     }
     case ValueRepresentation::kIntPtr:
       return alternative.set_float64(
-          AddNewNode<ChangeIntPtrToFloat64>({value}));
+          AddNewNodeNoAbort<ChangeIntPtrToFloat64>({value}));
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kNone:
       UNREACHABLE();
@@ -915,14 +952,14 @@ std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
       }
       if (conversion_type == TaggedToFloat64ConversionType::kNumberOrOddball &&
           IsOddball(root_object)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
         if (IsUndefined(root_object)) {
           // We use the undefined nan and silence it to produce the same result
           // as a computation from non-constants would.
           auto ud = Float64::FromBits(kUndefinedNanInt64);
           return ud.to_quiet_nan().get_scalar();
         }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         return Cast<Oddball>(root_object)->to_number_raw();
       }
       if (IsHeapNumber(root_object)) {
@@ -1000,9 +1037,9 @@ ValueNode* MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
         phi->SetUseRequires31BitValue();
       }
     }
-    return AddNewNode<UnsafeSmiUntag>({node});
+    return AddNewNodeNoAbort<UnsafeSmiUntag>({node});
   } else {
-    return AddNewNode<CheckedSmiUntag>({node});
+    return AddNewNodeNoAbort<CheckedSmiUntag>({node});
   }
 }
 
@@ -1014,12 +1051,13 @@ ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
   if (EnsureType(node, allowed_input_type, &old_type)) {
     if (old_type == NodeType::kSmi) {
       ValueNode* untagged_smi = BuildSmiUntag(node);
-      return AddNewNode<ChangeInt32ToFloat64>({untagged_smi});
+      return AddNewNodeNoAbort<ChangeInt32ToFloat64>({untagged_smi});
     }
-    return AddNewNode<UncheckedNumberOrOddballToFloat64>({node},
-                                                         conversion_type);
+    return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
+        {node}, conversion_type);
   } else {
-    return AddNewNode<CheckedNumberOrOddballToFloat64>({node}, conversion_type);
+    return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>({node},
+                                                              conversion_type);
   }
 }
 
@@ -1029,6 +1067,17 @@ ValueNode* MaglevReducer<BaseT>::GetNumberConstant(double constant) {
     return GetInt32Constant(FastD2I(constant));
   }
   return GetFloat64Constant(constant);
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildCheckedSmiSizedInt32(ValueNode* input) {
+  if (auto cst = TryGetInt32Constant(input)) {
+    if (Smi::IsValid(cst.value())) {
+      return ReduceResult::Done();
+    }
+    // TODO(victorgomes): Emit deopt.
+  }
+  return AddNewNodeNoAbort<CheckedSmiSizedInt32>({input});
 }
 
 template <typename BaseT>
@@ -1079,7 +1128,24 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
   if (auto cst_left = TryGetInt32Constant(left)) {
     return TryFoldInt32BinaryOperation<kOperation>(cst_left.value(), cst_right);
   }
-  if (std::optional<int>(cst_right) == Int32Identity<kOperation>()) {
+  if (cst_right == Int32Identity<kOperation>()) {
+    if (v8_flags.maglev_truncation && IsBitwiseBinaryOperation<kOperation>() &&
+        (left->opcode() == Opcode::kInt32AddWithOverflow ||
+         left->opcode() == Opcode::kInt32SubtractWithOverflow)) {
+      // Don't fold the |0 in (a + b)|0 and similar expressions, so that we can
+      // track whether removing the overflow checking from the "a + b" operation
+      // is fine. This requires differentiating between the users of the "a + b"
+      // node and the users of the "(a + b)|0" node.
+
+      // TODO(marja): To support Int32MultiplyWithOverflow and
+      // Int32DivideWithOverflow, we need to be able to reason about ranges.
+      //
+      // TODO(marja): We can add a limited version of that, to support cases
+      // where one of the operands is a constant and thus we can be sure the
+      // result stays in the safe range.
+      return {};
+    }
+
     // Deopt if {left} is not an Int32.
     EnsureInt32(left);
     if (left->properties().is_conversion()) {
@@ -1104,18 +1170,18 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     case Operation::kMultiply:
       // x * 0 = 0
       if (cst_right == 0) {
-        AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                        AssertCondition::kGreaterThanEqual,
-                                        DeoptimizeReason::kMinusZero);
+        AddNewNodeNoAbort<CheckInt32Condition>(
+            {left, GetInt32Constant(0)}, AssertCondition::kGreaterThanEqual,
+            DeoptimizeReason::kMinusZero);
         return GetInt32Constant(0);
       }
       return {};
     case Operation::kDivide:
       // x / -1 = 0 - x
       if (cst_right == -1) {
-        AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                        AssertCondition::kNotEqual,
-                                        DeoptimizeReason::kMinusZero);
+        AddNewNodeNoAbort<CheckInt32Condition>({left, GetInt32Constant(0)},
+                                               AssertCondition::kNotEqual,
+                                               DeoptimizeReason::kMinusZero);
         return AddNewNode<Int32SubtractWithOverflow>(
             {GetInt32Constant(0), left});
       }
@@ -1123,32 +1189,33 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
         // x / n = x reciprocal_int_mult(x, n)
         if (cst_right < 0) {
           // Deopt if division would result in -0.
-          AddNewNode<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                          AssertCondition::kNotEqual,
-                                          DeoptimizeReason::kMinusZero);
+          AddNewNodeNoAbort<CheckInt32Condition>({left, GetInt32Constant(0)},
+                                                 AssertCondition::kNotEqual,
+                                                 DeoptimizeReason::kMinusZero);
         }
         base::MagicNumbersForDivision<int32_t> magic =
             base::SignedDivisionByConstant(cst_right);
-        ValueNode* quot = AddNewNode<Int32MultiplyOverflownBits>(
+        ValueNode* quot = AddNewNodeNoAbort<Int32MultiplyOverflownBits>(
             {left, GetInt32Constant(magic.multiplier)});
         if (cst_right > 0 && magic.multiplier < 0) {
-          quot = AddNewNode<Int32Add>({quot, left});
+          quot = AddNewNodeNoAbort<Int32Add>({quot, left});
         } else if (cst_right < 0 && magic.multiplier > 0) {
-          quot = AddNewNode<Int32Subtract>({quot, left});
+          quot = AddNewNodeNoAbort<Int32Subtract>({quot, left});
         }
-        ValueNode* sign_bit =
-            AddNewNode<Int32ShiftRightLogical>({left, GetInt32Constant(31)});
-        ValueNode* shifted_quot =
-            AddNewNode<Int32ShiftRight>({quot, GetInt32Constant(magic.shift)});
+        ValueNode* sign_bit = AddNewNodeNoAbort<Int32ShiftRightLogical>(
+            {left, GetInt32Constant(31)});
+        ValueNode* shifted_quot = AddNewNodeNoAbort<Int32ShiftRight>(
+            {quot, GetInt32Constant(magic.shift)});
         // TODO(victorgomes): This should actually be NodeType::kInt32, but we
         // don't have it. The idea here is that the value is either 0 or 1, so
         // we can cast Uint32 to Int32 without a check.
         EnsureType(sign_bit, NodeType::kSmi);
-        ValueNode* result = AddNewNode<Int32Add>({shifted_quot, sign_bit});
-        ValueNode* mult =
-            AddNewNode<Int32Multiply>({result, GetInt32Constant(cst_right)});
-        AddNewNode<CheckInt32Condition>({left, mult}, AssertCondition::kEqual,
-                                        DeoptimizeReason::kNotInt32);
+        ValueNode* result =
+            AddNewNodeNoAbort<Int32Add>({shifted_quot, sign_bit});
+        ValueNode* mult = AddNewNodeNoAbort<Int32Multiply>(
+            {result, GetInt32Constant(cst_right)});
+        AddNewNodeNoAbort<CheckInt32Condition>(
+            {left, mult}, AssertCondition::kEqual, DeoptimizeReason::kNotInt32);
         return result;
       }
       return {};
@@ -1213,6 +1280,50 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     case Operation::kShiftRightLogical:
       return GetUint32Constant(static_cast<uint32_t>(cst_left) >>
                                (static_cast<uint32_t>(cst_right) % 32));
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <typename BaseT>
+std::optional<bool> MaglevReducer<BaseT>::TryFoldInt32CompareOperation(
+    Operation op, ValueNode* left, ValueNode* right) {
+  if (op == Operation::kEqual || op == Operation::kStrictEqual) {
+    if (left == right) {
+      return true;
+    }
+  }
+  if (auto cst_right = TryGetInt32Constant(right)) {
+    return TryFoldInt32CompareOperation(op, left, cst_right.value());
+  }
+  return {};
+}
+
+template <typename BaseT>
+std::optional<bool> MaglevReducer<BaseT>::TryFoldInt32CompareOperation(
+    Operation op, ValueNode* left, int32_t cst_right) {
+  if (auto cst_left = TryGetInt32Constant(left)) {
+    return TryFoldInt32CompareOperation(op, cst_left.value(), cst_right);
+  }
+  return {};
+}
+
+template <typename BaseT>
+bool MaglevReducer<BaseT>::TryFoldInt32CompareOperation(Operation op,
+                                                        int32_t left,
+                                                        int32_t right) {
+  switch (op) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return left == right;
+    case Operation::kLessThan:
+      return left < right;
+    case Operation::kLessThanOrEqual:
+      return left <= right;
+    case Operation::kGreaterThan:
+      return left > right;
+    case Operation::kGreaterThanOrEqual:
+      return left >= right;
     default:
       UNREACHABLE();
   }

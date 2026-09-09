@@ -132,6 +132,175 @@ func addTLS13HandshakeTests() {
 	})
 
 	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "CustomKeyShares-TLS13",
+		config: Config{
+			MinVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				ExpectedKeyShares: []CurveID{CurveP256},
+			},
+		},
+		flags: []string{
+			"-curves", strconv.Itoa(int(CurveX25519)),
+			"-curves", strconv.Itoa(int(CurveP256)),
+			"-key-shares", strconv.Itoa(int(CurveP256)),
+		},
+	})
+
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "CustomKeyShares-DefaultSupportedGroups-TLS13",
+		config: Config{
+			MinVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				ExpectedKeyShares: []CurveID{CurveX25519},
+			},
+		},
+		flags: []string{
+			// Configure key shares without explicitly configuring supported groups.
+			"-key-shares", strconv.Itoa(int(CurveX25519)),
+		},
+	})
+
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "CustomKeyShares-Multiple-TLS13",
+		config: Config{
+			MinVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				ExpectedKeyShares: []CurveID{CurveX25519, CurveX25519MLKEM768},
+			},
+		},
+		flags: []string{
+			"-curves", strconv.Itoa(int(CurveX25519)),
+			"-curves", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-curves", strconv.Itoa(int(CurveP256)),
+			// Predict the top 2 out of 3 supported curves.
+			"-key-shares", strconv.Itoa(int(CurveX25519)),
+			"-key-shares", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-expect-curve-id", strconv.Itoa(int(CurveX25519)),
+			"-expect-no-hrr",
+		},
+	})
+
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "CustomKeyShares-MultipleNonContiguous-TLS13",
+		config: Config{
+			MinVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				ExpectedKeyShares: []CurveID{CurveX25519, CurveP256},
+			},
+		},
+		flags: []string{
+			"-curves", strconv.Itoa(int(CurveX25519)),
+			"-curves", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-curves", strconv.Itoa(int(CurveP256)),
+			// Predict the first and last of 3 supported curves.
+			"-key-shares", strconv.Itoa(int(CurveX25519)),
+			"-key-shares", strconv.Itoa(int(CurveP256)),
+			"-expect-curve-id", strconv.Itoa(int(CurveX25519)),
+			"-expect-no-hrr",
+		},
+	})
+
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "CustomKeyShares-NotMostPreferred-HRR-TLS13",
+		config: Config{
+			MinVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				ExpectedKeyShares: []CurveID{CurveX25519MLKEM768, CurveP256},
+			},
+		},
+		flags: []string{
+			"-curves", strconv.Itoa(int(CurveX25519)),
+			"-curves", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-curves", strconv.Itoa(int(CurveP256)),
+			// Predict some curves that we support, not including the top one.
+			"-key-shares", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-key-shares", strconv.Itoa(int(CurveP256)),
+			"-expect-curve-id", strconv.Itoa(int(CurveX25519)),
+			// Check that we triggered a HelloRetryRequest.
+			"-expect-hrr",
+		},
+	})
+
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "CustomKeyShares-PeerSelectedLaterKeyShare-TLS13",
+		config: Config{
+			MinVersion:       VersionTLS13,
+			CurvePreferences: []CurveID{CurveP256},
+			Bugs: ProtocolBugs{
+				ExpectedKeyShares: []CurveID{CurveX25519MLKEM768, CurveP256},
+				// Make the server select one of the groups with a key_share, but not
+				// the most preferred one.
+				SendCurve: CurveP256,
+			},
+		},
+		flags: []string{
+			"-curves", strconv.Itoa(int(CurveX25519)),
+			"-curves", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-curves", strconv.Itoa(int(CurveP256)),
+			"-key-shares", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-key-shares", strconv.Itoa(int(CurveP256)),
+			"-expect-curve-id", strconv.Itoa(int(CurveP256)),
+			"-expect-no-hrr",
+		},
+	})
+
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "CustomKeyShares-All-TLS13",
+		config: Config{
+			MinVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				ExpectedKeyShares: []CurveID{
+					CurveP256,
+					CurveP384,
+					CurveP521,
+					CurveX25519,
+					CurveX25519Kyber768,
+					CurveX25519MLKEM768,
+					CurveMLKEM1024,
+				},
+			},
+		},
+		flags: []string{
+			"-curves", strconv.Itoa(int(CurveP256)),
+			"-curves", strconv.Itoa(int(CurveP384)),
+			"-curves", strconv.Itoa(int(CurveP521)),
+			"-curves", strconv.Itoa(int(CurveX25519)),
+			"-curves", strconv.Itoa(int(CurveX25519Kyber768)),
+			"-curves", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-curves", strconv.Itoa(int(CurveMLKEM1024)),
+			"-key-shares", strconv.Itoa(int(CurveP256)),
+			"-key-shares", strconv.Itoa(int(CurveP384)),
+			"-key-shares", strconv.Itoa(int(CurveP521)),
+			"-key-shares", strconv.Itoa(int(CurveX25519)),
+			"-key-shares", strconv.Itoa(int(CurveX25519Kyber768)),
+			"-key-shares", strconv.Itoa(int(CurveX25519MLKEM768)),
+			"-key-shares", strconv.Itoa(int(CurveMLKEM1024)),
+		},
+	})
+
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "CustomKeyShares-Empty-HRR-TLS13",
+		config: Config{
+			MinVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				ExpectedKeyShares: []CurveID{},
+			},
+		},
+		flags: []string{
+			"-no-key-shares",
+			"-expect-hrr",
+		},
+	})
+
+	testCases = append(testCases, testCase{
 		testType: serverTest,
 		name:     "SkipEarlyData-TLS13",
 		config: Config{

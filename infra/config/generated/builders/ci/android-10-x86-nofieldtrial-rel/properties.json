@@ -47,6 +47,12 @@
           "project": "chromium"
         }
       ],
+      "mirroring_builder_group_and_names": [
+        {
+          "builder": "android-10-x86-nofieldtrial-rel",
+          "group": "tryserver.chromium.android"
+        }
+      ],
       "retry_failed_shards": true,
       "retry_invalid_shards": true,
       "targets_spec_directory": "src/infra/config/generated/builders/ci/android-10-x86-nofieldtrial-rel/targets"

@@ -94,6 +94,9 @@ class AsyncTCPSocket : public AsyncTCPSocketBase {
            size_t cb,
            const AsyncSocketPacketOptions& options) override;
   size_t ProcessInput(ArrayView<const uint8_t>) override;
+
+ private:
+  const Environment env_;
 };
 
 class AsyncTcpListenSocket : public AsyncListenSocket {

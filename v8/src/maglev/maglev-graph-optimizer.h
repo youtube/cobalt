@@ -30,12 +30,12 @@ class MaglevGraphOptimizer {
   void PostPhiProcessing() {}
 
 #define DECLARE_PROCESS(NodeT)                                        \
-  ProcessResult Visit##NodeT();                                       \
+  ProcessResult Visit##NodeT(NodeT*, const ProcessingState&);         \
   ProcessResult Process(NodeT* node, const ProcessingState& state) {  \
     ScopedModification<NodeBase*> current_node(&current_node_, node); \
     UnwrapInputs();                                                   \
     PreProcessNode(node, state);                                      \
-    ProcessResult result = Visit##NodeT();                            \
+    ProcessResult result = Visit##NodeT(node, state);                 \
     PostProcessNode(node);                                            \
     return result;                                                    \
   }
@@ -87,8 +87,16 @@ class MaglevGraphOptimizer {
   void PreProcessNode(ControlNode*, const ProcessingState& state);
   void PostProcessNode(ControlNode*);
 
+  Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
+                   bool if_true);
+
   ValueNode* GetInputAt(int index) const;
   ProcessResult ReplaceWith(ValueNode* node);
+
+  template <Operation kOperation>
+  std::optional<ProcessResult> TryFoldInt32Operation();
+  template <Operation kOperation>
+  std::optional<ProcessResult> TryFoldFloat64Operation();
 };
 
 }  // namespace maglev

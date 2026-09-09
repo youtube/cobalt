@@ -1478,12 +1478,13 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
           std::make_unique<FakeRTCCertificateGenerator>();
     }
     std::string field_trials = field_trials_;
+    EnvironmentFactory env = EnvironmentFactory(env_);
+
     auto it = field_trials_overrides_.find(debug_name);
     if (it != field_trials_overrides_.end()) {
       field_trials = it->second;
+      dependencies.trials = std::make_unique<FieldTrials>(it->second);
     }
-    // Override the field trials in the environment.
-    EnvironmentFactory env = EnvironmentFactory(env_);
     env.Set(CreateTestFieldTrialsPtr(field_trials));
 
     std::unique_ptr<PeerConnectionIntegrationWrapper> client(

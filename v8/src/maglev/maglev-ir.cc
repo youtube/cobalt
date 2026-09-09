@@ -39,6 +39,7 @@
 #include "src/maglev/maglev-code-gen-state.h"
 #endif
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -77,48 +78,30 @@ static_assert(
 }  // namespace
 
 #ifdef DEBUG
-namespace {
-
-template <size_t InputCount, typename Base, typename Derived>
-int StaticInputCount(FixedInputNodeTMixin<InputCount, Base, Derived>*) {
-  return InputCount;
-}
-
-int StaticInputCount(NodeBase*) { UNREACHABLE(); }
-
-}  // namespace
 
 void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
                                      OpProperties new_properties) {
   if (new_opcode == Opcode::kDead) return;
 
-  DCHECK_IMPLIES(new_properties.can_eager_deopt(),
-                 properties().can_eager_deopt());
-  DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
-                 properties().can_lazy_deopt());
-  DCHECK_IMPLIES(new_properties.needs_register_snapshot(),
-                 properties().needs_register_snapshot());
+  DCHECK_LE(SizeOfNodeForOpcode(new_opcode), SizeOfNodeForOpcode(opcode()));
 
   int old_input_count = input_count();
-  size_t old_sizeof = -1;
-  switch (opcode()) {
-#define CASE(op)             \
-  case Opcode::k##op:        \
-    old_sizeof = sizeof(op); \
-    break;
-    NODE_BASE_LIST(CASE);
-#undef CASE
-  }
-
-  switch (new_opcode) {
-#define CASE(op)                                                          \
-  case Opcode::k##op: {                                                   \
-    DCHECK_EQ(old_input_count, StaticInputCount(static_cast<op*>(this))); \
-    DCHECK_LE(sizeof(op), old_sizeof);                                    \
-    break;                                                                \
-  }
-    NODE_BASE_LIST(CASE)
-#undef CASE
+  int new_input_count = StaticInputCountForOpcode(new_opcode);
+  if (old_input_count == new_input_count) {
+    // We can keep the same properties.
+    DCHECK_IMPLIES(new_properties.can_eager_deopt(),
+                   properties().can_eager_deopt());
+    DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
+                   properties().can_lazy_deopt());
+    DCHECK_IMPLIES(new_properties.needs_register_snapshot(),
+                   properties().needs_register_snapshot());
+  } else {
+    DCHECK_LT(new_input_count, old_input_count);
+    // We must not deopt, since the location of the DeoptInfo will be incorrect.
+    // TODO(victorgomes): support moving the deopt info.
+    DCHECK(!new_properties.can_eager_deopt());
+    DCHECK(!new_properties.can_lazy_deopt());
+    DCHECK(!new_properties.needs_register_snapshot());
   }
 }
 
@@ -624,6 +607,16 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kFastCreateClosure:
     case Opcode::kCreateClosure:
       return NodeType::kJSFunction;
+    case Opcode::kLoadTaggedField:
+      return Cast<LoadTaggedField>()->type();
+    case Opcode::kLoadTaggedFieldForProperty:
+      return Cast<LoadTaggedFieldForProperty>()->type();
+    case Opcode::kLoadTaggedFieldForContextSlotNoCells:
+      return Cast<LoadTaggedFieldForContextSlotNoCells>()->type();
+    case Opcode::kLoadTaggedFieldForContextSlot:
+      return Cast<LoadTaggedFieldForContextSlot>()->type();
+    case Opcode::kLoadFixedArrayElement:
+      return Cast<LoadFixedArrayElement>()->type();
     case Opcode::kInt32Compare:
     case Opcode::kFloat64Compare:
     case Opcode::kGenericEqual:
@@ -697,20 +690,15 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kGetTemplateObject:
     case Opcode::kHasInPrototypeChain:
     case Opcode::kInitialValue:
-    case Opcode::kLoadTaggedField:
-    case Opcode::kLoadTaggedFieldForProperty:
-    case Opcode::kLoadTaggedFieldForContextSlotNoCells:
-    case Opcode::kLoadTaggedFieldForContextSlot:
     case Opcode::kLoadFloat64:
     case Opcode::kLoadInt32:
     case Opcode::kLoadTaggedFieldByFieldIndex:
-    case Opcode::kLoadFixedArrayElement:
     case Opcode::kLoadFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotHole:
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole:
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     case Opcode::kLoadSignedIntDataViewElement:
     case Opcode::kLoadDoubleDataViewElement:
     case Opcode::kLoadTypedArrayLength:
@@ -765,13 +753,13 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
     case Opcode::kCheckedHoleyFloat64ToFloat64:
     case Opcode::kHoleyFloat64ToMaybeNanFloat64:
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     case Opcode::kFloat64ToHoleyFloat64:
     case Opcode::kConvertHoleNanToUndefinedNan:
     case Opcode::kHoleyFloat64IsUndefinedOrHole:
 #else
     case Opcode::kHoleyFloat64IsHole:
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     case Opcode::kSetPendingMessage:
     case Opcode::kStringLength:
     case Opcode::kAllocateElementsArray:
@@ -1185,8 +1173,8 @@ void AllocationBlock::TryPretenure() {
   }
   allocation_type_ = AllocationType::kOld;
   for (auto alloc : allocation_list_) {
-    alloc->object()->ForEachInput(
-        [&](ValueNode* value) { TryPretenure(value); });
+    alloc->object()->ForEachSlot(
+        [&](ValueNode* value, vobj::Field desc) { TryPretenure(value); });
   }
 }
 
@@ -2879,8 +2867,12 @@ void CheckedHoleyFloat64ToFloat64::SetValueLocationConstraints() {
 void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  __ JumpIfHoleNan(ToDoubleRegister(input()), temps.Acquire(),
-                   __ GetDeoptLabel(this, DeoptimizeReason::kHole));
+  auto scratch = temps.Acquire();
+  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kHole);
+  __ JumpIfHoleNan(ToDoubleRegister(input()), scratch, deopt_label);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  __ JumpIfUndefinedNan(ToDoubleRegister(input()), scratch, deopt_label);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 }
 
 void LoadFloat64::SetValueLocationConstraints() {
@@ -3272,7 +3264,7 @@ void LoadHoleyFixedDoubleArrayElementCheckedNotHole::GenerateCode(
                    __ GetDeoptLabel(this, DeoptimizeReason::kHole));
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole::
     SetValueLocationConstraints() {
   UseRegister(elements_input());
@@ -3293,7 +3285,7 @@ void LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole::GenerateCode(
   __ JumpIfUndefinedNan(result_reg, scratch, deopt_label);
   __ JumpIfHoleNan(result_reg, scratch, deopt_label);
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());
@@ -5310,13 +5302,13 @@ void HoleyFloat64ToTagged::GenerateCode(MaglevAssembler* masm,
             __ Jump(*done);
           },
           object, done));
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   Label not_undefined;
   __ JumpIfNotUndefinedNan(value, ToRegister(result()), &not_undefined);
   __ LoadRoot(object, RootIndex::kUndefinedValue);
   __ Jump(*done, Label::kNear);
   __ bind(&not_undefined);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   __ AllocateHeapNumber(register_snapshot(), object, value);
   __ bind(*done);
 }
@@ -7713,7 +7705,7 @@ void BranchIfFloat64ToBooleanTrue::GenerateCode(MaglevAssembler* masm,
                              state.next_block(), if_false());
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void BranchIfFloat64IsUndefinedOrHole::SetValueLocationConstraints() {
   UseRegister(condition_input());
   set_temporaries_needed(1);
@@ -7745,7 +7737,7 @@ void BranchIfFloat64IsUndefinedOrHole::GenerateCode(
     }
   }
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void BranchIfFloat64IsHole::SetValueLocationConstraints() {
   UseRegister(condition_input());
@@ -7777,7 +7769,7 @@ void BranchIfFloat64IsHole::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 
 void HoleyFloat64IsUndefinedOrHole::SetValueLocationConstraints() {
   UseRegister(input());
@@ -7822,7 +7814,7 @@ void HoleyFloat64IsHole::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void BranchIfFloat64Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
@@ -8661,6 +8653,52 @@ RangeType ValueNode::GetRange() const {
     default:
       return {};
   }
+}
+
+VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
+                             MaglevGraphBuilder* builder,
+                             const vobj::ObjectLayout* object_layout,
+                             compiler::MapRef map, uint32_t slot_count)
+    : VirtualObject(bitfield, map, id, object_layout, slot_count,
+                    builder->zone()->AllocateArray<ValueNode*>(slot_count)) {
+  std::fill_n(slots_.data, slots_.count,
+              builder->GetRootConstant(RootIndex::kOnePointerFillerMap));
+
+  SBXCHECK_GE(slot_count, object_layout->header_fields.length());
+#ifdef DEBUG
+  // Sanity-check the requested object layout here.
+  DCHECK_NOT_NULL(object_layout);
+  auto l = object_layout;
+  int body_slot_count = slot_count - l->header_fields.length();
+  // If it has "body" fields,
+  // i.e. any non-header fields, then they must be specified in object_layout
+  // and their size must be a multiple of the body field size.
+  if (body_slot_count > 0) {
+    DCHECK_NE(l->body_field_type, vobj::FieldType::kNone);
+    DCHECK_EQ(map.instance_size() % FieldSizeOf(l->body_field_type), 0);
+  }
+  if (map.instance_size() != 0) {
+    DCHECK_GE(map.instance_size(), l->header_size);
+  }
+  // Currently we only support these field types:
+  // TODO(jgruber): Slots shouldn't unconditionally be initialized with the
+  // filler map now that slots may represent untagged fields.
+  // TODO(jgruber): Verify the initializer value for kTrustedPointer types.
+  for (const vobj::Field& field : l->header_fields) {
+    DCHECK(field.type == vobj::FieldType::kTagged ||
+           field.type == vobj::FieldType::kTrustedPointer);
+  }
+  DCHECK(l->body_field_type == vobj::FieldType::kTagged ||
+         l->body_field_type == vobj::FieldType::kTrustedPointer ||
+         l->body_field_type == vobj::FieldType::kNone);
+#endif  // DEBUG
+}
+
+compiler::MapRef VirtualObject::map_from_slot(
+    compiler::JSHeapBroker* broker) const {
+  DCHECK_EQ(type_, kDefault);
+  ValueNode* value = get(HeapObject::kMapOffset);
+  return MakeRef(broker, i::Cast<Map>(*value->Reify(broker->local_isolate())));
 }
 
 }  // namespace maglev

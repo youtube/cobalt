@@ -5,6 +5,7 @@ Version: N/A
 Date: 2018-06-25
 License: Custom license
 License File: LICENSE
+Update Mechanism: Static (https://crbug.com/419413898)
 Security Critical: yes
 Shipped: yes
 

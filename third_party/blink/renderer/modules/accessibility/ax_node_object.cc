@@ -6778,13 +6778,11 @@ String AXNodeObject::TextAlternativeFromTooltip(
   // First try for interest for, then for hint popover.
   // TODO(accessibility) Consider only using interest for.
   AXObject* popover_ax_object = nullptr;
-  if (RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-          GetElement()->GetDocument().GetExecutionContext())) {
+  if (RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
     popover_ax_object = AXObjectCache().Get(GetElement()->InterestForElement());
   }
   if (popover_ax_object) {
-    DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-        GetElement()->GetDocument().GetExecutionContext()));
+    DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
     name_from = ax::mojom::blink::NameFrom::kInterestFor;
   } else {
     auto* form_control = DynamicTo<HTMLFormControlElement>(GetElement());
@@ -7759,12 +7757,10 @@ String AXNodeObject::Description(
 
   // For form controls that act as interest for triggering elements, use
   // the target for a description if it only contains plain contents.
-  if (RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-          element->GetDocument().GetExecutionContext()) &&
+  if (RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled() &&
       name_from != ax::mojom::blink::NameFrom::kInterestFor) {
     if (Element* target = element->InterestForElement()) {
-      DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-          element->GetDocument().GetExecutionContext()));
+      DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
       description_from = ax::mojom::blink::DescriptionFrom::kInterestFor;
       if (description_sources) {
         description_sources->push_back(
@@ -8422,13 +8418,20 @@ AXObject* AXNodeObject::PreviousOnLine() const {
   }
 
   AXObject* previous_sibling =
-      IsIncludedInTree() ? PreviousSiblingIncludingIgnored() : nullptr;
-  if (previous_sibling && previous_sibling->GetLayoutObject() &&
-      previous_sibling->GetLayoutObject()->IsLayoutOutsideListMarker()) {
-    // A list item should be preceded by a list marker on the same line.
-    return SetPreviousOnLine(
-        GetFirstInlineBlockOrDeepestInlineAXChildInLayoutTree(previous_sibling,
-                                                              false));
+      IsIncludedInTree() ? UnignoredPreviousSiblingSlow() : nullptr;
+  if (previous_sibling && previous_sibling->GetLayoutObject()) {
+    const auto* list_marker =
+        GetListMarker(*previous_sibling->GetLayoutObject(),
+                      previous_sibling->ParentObjectIfPresent());
+    auto* ax_list_marker =
+        list_marker ? AXObjectCache().Get(list_marker) : nullptr;
+    if (ax_list_marker && ax_list_marker->GetLayoutObject() &&
+        ax_list_marker->GetLayoutObject()->IsLayoutOutsideListMarker()) {
+      // A list item should be preceded by a list marker on the same line.
+      return SetPreviousOnLine(
+          GetFirstInlineBlockOrDeepestInlineAXChildInLayoutTree(ax_list_marker,
+                                                                false));
+    }
   }
 
   if (layout_object->IsLayoutOutsideListMarker() ||

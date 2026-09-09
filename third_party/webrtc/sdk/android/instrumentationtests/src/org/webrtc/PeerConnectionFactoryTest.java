@@ -89,4 +89,27 @@ public class PeerConnectionFactoryTest {
     PeerConnectionFactory factory =
         PeerConnectionFactory.builder().setFieldTrials("").createPeerConnectionFactory();
   }
+
+  @Test
+  @SmallTest
+  public void testCreationWithAudioFrameProcessor() throws Exception {
+    PeerConnectionFactory.initialize(
+        PeerConnectionFactory.InitializationOptions.builder(
+                InstrumentationRegistry.getTargetContext())
+            .setNativeLibraryName(TestConstants.NATIVE_LIBRARY)
+            .createInitializationOptions());
+
+    final AudioFrameProcessor audioFrameProcessor =
+        new AudioFrameProcessor() {
+          @Override
+          public long getNativeAudioFrameProcessor() {
+            return 0;
+          }
+        };
+
+    PeerConnectionFactory factory =
+        PeerConnectionFactory.builder()
+            .setAudioFrameProcessor(audioFrameProcessor)
+            .createPeerConnectionFactory();
+  }
 }

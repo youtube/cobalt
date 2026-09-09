@@ -61,6 +61,11 @@ if (!defined(partition_alloc_dcheck_always_on_default)) {
   }
 }
 
+# Allows embedders to optionally disable PartitionAlloc.
+if (!defined(use_partition_alloc_default)) {
+  use_partition_alloc_default = true
+}
+
 # PartitionAlloc have limited support for MSVC's cl.exe compiler. It can only
 # access the generate "buildflags" and the "raw_ptr" definitions implemented
 # with RawPtrNoOpImpl. Everything else is considered not supported.
@@ -131,7 +136,8 @@ declare_args() {
   # the default allocator in components built by partners. We're considering
   # that change in b/447346129 but for now set this false in partner toolchains
   # so that PartitionAlloc is not even linked into partner built binaries.
-  use_partition_alloc = is_clang_or_gcc && !(is_cobalt && is_partner_toolchain)
+  use_partition_alloc = use_partition_alloc_default && is_clang_or_gcc &&
+                        !(is_cobalt && is_partner_toolchain)
 }
 
 if (!is_clang_or_gcc) {
@@ -341,12 +347,11 @@ declare_args() {
 declare_args() {
   # Because of address space issue, this feature cannot be enabled on
   # 32bit OS and iOS, i.e. has_64_bit_pointers && !is_ios
-  move_metadata_outside_gigacage = false && has_64_bit_pointers && !is_ios
+  move_metadata_outside_gigacage = has_64_bit_pointers && !is_ios
 }
 
 declare_args() {
-  enable_move_metadata_outside_gigacage_trial =
-      false && move_metadata_outside_gigacage
+  enable_move_metadata_outside_gigacage_trial = move_metadata_outside_gigacage
 }
 
 assert(!enable_move_metadata_outside_gigacage_trial ||

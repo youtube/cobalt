@@ -561,8 +561,7 @@ void DesktopWindowTreeHostWin::SetVisibilityChangedAnimationsEnabled(
   }
 }
 
-std::unique_ptr<NonClientFrameView>
-DesktopWindowTreeHostWin::CreateNonClientFrameView() {
+std::unique_ptr<FrameView> DesktopWindowTreeHostWin::CreateFrameView() {
   return (ShouldUseNativeFrame() && native_widget_delegate_)
              ? std::make_unique<NativeFrameView>(
                    native_widget_delegate_->AsWidget())
@@ -995,6 +994,22 @@ gfx::NativeViewAccessible DesktopWindowTreeHostWin::GetNativeViewAccessible() {
     return widget->GetRootView()->GetNativeViewAccessible();
   }
   return nullptr;
+}
+
+gfx::NativeViewAccessible
+DesktopWindowTreeHostWin::GetParentNativeViewAccessible() {
+  views::Widget* widget = GetWidget();
+  if (!widget) {
+    return nullptr;
+  }
+
+  views::Widget* parent_widget = widget->parent();
+  if (!parent_widget) {
+    return nullptr;
+  }
+
+  views::View* parent_root = parent_widget->GetRootView();
+  return parent_root ? parent_root->GetNativeViewAccessible() : nullptr;
 }
 
 void DesktopWindowTreeHostWin::HandleActivationChanged(bool active) {

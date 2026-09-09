@@ -1046,7 +1046,7 @@ class ChannelTest : public ::testing::Test {
     SendTask(network_thread_, [this] {
       webrtc::NetworkRoute network_route;
       // The transport channel becomes disconnected.
-      fake_rtp_dtls_transport1_->ice_transport()->SignalNetworkRouteChanged(
+      fake_rtp_dtls_transport1_->ice_transport()->NotifyNetworkRouteChanged(
           std::optional<webrtc::NetworkRoute>(network_route));
     });
     WaitForThreads();
@@ -1064,7 +1064,7 @@ class ChannelTest : public ::testing::Test {
       network_route.last_sent_packet_id = kLastPacketId;
       network_route.packet_overhead = kTransportOverheadPerPacket;
       // The transport channel becomes connected.
-      fake_rtp_dtls_transport1_->ice_transport()->SignalNetworkRouteChanged(
+      fake_rtp_dtls_transport1_->ice_transport()->NotifyNetworkRouteChanged(
 
           std::optional<webrtc::NetworkRoute>(network_route));
     });

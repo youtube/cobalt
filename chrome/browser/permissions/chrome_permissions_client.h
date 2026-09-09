@@ -5,16 +5,18 @@
 #ifndef CHROME_BROWSER_PERMISSIONS_CHROME_PERMISSIONS_CLIENT_H_
 #define CHROME_BROWSER_PERMISSIONS_CHROME_PERMISSIONS_CLIENT_H_
 
+#include <optional>
+
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/permissions/features.h"
-#include "components/permissions/permission_hats_trigger_helper.h"
 #include "components/permissions/permission_request_enums.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permissions_client.h"
+#include "components/permissions/resolvers/permission_prompt_options.h"
 
 class ChromePermissionsClient : public permissions::PermissionsClient {
  public:
@@ -75,9 +77,7 @@ class ChromePermissionsClient : public permissions::PermissionsClient {
           pepc_prompt_position,
       ContentSetting initial_permission_status,
       base::OnceCallback<void()> hats_shown_callback,
-      std::optional<
-          permissions::PermissionHatsTriggerHelper::PreviewParametersForHats>
-          preview_parameters) override;
+      PromptOptions prompt_options) override;
 
 #if !BUILDFLAG(IS_ANDROID)
   permissions::PermissionIgnoredReason DetermineIgnoreReason(

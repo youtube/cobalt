@@ -26,6 +26,7 @@
 #include "api/audio/audio_mixer.h"
 #include "api/location.h"
 #include "api/make_ref_counted.h"
+#include "api/ref_count.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
@@ -37,6 +38,7 @@
 #include "modules/audio_device/include/mock_audio_device.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
 #include "modules/audio_processing/include/mock_audio_processing.h"
+#include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -49,6 +51,7 @@ using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Matcher;
 using ::testing::NiceMock;
+using ::testing::NotNull;
 using ::testing::StrictMock;
 using ::testing::Values;
 
@@ -198,6 +201,20 @@ TEST_P(AudioStateTest, ConstructDestruct) {
   ConfigHelper helper(GetParam());
   scoped_refptr<internal::AudioState> audio_state(
       make_ref_counted<internal::AudioState>(helper.config()));
+}
+
+TEST_P(AudioStateTest, CreateUseDeleteOnDifferentThread) {
+  ConfigHelper helper(GetParam());
+  scoped_refptr<AudioState> audio_state = AudioState::Create(helper.config());
+  ASSERT_THAT(audio_state, NotNull());
+  TaskQueueForTest queue;
+  queue.SendTask([&] {
+    // Attach to the current TQ.
+    audio_state->SetStereoChannelSwapping(true);
+    // Ensure the object gets deleted on the current thread.
+    EXPECT_EQ(audio_state.release()->Release(),
+              RefCountReleaseStatus::kDroppedLastRef);
+  });
 }
 
 TEST_P(AudioStateTest, RecordedAudioArrivesAtSingleStream) {

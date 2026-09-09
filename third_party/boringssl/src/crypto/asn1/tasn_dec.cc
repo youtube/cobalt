@@ -649,7 +649,7 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
   }
 
   // Handle ANY types.
-  if (utype == V_ASN1_ANY || utype == V_ASN1_ANY_AS_STRING) {
+  if (utype == V_ASN1_ANY) {
     if (tag >= 0) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_TAGGED_ANY);
       return 0;
@@ -657,8 +657,6 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
     if (opt && CBS_len(cbs) == 0) {
       return -1;  // Omitted OPTIONAL value.
     }
-  }
-  if (utype == V_ASN1_ANY) {
     ASN1_TYPE *typ;
     if (!*pval) {
       typ = ASN1_TYPE_new();
@@ -670,13 +668,6 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
       typ = (ASN1_TYPE *)*pval;
     }
     return asn1_parse_any(cbs, typ);
-  }
-  if (utype == V_ASN1_ANY_AS_STRING) {
-    ASN1_STRING *str = ensure_string(pval);
-    if (str == nullptr) {
-      return 0;
-    }
-    return asn1_parse_any_as_string(cbs, str);
   }
 
   // Convert the crypto/asn1 tag into a CBS one.

@@ -80,6 +80,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   // Creates an SdpOfferAnswerHandler. Modifies dependencies.
   static std::unique_ptr<SdpOfferAnswerHandler> Create(
+      const Environment& env,
       PeerConnectionSdpMethods* pc,
       const PeerConnectionInterface::RTCConfiguration& configuration,
       std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator,
@@ -213,7 +214,8 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   class LocalIceCredentialsToReplace;
 
   // Only called by the Create() function.
-  explicit SdpOfferAnswerHandler(PeerConnectionSdpMethods* pc,
+  explicit SdpOfferAnswerHandler(const Environment& env,
+                                 PeerConnectionSdpMethods* pc,
                                  ConnectionContext* context);
   // Called from the `Create()` function. Can only be called
   // once. Modifies dependencies.
@@ -586,6 +588,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   const VideoOptions& video_options() { return video_options_; }
   bool ConfiguredForMedia() const;
 
+  const Environment& env_;
   PeerConnectionSdpMethods* const pc_;
   ConnectionContext* const context_;
 

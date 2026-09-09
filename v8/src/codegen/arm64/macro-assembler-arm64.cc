@@ -3895,6 +3895,61 @@ void MacroAssembler::JumpIfNotMarking(Label* not_marking,
   Cbz(scratch, not_marking);
 }
 
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.AcquireX();
+    sub(scratch, object, kHeapObjectTag);
+    Ldr(scratch1,
+        MemOperand(kRootRegister, IsolateData::last_young_allocation_offset()));
+    cmp(scratch, scratch1);
+    B(Condition::kEqual, ok);
+  }
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, ne, ok);
+
+  Label not_ok;
+
+  // Handle allocation folding, allow WB removal if:
+  //   LAB start <= last_young_allocation_ < (object address+1) < LAB top
+  // Note that object has tag bit set, so object == object address+1.
+
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.AcquireX();
+
+    // Check LAB start <= last_young_allocation_.
+    ldr(scratch, MemOperand(kRootRegister,
+                            IsolateData::new_allocation_info_start_offset()));
+    ldr(scratch1,
+        MemOperand(kRootRegister, IsolateData::last_young_allocation_offset()));
+    cmp(scratch, scratch1);
+    B(Condition::kUnsignedGreaterThan, &not_ok);
+
+    // Check last_young_allocation_ < (object address+1).
+    cmp(scratch1, object);
+    B(Condition::kUnsignedGreaterThanEqual, &not_ok);
+
+    // Check (object address+1) < LAB top.
+    ldr(scratch, MemOperand(kRootRegister,
+                            IsolateData::new_allocation_info_top_offset()));
+    cmp(object, scratch);
+    B(Condition::kUnsignedLessThan, ok);
+  }
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
+}
+
 void MacroAssembler::RecordWriteField(
     Register object, int offset, Register value, LinkRegisterStatus lr_status,
     SaveFPRegsMode save_fp, SmiCheck smi_check, ReadOnlyCheck ro_check,

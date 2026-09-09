@@ -105,11 +105,13 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/casting-inl.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots-atomic-inl.h"
@@ -2595,7 +2597,7 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     }
 
     CheckIneffectiveMarkCompact(
-        OldGenerationConsumedBytes(),
+        OldGenerationConsumedBytes(), GlobalConsumedBytes(),
         tracer()->AverageMarkCompactMutatorUtilization());
   } else {
     DCHECK(HasLowYoungGenerationAllocationRate());
@@ -3805,12 +3807,18 @@ bool Heap::HasLowAllocationRate() {
 }
 
 bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
+                                    size_t global_size,
                                     double mutator_utilization) {
-  const double kHighHeapPercentage = 0.8;
-  const double kLowMutatorUtilization = 0.4;
-  return old_generation_size >=
-             kHighHeapPercentage * max_old_generation_size() &&
-         mutator_utilization < kLowMutatorUtilization;
+  bool high_heap_ratio =
+      (old_generation_size >=
+       v8_flags.ineffective_gc_size_threshold * max_old_generation_size());
+  if (v8_flags.external_memory_accounted_in_global_limit) {
+    high_heap_ratio |= (global_size >= v8_flags.ineffective_gc_size_threshold *
+                                           max_global_memory_size_);
+  }
+  return high_heap_ratio &&
+         mutator_utilization <
+             v8_flags.ineffective_gc_mutator_utilization_threshold;
 }
 
 namespace {
@@ -3818,9 +3826,11 @@ static constexpr int kMaxConsecutiveIneffectiveMarkCompacts = 4;
 }
 
 void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
+                                       size_t global_size,
                                        double mutator_utilization) {
   if (!v8_flags.detect_ineffective_gcs_near_heap_limit) return;
-  if (!IsIneffectiveMarkCompact(old_generation_size, mutator_utilization)) {
+  if (!IsIneffectiveMarkCompact(old_generation_size, global_size,
+                                mutator_utilization)) {
     consecutive_ineffective_mark_compacts_ = 0;
     return;
   }
@@ -5061,26 +5071,23 @@ size_t Heap::OldGenerationLowMemory(uint64_t physical_memory) {
 
 // static
 size_t Heap::DefaultMinSemiSpaceSize() {
-  return RoundUp(512 * KB * kPointerMultiplier, PageMetadata::kPageSize);
+  return RoundUp(512 * KB, PageMetadata::kPageSize);
 }
 
 // static
 size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
   if (v8_flags.minor_ms) {
-    static constexpr size_t kMinorMsMaxCapacity = 72 * kPointerMultiplier * MB;
+    static constexpr size_t kMinorMsMaxCapacity = 72 * MB;
     return RoundUp(kMinorMsMaxCapacity, PageMetadata::kPageSize);
   }
 
   // Compute default max semi space size for Scavenger.
-  static constexpr size_t kScavengerDefaultMaxCapacity =
-      32 * kPointerMultiplier * MB;
+  static constexpr size_t kScavengerDefaultMaxCapacity = 32 * MB;
   size_t max_semi_space_size = kScavengerDefaultMaxCapacity;
 
 #if defined(ANDROID)
   if (!IsHighEndAndroid(physical_memory)) {
-    // Note that kPointerMultiplier is always 1 on Android.
-    static constexpr size_t kAndroidNonHighEndMaxCapacity =
-        8 * kPointerMultiplier * MB;
+    static constexpr size_t kAndroidNonHighEndMaxCapacity = 8 * MB;
     max_semi_space_size = kAndroidNonHighEndMaxCapacity;
   }
 #endif
@@ -5111,7 +5118,7 @@ size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
 // static
 size_t Heap::OldGenerationToSemiSpaceRatioLowMemory(uint64_t physical_memory) {
   static const size_t old_generation_to_semi_space_ratio_low_memory =
-      256 * HeapLimitMultiplier(physical_memory) / kPointerMultiplier;
+      256 * HeapLimitMultiplier(physical_memory);
   return old_generation_to_semi_space_ratio_low_memory /
          (v8_flags.minor_ms ? 2 : 1);
 }
@@ -7153,8 +7160,9 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
                        Tagged<Object> target)>
         gc_notify_updated_slot) {
   // Add a FinalizationRegistry to the tail of the dirty list.
-  DCHECK(!HasDirtyJSFinalizationRegistries() ||
-         IsJSFinalizationRegistry(dirty_js_finalization_registries_list()));
+  DCHECK_IMPLIES(HasDirtyJSFinalizationRegistries(),
+                 GCAwareObjectTypeCheck<JSFinalizationRegistry>(
+                     dirty_js_finalization_registries_list(), this));
   DCHECK(IsUndefined(finalization_registry->next_dirty(), isolate()));
   DCHECK(!finalization_registry->scheduled_for_cleanup());
   finalization_registry->set_scheduled_for_cleanup(true);
@@ -7164,8 +7172,8 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
     // dirty_js_finalization_registries_list_ is rescanned by
     // ProcessWeakListRoots.
   } else {
-    Tagged<JSFinalizationRegistry> tail = Cast<JSFinalizationRegistry>(
-        dirty_js_finalization_registries_list_tail());
+    Tagged<JSFinalizationRegistry> tail = GCSafeCast<JSFinalizationRegistry>(
+        dirty_js_finalization_registries_list_tail(), this);
     tail->set_next_dirty(finalization_registry);
     gc_notify_updated_slot(
         tail, tail->RawField(JSFinalizationRegistry::kNextDirtyOffset),

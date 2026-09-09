@@ -822,6 +822,7 @@
 <translation id="2348509731468399833">ధర ట్రాకింగ్ ఆగిపోయింది.</translation>
 <translation id="2349957959687031096">'అజ్ఞాత ట్యాబ్‌ను తెరవండి' బటన్, ప్రైవేట్‌గా బ్రౌజ్ చేసేందుకు కొత్త అజ్ఞాత ట్యాబ్‌ను తెరవడానికి దీన్ని యాక్టివేట్ చేయండి</translation>
 <translation id="2350796302381711542"><ph name="REPLACED_HANDLER_TITLE" />కి బదులుగా అన్ని <ph name="PROTOCOL" /> లింక్‌లను తెరవడానికి <ph name="HANDLER_HOSTNAME" />ను అనుమతించాలా?</translation>
+<translation id="2351718832234620840">ఈ సర్వర్, వెబ్ ట్రాఫిక్ ఎన్‌క్రిప్షన్ కోసం Chromium లేదా మీ సిస్టమ్ కాన్ఫిగరేషన్ విశ్వసించని సెక్యూరిటీ సర్టిఫికెట్‌ను ఉపయోగిస్తున్నందున, అది <ph name="DOMAIN" /> అని నిరూపించలేకపోయింది. తప్పుగా కాన్ఫిగర్ చేసినందున లేదా దాడి చేసేవారు మీ కనెక్షన్‌కు అంతరాయం కలిగించినందున ఇలా జరిగి ఉండవచ్చు.</translation>
 <translation id="2353297238722298836">కెమెరా మరియు మైక్రోఫోన్ అనుమతించబడ్డాయి</translation>
 <translation id="2354001756790975382">ఇతర బుక్‌మార్క్‌లు</translation>
 <translation id="2355395290879513365">దాడికి పాల్పడేవారు ఈ సైట్‌లో మీరు చూస్తున్న చిత్రాలను చూడగలరు, వాటిని ఎడిట్ చేయడం ద్వారా మిమ్మల్ని మోసగించవచ్చు.</translation>
@@ -966,6 +967,7 @@
 <translation id="2573170131138724450">టెలివిజన్‌లు</translation>
 <translation id="257674075312929031">గ్రూప్‌గా చేయి</translation>
 <translation id="2580031090587209073">షేరింగ్ ఆప్షన్‌లు</translation>
+<translation id="258027838577899739">హిస్టరీ నుండి అన్నీ తొలగించండి</translation>
 <translation id="258135245577667916"><ph name="USER_DISPLAY_NAME" /> ట్యాబ్‌ను జోడించారు</translation>
 <translation id="2586657967955657006">క్లిప్‌బోర్డ్</translation>
 <translation id="2587841377698384444">డైరెక్టరీ API ID:</translation>
@@ -990,6 +992,7 @@
 <translation id="2625385379895617796">మీ గడియారం సమయం భవిష్యత్తులో ఉంది</translation>
 <translation id="262745152991669301">USB పరికరాలకు కనెక్ట్ చేయడానికి సైట్ అనుమతి అడగవచ్చు</translation>
 <translation id="2627847595568876492">PDF నుండి టెక్స్ట్‌ను పొందుతోంది...</translation>
+<translation id="2628025184666666186">ఈ సర్వర్, Chrome లేదా వెబ్ ట్రాఫిక్ ఎన్‌క్రిప్షన్ కోసం మీ సిస్టమ్ కాన్ఫిగరేషన్ విశ్వసించని సెక్యూరిటీ సర్టిఫికెట్‌ను ఉపయోగిస్తున్నందున, అది <ph name="DOMAIN" /> అని నిరూపించలేకపోయింది. తప్పుగా కాన్ఫిగర్ చేసినందున లేదా దాడి చేసేవారు మీ కనెక్షన్‌కు అంతరాయం కలిగించినందున ఇలా జరిగి ఉండవచ్చు.</translation>
 <translation id="2628224721443278970">Microsoft OneDriveకు సైన్ ఇన్ చేయండి</translation>
 <translation id="2634124572758952069"><ph name="HOST_NAME" /> యొక్క సర్వర్ IP అడ్రస్‌ కనుగొనబడలేదు.</translation>
 <translation id="2638567100095052009">@‌ను టైప్ చేసి, <ph name="FEATURED_SEARCH_LIST" /> అంతటా సెర్చ్ చేయండి</translation>
@@ -1062,7 +1065,6 @@
 <translation id="273785062888389088">HVAC &amp; వాతావరణ నియంత్రణ</translation>
 <translation id="2740531572673183784">సరే</translation>
 <translation id="2742128390261873684">హోమ్ ఆటోమేషన్</translation>
-<translation id="2742870351467570537">ఎంచుకున్న అంశాలను తీసివేయండి</translation>
 <translation id="2743512410823092182">DJ రిసోర్స్‌లు &amp; ఎక్విప్‌మెంట్</translation>
 <translation id="2743934314332613923">డ్రైవింగ్ లైసెన్స్‌ను అప్‌డేట్ చేయాలా?</translation>
 <translation id="2759299890026163685">మళ్లీ ట్రై చేయడానికి ముందు మీ వద్ద స్థిరమైన ఇంటర్నెట్ కనెక్షన్ ఉందని నిర్ధారించుకోండి</translation>
@@ -1243,6 +1245,7 @@
 <translation id="3086579638707268289">వెబ్‌లో మీ యాక్టివిటీ పర్యవేక్షించబడుతోంది</translation>
 <translation id="3087734570205094154">దిగువ</translation>
 <translation id="3090667236485488075">గ్లాస్</translation>
+<translation id="3093122472063815077">'ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి' ప్రోగ్రెస్, హాఫ్ స్క్రీన్‌లో తెరవబడింది.</translation>
 <translation id="3094051226187213523">ఈ సూచనతో AI మోడ్‌ను తెరవండి.</translation>
 <translation id="3095940652251934233">స్టేట్‌మెంట్</translation>
 <translation id="3098513225387949945">'*'కు సమానమైన ఆకృతి డిజేబుల్ లిస్ట్‌లో ఉంది, ఇది పాలసీని డిజేబుల్ చేయడానికి సమానం, అందుకే ఇది విస్మరించబడింది.</translation>
@@ -1874,6 +1877,7 @@
 <translation id="4099048595830172239">గోప్యమైన కంటెంట్ కనిపిస్తునప్పుడు, మీ స్క్రీన్‌ను <ph name="APPLICATION_TITLE" />తో షేర్ చేయడాన్ని అడ్మినిస్ట్రేటర్ పాలసీ సిఫార్సు చేయదు:</translation>
 <translation id="4099391883283080991"><ph name="CUSTOMIZE_CHROME_FONTS_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chromeలో ఫాంట్ సైజ్‌లను, టైప్‌ఫేస్‌లను అనుకూలంగా మార్చడానికి Tabను నొక్కి, ఆపై Enterను నొక్కండి</translation>
 <translation id="4101413244023615925">టెక్స్ట్, గ్రాఫిక్స్</translation>
+<translation id="4101917550061398111">ఎంచుకున్న ఐటెమ్‌లను తొలగించండి</translation>
 <translation id="4102567721634170493">స్థానిక వార్తలు</translation>
 <translation id="4103249731201008433">పరికరం క్రమ సంఖ్య చెల్లదు</translation>
 <translation id="4103592298805904008">కార్డ్‌బోర్డ్ (సింగిల్ వాల్)</translation>
@@ -1909,6 +1913,7 @@
 <translation id="4148925816941278100">అమెరికన్ ఎక్స్‌ప్రెస్</translation>
 <translation id="4150099059797363385">ఎన్వలప్ చైనీస్ #4</translation>
 <translation id="4152318981910038897">{COUNT,plural, =1{1వ పేజీ}other{{COUNT}వ పేజీ}}</translation>
+<translation id="4152495263075154876">'ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి' ప్రోగ్రెస్ స్క్రీన్ మూసివేయబడింది.</translation>
 <translation id="4152670763139331043">{NUM_TABS,plural, =1{1 ట్యాబ్}other{# ట్యాబ్‌లు}}</translation>
 <translation id="4153446078232988116"><ph name="SITE" /> HTTPSతో సురక్షితమైన కనెక్షన్‌కు సపోర్ట్ చేయదు</translation>
 <translation id="4154277373259957087">పేమెంట్ ఆప్షన్‌లలో వివరాలను పూరించడానికి ముందు ఇకపై Chrome, అలా చేస్తున్నది మీరేనని వెరిఫై చేస్తుంది. మీరు దీన్ని <ph name="IDS_AUTOFILL_MANDATORY_REAUTH_CONFIRMATION_SETTINGS_LINK" />లో ఎప్పుడైనా అప్‌డేట్ చేయవచ్చు.</translation>
@@ -2573,6 +2578,7 @@
 <translation id="5255583962255635076">మీ వర్క్ ప్రొఫైల్‌లో బ్రౌజర్ పాలసీలు వర్తింపజేయబడ్డాయి</translation>
 <translation id="5255690596502591079">ఏదేమైనా క్యాప్చర్ చేయి</translation>
 <translation id="5255771248404149177">ఇది మీరేనని మీ కార్డ్ ప్రొవైడర్ నిర్ధారించుకోవాలనుకుంటున్నారు</translation>
+<translation id="525579853540851404">'ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి' ప్రోగ్రెస్ స్క్రీన్. కీబోర్డ్ దాచబడింది.</translation>
 <translation id="5255833070095767006">350 x 460 మి.మీ.</translation>
 <translation id="5257739419779698609">{0,plural, =1{ఈ ఫైల్‌ను <ph name="DESTINATION_NAME" />‌కు కాపీ చేయవద్దని అడ్మినిస్ట్రేటర్ పాలసీ సిఫార్సు చేస్తోంది}other{ఈ ఫైల్స్‌ను <ph name="DESTINATION_NAME" />‌కు కాపీ చేయవద్దని అడ్మినిస్ట్రేటర్ పాలసీ సిఫార్సు చేస్తోంది}}</translation>
 <translation id="5258473597674772367">"<ph name="GROUP_NAME" />" ట్యాబ్ గ్రూప్ ఇప్పుడు అందుబాటులో లేదు</translation>
@@ -2673,7 +2679,6 @@
 <translation id="5423269318075950257">ధరను ట్రాక్ చేయండి</translation>
 <translation id="5425082381151187189">ఇల్లు &amp; ఇంటీరియర్ డెకరేషన్</translation>
 <translation id="5426179911063097041"><ph name="SITE" /> మీకు నోటిఫికేషన్‌లను పంపాలనుకుంటోంది</translation>
-<translation id="5430298929874300616">బుక్‌మార్క్‌ను తీసివేయండి</translation>
 <translation id="5431318178759467895">రంగు</translation>
 <translation id="5433756542371550806">కమాండ్-లైన్ వేరియేషన్స్</translation>
 <translation id="5434798570900738152">Chromium ఈ కింది సమాచారాన్ని <ph name="BEGIN_EMPHASIS" />సేవ్ చేయదు<ph name="END_EMPHASIS" />:
@@ -2871,6 +2876,7 @@
 <translation id="5750869797196646528">చేతి కదలికల ట్రాకింగ్</translation>
 <translation id="5752327398324808817">ఒక పదం లేదా రెండు పదాలను ఎంటర్ చేయండి</translation>
 <translation id="5752519522101347518">బ్యాంక్ వెరిఫికేషన్ వెబ్‌సైట్ లోడ్ అవుతోంది</translation>
+<translation id="5753570386948603678">హిస్టరీ నుండి తొలగించండి</translation>
 <translation id="5759751709240058861">మీ కెమెరాను ఉపయోగించండి, తరలించండి</translation>
 <translation id="5763042198335101085">చెల్లుబాటు అయ్యే ఈమెయిల్‌ అడ్రస్‌ను నమోదు చేయండి</translation>
 <translation id="5764725887548570807">చెల్లని ఆరిజిన్ ఫార్మాట్.</translation>
@@ -3086,8 +3092,8 @@
 <translation id="6122181661879998141">మీ కార్డ్ ముందు వైపు</translation>
 <translation id="6124058285696691147">అటాచ్‌మెంట్‌ను డౌన్‌లోడ్ చేయండి</translation>
 <translation id="6124432979022149706">Chrome Enterprise కనెక్టర్‌లు</translation>
+<translation id="6124996493718543728">'ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి' ప్రోగ్రెస్, ఫుల్ స్క్రీన్‌లో తెరవబడింది.</translation>
 <translation id="6126565365696310362">ఎన్వలప్ చైనీస్ #2</translation>
-<translation id="6127379762771434464">అంశాన్ని తీసివేశారు</translation>
 <translation id="6131824478727057281">లొకేషన్</translation>
 <translation id="6133320744616005677">అనుమతించడం కొనసాగించండి</translation>
 <translation id="6133984428121856852">ఫైల్ ఎక్స్‌టెన్షన్ ఖాళీగా ఉంది లేదా తప్పుగా ఫార్మాట్ చేయబడింది.</translation>
@@ -3102,7 +3108,6 @@
 <translation id="6151417162996330722">సర్వర్ ప్రమాణపత్రం చెల్లుబాటు వ్యవధి చాలా ఎక్కువ కాలం ఉంది.</translation>
 <translation id="6153243098246946146"><ph name="WIDTH" /> × <ph name="HEIGHT" /> అంగుళాలు (<ph name="ORIENTATION" />)</translation>
 <translation id="615506061184576470">రన్నింగ్ &amp; వాకింగ్</translation>
-<translation id="6157754950574419155">హిస్టరీ నుండి అన్నింటినీ తీసివేయండి</translation>
 <translation id="6157877588268064908">రవాణా పద్ధతులు మరియు అవసరాలను చూడాలంటే, అడ్రస్‌ను ఎంచుకోండి</translation>
 <translation id="6159554577634054750">తెగుళ్ల నియంత్రణ</translation>
 <translation id="6159908896951210943">గౌరవప్రదం</translation>
@@ -3789,6 +3794,7 @@
 <translation id="7292031607255951991">గ్రహీత పేరు</translation>
 <translation id="7298195798382681320">సిఫార్సు చేయబడినవి</translation>
 <translation id="7299471494012161875">అటాచ్ చేసిన డిస్‌ప్లే పెరిఫెరల్స్</translation>
+<translation id="7299721129597238157">బుక్‌మార్క్‌ను తొలగించండి</translation>
 <translation id="7299769361777046949">Google Walletలో లాయల్టీ కార్డ్‌లను మేనేజ్ చేయండి</translation>
 <translation id="7304030187361489308">అధికం</translation>
 <translation id="7304562222803846232">Google ఖాతాకు సంబంధించిన గోప్యతా సెట్టింగ్‌లను మేనేజ్ చేయండి</translation>
@@ -3893,6 +3899,7 @@
 <translation id="7450577240311017924">'సింక్‌ను మేనేజ్ చేయండి' బటన్, Chrome సెట్టింగ్‌లలో మీరు ఏ సమాచారాన్ని సింక్ చేయాలనుకుంటున్నారో మేనేజ్ చేయడానికి దీన్ని యాక్టివేట్ చేయండి</translation>
 <translation id="7451311239929941790">ఈ సమస్య గురించి <ph name="BEGIN_LINK" />మరింత తెలుసుకోండి<ph name="END_LINK" />.</translation>
 <translation id="745208957946308667">Dino గేమ్, ఆడేందుకు స్పేస్ కీని నొక్కండి</translation>
+<translation id="7453849010505253492">ఈ సర్వర్, Chrome లేదా వెబ్ ట్రాఫిక్ ఎన్‌క్రిప్షన్ కోసం మీ సిస్టమ్ కాన్ఫిగరేషన్ విశ్వసించని సెక్యూరిటీ సర్టిఫికెట్‌ను ఉపయోగిస్తున్నందున, అది <ph name="DOMAIN" /> అని నిరూపించలేకపోయింది. తప్పుగా కాన్ఫిగర్ చేసినందున లేదా దాడి చేసేవారు మీ కనెక్షన్‌కు అంతరాయం కలిగించినందున ఇలా జరిగి ఉండవచ్చు. <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />సర్టిఫికెట్‌ను చూడండి<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="7454377933424667109">క్లౌడ్ ఖాతా</translation>
 <translation id="7455133967321480974">సార్వజనీన డిఫాల్ట్‌ను ఉపయోగించండి (బ్లాక్ చేయండి)</translation>
 <translation id="7455452752247248289">ఎంటర్‌ప్రైజ్ టెక్నాలజీ</translation>
@@ -4000,6 +4007,7 @@
 <translation id="7613889955535752492">గడువు ముగింపు: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
 <translation id="7614494068621678628"><ph name="MANAGE_PASSWORDS_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome సెట్టింగ్‌లలో మీ పాస్‌వర్డ్‌లను చూసి, మేనేజ్ చేయడానికి 'Tab'ను నొక్కి, ఆపై 'Enter'ను నొక్కండి</translation>
 <translation id="7615932826417658001">గుర్తింపు కార్డ్‌ను జోడించండి</translation>
+<translation id="7616390733770379387">ఇవి ర్యాండమ్ ఆర్డర్‌లో చూపబడతాయి.</translation>
 <translation id="7616645509853975347">మీ అడ్మినిస్ట్రేటర్, మీ బ్రౌజర్‌లో Chrome Enterprise కనెక్టర్‌లను ఆన్ చేశారు. ఈ కనెక్టర్‌లకు మీ డేటాలో కొంత డేటాకు యాక్సెస్ ఉంది.</translation>
 <translation id="7617825962482469577">ఎన్వలప్ C7/C6</translation>
 <translation id="7618270539713451657">యుద్ధ కళలు</translation>
@@ -4225,6 +4233,7 @@
 <translation id="7992044431894087211"><ph name="APPLICATION_TITLE" />తో స్క్రీన్ షేరింగ్ కొనసాగించబడింది</translation>
 <translation id="7995512525968007366">పేర్కొనబడలేదు</translation>
 <translation id="7997855386298213183">షేర్ చేసిన ట్యాబ్‌లు</translation>
+<translation id="8001912761979890298">ఈ సర్వర్, వెబ్ ట్రాఫిక్ ఎన్‌క్రిప్షన్ కోసం Chromium లేదా మీ సిస్టమ్ కాన్ఫిగరేషన్ విశ్వసించని సెక్యూరిటీ సర్టిఫికెట్‌ను ఉపయోగిస్తున్నందున, అది <ph name="DOMAIN" /> అని నిరూపించలేకపోయింది. తప్పుగా కాన్ఫిగర్ చేసినందున లేదా దాడి చేసేవారు మీ కనెక్షన్‌కు అంతరాయం కలిగించినందున ఇలా జరిగి ఉండవచ్చు. <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />సర్టిఫికెట్‌ను చూడండి<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="800218591365569300">మెమరీని ఖాళీ చేయడానికి ఇతర ట్యాబ్‌లు లేదా ప్రోగ్రామ్‌లను మూసివేయడాన్ని ప్రయత్నించండి.</translation>
 <translation id="8002230960325005199">కొత్త ట్యాబ్‌లో సంబంధిత సైట్‌లను చూడండి</translation>
 <translation id="8003046808285812021">“<ph name="SEARCH_TERMS" />”</translation>
@@ -4566,6 +4575,7 @@
 <translation id="8564466070529550495">ప్రస్తుతానికి వర్చువల్ కార్డ్ అందుబాటులో లేదు, దయచేసి తర్వాత మళ్లీ ట్రై చేయండి.</translation>
 <translation id="8564985650692024650">మీరు మీ <ph name="BEGIN_BOLD" /><ph name="ORG_NAME" /><ph name="END_BOLD" /> పాస్‌వర్డ్‌ని ఇతర సైట్‌లలో తిరిగి ఉపయోగించినట్లయితే దీనిని రీసెట్ చేయాల్సిందిగా Chromium సిఫార్సు చేస్తోంది.</translation>
 <translation id="8570895683659698018">అభిరుచులు &amp; కాలక్షేపం</translation>
+<translation id="8574570240981266561">ఐటెమ్ తొలగించబడింది</translation>
 <translation id="8574841453995331336">రెఫ్రిజిరేటర్‌లు &amp; ఫ్రీజర్‌లు</translation>
 <translation id="8577192028579836704">అన్ని ఆప్షన్‌లు సాధారణంగా <ph name="TYPICAL_PRICE" /></translation>
 <translation id="8577348305244205642">వర్చువల్ కార్డ్ అందుబాటులో లేదు</translation>
@@ -4823,6 +4833,7 @@
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> - <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="9046578823518542618"><ph name="URL" />, మీ లోకల్ నెట్‌వర్క్‌లోని ఏదైనా డివైజ్‌ను సెర్చ్ చేసి, దానికి కనెక్ట్ అవ్వాలనుకుంటోంది</translation>
 <translation id="9046864189129893978">(<ph name="MICS_COUNT" />) మైక్రోఫోన్‌లు</translation>
+<translation id="9047528041803621289">మీ ఆటోమేటిక్ సెట్టింగ్, వెబ్‌లో సెర్చ్ చేయడానికి మిమ్మల్ని అనుమతిస్తుంది. మీరు దీన్ని సెట్టింగ్‌ల్లో మార్చవచ్చు.</translation>
 <translation id="9048035366624198823">ఈ చర్యలకు <ph name="POLICY_NAME" /> పాలసీని <ph name="POLICY_VALUE" />‌కు సెట్ చేయాల్సిన అవసరం ఉంది: <ph name="ACTION_LIST" />.</translation>
 <translation id="9048662076076074925">24 x 36 అంగుళాలు</translation>
 <translation id="9049981332609050619">మీరు <ph name="DOMAIN" />ను చేరుకోవడానికి ప్రయత్నించారు, కానీ సర్వర్ ఒక చెల్లుబాటులో లేని ప్రమాణపత్రంను అందించింది.</translation>

@@ -23,6 +23,7 @@
 #include "extensions/browser/api/execute_code_function.h"
 #include "extensions/browser/api/web_contents_capture_client.h"
 #include "extensions/browser/extension_function.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_resource.h"
 #include "extensions/common/user_script.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
@@ -31,6 +32,8 @@
 #if BUILDFLAG(FULL_SAFE_BROWSING)
 #include "chrome/browser/safe_browsing/extension_telemetry/tabs_api_signal.h"
 #endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 class BrowserWindowInterface;
 class GURL;
@@ -43,6 +46,10 @@ class TaskRunner;
 
 namespace content {
 class WebContents;
+}
+
+namespace tabs {
+class TabInterface;
 }
 
 namespace ui {
@@ -147,6 +154,16 @@ ui::mojom::WindowShowState ConvertToWindowShowState(
 // displays.
 bool WindowBoundsIntersectDisplays(const gfx::Rect& bounds);
 
+// Moves the given tab to the `target_browser`. On success, returns the
+// new index of the tab in the target tabstrip. On failure, returns -1.
+// Assumes that the caller has already checked whether the target window is
+// different from the source.
+int MoveTabToWindow(ExtensionFunction* function,
+                    int tab_id,
+                    BrowserWindowInterface* target_browser,
+                    int new_index,
+                    std::string* error);
+
 }  // namespace tabs_internal
 
 // Converts a ZoomMode to its ZoomSettings representation.
@@ -212,9 +229,28 @@ class TabsGetAllInWindowFunction : public ExtensionFunction {
   DECLARE_EXTENSION_FUNCTION("tabs.getAllInWindow", TABS_GETALLINWINDOW)
 };
 class TabsQueryFunction : public ExtensionFunction {
-  ~TabsQueryFunction() override = default;
+ public:
   ResponseAction Run() override;
   DECLARE_EXTENSION_FUNCTION("tabs.query", TABS_QUERY)
+
+ private:
+  ~TabsQueryFunction() override = default;
+
+  // Returns true if the given `candidate_profile` matches the calling
+  // extension's profile (taking into account incognito access).
+  bool MatchesProfile(Profile* candidate_profile);
+
+  bool MatchesWindow(BrowserWindowInterface* candidate_browser,
+                     BrowserWindowInterface* current_browser,
+                     BrowserWindowInterface* last_active_browser,
+                     const std::string& target_window_type,
+                     int target_window_id);
+
+  bool MatchesTab(tabs::TabInterface* candidate_tab,
+                  const URLPatternSet& target_url_patterns);
+
+  // The query parameters passed by the extension.
+  api::tabs::Query::Params::QueryInfo query_info_;
 };
 class TabsCreateFunction : public ExtensionFunction {
   ~TabsCreateFunction() override = default;

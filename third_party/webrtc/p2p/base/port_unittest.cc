@@ -25,13 +25,13 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
-#include "api/async_dns_resolver.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/packet_socket_factory.h"
 #include "api/rtc_error.h"
+#include "api/test/mock_packet_socket_factory.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
@@ -85,6 +85,7 @@ using ::testing::Eq;
 using ::testing::IsNull;
 using ::testing::IsTrue;
 using ::testing::NotNull;
+using ::testing::Return;
 
 constexpr int kDefaultTimeout = 3000;
 constexpr int kShortTimeout = 1000;
@@ -238,7 +239,7 @@ class TestPort : public Port {
  private:
   void OnSentPacket(AsyncPacketSocket* socket,
                     const SentPacketInfo& sent_packet) override {
-    PortInterface::SignalSentPacket(sent_packet);
+    NotifySentPacket(sent_packet);
   }
   std::unique_ptr<BufferT<uint8_t>> last_stun_buf_;
   std::unique_ptr<IceMessage> last_stun_msg_;
@@ -282,7 +283,12 @@ class TestChannel : public sigslot::has_slots<> {
   // Takes ownership of `p1` (but not `p2`).
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
     port_->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
-    port_->SignalUnknownAddress.connect(this, &TestChannel::OnUnknownAddress);
+    port_->SubscribeUnknownAddress(
+        [this](PortInterface* port, const SocketAddress& address,
+               ProtocolType proto, IceMessage* msg, const std::string& rf,
+               bool port_muxed) {
+          OnUnknownAddress(port, address, proto, msg, rf, port_muxed);
+        });
     port_->SubscribePortDestroyed(
         [this](PortInterface* port) { OnSrcPortDestroyed(port); });
   }
@@ -426,7 +432,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
         nat_factory2_(ss_.get(), kNatAddr2, SocketAddress()),
         nat_socket_factory1_(&nat_factory1_),
         nat_socket_factory2_(&nat_factory2_),
-        stun_server_(TestStunServer::Create(ss_.get(), kStunAddr, main_)),
+        stun_server_(TestStunServer::Create(env_, kStunAddr, *ss_, main_)),
         turn_server_(env_, &main_, ss_.get(), kTurnUdpIntAddr, kTurnUdpExtAddr),
         username_(CreateRandomString(ICE_UFRAG_LENGTH)),
         password_(CreateRandomString(ICE_PWD_LENGTH)),
@@ -1119,60 +1125,6 @@ void PortTest::TestConnectivity(absl::string_view name1,
               IsRtcOk());
 }
 
-class FakePacketSocketFactory : public PacketSocketFactory {
- public:
-  FakePacketSocketFactory()
-      : next_udp_socket_(nullptr), next_server_tcp_socket_(nullptr) {}
-  ~FakePacketSocketFactory() override {}
-
-  AsyncPacketSocket* CreateUdpSocket(const SocketAddress& address,
-                                     uint16_t min_port,
-                                     uint16_t max_port) override {
-    EXPECT_TRUE(next_udp_socket_ != nullptr);
-    AsyncPacketSocket* result = next_udp_socket_;
-    next_udp_socket_ = nullptr;
-    return result;
-  }
-
-  AsyncListenSocket* CreateServerTcpSocket(const SocketAddress& local_address,
-                                           uint16_t min_port,
-                                           uint16_t max_port,
-                                           int opts) override {
-    EXPECT_TRUE(next_server_tcp_socket_ != nullptr);
-    AsyncListenSocket* result = next_server_tcp_socket_;
-    next_server_tcp_socket_ = nullptr;
-    return result;
-  }
-
-  AsyncPacketSocket* CreateClientTcpSocket(
-      const SocketAddress& local_address,
-      const SocketAddress& remote_address,
-      const PacketSocketTcpOptions& opts) override {
-    EXPECT_TRUE(next_client_tcp_socket_.has_value());
-    AsyncPacketSocket* result = *next_client_tcp_socket_;
-    next_client_tcp_socket_ = nullptr;
-    return result;
-  }
-
-  void set_next_udp_socket(AsyncPacketSocket* next_udp_socket) {
-    next_udp_socket_ = next_udp_socket;
-  }
-  void set_next_server_tcp_socket(AsyncListenSocket* next_server_tcp_socket) {
-    next_server_tcp_socket_ = next_server_tcp_socket;
-  }
-  void set_next_client_tcp_socket(AsyncPacketSocket* next_client_tcp_socket) {
-    next_client_tcp_socket_ = next_client_tcp_socket;
-  }
-  std::unique_ptr<AsyncDnsResolverInterface> CreateAsyncDnsResolver() override {
-    return nullptr;
-  }
-
- private:
-  AsyncPacketSocket* next_udp_socket_;
-  AsyncListenSocket* next_server_tcp_socket_;
-  std::optional<AsyncPacketSocket*> next_client_tcp_socket_;
-};
-
 class FakeAsyncPacketSocket : public AsyncPacketSocket {
  public:
   // Returns current local address. Address may be set to NULL if the
@@ -1759,9 +1711,10 @@ TEST_F(PortTest, TestTcpNoDelay) {
 
 TEST_F(PortTest, TestDelayedBindingUdp) {
   FakeAsyncPacketSocket* socket = new FakeAsyncPacketSocket();
-  FakePacketSocketFactory socket_factory;
+  MockPacketSocketFactory socket_factory;
 
-  socket_factory.set_next_udp_socket(socket);
+  EXPECT_CALL(socket_factory, CreateUdpSocket)
+      .WillOnce(Return(absl::WrapUnique(socket)));
   auto port = CreateUdpPort(kLocalAddr1, &socket_factory);
 
   socket->set_state(AsyncPacketSocket::STATE_BINDING);
@@ -1776,12 +1729,12 @@ TEST_F(PortTest, TestDelayedBindingUdp) {
 TEST_F(PortTest, TestDisableInterfaceOfTcpPort) {
   FakeAsyncListenSocket* lsocket = new FakeAsyncListenSocket();
   FakeAsyncListenSocket* rsocket = new FakeAsyncListenSocket();
-  FakePacketSocketFactory socket_factory;
+  MockPacketSocketFactory socket_factory;
+  EXPECT_CALL(socket_factory, CreateServerTcpSocket)
+      .WillOnce(Return(absl::WrapUnique(lsocket)))
+      .WillOnce(Return(absl::WrapUnique(rsocket)));
 
-  socket_factory.set_next_server_tcp_socket(lsocket);
   auto lport = CreateTcpPort(kLocalAddr1, &socket_factory);
-
-  socket_factory.set_next_server_tcp_socket(rsocket);
   auto rport = CreateTcpPort(kLocalAddr2, &socket_factory);
 
   lsocket->Bind(kLocalAddr1);
@@ -1800,7 +1753,8 @@ TEST_F(PortTest, TestDisableInterfaceOfTcpPort) {
   FakeAsyncPacketSocket* socket = new FakeAsyncPacketSocket();
   socket->local_address_ = kLocalAddr1;
   socket->remote_address_ = kLocalAddr2;
-  socket_factory.set_next_client_tcp_socket(socket);
+  EXPECT_CALL(socket_factory, CreateClientTcpSocket)
+      .WillOnce(Return(absl::WrapUnique(socket)));
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   ASSERT_NE(lconn, nullptr);
@@ -1811,14 +1765,14 @@ TEST_F(PortTest, TestDisableInterfaceOfTcpPort) {
   socket->NotifyClosedForTest(1);
 
   // And prevent new sockets from being created.
-  socket_factory.set_next_client_tcp_socket(nullptr);
+  EXPECT_CALL(socket_factory, CreateClientTcpSocket).WillOnce(Return(nullptr));
 
   // Test that Ping() does not cause SEGV.
   lconn->Ping();
 }
 
 void PortTest::TestCrossFamilyPorts(int type) {
-  FakePacketSocketFactory factory;
+  MockPacketSocketFactory factory;
   std::unique_ptr<Port> ports[4];
   SocketAddress addresses[4] = {
       SocketAddress("192.168.1.3", 0), SocketAddress("192.168.1.4", 0),
@@ -1826,13 +1780,15 @@ void PortTest::TestCrossFamilyPorts(int type) {
   for (int i = 0; i < 4; i++) {
     if (type == SOCK_DGRAM) {
       FakeAsyncPacketSocket* socket = new FakeAsyncPacketSocket();
-      factory.set_next_udp_socket(socket);
+      EXPECT_CALL(factory, CreateUdpSocket)
+          .WillOnce(Return(absl::WrapUnique(socket)));
       ports[i] = CreateUdpPort(addresses[i], &factory);
       socket->set_state(AsyncPacketSocket::STATE_BINDING);
       socket->SignalAddressReady(socket, addresses[i]);
     } else if (type == SOCK_STREAM) {
       FakeAsyncListenSocket* socket = new FakeAsyncListenSocket();
-      factory.set_next_server_tcp_socket(socket);
+      EXPECT_CALL(factory, CreateServerTcpSocket)
+          .WillOnce(Return(absl::WrapUnique(socket)));
       ports[i] = CreateTcpPort(addresses[i], &factory);
       socket->Bind(addresses[i]);
     }
@@ -1841,8 +1797,8 @@ void PortTest::TestCrossFamilyPorts(int type) {
 
   // IPv4 Port, connects to IPv6 candidate and then to IPv4 candidate.
   if (type == SOCK_STREAM) {
-    FakeAsyncPacketSocket* clientsocket = new FakeAsyncPacketSocket();
-    factory.set_next_client_tcp_socket(clientsocket);
+    EXPECT_CALL(factory, CreateClientTcpSocket)
+        .WillOnce(Return(std::make_unique<FakeAsyncPacketSocket>()));
   }
   Connection* c = ports[0]->CreateConnection(GetCandidate(ports[2].get()),
                                              Port::ORIGIN_MESSAGE);
@@ -1855,8 +1811,8 @@ void PortTest::TestCrossFamilyPorts(int type) {
 
   // IPv6 Port, connects to IPv4 candidate and to IPv6 candidate.
   if (type == SOCK_STREAM) {
-    FakeAsyncPacketSocket* clientsocket = new FakeAsyncPacketSocket();
-    factory.set_next_client_tcp_socket(clientsocket);
+    EXPECT_CALL(factory, CreateClientTcpSocket)
+        .WillOnce(Return(std::make_unique<FakeAsyncPacketSocket>()));
   }
   c = ports[2]->CreateConnection(GetCandidate(ports[0].get()),
                                  Port::ORIGIN_MESSAGE);
@@ -1888,14 +1844,15 @@ void PortTest::ExpectPortsCanConnect(bool can_connect, Port* p1, Port* p2) {
 }
 
 TEST_F(PortTest, TestUdpSingleAddressV6CrossTypePorts) {
-  FakePacketSocketFactory factory;
+  MockPacketSocketFactory factory;
   std::unique_ptr<Port> ports[4];
   SocketAddress addresses[4] = {
       SocketAddress("2001:db8::1", 0), SocketAddress("fe80::1", 0),
       SocketAddress("fe80::2", 0), SocketAddress("::1", 0)};
   for (int i = 0; i < 4; i++) {
     FakeAsyncPacketSocket* socket = new FakeAsyncPacketSocket();
-    factory.set_next_udp_socket(socket);
+    EXPECT_CALL(factory, CreateUdpSocket)
+        .WillOnce(Return(absl::WrapUnique(socket)));
     ports[i] = CreateUdpPort(addresses[i], &factory);
     socket->set_state(AsyncPacketSocket::STATE_BINDING);
     socket->SignalAddressReady(socket, addresses[i]);
@@ -1918,7 +1875,7 @@ TEST_F(PortTest, TestUdpSingleAddressV6CrossTypePorts) {
 }
 
 TEST_F(PortTest, TestUdpMultipleAddressesV6CrossTypePorts) {
-  FakePacketSocketFactory factory;
+  MockPacketSocketFactory factory;
   std::unique_ptr<Port> ports[5];
   SocketAddress addresses[5] = {
       SocketAddress("2001:db8::1", 0), SocketAddress("2001:db8::2", 0),
@@ -1926,7 +1883,8 @@ TEST_F(PortTest, TestUdpMultipleAddressesV6CrossTypePorts) {
       SocketAddress("::1", 0)};
   for (int i = 0; i < 5; i++) {
     FakeAsyncPacketSocket* socket = new FakeAsyncPacketSocket();
-    factory.set_next_udp_socket(socket);
+    EXPECT_CALL(factory, CreateUdpSocket)
+        .WillOnce(Return(absl::WrapUnique(socket)));
     ports[i] =
         CreateUdpPortMultipleAddrs(addresses[i], kLinkLocalIPv6Addr, &factory);
     ports[i]->SetIceTiebreaker(kTiebreakerDefault);

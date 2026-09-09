@@ -7,7 +7,8 @@
 #include <optional>
 #include <utility>
 
-#include "base/check.h"
+#include "base/check_op.h"
+#include "base/debug/crash_logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
@@ -89,8 +90,7 @@ thread_local ThreadLocalNode* g_thread_local_node;
 
 }  // namespace
 
-ThreadLocalNode::ThreadLocalNode(base::PassKey<ThreadLocalNode>)
-    : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()) {
+ThreadLocalNode::ThreadLocalNode(base::PassKey<ThreadLocalNode>) {
   CHECK(IsDirectReceiverSupported());
   CHECK(!g_thread_local_node);
   g_thread_local_node = this;
@@ -142,7 +142,8 @@ ThreadLocalNode::ThreadLocalNode(base::PassKey<ThreadLocalNode>)
   // thread. Since this is the first transport connected on that node, all
   // other connections made by ipcz on behalf of this node will also bind I/O
   // to this thread.
-  local_transport->OverrideIOTaskRunner(task_runner_);
+  local_transport->OverrideIOTaskRunner(
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   // Finally, establish mutual connection between the global and local nodes
   // and retain a portal going in either direction. These portals will be
@@ -167,7 +168,7 @@ ThreadLocalNode::ThreadLocalNode(base::PassKey<ThreadLocalNode>)
 }
 
 ThreadLocalNode::~ThreadLocalNode() {
-  CHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   g_thread_local_node = nullptr;
 }
 
@@ -187,6 +188,8 @@ bool ThreadLocalNode::CurrentThreadHasInstance() {
 
 ScopedMessagePipeHandle ThreadLocalNode::AdoptPipe(
     ScopedMessagePipeHandle pipe) {
+  // TODO(crbug.com/40266729): Require that this runs on `thread_checker_` and
+  // and GUARDED_BY_CONTEXT annotations to the variables it uses.
   const IpczAPI& ipcz = core::GetIpczAPI();
 
   // Create a new portal pair within our local node. One of these portals is
@@ -197,7 +200,13 @@ ScopedMessagePipeHandle ThreadLocalNode::AdoptPipe(
   const IpczResult open_result =
       ipcz.OpenPortals(node_->value(), IPCZ_NO_FLAGS, nullptr, &portal_to_bind,
                        &portal_to_merge);
-  CHECK_EQ(open_result, IPCZ_RESULT_OK);
+  if (open_result != IPCZ_RESULT_OK) {
+    // TODO(crbug.com/445243335): Remove the crash key after investigating. This
+    // is left as a CHECK_EQ even though it's temporarily wrapped in an if so
+    // the crash signature doesn't change.
+    SCOPED_CRASH_KEY_NUMBER("adopt-pipe", "open-result", open_result);
+    CHECK_EQ(open_result, IPCZ_RESULT_OK);
+  }
 
   // Stash the portal for later merge.
   const uint64_t merge_id = next_merge_id_++;
@@ -208,12 +217,19 @@ ScopedMessagePipeHandle ThreadLocalNode::AdoptPipe(
   const IpczResult put_result =
       ipcz.Put(global_portal_->value(), &merge_id, sizeof(merge_id),
                /*handles=*/&portal, /*num_handles=*/1, IPCZ_NO_FLAGS, nullptr);
-  CHECK_EQ(put_result, IPCZ_RESULT_OK);
+  if (put_result != IPCZ_RESULT_OK) {
+    // TODO(crbug.com/445243335): Remove the crash key after investigating. This
+    // is left as a CHECK_EQ even though it's temporarily wrapped in an if so
+    // the crash signature doesn't change.
+    SCOPED_CRASH_KEY_NUMBER("adopt-pipe", "put-result", put_result);
+    CHECK_EQ(put_result, IPCZ_RESULT_OK);
+  }
 
   return ScopedMessagePipeHandle{MessagePipeHandle{portal_to_bind}};
 }
 
 void ThreadLocalNode::WatchForIncomingTransfers() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Set up a trap so that when a portal arrives on the local node we can
   // retrieve it and merge it with the appropriate stashed portal.
   const IpczAPI& ipcz = core::GetIpczAPI();
@@ -259,6 +275,7 @@ void ThreadLocalNode::OnTrapEvent(const IpczTrapEvent* event) {
 }
 
 void ThreadLocalNode::OnTransferredPortalAvailable() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Retrieve the moved pipe from the message sitting on our local portal and
   // merge it with the appropriate stashed portal.
   IpczHandle portal;

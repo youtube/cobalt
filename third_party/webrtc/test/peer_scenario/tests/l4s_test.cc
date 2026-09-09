@@ -168,7 +168,8 @@ TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
   PeerScenario s(*test_info_);
 
   PeerScenarioClient::Config config;
-  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                          "Enabled,offer:true");
   config.disable_encryption = true;
   PeerScenarioClient* caller = s.CreateClient(config);
   PeerScenarioClient* callee = s.CreateClient(config);
@@ -253,7 +254,7 @@ TEST_P(FeedbackFormatTest, AdaptToLinkCapacityWithoutEcn) {
   caller_config.disable_encryption = true;
   caller_config.field_trials.Set(
       "WebRTC-RFC8888CongestionControlFeedback",
-      params.caller_supports_rfc8888 ? "Enabled" : "Disabled");
+      params.caller_supports_rfc8888 ? "Enabled,offer:true" : "Disabled");
   PeerScenarioClient* caller = s.CreateClient(caller_config);
 
   PeerScenarioClient::Config callee_config;
@@ -356,7 +357,7 @@ TEST(L4STest, NoCcfbSentAfterRenegotiationAndCallerCachLocalDescription) {
   PeerScenarioClient::Config caller_config;
   caller_config.disable_encryption = true;
   caller_config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
-                                 "Enabled");
+                                 "Enabled,offer:true");
   PeerScenarioClient* caller = s.CreateClient(caller_config);
 
   PeerScenarioClient::Config callee_config;
@@ -463,7 +464,8 @@ TEST(L4STest, NoCcfbSentAfterRenegotiationAndCallerCachLocalDescription) {
 TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithEcn) {
   PeerScenario s(*test_info_);
   PeerScenarioClient::Config config;
-  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                          "Enabled,offer:true");
 
   PeerScenarioClient* caller = s.CreateClient(config);
   PeerScenarioClient* callee = s.CreateClient(config);
@@ -506,7 +508,8 @@ TEST(L4STest, SendsEct1UntilFirstFeedback) {
   PeerScenario s(*test_info_);
 
   PeerScenarioClient::Config config;
-  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                          "Enabled,offer:true");
   config.disable_encryption = true;
   PeerScenarioClient* caller = s.CreateClient(config);
   PeerScenarioClient* callee = s.CreateClient(config);
@@ -563,7 +566,8 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
   PeerScenario s(*test_info_);
 
   PeerScenarioClient::Config config;
-  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                          "Enabled,offer:true");
   config.disable_encryption = true;
   config.endpoints = {{0, {.type = AdapterType::ADAPTER_TYPE_WIFI}}};
   PeerScenarioClient* caller = s.CreateClient(config);

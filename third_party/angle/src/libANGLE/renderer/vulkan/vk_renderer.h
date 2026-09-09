@@ -720,6 +720,12 @@ class Renderer : angle::NonCopyable
     uint32_t getPreferredVectorWidthDouble() const { return mPreferredVectorWidthDouble; }
     uint32_t getPreferredVectorWidthHalf() const { return mPreferredVectorWidthHalf; }
 
+    bool isVertexAttributeInstanceRateZeroDivisorAllowed() const
+    {
+        return !mFeatures.supportsVertexInputDynamicState.enabled ||
+               mVertexAttributeDivisorFeatures.vertexAttributeInstanceRateZeroDivisor == VK_TRUE;
+    }
+
   private:
     angle::Result setupDevice(vk::ErrorContext *context,
                               const angle::FeatureOverrides &featureOverrides,
@@ -987,8 +993,8 @@ class Renderer : angle::NonCopyable
     // 1. initialization of the cache
     // 2. Vulkan driver guarantees synchronization for read and write operations but the spec
     //    requires external synchronization when mPipelineCache is the dstCache of
-    //    vkMergePipelineCaches. Lock the mutex if mergeProgramPipelineCachesToGlobalCache is
-    //    enabled
+    //    vkMergePipelineCaches. Though some buggy vulkan drivers need external synchronization
+    //    for all access. Lock the mutex if externallySynchronizePipelineCacheAccess is enabled
     angle::SimpleMutex mPipelineCacheMutex;
     vk::PipelineCache mPipelineCache;
     size_t mCurrentPipelineCacheBlobCacheSlotIndex;

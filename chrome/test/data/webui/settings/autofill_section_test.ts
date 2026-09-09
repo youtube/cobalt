@@ -164,16 +164,9 @@ suite('AutofillSectionUiTest', function() {
     const accountAddress = createAddressEntry();
     accountAddress.metadata!.recordType =
         chrome.autofillPrivate.AddressRecordType.ACCOUNT;
-    const homeAddress = createAddressEntry();
-    homeAddress.metadata!.recordType =
-        chrome.autofillPrivate.AddressRecordType.ACCOUNT_HOME;
-    const workAddress = createAddressEntry();
-    workAddress.metadata!.recordType =
-        chrome.autofillPrivate.AddressRecordType.ACCOUNT_WORK;
 
     const autofillManager = new TestAutofillManager();
-    autofillManager.data.addresses =
-        [address, accountAddress, homeAddress, workAddress];
+    autofillManager.data.addresses = [address, accountAddress];
     autofillManager.data.accountInfo = {
       ...STUB_USER_ACCOUNT_INFO,
       isSyncEnabledForAutofillProfiles: true,
@@ -259,10 +252,29 @@ suite('AutofillSectionUiTest', function() {
       await eventToPromise('close', dialog.$.dialog);
     }
 
+    document.body.removeChild(section);
+  });
+
+  test('verifyAddressDeleteHomeAddressNotice', async () => {
+    const homeAddress = createAddressEntry();
+    homeAddress.metadata!.recordType =
+        chrome.autofillPrivate.AddressRecordType.ACCOUNT_HOME;
+
+    const autofillManager = new TestAutofillManager();
+    autofillManager.data.addresses = [homeAddress];
+    autofillManager.data.accountInfo = {
+      ...STUB_USER_ACCOUNT_INFO,
+      isSyncEnabledForAutofillProfiles: true,
+    };
+    AutofillManagerImpl.setInstance(autofillManager);
+
+    const section = document.createElement('settings-autofill-section');
+    document.body.appendChild(section);
+    await autofillManager.whenCalled('getAddressList');
     await flushTasks();
 
     {
-      const dialog = await initiateRemoving(section, 2);
+      const dialog = await initiateRemoving(section, 0);
       const homeUrl = loadTimeData.getString('googleAccountHomeAddressUrl')
                           .replace(/&/g, '&amp;');
       const expectedMessage = loadTimeData.getStringF(
@@ -275,10 +287,29 @@ suite('AutofillSectionUiTest', function() {
       await eventToPromise('close', dialog.$.dialog);
     }
 
+    document.body.removeChild(section);
+  });
+
+  test('verifyAddressDeleteWorkAddressNotice', async () => {
+    const workAddress = createAddressEntry();
+    workAddress.metadata!.recordType =
+        chrome.autofillPrivate.AddressRecordType.ACCOUNT_WORK;
+
+    const autofillManager = new TestAutofillManager();
+    autofillManager.data.addresses = [workAddress];
+    autofillManager.data.accountInfo = {
+      ...STUB_USER_ACCOUNT_INFO,
+      isSyncEnabledForAutofillProfiles: true,
+    };
+    AutofillManagerImpl.setInstance(autofillManager);
+
+    const section = document.createElement('settings-autofill-section');
+    document.body.appendChild(section);
+    await autofillManager.whenCalled('getAddressList');
     await flushTasks();
 
     {
-      const dialog = await initiateRemoving(section, 3);
+      const dialog = await initiateRemoving(section, 0);
       const workUrl = loadTimeData.getString('googleAccountWorkAddressUrl')
                           .replace(/&/g, '&amp;');
       const expectedMessage = loadTimeData.getStringF(
@@ -286,6 +317,58 @@ suite('AutofillSectionUiTest', function() {
       assertEquals(
           dialog.$.description.innerHTML, expectedMessage,
           `Work address delete confirmation view description is incorrect.`);
+      dialog.$.dialog.close();
+      // Make sure closing clean-ups are finished.
+      await eventToPromise('close', dialog.$.dialog);
+    }
+
+    document.body.removeChild(section);
+  });
+
+  test('verifyAddressDeleteNameEmailAddressNotice', async () => {
+    const nameEmailAddress = createAddressEntry();
+    nameEmailAddress.metadata!.recordType =
+        chrome.autofillPrivate.AddressRecordType.ACCOUNT_NAME_EMAIL;
+
+    const autofillManager = new TestAutofillManager();
+    autofillManager.data.addresses = [nameEmailAddress];
+    autofillManager.data.accountInfo = {
+      ...STUB_USER_ACCOUNT_INFO,
+      isSyncEnabledForAutofillProfiles: true,
+    };
+    AutofillManagerImpl.setInstance(autofillManager);
+
+    const section = document.createElement('settings-autofill-section');
+    document.body.appendChild(section);
+    await autofillManager.whenCalled('getAddressList');
+    await flushTasks();
+
+    {
+      const dialog = await initiateRemoving(section, 0);
+      const nameEmailUrl =
+          loadTimeData.getString('googleAccountNameEmailAddressEditUrl')
+              .replace(/&/g, '&amp;');
+      const expectedDescription = loadTimeData.getStringF(
+          'deleteNameEmailAddressNotice', nameEmailUrl,
+          STUB_USER_ACCOUNT_INFO.email);
+      assertEquals(
+          dialog.$.description.innerHTML, expectedDescription,
+          `Name email delete confirmation view description is incorrect.`);
+
+      const title = dialog.shadowRoot!.querySelector<HTMLElement>('#title');
+      assertTrue(!!title);
+      assertEquals(
+          title.innerHTML,
+          loadTimeData.getString('removeNameEmailAddressConfirmationTitle'),
+          `Name email delete confirmation view title is incorrect.`);
+
+      const removeButton =
+          dialog.shadowRoot!.querySelector<HTMLElement>('#remove');
+      assertTrue(!!removeButton);
+      assertEquals(
+          removeButton.innerText,
+          loadTimeData.getString('removeAddressFromChrome'),
+          `Name email delete confirmation remove button label is incorrect.`);
       dialog.$.dialog.close();
       // Make sure closing clean-ups are finished.
       await eventToPromise('close', dialog.$.dialog);
@@ -551,6 +634,32 @@ suite('AutofillSectionAddressTests', function() {
 
     const url = await openWindowProxy.whenCalled('openUrl');
     assertEquals(url, loadTimeData.getString('googleAccountWorkAddressUrl'));
+  });
+
+  test('verifyAccountNameEmailAddressEdit', async function() {
+    const openWindowProxy = new TestOpenWindowProxy();
+    OpenWindowProxyImpl.setInstance(openWindowProxy);
+    const nameEmailAddress = createAddressEntry();
+    nameEmailAddress.metadata!.recordType =
+        chrome.autofillPrivate.AddressRecordType.ACCOUNT_NAME_EMAIL;
+    const section = await createAutofillSection([nameEmailAddress], {});
+
+    const addressList = section.$.addressList;
+    const row = addressList.children[0];
+    assertTrue(!!row);
+    const menuButton = row.querySelector<HTMLElement>('.address-menu');
+    assertTrue(!!menuButton);
+    menuButton.click();
+    flush();
+
+    const editButton =
+        section.shadowRoot!.querySelector<HTMLElement>('#menuEditAddress');
+    assertTrue(!!editButton);
+    editButton.click();
+
+    const url = await openWindowProxy.whenCalled('openUrl');
+    assertEquals(
+        url, loadTimeData.getString('googleAccountNameEmailAddressEditUrl'));
   });
 
   test('verifyAddAddressDialog', function() {

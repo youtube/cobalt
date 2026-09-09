@@ -356,10 +356,7 @@ int asn1_marshal_any(CBB *out, const ASN1_TYPE *in) {
       return CBB_add_asn1_bool(out, in->value.boolean != ASN1_BOOLEAN_FALSE);
     case V_ASN1_INTEGER:
     case V_ASN1_ENUMERATED:
-      return asn1_marshal_integer(out, in->value.integer,
-                                  static_cast<CBS_ASN1_TAG>(in->type));
     case V_ASN1_BIT_STRING:
-      return asn1_marshal_bit_string(out, in->value.bit_string, /*tag=*/0);
     case V_ASN1_OCTET_STRING:
     case V_ASN1_NUMERICSTRING:
     case V_ASN1_PRINTABLESTRING:
@@ -374,14 +371,49 @@ int asn1_marshal_any(CBB *out, const ASN1_TYPE *in) {
     case V_ASN1_UNIVERSALSTRING:
     case V_ASN1_BMPSTRING:
     case V_ASN1_UTF8STRING:
-      return asn1_marshal_octet_string(out, in->value.asn1_string,
+    case V_ASN1_SEQUENCE:
+    case V_ASN1_SET:
+    case V_ASN1_OTHER:
+      return asn1_marshal_any_string(out, in->value.asn1_string);
+    default:
+      // |ASN1_TYPE|s can have type -1 when default-constructed.
+      OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);
+      return 0;
+  }
+}
+
+int asn1_marshal_any_string(CBB *out, const ASN1_STRING *in) {
+  switch (in->type) {
+    case V_ASN1_INTEGER:
+    case V_ASN1_NEG_INTEGER:
+      return asn1_marshal_integer(out, in, CBS_ASN1_INTEGER);
+    case V_ASN1_ENUMERATED:
+    case V_ASN1_NEG_ENUMERATED:
+      return asn1_marshal_integer(out, in, CBS_ASN1_ENUMERATED);
+    case V_ASN1_BIT_STRING:
+      return asn1_marshal_bit_string(out, in, /*tag=*/0);
+    case V_ASN1_OCTET_STRING:
+    case V_ASN1_NUMERICSTRING:
+    case V_ASN1_PRINTABLESTRING:
+    case V_ASN1_T61STRING:
+    case V_ASN1_VIDEOTEXSTRING:
+    case V_ASN1_IA5STRING:
+    case V_ASN1_UTCTIME:
+    case V_ASN1_GENERALIZEDTIME:
+    case V_ASN1_GRAPHICSTRING:
+    case V_ASN1_VISIBLESTRING:
+    case V_ASN1_GENERALSTRING:
+    case V_ASN1_UNIVERSALSTRING:
+    case V_ASN1_BMPSTRING:
+    case V_ASN1_UTF8STRING:
+      return asn1_marshal_octet_string(out, in,
                                        static_cast<CBS_ASN1_TAG>(in->type));
     case V_ASN1_SEQUENCE:
     case V_ASN1_SET:
     case V_ASN1_OTHER:
       // These three types store the whole TLV as contents.
-      return CBB_add_bytes(out, ASN1_STRING_get0_data(in->value.asn1_string),
-                           ASN1_STRING_length(in->value.asn1_string));
+      return CBB_add_bytes(out, ASN1_STRING_get0_data(in),
+                           ASN1_STRING_length(in));
     default:
       // |ASN1_TYPE|s can have type -1 when default-constructed.
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);

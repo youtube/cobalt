@@ -79,7 +79,6 @@
 #include "chrome/common/extensions/api/windows.h"
 #include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/common/url_constants.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/buildflags.h"
@@ -92,6 +91,7 @@
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/scheme.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
@@ -193,86 +193,6 @@ bool IsValidStateForWindowsCreateFunction(
   NOTREACHED();
 }
 
-// Moves the given tab to the |target_browser|. On success, returns the
-// new index of the tab in the target tabstrip. On failure, returns -1.
-// Assumes that the caller has already checked whether the target window is
-// different from the source.
-int MoveTabToWindow(ExtensionFunction* function,
-                    int tab_id,
-                    Browser* target_browser,
-                    int new_index,
-                    std::string* error) {
-  WindowController* source_window = nullptr;
-  int source_index = -1;
-  if (!tabs_internal::GetTabById(tab_id, function->browser_context(),
-                                 function->include_incognito_information(),
-                                 &source_window, nullptr, &source_index,
-                                 error) ||
-      !source_window) {
-    return -1;
-  }
-
-  if (!ExtensionTabUtil::IsTabStripEditable()) {
-    *error = ExtensionTabUtil::kTabStripNotEditableError;
-    return -1;
-  }
-
-  // TODO(crbug.com/40638654): Rather than calling is_type_normal(), should
-  // this call SupportsWindowFeature(Browser::FEATURE_TABSTRIP)?
-  if (!target_browser->is_type_normal()) {
-    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
-    return -1;
-  }
-
-  if (target_browser->profile() != source_window->profile()) {
-    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinSameProfileError;
-    return -1;
-  }
-
-  TabStripModel* target_tab_strip =
-      ExtensionTabUtil::GetEditableTabStripModel(target_browser);
-  DCHECK(target_tab_strip);
-
-  // Clamp move location to the last position.
-  // This is ">" because it can append to a new index position.
-  // -1 means set the move location to the last position.
-  int target_index = new_index;
-  if (target_index > target_tab_strip->count() || target_index < 0) {
-    target_index = target_tab_strip->count();
-  }
-
-  if (target_tab_strip->SupportsTabGroups()) {
-    std::optional<tab_groups::TabGroupId> next_tab_dst_group =
-        target_tab_strip->GetTabGroupForTab(target_index);
-    std::optional<tab_groups::TabGroupId> prev_tab_dst_group =
-        target_tab_strip->GetTabGroupForTab(target_index - 1);
-
-    // Group contiguity is not respected in the target tabstrip.
-    if (next_tab_dst_group.has_value() && prev_tab_dst_group.has_value() &&
-        next_tab_dst_group == prev_tab_dst_group) {
-      *error = tabs_constants::kInvalidTabIndexBreaksGroupContiguity;
-      return -1;
-    }
-  }
-
-  Browser* source_browser = source_window->GetBrowser();
-  if (!source_browser) {
-    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
-    return -1;
-  }
-
-  std::unique_ptr<TabModel> detached_tab =
-      source_browser->tab_strip_model()->DetachTabAtForInsertion(source_index);
-  if (!detached_tab) {
-    *error = ErrorUtils::FormatErrorMessage(ExtensionTabUtil::kTabNotFoundError,
-                                            base::NumberToString(tab_id));
-    return -1;
-  }
-
-  return target_tab_strip->InsertDetachedTabAt(
-      target_index, std::move(detached_tab), AddTabTypes::ADD_NONE);
-}
-
 class ScopedPinBrowserAtFront {
  public:
   explicit ScopedPinBrowserAtFront(BrowserWindowInterface* bwi)
@@ -327,7 +247,7 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
       if (!url.has_value()) {
         return RespondNow(Error(std::move(url.error())));
       }
-      if (url->SchemeIs(chrome::kIsolatedAppScheme)) {
+      if (url->SchemeIs(webapps::kIsolatedAppScheme)) {
         if (url_strings.size() > 1) {
           return RespondNow(Error(kWindowCreateSupportsOnlySingleIwaUrlError));
         }
@@ -988,6 +908,7 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
                                   ? contents->GetVisibleURL().spec()
                                   : std::string();
 
+    // See tabs_api.cc for the implementation of UpdateURL().
     if (!UpdateURL(updated_url, tab_id, &error)) {
       return RespondNow(Error(std::move(error)));
     }
@@ -1000,238 +921,8 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
 #endif
   }
 
+  // See tabs_api.cc for the implementation of GetResult().
   return RespondNow(GetResult());
-}
-
-bool TabsUpdateFunction::UpdateURL(const std::string& url_string,
-                                   int tab_id,
-                                   std::string* error) {
-  auto url = ExtensionTabUtil::PrepareURLForNavigation(url_string, extension(),
-                                                       browser_context());
-  if (!url.has_value()) {
-    *error = std::move(url.error());
-    return false;
-  }
-
-  NavigationController::LoadURLParams load_params(*url);
-
-  // Treat extension-initiated navigations as renderer-initiated so that the URL
-  // does not show in the omnibox until it commits.  This avoids URL spoofs
-  // since URLs can be opened on behalf of untrusted content.
-  load_params.is_renderer_initiated = true;
-  // All renderer-initiated navigations need to have an initiator origin.
-  load_params.initiator_origin = extension()->origin();
-  // |source_site_instance| needs to be set so that a renderer process
-  // compatible with |initiator_origin| is picked by Site Isolation.
-  load_params.source_site_instance = content::SiteInstance::CreateForURL(
-      web_contents_->GetBrowserContext(),
-      load_params.initiator_origin->GetURL());
-
-  // Marking the navigation as initiated via an API means that the focus
-  // will stay in the omnibox - see https://crbug.com/1085779.
-  load_params.transition_type = ui::PAGE_TRANSITION_FROM_API;
-
-  base::WeakPtr<content::NavigationHandle> navigation_handle =
-      web_contents_->GetController().LoadURLWithParams(load_params);
-  // Navigation can fail for any number of reasons at the content layer.
-  // Unfortunately, we can't provide a detailed error message here, because
-  // there are too many possible triggers. At least notify the extension that
-  // the update failed.
-  if (!navigation_handle) {
-    *error = "Navigation rejected.";
-    return false;
-  }
-
-  DCHECK_EQ(*url,
-            web_contents_->GetController().GetPendingEntry()->GetVirtualURL());
-
-  return true;
-}
-
-ExtensionFunction::ResponseValue TabsUpdateFunction::GetResult() {
-  if (!has_callback()) {
-    return NoArguments();
-  }
-
-  return ArgumentList(
-      tabs::Get::Results::Create(tabs_internal::CreateTabObjectHelper(
-          web_contents_, extension(), source_context_type(), nullptr, -1)));
-}
-
-ExtensionFunction::ResponseAction TabsMoveFunction::Run() {
-  std::optional<tabs::Move::Params> params = tabs::Move::Params::Create(args());
-  EXTENSION_FUNCTION_VALIDATE(params);
-
-  int new_index = params->move_properties.index;
-  const auto& window_id = params->move_properties.window_id;
-  base::Value::List tab_values;
-
-  size_t num_tabs = 0;
-  std::string error;
-  if (params->tab_ids.as_integers) {
-    std::vector<int>& tab_ids = *params->tab_ids.as_integers;
-    num_tabs = tab_ids.size();
-
-    for (int tab_id : tab_ids) {
-      if (!MoveTab(tab_id, &new_index, tab_values, window_id, &error)) {
-        return RespondNow(Error(std::move(error)));
-      }
-    }
-  } else {
-    EXTENSION_FUNCTION_VALIDATE(params->tab_ids.as_integer);
-    num_tabs = 1;
-    if (!MoveTab(*params->tab_ids.as_integer, &new_index, tab_values, window_id,
-                 &error)) {
-      return RespondNow(Error(std::move(error)));
-    }
-  }
-
-  // TODO(devlin): It's weird that whether or not the method provides a callback
-  // can determine its success (as we return errors below).
-  if (!has_callback()) {
-    return RespondNow(NoArguments());
-  }
-
-  if (num_tabs == 0) {
-    return RespondNow(Error("No tabs given."));
-  }
-  if (num_tabs == 1) {
-    CHECK_EQ(1u, tab_values.size());
-    return RespondNow(WithArguments(std::move(tab_values[0])));
-  }
-
-  // Return the results as an array if there are multiple tabs.
-  return RespondNow(WithArguments(std::move(tab_values)));
-}
-
-bool TabsMoveFunction::MoveTab(int tab_id,
-                               int* new_index,
-                               base::Value::List& tab_values,
-                               const std::optional<int>& window_id,
-                               std::string* error) {
-  WindowController* source_window = nullptr;
-  WebContents* contents = nullptr;
-  int tab_index = -1;
-  if (!tabs_internal::GetTabById(
-          tab_id, browser_context(), include_incognito_information(),
-          &source_window, &contents, &tab_index, error) ||
-      !source_window) {
-    return false;
-  }
-
-  if (DevToolsWindow::IsDevToolsWindow(contents)) {
-    *error = tabs_constants::kNotAllowedForDevToolsError;
-    return false;
-  }
-
-  // Don't let the extension move the tab if the user is dragging tabs.
-  if (!ExtensionTabUtil::IsTabStripEditable()) {
-    *error = ExtensionTabUtil::kTabStripNotEditableError;
-    return false;
-  }
-
-  if (window_id && *window_id != ExtensionTabUtil::GetWindowIdOfTab(contents)) {
-    WindowController* target_controller =
-        ExtensionTabUtil::GetControllerFromWindowID(
-            ChromeExtensionFunctionDetails(this), *window_id, error);
-    if (!target_controller) {
-      return false;
-    }
-
-    Browser* target_browser = target_controller->GetBrowser();
-    int inserted_index =
-        MoveTabToWindow(this, tab_id, target_browser, *new_index, error);
-    if (inserted_index < 0) {
-      return false;
-    }
-
-    *new_index = inserted_index;
-
-    if (has_callback()) {
-      content::WebContents* web_contents =
-          target_controller->GetWebContentsAt(inserted_index);
-
-      tab_values.Append(tabs_internal::CreateTabObjectHelper(
-                            web_contents, extension(), source_context_type(),
-                            target_browser, inserted_index)
-                            .ToValue());
-    }
-
-    // Insert the tabs one after another.
-    *new_index += 1;
-
-    return true;
-  }
-
-  // Perform a simple within-window move.
-  // Clamp move location to the last position.
-  // This is ">=" because the move must be to an existing location.
-  // -1 means set the move location to the last position.
-  TabStripModel* source_tab_strip =
-      source_window->GetBrowser()->tab_strip_model();
-  if (*new_index >= source_tab_strip->count() || *new_index < 0) {
-    *new_index = source_tab_strip->count() - 1;
-  }
-
-  if (*new_index != tab_index) {
-    *new_index =
-        source_tab_strip->MoveWebContentsAt(tab_index, *new_index, false);
-  }
-
-  if (has_callback()) {
-    tab_values.Append(tabs_internal::CreateTabObjectHelper(
-                          contents, extension(), source_context_type(),
-                          source_window->GetBrowserWindowInterface(),
-                          *new_index)
-                          .ToValue());
-  }
-
-  // Insert the tabs one after another.
-  *new_index += 1;
-
-  return true;
-}
-
-ExtensionFunction::ResponseAction TabsReloadFunction::Run() {
-  std::optional<tabs::Reload::Params> params =
-      tabs::Reload::Params::Create(args());
-  EXTENSION_FUNCTION_VALIDATE(params);
-
-  bool bypass_cache = false;
-  if (params->reload_properties && params->reload_properties->bypass_cache) {
-    bypass_cache = *params->reload_properties->bypass_cache;
-  }
-
-  // If |tab_id| is specified, look for it. Otherwise default to selected tab
-  // in the current window.
-  content::WebContents* web_contents = nullptr;
-  if (!params->tab_id) {
-    if (WindowController* window_controller =
-            ChromeExtensionFunctionDetails(this).GetCurrentWindowController()) {
-      web_contents = window_controller->GetActiveTab();
-      if (!web_contents) {
-        return RespondNow(Error(tabs_constants::kNoSelectedTabError));
-      }
-    } else {
-      return RespondNow(Error(ExtensionTabUtil::kNoCurrentWindowError));
-    }
-  } else {
-    int tab_id = *params->tab_id;
-
-    std::string error;
-    if (!tabs_internal::GetTabById(tab_id, browser_context(),
-                                   include_incognito_information(), nullptr,
-                                   &web_contents, nullptr, &error)) {
-      return RespondNow(Error(std::move(error)));
-    }
-  }
-
-  web_contents->GetController().Reload(
-      bypass_cache ? content::ReloadType::BYPASSING_CACHE
-                   : content::ReloadType::NORMAL,
-      true);
-
-  return RespondNow(NoArguments());
 }
 
 ExtensionFunction::ResponseAction TabsGroupFunction::Run() {
@@ -1309,8 +1000,8 @@ ExtensionFunction::ResponseAction TabsGroupFunction::Run() {
   // tabs that are not already in the target browser are moved.
   for (size_t i = 0; i < tab_ids.size(); ++i) {
     if (tab_windows[i] != target_window) {
-      if (MoveTabToWindow(this, tab_ids[i], target_window->GetBrowser(), -1,
-                          &error) < 0) {
+      if (tabs_internal::MoveTabToWindow(
+              this, tab_ids[i], target_window->GetBrowser(), -1, &error) < 0) {
         return RespondNow(Error(std::move(error)));
       }
     }

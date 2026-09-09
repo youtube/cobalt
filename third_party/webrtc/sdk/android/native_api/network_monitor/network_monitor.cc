@@ -24,7 +24,7 @@ std::unique_ptr<NetworkMonitorFactory> CreateAndroidNetworkMonitorFactory(
     JNIEnv* env,
     jobject application_context) {
   return std::make_unique<jni::AndroidNetworkMonitorFactory>(
-      env, jni_zero::JavaParamRef<jobject>(env, application_context));
+      env, jni_zero::JavaRef<jobject>::CreateLeaky(env, application_context));
 }
 
 std::unique_ptr<NetworkMonitorFactory> CreateAndroidNetworkMonitorFactory() {

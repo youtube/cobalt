@@ -215,6 +215,7 @@ android_resources("java_resources") {
     "java/res/drawable-night/privacy_sandbox_interests_illustration.xml",
     "java/res/drawable-night/privacy_sandbox_notice_eea_illustration.xml",
     "java/res/drawable-night/privacy_sandbox_notice_logo.xml",
+    "java/res/drawable/cookie_24dp.xml",
     "java/res/drawable/fade_bottom.xml",
     "java/res/drawable/ic_arrow_back.xml",
     "java/res/drawable/ic_arrow_down.xml",
@@ -309,5 +310,6 @@ java_cpp_enum("privacy_sandbox_enums") {
     "//chrome/browser/privacy_sandbox/privacy_sandbox_activity_types_service.h",
     "//chrome/browser/privacy_sandbox/privacy_sandbox_service.h",
     "//chrome/browser/privacy_sandbox/privacy_sandbox_utils.h",
+    "//chrome/browser/privacy_sandbox/roll_back_3pcd_notice_action.h",
   ]
 }

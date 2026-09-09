@@ -11,48 +11,4 @@
 #ifndef API_TEST_MOCK_SESSION_DESCRIPTION_INTERFACE_H_
 #define API_TEST_MOCK_SESSION_DESCRIPTION_INTERFACE_H_
 
-#include <cstddef>
-#include <memory>
-#include <string>
-#include <type_traits>
-
-#include "api/jsep.h"
-#include "test/gmock.h"
-
-namespace webrtc {
-
-class [[deprecated(
-    "Use the SessionDescriptionInterface directly instead, including the "
-    "static Create() methods within the "
-    "interface.")]] MockSessionDescriptionInterface
-    : public SessionDescriptionInterface {
- public:
-  MockSessionDescriptionInterface() = default;
-  MOCK_METHOD(std::unique_ptr<SessionDescriptionInterface>,
-              Clone,
-              (),
-              (const, override));
-  MOCK_METHOD(SessionDescription*, description, (), (override));
-  MOCK_METHOD(const SessionDescription*, description, (), (const, override));
-  MOCK_METHOD(std::string, session_id, (), (const, override));
-  MOCK_METHOD(std::string, session_version, (), (const, override));
-  MOCK_METHOD(SdpType, GetType, (), (const, override));
-  MOCK_METHOD(std::string, type, (), (const, override));
-  MOCK_METHOD(bool, AddCandidate, (const IceCandidate*), (override));
-  MOCK_METHOD(bool, RemoveCandidate, (const IceCandidate*), (override));
-  MOCK_METHOD(size_t, number_of_mediasections, (), (const, override));
-  MOCK_METHOD(const IceCandidateCollection*,
-              candidates,
-              (size_t),
-              (const, override));
-  MOCK_METHOD(bool, ToString, (std::string*), (const, override));
-};
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-static_assert(!std::is_abstract_v<MockSessionDescriptionInterface>);
-#pragma clang diagnostic pop
-
-}  // namespace webrtc
-
 #endif  // API_TEST_MOCK_SESSION_DESCRIPTION_INTERFACE_H_

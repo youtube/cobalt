@@ -2984,6 +2984,61 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
   UNREACHABLE();
 }
 
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+    sub(scratch, object, Operand(kHeapObjectTag));
+    ldr(scratch1,
+        MemOperand(kRootRegister, IsolateData::last_young_allocation_offset()));
+    cmp(scratch, scratch1);
+    b(Condition::kEqual, ok);
+  }
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, ne, ok);
+
+  Label not_ok;
+
+  // Handle allocation folding, allow WB removal if:
+  //   LAB start <= last_young_allocation_ < (object address+1) < LAB top
+  // Note that object has tag bit set, so object == object address+1.
+
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+
+    // Check LAB start <= last_young_allocation_.
+    ldr(scratch, MemOperand(kRootRegister,
+                            IsolateData::new_allocation_info_start_offset()));
+    ldr(scratch1,
+        MemOperand(kRootRegister, IsolateData::last_young_allocation_offset()));
+    cmp(scratch, scratch1);
+    b(Condition::kUnsignedGreaterThan, &not_ok);
+
+    // Check last_young_allocation_ < (object address+1).
+    cmp(scratch1, object);
+    b(Condition::kUnsignedGreaterThanEqual, &not_ok);
+
+    // Check (object address+1) < LAB top.
+    ldr(scratch, MemOperand(kRootRegister,
+                            IsolateData::new_allocation_info_top_offset()));
+    cmp(object, scratch);
+    b(Condition::kUnsignedLessThan, ok);
+  }
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
+}
+
 void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   ASM_CODE_COMMENT(this);
   // We can use the register pc - 8 for the address of the current instruction.

@@ -39,18 +39,19 @@
 #include "rtc_base/network.h"
 #include "rtc_base/network_constants.h"
 
+namespace webrtc {
 namespace {
 
 // The minimum improvement in RTT that justifies a switch.
-const int kMinImprovement = 10;
+constexpr TimeDelta kMinImprovement = TimeDelta::Millis(10);
 
-bool IsRelayRelay(const webrtc::Connection* conn) {
+bool IsRelayRelay(const Connection* conn) {
   return conn->local_candidate().is_relay() &&
          conn->remote_candidate().is_relay();
 }
 
-bool IsUdp(const webrtc::Connection* conn) {
-  return conn->local_candidate().relay_protocol() == webrtc::UDP_PROTOCOL_NAME;
+bool IsUdp(const Connection* conn) {
+  return conn->local_candidate().relay_protocol() == UDP_PROTOCOL_NAME;
 }
 
 // TODO(qingsi) Use an enum to replace the following constants for all
@@ -60,16 +61,16 @@ constexpr int b_is_better = -1;
 constexpr int a_and_b_equal = 0;
 
 bool LocalCandidateUsesPreferredNetwork(
-    const webrtc::Connection* conn,
-    std::optional<webrtc::AdapterType> network_preference) {
-  webrtc::AdapterType network_type = conn->network()->type();
+    const Connection* conn,
+    std::optional<AdapterType> network_preference) {
+  AdapterType network_type = conn->network()->type();
   return network_preference.has_value() && (network_type == network_preference);
 }
 
 int CompareCandidatePairsByNetworkPreference(
-    const webrtc::Connection* a,
-    const webrtc::Connection* b,
-    std::optional<webrtc::AdapterType> network_preference) {
+    const Connection* a,
+    const Connection* b,
+    std::optional<AdapterType> network_preference) {
   bool a_uses_preferred_network =
       LocalCandidateUsesPreferredNetwork(a, network_preference);
   bool b_uses_preferred_network =
@@ -83,8 +84,6 @@ int CompareCandidatePairsByNetworkPreference(
 }
 
 }  // namespace
-
-namespace webrtc {
 
 BasicIceController::BasicIceController(const IceControllerFactoryArgs& args)
     : env_(args.env),
@@ -183,7 +182,7 @@ const Connection* BasicIceController::FindNextPingableConnection() {
     auto iter = absl::c_min_element(
         pingable_selectable_connections,
         [](const Connection* conn1, const Connection* conn2) {
-          return conn1->last_ping_sent() < conn2->last_ping_sent();
+          return conn1->LastPingSent() < conn2->LastPingSent();
         });
     if (iter != pingable_selectable_connections.end()) {
       return *iter;
@@ -247,12 +246,11 @@ const Connection* BasicIceController::FindOldestConnectionNeedingTriggeredCheck(
       continue;
     }
     bool needs_triggered_check =
-        (!conn->writable() &&
-         conn->last_ping_received() > conn->last_ping_sent());
+        (!conn->writable() && conn->LastPingReceived() > conn->LastPingSent());
     if (needs_triggered_check &&
         (!oldest_needing_triggered_check ||
-         (conn->last_ping_received() <
-          oldest_needing_triggered_check->last_ping_received()))) {
+         (conn->LastPingReceived() <
+          oldest_needing_triggered_check->LastPingReceived()))) {
       oldest_needing_triggered_check = conn;
     }
   }
@@ -405,10 +403,10 @@ const Connection* BasicIceController::MostLikelyToWork(
 const Connection* BasicIceController::LeastRecentlyPinged(
     const Connection* conn1,
     const Connection* conn2) {
-  if (conn1->last_ping_sent() < conn2->last_ping_sent()) {
+  if (conn1->LastPingSent() < conn2->LastPingSent()) {
     return conn1;
   }
-  if (conn1->last_ping_sent() > conn2->last_ping_sent()) {
+  if (conn1->LastPingSent() > conn2->LastPingSent()) {
     return conn2;
   }
   return nullptr;
@@ -457,7 +455,7 @@ BasicIceController::HandleInitialSelectDampening(
 
   Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
   int64_t max_delay = 0;
-  if (new_connection->last_ping_received() > 0 &&
+  if (new_connection->LastPingReceived() > Timestamp::Zero() &&
       field_trials_->initial_select_dampening_ping_received.has_value()) {
     max_delay = *field_trials_->initial_select_dampening_ping_received;
   } else if (field_trials_->initial_select_dampening.has_value()) {
@@ -548,7 +546,7 @@ IceControllerInterface::SwitchResult BasicIceController::ShouldSwitchConnection(
 
   // If everything else is the same, switch only if rtt has improved by
   // a margin.
-  if (new_connection->rtt() <= selected_connection_->rtt() - kMinImprovement) {
+  if (new_connection->Rtt() <= selected_connection_->Rtt() - kMinImprovement) {
     return {.connection = new_connection};
   }
 
@@ -569,7 +567,7 @@ BasicIceController::SortAndSwitchConnection(IceSwitchReason reason) {
           return cmp > 0;
         }
         // Otherwise, sort based on latency estimate.
-        return a->rtt() < b->rtt();
+        return a->Rtt() < b->Rtt();
       });
 
   RTC_LOG(LS_VERBOSE) << "Sorting " << connections_.size()
@@ -637,8 +635,8 @@ int BasicIceController::CompareConnectionStates(
   }
   if (!a->receiving() && b->receiving()) {
     if (!receiving_unchanged_threshold ||
-        (a->receiving_unchanged_since() <= *receiving_unchanged_threshold &&
-         b->receiving_unchanged_since() <= *receiving_unchanged_threshold)) {
+        (a->ReceivingUnchangedSince().ms() <= *receiving_unchanged_threshold &&
+         b->ReceivingUnchangedSince().ms() <= *receiving_unchanged_threshold)) {
       return b_is_better;
     }
     *missed_receiving_unchanged_threshold = true;
@@ -750,10 +748,10 @@ int BasicIceController::CompareConnections(
       return b_is_better;
     }
 
-    if (a->last_data_received() > b->last_data_received()) {
+    if (a->LastDataReceived() > b->LastDataReceived()) {
       return a_is_better;
     }
-    if (a->last_data_received() < b->last_data_received()) {
+    if (a->LastDataReceived() < b->LastDataReceived()) {
       return b_is_better;
     }
   }

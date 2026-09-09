@@ -253,7 +253,11 @@ static enum ssl_hs_wait_t do_read_hello_retry_request(SSL_HANDSHAKE *hs) {
   // The ECH extension, if present, was already parsed by
   // |check_ech_confirmation|.
   SSLExtension cookie(TLSEXT_TYPE_cookie),
-      key_share(TLSEXT_TYPE_key_share, !hs->key_share_bytes.empty()),
+      // If offering PAKE, we won't send key_share extensions and we should
+      // reject key_share from the peer. Otherwise, it is valid to have sent an
+      // empty key_share extension, and expect the HelloRetryRequest to contain
+      // a key_share.
+      key_share(TLSEXT_TYPE_key_share, !hs->pake_prover),
       supported_versions(TLSEXT_TYPE_supported_versions),
       ech_unused(TLSEXT_TYPE_encrypted_client_hello,
                  hs->selected_ech_config || hs->config->ech_grease_enabled);
@@ -286,8 +290,6 @@ static enum ssl_hs_wait_t do_read_hello_retry_request(SSL_HANDSHAKE *hs) {
   }
 
   if (key_share.present) {
-    // If offering PAKE, we won't send key_share extensions, in which case we
-    // would have rejected key_share from the peer.
     assert(!hs->pake_prover);
 
     uint16_t group_id;

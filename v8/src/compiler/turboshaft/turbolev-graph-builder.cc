@@ -3152,7 +3152,7 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(
       maglev::LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole* node,
       const maglev::ProcessingState& state) {
@@ -3166,7 +3166,7 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
   maglev::ProcessResult Process(maglev::StoreTaggedFieldNoWriteBarrier* node,
                                 const maglev::ProcessingState& state) {
@@ -3795,7 +3795,7 @@ class GraphBuildingNodeProcessor {
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::BranchIfFloat64IsUndefinedOrHole* node,
                                 const maglev::ProcessingState& state) {
     V<Float64> input = Map(node->condition_input());
@@ -3805,7 +3805,7 @@ class GraphBuildingNodeProcessor {
     __ Branch(hole_condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::BranchIfReferenceEqual* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =
@@ -4501,7 +4501,7 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::HoleyFloat64IsUndefinedOrHole* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, ConvertWord32ToJSBool(
@@ -4514,7 +4514,7 @@ class GraphBuildingNodeProcessor {
     SetMap(node, ConvertWord32ToJSBool(__ Float64IsHole(Map(node->input()))));
     return maglev::ProcessResult::kContinue;
   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
@@ -4569,11 +4569,11 @@ class GraphBuildingNodeProcessor {
         node,
         __ ConvertJSPrimitiveToUntaggedOrDeopt(
             Map(node->input()), frame_state, kind,
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
             ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kHoleyFloat64,
 #else
             ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
             CheckForMinusZeroMode::kCheckForMinusZero,
             node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
@@ -4699,6 +4699,11 @@ class GraphBuildingNodeProcessor {
                      node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::UnsafeHoleyFloat64ToInt32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ JSTruncateFloat64ToWord32(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToUint32* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -4763,7 +4768,7 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Float64SilenceNaN(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::Float64ToHoleyFloat64* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Float64SilenceNaN(Map(node->input())));
@@ -4781,7 +4786,7 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToFloat64* node,
                                 const maglev::ProcessingState& state) {
     V<Float64> input = Map(node->input());
@@ -5117,10 +5122,6 @@ class GraphBuildingNodeProcessor {
     UNREACHABLE();
   }
   maglev::ProcessResult Process(maglev::UnsafeUint32ToInt32*,
-                                const maglev::ProcessingState&) {
-    UNREACHABLE();
-  }
-  maglev::ProcessResult Process(maglev::UnsafeHoleyFloat64ToInt32*,
                                 const maglev::ProcessingState&) {
     UNREACHABLE();
   }
@@ -5472,9 +5473,8 @@ class GraphBuildingNodeProcessor {
       // We need to add HeapNumbers as dematerialized HeapNumbers (rather than
       // simply NumberConstant), because they could be mutable HeapNumber
       // fields, in which case we don't want GVN to merge them.
-      constexpr int kNumberOfField = 2;  // map + value
       builder.AddDematerializedObject(deduplicator_.CreateUnduplicatableId().id,
-                                      kNumberOfField);
+                                      vobj->field_count());
       builder.AddInput(MachineType::AnyTagged(),
                        __ HeapConstant(local_factory_->heap_number_map()));
       builder.AddInput(MachineType::Float64(),
@@ -5496,9 +5496,8 @@ class GraphBuildingNodeProcessor {
         // TODO(olivf): Support elided maglev cons strings in turbolev.
         UNREACHABLE();
       case maglev::VirtualObject::kFixedDoubleArray: {
-        constexpr int kMapAndLengthFieldCount = 2;
         uint32_t length = vobj->double_elements_length();
-        uint32_t field_count = length + kMapAndLengthFieldCount;
+        uint32_t field_count = vobj->field_count();
         builder.AddDematerializedObject(dup_id.id, field_count);
         builder.AddInput(
             MachineType::AnyTagged(),
@@ -5520,14 +5519,12 @@ class GraphBuildingNodeProcessor {
         return;
       }
       case maglev::VirtualObject::kDefault:
-        constexpr int kMapFieldCount = 1;
-        uint32_t field_count = vobj->slot_count() + kMapFieldCount;
+        uint32_t field_count = vobj->field_count();
         builder.AddDematerializedObject(dup_id.id, field_count);
-        builder.AddInput(MachineType::AnyTagged(),
-                         __ HeapConstantNoHole(vobj->map().object()));
-        vobj->ForEachInput([&](maglev::ValueNode* value_node) {
-          AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
-        });
+        vobj->ForEachSlot(
+            [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
+              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
+            });
         break;
     }
   }
@@ -5961,12 +5958,12 @@ class GraphBuildingNodeProcessor {
             ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
                 kHeapNumberOrUndefined,
             RegisterRepresentation::Float64(),
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
             ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
                 kDoubleOrUndefinedOrHole,
 #else
             ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDoubleOrHole,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
             CheckForMinusZeroMode::kCheckForMinusZero));
     if (done.has_incoming_jump()) {
       GOTO(done, as_obj);

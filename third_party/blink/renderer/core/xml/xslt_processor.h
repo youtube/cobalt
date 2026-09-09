@@ -23,14 +23,17 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_XML_XSLT_PROCESSOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_XML_XSLT_PROCESSOR_H_
 
+#include <libxml/parserInternals.h>
+#include <libxslt/documents.h>
+
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/xml/xsl_style_sheet.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
-
-#include <libxml/parserInternals.h>
-#include <libxslt/documents.h>
 
 namespace blink {
 
@@ -42,13 +45,13 @@ class XSLTProcessor final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  using PassKey = base::PassKey<XSLTProcessor>;
   static XSLTProcessor* Create(Document& document) {
-    return MakeGarbageCollected<XSLTProcessor>(document);
+    return MakeGarbageCollected<XSLTProcessor>(PassKey(), document);
   }
 
-  XSLTProcessor(Document& document) : document_(&document) {
-    CHECK(RuntimeEnabledFeatures::XSLTEnabled());
-  }
+  XSLTProcessor(PassKey, Document&);
+
   ~XSLTProcessor() override;
 
   void SetXSLStyleSheet(XSLStyleSheet* style_sheet) {

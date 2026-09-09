@@ -21,7 +21,7 @@ namespace jni {
 ScopedJavaLocalRef<jobject> NewDirectByteBuffer(JNIEnv* env,
                                                 void* address,
                                                 jlong capacity) {
-  ScopedJavaLocalRef<jobject> buffer(
+  ScopedJavaLocalRef<jobject> buffer = ScopedJavaLocalRef<jobject>::Adopt(
       env, env->NewDirectByteBuffer(address, capacity));
   CHECK_EXCEPTION(env) << "error NewDirectByteBuffer";
   return buffer;

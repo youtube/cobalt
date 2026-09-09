@@ -629,6 +629,12 @@ class PeerConnection : public PeerConnectionInternal,
 
   bool CanAttemptDtlsStunPiggybacking();
 
+  // Runs a task on the signaling thread. If the current thread is the signaling
+  // thread, the task will run immediately. Otherwise it will be posted to the
+  // signaling thread and run asynchronously behind the
+  // `signaling_thread_safety_` flag.
+  void RunOnSignalingThread(absl::AnyInvocable<void() &&> task);
+
   const Environment env_;
   const scoped_refptr<ConnectionContext> context_;
   const PeerConnectionFactoryInterface::Options options_;
@@ -733,6 +739,39 @@ class PeerConnection : public PeerConnectionInternal,
   std::unique_ptr<RtpTransmissionManager> rtp_manager_;
 
   std::unique_ptr<CodecLookupHelper> codec_lookup_helper_;
+
+  template <const SessionDescriptionInterface* (SdpStateProvider::*accessor)()
+                const>
+  const SessionDescriptionInterface* HandleSessionDescriptionAccessor(
+      std::unique_ptr<SessionDescriptionInterface>& clone) const {
+    if (signaling_thread()->IsCurrent()) {
+      RTC_DCHECK_RUN_ON(signaling_thread());
+      return (sdp_handler_.get()->*accessor)();
+    }
+    signaling_thread()->BlockingCall([&] {
+      RTC_DCHECK_RUN_ON(signaling_thread());
+      const SessionDescriptionInterface* desc =
+          (sdp_handler_.get()->*accessor)();
+      clone = desc ? desc->Clone() : nullptr;
+    });
+    return clone.get();
+  }
+
+  // Optionally set clones of the properties as owned by SdpOfferAnswerHandler.
+  // When these properties are accessed from outside the signaling thread,
+  // we clone the description on the signaling thread and return a pointer to
+  // the clone instead.
+  mutable std::unique_ptr<SessionDescriptionInterface> local_description_clone_;
+  mutable std::unique_ptr<SessionDescriptionInterface>
+      remote_description_clone_;
+  mutable std::unique_ptr<SessionDescriptionInterface>
+      current_local_description_clone_;
+  mutable std::unique_ptr<SessionDescriptionInterface>
+      current_remote_description_clone_;
+  mutable std::unique_ptr<SessionDescriptionInterface>
+      pending_local_description_clone_;
+  mutable std::unique_ptr<SessionDescriptionInterface>
+      pending_remote_description_clone_;
 
   // This variable needs to be the last one in the class.
   WeakPtrFactory<PeerConnection> weak_factory_;

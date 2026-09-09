@@ -7,16 +7,19 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/functional/bind.h"
+#include "base/memory/ptr_util.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/one_time_tokens/android/backend/sms/jni_headers/AndroidSmsOtpFetchReceiverBridge_jni.h"
 
+namespace one_time_tokens {
+
 // static
 std::unique_ptr<AndroidSmsOtpFetchReceiverBridgeInterface>
 AndroidSmsOtpFetchReceiverBridge::Create() {
-  return std::make_unique<AndroidSmsOtpFetchReceiverBridge>();
+  return base::WrapUnique(new AndroidSmsOtpFetchReceiverBridge());
 }
 
 AndroidSmsOtpFetchReceiverBridge::AndroidSmsOtpFetchReceiverBridge() {
@@ -85,3 +88,5 @@ void AndroidSmsOtpFetchReceiverBridge::OnOtpValueRetrievalErrorInternal(
   consumer_->OnOtpValueRetrievalError(
       static_cast<SmsOtpRetrievalApiErrorCode>(api_error_code));
 }
+
+}  // namespace one_time_tokens

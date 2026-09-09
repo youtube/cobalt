@@ -5,6 +5,7 @@
 #include "base/functional/bind.h"
 #include "base/numerics/clamped_math.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -17,6 +18,7 @@
 #include "chrome/browser/ui/views/bookmarks/bookmark_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_outline.h"
+#include "chrome/browser/ui/views/frame/multi_contents_background_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_drop_target_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_resize_area.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
@@ -38,6 +40,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/base/interaction/state_observer.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event_modifiers.h"
@@ -432,8 +435,9 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
           })));
 }
 
-// TODO(crbug.com/399212996): Flaky on Linux and ChromeOS.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/399212996): Flaky on Linux, ChromeOS and Win-ASAN.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
+    (BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER))
 #define MAYBE_ResizesViaKeyboard DISABLED_ResizesViaKeyboard
 #else
 #define MAYBE_ResizesViaKeyboard ResizesViaKeyboard
@@ -677,6 +681,25 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, RoundedCornersForSplitView) {
 }
 #endif
 
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, BackgroundVisibility) {
+  RunTestSequence(
+      CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
+      // Ensure the background is visible when in sidebyside view
+      CheckView(kMultiContentsViewElementId,
+                [](MultiContentsView* multi_contents_view) -> bool {
+                  return multi_contents_view->background_view_for_testing()
+                      ->GetVisible();
+                }),
+      // Add a regular tab to the tab strip
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUISettingsURL), 2),
+      WaitForActiveTabChange(2),
+      CheckView(kMultiContentsViewElementId,
+                [](MultiContentsView* multi_contents_view) -> bool {
+                  return !multi_contents_view->background_view_for_testing()
+                              ->GetVisible();
+                }));
+}
+
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                        MiniToolbarVisibilityForContents) {
   bool visible_on_active_contents =
@@ -730,6 +753,30 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                 ->GetText();
           },
           u""));
+}
+
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, KeyboardShortcutCreatesSplit) {
+  ui::Accelerator accelerator;
+  ASSERT_TRUE(BrowserView::GetBrowserViewForBrowser(browser())->GetAccelerator(
+      IDC_NEW_SPLIT_TAB, &accelerator));
+  RunTestSequence(
+      CheckResult(
+          [&]() {
+            return browser()->tab_strip_model()->GetActiveTab()->IsSplit();
+          },
+          false),
+      CheckResult([&]() { return browser()->tab_strip_model()->count(); }, 1),
+      SendAccelerator(kBrowserViewElementId, accelerator),
+      CheckResult(
+          [&]() {
+            return browser()->tab_strip_model()->GetActiveTab()->IsSplit();
+          },
+          true),
+      CheckResult([&]() { return browser()->tab_strip_model()->count(); }, 2),
+      // Pressing the accelerator again shouldn't do anything since the active
+      // tab is already in a split
+      SendAccelerator(kBrowserViewElementId, accelerator),
+      CheckResult([&]() { return browser()->tab_strip_model()->count(); }, 2));
 }
 
 using ContentsViewOutlineHighlightObserver =
@@ -997,6 +1044,28 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewDragEntrypointsUiTest,
       MoveMouseTo(kNewTab, DeepQuery{"#title1"}),
       DragMouseToWithoutWait(kMultiContentsViewElementId, PointForDropTarget()),
       WaitForDropTargetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(MultiContentsViewDragEntrypointsUiTest,
+                       DISABLED_BackgroundVisibleWhenDropTargetShown) {
+  RunTestSequence(
+      AddInstrumentedTab(kNewTab, GetURL("/links.html"), 0),
+      CheckView(kMultiContentsViewElementId,
+                [](MultiContentsView* multi_contents_view) -> bool {
+                  return !multi_contents_view->background_view_for_testing()
+                              ->GetVisible();
+                }),
+      WaitForActiveTabChange(0),
+      // Drag an href element to the drop target area. The drop
+      // target should be shown.
+      MoveMouseTo(kNewTab, DeepQuery{"#title1"}),
+      DragMouseToWithoutWait(kMultiContentsViewElementId, PointForDropTarget()),
+      WaitForDropTargetVisible(),
+      CheckView(kMultiContentsViewElementId,
+                [](MultiContentsView* multi_contents_view) -> bool {
+                  return multi_contents_view->background_view_for_testing()
+                      ->GetVisible();
+                }));
 }
 
 IN_PROC_BROWSER_TEST_F(MultiContentsViewDragEntrypointsUiTest,

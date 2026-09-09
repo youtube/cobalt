@@ -1005,6 +1005,8 @@ crypto_test_data = [
   "crypto/x509/test/trailing_data_leaf_name_constraints.pem",
   "crypto/x509/test/trailing_data_leaf_subject_alt_name.pem",
   "crypto/x509/test/trailing_data_leaf_subject_key_identifier.pem",
+  "crypto/x509/test/unusual_tbs_critical_ber.pem",
+  "crypto/x509/test/unusual_tbs_critical_false_not_omitted.pem",
   "crypto/x509/test/unusual_tbs_empty_extension_not_omitted.pem",
   "crypto/x509/test/unusual_tbs_key.pem",
   "crypto/x509/test/unusual_tbs_null_sigalg_param.pem",

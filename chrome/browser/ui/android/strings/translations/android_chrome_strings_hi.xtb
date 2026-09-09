@@ -3,6 +3,7 @@
 <translationbundle lang="hi">
 <translation id="1010283278930414892">इस डिवाइस में कोई पासवर्ड सेव नहीं है</translation>
 <translation id="1011749477052068769">यहां मूव करें</translation>
+<translation id="1014083013111769343">रीडिंग मोड की सेटिंग पूरी स्क्रीन पर खुली हैं</translation>
 <translation id="1014147525163127655"><ph name="ORIGIN" /> के लिए, इस डिवाइस पर कोई पासकी नहीं है</translation>
 <translation id="1016498331642356377">बोलकर तेज़ी से खोजें. इस शॉर्टकट में बदलाव करने के लिए, दबाकर रखें.</translation>
 <translation id="1028699632127661925"><ph name="DEVICE_NAME" /> पर भेजा जा रहा है...</translation>
@@ -98,6 +99,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="1407135791313364759">सभी बुकमार्क खोलें</translation>
 <translation id="1409879593029778104"><ph name="FILE_NAME" /> डाउनलोड को रोका गया क्‍योंकि फ़ाइल पहले से मौजूद है.</translation>
 <translation id="1413446866325418126">अपने Google खाते में डेटा सेव करें</translation>
+<translation id="1414919006379339073">मौजूदा विंडो बंद करें</translation>
 <translation id="1416550906796893042">ऐप्‍लिकेशन वर्शन</translation>
 <translation id="1419753403124156396">क्या Chrome को रीस्टार्ट करना है?</translation>
 <translation id="1428770807407000502">क्या आपको सिंक करने की सुविधा बंद करनी है?</translation>
@@ -207,6 +209,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="197288927597451399">रखें</translation>
 <translation id="1973912524893600642">डेटा को सेव रखें</translation>
 <translation id="1974060860693918893">ऐडवांस सेटिंग</translation>
+<translation id="1982274314082047220">रीडिंग मोड में, सेटिंग देखने के लिए ऊपर की ओर स्वाइप करें</translation>
 <translation id="1984087999855033707">फ़ोन नंबर</translation>
 <translation id="1984417487208496350">कोई सुरक्षा नहीं (हम ऐसा करने का सुझाव नहीं देते)</translation>
 <translation id="1986685561493779662">नाम पहले से मौजूद है</translation>
@@ -428,6 +431,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="2992473221983447149">इमेज के बारे में जानकारी</translation>
 <translation id="2996291259634659425">'पासफ़्रेज़' बनाएं</translation>
 <translation id="2996809686854298943">URL ज़रूरी है</translation>
+<translation id="3024215143424744261">रीडिंग मोड की सेटिंग बंद की गईं</translation>
 <translation id="3026955690410463085">लिंक जोड़ें</translation>
 <translation id="3027644380269727216">किसी साइट पर आपकी गतिविधि के आधार पर, वह आपको विज्ञापन के सुझाव दिखा सकती है. यह सेटिंग चालू है.</translation>
 <translation id="3027950907978057636"><ph name="APP_LABEL" /> से</translation>
@@ -706,6 +710,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="4380055775103003110">अगर यह समस्या बार-बार आ रही है, तो <ph name="SITE_ETLD_PLUS_ONE" /> पर जारी रखने के लिए, दूसरे तरीके आज़माएं.</translation>
 <translation id="4384468725000734951">खोज के लिए Sogou का इस्तेमाल कर रहे हैं</translation>
 <translation id="4387647248986092471">कार का प्रोफ़ाइल लॉक सेट करें</translation>
+<translation id="4387817230000841154">डाउनलोड पेज खोलें</translation>
 <translation id="4401432223274567153">{INACTIVE_TIME_DAYS,plural, =1{ऐसे टैब और टैब ग्रुप जिन्हें 1 या इससे ज़्यादा दिनों से इस्तेमाल नहीं किया गया है}one{ऐसे टैब और टैब ग्रुप जिन्हें # या इससे ज़्यादा दिनों से इस्तेमाल नहीं किया गया है}other{ऐसे टैब और टैब ग्रुप जिन्हें # या इससे ज़्यादा दिनों से इस्तेमाल नहीं किया गया है}}</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - डाउनलोड हो रही है…</translation>
 <translation id="4404568932422911380">कोई बुकमार्क नहीं</translation>
@@ -1311,6 +1316,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="696447261358045621">गुप्त मोड से बाहर निकलें</translation>
 <translation id="6965382102122355670">ठीक है</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{शेयर किए गए टैब ग्रुप में नई गतिविधि वाला <ph name="TABS_COUNT_ONE" /> टैब देखें}one{शेयर किए गए टैब ग्रुप में नई गतिविधि वाला <ph name="TABS_COUNT_MANY" /> टैब देखें}other{शेयर किए गए टैब ग्रुप में नई गतिविधि वाले <ph name="TABS_COUNT_MANY" /> टैब देखें}}</translation>
+<translation id="6971555615916967190">रीडिंग मोड की सेटिंग आधी स्क्रीन पर खुली हैं</translation>
 <translation id="6971862865055170158">अनुमति न दें</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />, नया या अपडेट किया गया टैब</translation>
 <translation id="6976811588313110624">नया शॉर्टकट जोड़ें.</translation>
@@ -1695,7 +1701,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="8617240290563765734">सुझाया गया वह URL खोलें जिसे डाउनलोड की गई सामग्री में बताया गया है?</translation>
 <translation id="8635399646025169806">क्या आपको टैब ग्रुप सेव करना है?</translation>
 <translation id="8636825310635137004">अपने अन्य डिवाइस से अपने टैब पाने के लिए, सिंक करना चालू करें.</translation>
-<translation id="864544049772947936">विंडो (<ph name="INSTANCE_COUNTS" />) मैनेज करें</translation>
 <translation id="8662474268934425487"><ph name="SITE_ETLD_PLUS_ONE" /> में साइन इन करें</translation>
 <translation id="8664979001105139458">इस नाम की फ़ाइल पहले से मौजूद है</translation>
 <translation id="8676276370198826499"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> की मदद से, <ph name="SITE_ETLD_PLUS_ONE" /> में साइन अप करें</translation>

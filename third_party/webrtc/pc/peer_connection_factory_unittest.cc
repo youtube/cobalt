@@ -25,6 +25,7 @@
 #include "api/data_channel_interface.h"
 #include "api/enable_media.h"
 #include "api/enable_media_with_defaults.h"
+#include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
@@ -292,10 +293,12 @@ CreatePeerConnectionFactoryWithRtxDisabled() {
           OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>(),
   EnableMedia(pcf_dependencies);
 
+  Environment env = CreateEnvironment();
   scoped_refptr<ConnectionContext> context =
-      ConnectionContext::Create(CreateEnvironment(), &pcf_dependencies);
+      ConnectionContext::Create(env, &pcf_dependencies);
   context->set_use_rtx(false);
-  return make_ref_counted<PeerConnectionFactory>(context, &pcf_dependencies);
+  return make_ref_counted<PeerConnectionFactory>(env, context,
+                                                 &pcf_dependencies);
 }
 
 // Verify creation of PeerConnection using internal ADM, video factory and
@@ -711,12 +714,12 @@ TEST(PeerConnectionFactoryDependenciesTest, UsesPacketSocketFactory) {
       std::make_unique<NiceMock<MockPacketSocketFactory>>();
 
   Event called;
-  EXPECT_CALL(*mock_socket_factory, CreateUdpSocket(_, _, _))
-      .WillOnce(InvokeWithoutArgs([&] {
+  EXPECT_CALL(*mock_socket_factory, CreateUdpSocket)
+      .WillOnce([&] {
         called.Set();
         return nullptr;
-      }))
-      .WillRepeatedly(Return(nullptr));
+      })
+      .WillRepeatedly([] { return nullptr; });
 
   PeerConnectionFactoryDependencies pcf_dependencies;
   pcf_dependencies.packet_socket_factory = std::move(mock_socket_factory);

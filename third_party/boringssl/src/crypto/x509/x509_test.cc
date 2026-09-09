@@ -1396,6 +1396,74 @@ TEST(X509Test, StoreThreads) {
     thread.join();
   }
 }
+
+// Test that serializing a modified |X509_NAME| object on multiple threads is
+// thread-safe. This historically wasn't because OpenSSL's |X509_NAME| object
+// maintains a number of caches.
+TEST(X509Test, SerializeModifiedNameThreads) {
+  bssl::UniquePtr<X509_NAME> name(X509_NAME_new());
+  ASSERT_TRUE(name);
+  ASSERT_TRUE(
+      X509_NAME_add_entry_by_txt(name.get(), "CN", MBSTRING_UTF8,
+                                 reinterpret_cast<const uint8_t *>("Test"),
+                                 /*len=*/-1, /*loc=*/-1, /*set=*/0));
+
+  const size_t kNumThreads = 10;
+  std::vector<std::thread> threads;
+  for (size_t i = 0; i < kNumThreads; i++) {
+    threads.emplace_back([&] {
+      uint8_t *der = nullptr;
+      int der_len = i2d_X509_NAME(name.get(), &der);
+      ASSERT_GT(der_len, 0);
+      OPENSSL_free(der);
+    });
+  }
+  for (auto &thread : threads) {
+    thread.join();
+  }
+}
+
+// Test that serializing a modified |X509| object on multiple threads is
+// thread-safe. This historically wasn't true because OpenSSL's |X509_NAME|
+// object maintains a number of caches, and because |X509_get_issuer_name| and
+// |X509_get_subject_name| aren't const-correct and allow direct, mutable access
+// to the |X509|'s subject and issuer.
+TEST(X509Test, SerializeModifiedCertThreads) {
+  bssl::UniquePtr<X509> cert = CertFromPEM(kLeafPEM);
+  ASSERT_TRUE(cert);
+
+  // Re-encode the TBSCertificate, dropping the cached encoding. As currently
+  // implemented, once the cached encoding is dropped, it is never recreated.
+  // Instead, it's assumed that the DER encoder will reproduce the expected
+  // encoding. https://crbug.com/443261873 discusses changing this model.
+  uint8_t *tbs = nullptr;
+  int tbs_len = i2d_re_X509_tbs(cert.get(), &tbs);
+  ASSERT_GT(tbs_len, 0);
+  OPENSSL_free(tbs);
+
+  // Modify the subject name directly, now that there is no cached encoding.
+  ASSERT_TRUE(X509_NAME_add_entry_by_txt(
+      X509_get_subject_name(cert.get()), "CN", MBSTRING_UTF8,
+      reinterpret_cast<const uint8_t *>("Test"),
+      /*len=*/-1, /*loc=*/-1, /*set=*/0));
+
+  // Now serialize the certificate in parallel. This should be safe to use
+  // across threads. Historically, this would expose the underlying |X509_NAME|
+  // encoder not being thread-safe.
+  const size_t kNumThreads = 10;
+  std::vector<std::thread> threads;
+  for (size_t i = 0; i < kNumThreads; i++) {
+    threads.emplace_back([&] {
+      uint8_t *der = nullptr;
+      int der_len = i2d_X509(cert.get(), &der);
+      ASSERT_GT(der_len, 0);
+      OPENSSL_free(der);
+    });
+  }
+  for (auto &thread : threads) {
+    thread.join();
+  }
+}
 #endif  // OPENSSL_THREADS
 
 static const char kHostname[] = "example.com";
@@ -3687,6 +3755,23 @@ hl1ms5qQiLYPjm4YELtnXQoFyC72tBjbdFd/ZE9k4CNKDbxFUXFbkw==
 -----END X509 CRL-----
 )";
 
+// kV1CRLWithEntryExtensionsPEM is a v1 CRL with entry extensions.
+static const char kV1CRLWithEntryExtensionsPEM[] = R"(
+-----BEGIN X509 CRL-----
+MIIB7DCB1TANBgkqhkiG9w0BAQsFADBOMQswCQYDVQQGEwJVUzETMBEGA1UECAwK
+Q2FsaWZvcm5pYTEWMBQGA1UEBwwNTW91bnRhaW4gVmlldzESMBAGA1UECgwJQm9y
+aW5nU1NMFw0xNjA5MjYxNTEyNDRaFw0xNjEwMjYxNTEyNDRaMFYwEwICEAAXDTE2
+MDkyNjE1MTIyNlowEwICD/8XDTE2MDkyNjE1MTIyNlowKgICEAEXDTE2MDkyNjE1
+MTIyNlowFTATBgwqhkiG9xIEAYS3CQAEAwIBAjANBgkqhkiG9w0BAQsFAAOCAQEA
+LnqQPW8l+D5KSXGCm/jn5+n/5oAeEodQQUadBzBZu0N468lwesj2WKe1LcALn2VM
+21eNlJDonzrQ8kG7vn3KZ6W+A/aFqBZa+AxkPp9t8Lox4s6ExGIYXGTI+FOcqKA3
+5iuJSBlOs80GShvtT2kug5uH+vpAPnpFVD/mVYz6hz/yu1L+mpEile4AFrOPTeUI
+6ySjENyIK24OBLdoqWmIE4Ro/LdTFGXVWOFD7UPKJbUh5BRLx+D8Tlv8SqR0+EED
+Jf1k00LEKjpUSQRtnIu6btX8zspWN+WBRAAKZDQ/zJEI0H8pTTYAsw1lgD0MdKQ7
+1SkNL1l3X3BiUS9Q98UV5A==
+-----END X509 CRL-----
+)";
+
 // kExplicitDefaultVersionCRLPEM is a v1 CRL with an explicitly-encoded version
 // field.
 static const char kExplicitDefaultVersionCRLPEM[] = R"(
@@ -3743,11 +3828,8 @@ rsn4lSYsqI4OI4ei
 // Test that the library enforces versions are valid and match the fields
 // present.
 TEST(X509Test, InvalidVersion) {
-  // kExplicitDefaultVersionPEM is invalid but, for now, we accept it. See
-  // https://crbug.com/boringssl/364.
-  EXPECT_TRUE(CertFromPEM(kExplicitDefaultVersionPEM));
-  EXPECT_TRUE(CRLFromPEM(kExplicitDefaultVersionCRLPEM));
-
+  EXPECT_FALSE(CertFromPEM(kExplicitDefaultVersionPEM));
+  EXPECT_FALSE(CRLFromPEM(kExplicitDefaultVersionCRLPEM));
   EXPECT_FALSE(CertFromPEM(kNegativeVersionPEM));
   EXPECT_FALSE(CertFromPEM(kFutureVersionPEM));
   EXPECT_FALSE(CertFromPEM(kOverflowVersionPEM));
@@ -3756,6 +3838,7 @@ TEST(X509Test, InvalidVersion) {
   EXPECT_FALSE(CertFromPEM(kV1WithIssuerUniqueIDPEM));
   EXPECT_FALSE(CertFromPEM(kV1WithSubjectUniqueIDPEM));
   EXPECT_FALSE(CRLFromPEM(kV1CRLWithExtensionsPEM));
+  EXPECT_FALSE(CRLFromPEM(kV1CRLWithEntryExtensionsPEM));
   EXPECT_FALSE(CRLFromPEM(kV3CRLPEM));
   EXPECT_FALSE(CSRFromPEM(kV2CSRPEM));
 
@@ -3780,6 +3863,45 @@ TEST(X509Test, InvalidVersion) {
   EXPECT_FALSE(X509_REQ_set_version(req.get(), -1));
   EXPECT_FALSE(X509_REQ_set_version(req.get(), X509_REQ_VERSION_1 + 1));
   EXPECT_FALSE(X509_REQ_set_version(req.get(), 9999));
+}
+
+// kCRLEmptyExtension is a CRL with an empty extension list.
+static const char kCRLEmptyExtensionPEM[] = R"(
+-----BEGIN X509 CRL-----
+MIIB3DCBxQIBATANBgkqhkiG9w0BAQsFADBOMQswCQYDVQQGEwJVUzETMBEGA1UE
+CAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNTW91bnRhaW4gVmlldzESMBAGA1UECgwJ
+Qm9yaW5nU1NMFw0xNjA5MjYxNTEyNDRaFw0xNjEwMjYxNTEyNDRaMD8wEwICEAAX
+DTE2MDkyNjE1MTIyNlowEwICD/8XDTE2MDkyNjE1MTIyNlowEwICEAEXDTE2MDky
+NjE1MTIyNlqgAjAAMA0GCSqGSIb3DQEBCwUAA4IBAQAuepA9byX4PkpJcYKb+Ofn
+6f/mgB4Sh1BBRp0HMFm7Q3jryXB6yPZYp7UtwAufZUzbV42UkOifOtDyQbu+fcpn
+pb4D9oWoFlr4DGQ+n23wujHizoTEYhhcZMj4U5yooDfmK4lIGU6zzQZKG+1PaS6D
+m4f6+kA+ekVUP+ZVjPqHP/K7Uv6akSKV7gAWs49N5QjrJKMQ3Igrbg4Et2ipaYgT
+hGj8t1MUZdVY4UPtQ8oltSHkFEvH4PxOW/xKpHT4QQMl/WTTQsQqOlRJBG2ci7pu
+1fzOylY35YFEAApkND/MkQjQfylNNgCzDWWAPQx0pDvVKQ0vWXdfcGJRL1D3xRXk
+-----END X509 CRL-----
+)";
+
+// kCRLEmptyEntryExtension is a CRL with an entry with an empty extension list.
+static const char kCRLEmptyEntryExtensionPEM[] = R"(
+-----BEGIN X509 CRL-----
+MIIB2jCBwwIBATANBgkqhkiG9w0BAQsFADBOMQswCQYDVQQGEwJVUzETMBEGA1UE
+CAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNTW91bnRhaW4gVmlldzESMBAGA1UECgwJ
+Qm9yaW5nU1NMFw0xNjA5MjYxNTEyNDRaFw0xNjEwMjYxNTEyNDRaMEEwEwICEAAX
+DTE2MDkyNjE1MTIyNlowEwICD/8XDTE2MDkyNjE1MTIyNlowFQICEAEXDTE2MDky
+NjE1MTIyNlowADANBgkqhkiG9w0BAQsFAAOCAQEALnqQPW8l+D5KSXGCm/jn5+n/
+5oAeEodQQUadBzBZu0N468lwesj2WKe1LcALn2VM21eNlJDonzrQ8kG7vn3KZ6W+
+A/aFqBZa+AxkPp9t8Lox4s6ExGIYXGTI+FOcqKA35iuJSBlOs80GShvtT2kug5uH
++vpAPnpFVD/mVYz6hz/yu1L+mpEile4AFrOPTeUI6ySjENyIK24OBLdoqWmIE4Ro
+/LdTFGXVWOFD7UPKJbUh5BRLx+D8Tlv8SqR0+EEDJf1k00LEKjpUSQRtnIu6btX8
+zspWN+WBRAAKZDQ/zJEI0H8pTTYAsw1lgD0MdKQ71SkNL1l3X3BiUS9Q98UV5A==
+-----END X509 CRL-----
+)";
+
+
+// Test that the library rejects empty extension lists in CRLs.
+TEST(X509Test, EmptyCRLExtensions) {
+  EXPECT_FALSE(CRLFromPEM(kCRLEmptyExtensionPEM));
+  EXPECT_FALSE(CRLFromPEM(kCRLEmptyEntryExtensionPEM));
 }
 
 // Unlike upstream OpenSSL, we require a non-null store in
@@ -5184,6 +5306,16 @@ TEST(X509Test, Names) {
                        }));
     }
   }
+}
+
+// Adding an invalid entry to an |X509_NAME| should not be possible.
+TEST(X509Test, AddInvalidEntryToName) {
+  bssl::UniquePtr<X509_NAME> name(X509_NAME_new());
+  ASSERT_TRUE(name);
+  bssl::UniquePtr<X509_NAME_ENTRY> entry(X509_NAME_ENTRY_new());
+  ASSERT_TRUE(entry);
+  EXPECT_FALSE(
+      X509_NAME_add_entry(name.get(), entry.get(), /*loc=*/-1, /*set=*/0));
 }
 
 TEST(X509Test, AddDuplicates) {
@@ -8833,15 +8965,17 @@ TEST(X509Test, VerifyUnusualTBSCert) {
   // The TBSCertificates were made with https://github.com/google/der-ascii.
   // crypto/x509/test/make_unusual_tbs.go then filled in valid signatures.
   const char *kPaths[] = {
-      // Empty extension instead of omitting the entire field.
+      // Non-canonical encoding of TRUE in the critical bit.
       // TODO(crbug.com/442221114): The parser should reject this.
-      "crypto/x509/test/unusual_tbs_empty_extension_not_omitted.pem",
+      "crypto/x509/test/unusual_tbs_critical_ber.pem",
+      // A FALSE critical bit is encoded instead of omitted as DEFAULT.
+      // TODO(crbug.com/442221114): The parser should reject this.
+      "crypto/x509/test/unusual_tbs_critical_false_not_omitted.pem",
       // ecdsa-with-SHA256 AlgorithmIdentifier parameters are NULL instead of
       // omitted. We accept this due to b/167375496.
       "crypto/x509/test/unusual_tbs_null_sigalg_param.pem",
       // Deprecated subject and issuer unique IDs are present. This is valid,
-      // but
-      // rarely exercised.
+      // but rarely exercised.
       "crypto/x509/test/unusual_tbs_uid_both.pem",
       "crypto/x509/test/unusual_tbs_uid_issuer.pem",
       "crypto/x509/test/unusual_tbs_uid_subject.pem",
@@ -8849,15 +8983,26 @@ TEST(X509Test, VerifyUnusualTBSCert) {
       // canonical SET OF order. These are inverted.
       // TODO(crbug.com/42290219): The parser should reject this.
       "crypto/x509/test/unusual_tbs_wrong_attribute_order.pem",
-      // A v1 version is explicit encoded instead of omitted as DEFAULT.
-      // TODO(crbug.com/42290225): The parser should reject this.
-      "crypto/x509/test/unusual_tbs_v1_not_omitted.pem",
   };
   for (const char *path : kPaths) {
     SCOPED_TRACE(path);
     bssl::UniquePtr<X509> cert = CertFromPEM(GetTestData(path));
     ASSERT_TRUE(cert);
     EXPECT_TRUE(X509_verify(cert.get(), key.get()));
+  }
+
+  // The following inputs were once accepted, and thus preserved in signature
+  // verification, but we no longer parse them at all.
+  const char *kInvalidPaths[] = {
+      // Empty extension instead of omitting the entire field.
+      "crypto/x509/test/unusual_tbs_empty_extension_not_omitted.pem",
+      // A v1 version is explicit encoded instead of omitted as DEFAULT.
+      "crypto/x509/test/unusual_tbs_v1_not_omitted.pem",
+  };
+  for (const char *path : kInvalidPaths) {
+    SCOPED_TRACE(path);
+    bssl::UniquePtr<X509> cert = CertFromPEM(GetTestData(path));
+    EXPECT_FALSE(cert);
   }
 }
 

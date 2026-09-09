@@ -71,9 +71,8 @@ enum ServerType { kStun, kTurn };
 
 // Class to test LocalNetworkAccess integration with STUN and TURN ports.
 class LocalNetworkAccessPortTest
-    : public ::testing::Test,
-      public sigslot::has_slots<>,
-      public ::testing::WithParamInterface<
+    : public sigslot::has_slots<>,
+      public ::testing::TestWithParam<
           std::tuple<ServerType, absl::string_view, LnaFakeResult>> {
  public:
   LocalNetworkAccessPortTest() {
@@ -81,8 +80,8 @@ class LocalNetworkAccessPortTest
 
     switch (server_type()) {
       case kStun:
-        stun_server_ =
-            TestStunServer::Create(&ss_, {server_address(), 5000}, thread_);
+        stun_server_ = TestStunServer::Create(env_, {server_address(), 5000},
+                                              ss_, thread_);
         break;
       case kTurn:
         turn_server_.AddInternalSocket({server_address(), 5000}, PROTO_UDP);

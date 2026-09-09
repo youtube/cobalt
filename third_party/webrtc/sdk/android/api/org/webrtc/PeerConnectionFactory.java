@@ -179,6 +179,7 @@ public class PeerConnectionFactory {
     @Nullable private NetworkControllerFactoryFactory networkControllerFactoryFactory;
     @Nullable private NetworkStatePredictorFactoryFactory networkStatePredictorFactoryFactory;
     @Nullable private NetEqFactoryFactory neteqFactoryFactory;
+    @Nullable private AudioFrameProcessor audioFrameProcessor;
 
     private Builder() {}
 
@@ -265,6 +266,16 @@ public class PeerConnectionFactory {
       return this;
     }
 
+    /**
+     * Sets an AudioFrameProcessor for the PeerConnectionFactory.
+     *
+     * <p>This is used to process audio frames before they are sent to the audio device module.
+     */
+    public Builder setAudioFrameProcessor(AudioFrameProcessor audioFrameProcessor) {
+      this.audioFrameProcessor = audioFrameProcessor;
+      return this;
+    }
+
     public PeerConnectionFactory createPeerConnectionFactory() {
       checkInitializeHasBeenCalled();
       try (Environment env = envBuilder.build()) {
@@ -289,7 +300,8 @@ public class PeerConnectionFactory {
             networkStatePredictorFactoryFactory == null
                 ? 0
                 : networkStatePredictorFactoryFactory.createNativeNetworkStatePredictorFactory(),
-            neteqFactoryFactory == null ? 0 : neteqFactoryFactory.createNativeNetEqFactory());
+            neteqFactoryFactory == null ? 0 : neteqFactoryFactory.createNativeNetEqFactory(),
+            audioFrameProcessor == null ? 0 : audioFrameProcessor.getNativeAudioFrameProcessor());
       }
     }
   }
@@ -610,7 +622,7 @@ public class PeerConnectionFactory {
       long audioDecoderFactory, VideoEncoderFactory encoderFactory,
       VideoDecoderFactory decoderFactory, long nativeAudioProcessor,
       long nativeFecControllerFactory, long nativeNetworkControllerFactory,
-      long nativeNetworkStatePredictorFactory, long neteqFactory);
+      long nativeNetworkStatePredictorFactory, long neteqFactory, long nativeAudioFrameProcessor);
 
   private static native long nativeCreatePeerConnection(long factory,
       PeerConnection.RTCConfiguration rtcConfig, MediaConstraints constraints, long nativeObserver,

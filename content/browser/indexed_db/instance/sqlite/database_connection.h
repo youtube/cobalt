@@ -12,6 +12,7 @@
 #include <string_view>
 
 #include "base/files/file_path.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
 #include "base/types/pass_key.h"
@@ -240,6 +241,8 @@ class DatabaseConnection {
       int64_t record_row_id);
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(DatabaseConnectionTest, TooNew);
+
   DatabaseConnection(base::FilePath path, BackingStoreImpl& backing_store);
 
   // All startup/initialization tasks that can error are performed here. Will
@@ -251,6 +254,14 @@ class DatabaseConnection {
   bool HasActiveVersionChangeTransaction() const {
     return metadata_snapshot_.has_value();
   }
+
+  // Gets a handle to a blob in either the `blobs` table (when `chunk_index` is
+  // 0) or the `overflow_blob_chunks` table, used for writing bytes that
+  // overflow a single SQLite BLOB.
+  std::optional<sql::StreamingBlobHandle> OpenBlobChunkForStreaming(
+      int64_t blob_row_id,
+      bool readonly,
+      size_t chunk_index);
 
   // Invoked by an owned `BlobWriter` when it's done writing, or has encountered
   // an error.
@@ -269,13 +280,12 @@ class DatabaseConnection {
   // when `ActiveBlobStreamer` in `active_blobs_` no longer has connections.
   void OnBlobBecameInactive(int64_t blob_number);
 
-  // These methods add or remove rows to the `blob_references` table. The rows
-  // correspond to active blobs, i.e. the `record_row_id` will be null. These
-  // updates are made right away when `active_blobs_` is updated (an element is
-  // added or removed), and also after a transaction is rolled back which may
-  // have caused the loss of a `blob_references` update.
-  void AddActiveBlobReference(int64_t blob_number);
-  void RemoveActiveBlobReference(int64_t blob_number);
+  // This method adds a row to the `blob_references` table. The row corresponds
+  // to an active blob, i.e. the `record_row_id` will be null. These updates are
+  // made right away when `active_blobs_` is updated (an element is added or
+  // removed), and also after a transaction is rolled back which may have caused
+  // the loss of a `blob_references` update.
+  bool AddActiveBlobReference(int64_t blob_number);
 
   // The connection needs to be held open when there are active blobs or an
   // active BackingStore::Database referencing it. This will return false if
@@ -286,17 +296,57 @@ class DatabaseConnection {
   // `metadata_`).
   StatusOr<blink::IndexedDBDatabaseMetadata> GenerateIndexedDbMetadata();
 
+  // This enum is used to track various events of interest, mostly errors.
+  //
+  // LINT.IfChange(SpecificEvent)
+  enum class SpecificEvent : uint8_t {
+    // Logged once per database connection, when initializing.
+    kDatabaseOpenAttempt = 0,
+    // Logged at most once per database connection, at shutdown time.
+    kDatabaseHadSqlError = 1,
+
+    // These errors correlate to points in the code where a SQLite error may
+    // occur, but cannot easily be reported to the frontend because they are not
+    // directly associated with an ongoing request. Most of them correlate with
+    // blob bookkeeping, and the worst thing that can happen is that reading
+    // from a blob may throw errors or that blob data may persist on disk until
+    // the next time the DB is opened.
+    kSyncActiveBlobsFailed = 2,
+    kOpenBlobForStreamingFailed = 3,
+    kAddActiveBlobReferenceFailed = 4,
+    kRemoveActiveBlobReferenceFailed = 5,
+    kPragmaPageCountFailed = 6,
+    kPragmaPageSizeFailed = 7,
+
+    // Events associated with various callers of `Fatal()`.
+    kMissingMetadataTable = 8,
+    kDatabaseTooNew = 9,
+    kDatabaseSchemaUnknown = 10,
+    kDatabaseNameMismatch = 11,
+    kBlobChunkMissing = 12,
+    kObjectStoreNotFound = 13,
+    kBlobTypeUnknown = 14,
+
+    kMaxValue = kBlobTypeUnknown,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/storage/enums.xml:IndexedDbSqliteSpecificEvent)
+
+  void LogEvent(SpecificEvent event) const;
+
   // Called when a logical inconsistency or other irrecoverable state is
   // detected. This could be due to a bug or due to disk corruption. This will
   // not/should not be called when SQLite reports an error. If SQLite does not
   // report an error, but a logical inconsistency is found in the database, we
   // assume that recovering will fail. Therefore this function marks the
   // database for deletion.
-  Status Fatal(Status s);
+  Status Fatal(Status s, SpecificEvent event);
 
   // Called when the records of an object store have been modified (inserted or
   // deleted). This invalidates all cursor statements operating on that store.
   void OnRecordsModified(int64_t object_store_id);
+
+  // Makes sure the given IDs exist in `metadata_`.
+  void ValidateInputs(int64_t object_store_id, int64_t index_id);
 
   // The expected path for `db_`, or empty for in-memory DBs.
   const base::FilePath path_;

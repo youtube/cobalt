@@ -371,7 +371,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSpeakerChangeDetection);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSpecCompliantCanPlayThrough);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSuspendMediaForFrozenFrames);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kSuspendMutedAudio);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUnifiedAutoplay);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAndroidOverlayForSecureOnly);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseFakeDeviceForMediaStream);
@@ -439,7 +438,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kBuiltInHlsPlayer);
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kChromeOSHWVBREncoding);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kLimitConcurrentDecoderInstances);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kUSeSequencedTaskRunnerForVEA);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseSequencedTaskRunnerForVEA);
 #if defined(ARCH_CPU_ARM_FAMILY)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseGLForScaling);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kPreferGLImageProcessor);
@@ -567,6 +566,9 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kHeadlessLiveCaption);
 
 // Enable site-specific media link helpers.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaLinkHelpers);
+
+// Enables showing auto picture-in-picture permission details in page info.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPicturePageInfoDetails);
 
 // Based on a |command_line| and the current platform, returns the effective
 // autoplay policy. In other words, it will take into account the default policy

@@ -2,6 +2,7 @@ Name: fft
 Short Name: fft
 URL: This is the canonical repository.
 Version: N/A
+Update Mechanism: Static (crbug.com/419412821)
 Date: 2018-07-26
 License: Custom license
 License File: LICENSE

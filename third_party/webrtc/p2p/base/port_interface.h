@@ -17,6 +17,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -111,7 +112,20 @@ class PortInterface {
                    const std::string&,
                    bool>
       SignalUnknownAddress;
+  virtual void SubscribeUnknownAddress(
+      absl::AnyInvocable<void(PortInterface*,
+                              const SocketAddress&,
+                              ProtocolType,
+                              IceMessage*,
+                              const std::string&,
+                              bool)> callback) = 0;
 
+  virtual void NotifyUnknownAddress(PortInterface* port,
+                                    const SocketAddress& address,
+                                    ProtocolType proto,
+                                    IceMessage* msg,
+                                    const std::string& rf,
+                                    bool port_muxed) = 0;
   // Sends a response message (normal or error) to the given request.  One of
   // these methods should be called as a response to SignalUnknownAddress.
   virtual void SendBindingErrorResponse(StunMessage* message,
@@ -137,9 +151,20 @@ class PortInterface {
   virtual void EnablePortPackets() = 0;
   sigslot::signal4<PortInterface*, const char*, size_t, const SocketAddress&>
       SignalReadPacket;
+  virtual void SubscribeReadPacket(
+      absl::AnyInvocable<
+          void(PortInterface*, const char*, size_t, const SocketAddress&)>
+          callback) = 0;
+  virtual void NotifyReadPacket(PortInterface* port_interface,
+                                const char*,
+                                size_t,
+                                const SocketAddress&) = 0;
 
   // Emitted each time a packet is sent on this port.
   sigslot::signal1<const SentPacketInfo&> SignalSentPacket;
+  virtual void SubscribeSentPacket(
+      absl::AnyInvocable<void(const SentPacketInfo&)> callback) = 0;
+  virtual void NotifySentPacket(const SentPacketInfo& packet) = 0;
 
   virtual std::string ToString() const = 0;
 

@@ -244,7 +244,7 @@ class TabListMediator implements TabListNotificationHandler {
     /** Provides capability to asynchronously acquire {@link ShoppingPersistedTabData} */
     static class ShoppingPersistedTabDataFetcher {
         protected final Tab mTab;
-        protected final @Nullable Supplier<PriceWelcomeMessageController>
+        protected final @Nullable Supplier<@Nullable PriceWelcomeMessageController>
                 mPriceWelcomeMessageControllerSupplier;
 
         /**
@@ -253,9 +253,8 @@ class TabListMediator implements TabListNotificationHandler {
          */
         ShoppingPersistedTabDataFetcher(
                 Tab tab,
-                @Nullable
-                        Supplier<PriceWelcomeMessageController>
-                                priceWelcomeMessageControllerSupplier) {
+                @Nullable Supplier<@Nullable PriceWelcomeMessageController>
+                        priceWelcomeMessageControllerSupplier) {
             mTab = tab;
             mPriceWelcomeMessageControllerSupplier = priceWelcomeMessageControllerSupplier;
         }
@@ -330,7 +329,7 @@ class TabListMediator implements TabListNotificationHandler {
     private final @Nullable SelectionDelegateProvider mSelectionDelegateProvider;
     private final @Nullable GridCardOnClickListenerProvider mGridCardOnClickListenerProvider;
     private final @Nullable TabGridDialogHandler mTabGridDialogHandler;
-    private final @Nullable Supplier<PriceWelcomeMessageController>
+    private final @Nullable Supplier<@Nullable PriceWelcomeMessageController>
             mPriceWelcomeMessageControllerSupplier;
     private final @Nullable DataSharingTabManager mDataSharingTabManager;
     private final @Nullable Runnable mOnTabGroupCreation;
@@ -997,7 +996,7 @@ class TabListMediator implements TabListNotificationHandler {
      * @param onTabGroupCreation Should be run when the UI is used to create a tab group.
      * @param undoBarExplicitTrigger Interface to explicitly trigger the undo closure snackbar.
      */
-    public TabListMediator(
+    TabListMediator(
             Activity activity,
             TabListModel modelList,
             @TabListMode int mode,
@@ -1009,7 +1008,8 @@ class TabListMediator implements TabListNotificationHandler {
             @Nullable SelectionDelegateProvider selectionDelegateProvider,
             @Nullable GridCardOnClickListenerProvider gridCardOnClickListenerProvider,
             @Nullable TabGridDialogHandler dialogHandler,
-            @Nullable Supplier<PriceWelcomeMessageController> priceWelcomeMessageControllerSupplier,
+            @Nullable Supplier<@Nullable PriceWelcomeMessageController>
+                    priceWelcomeMessageControllerSupplier,
             String componentName,
             @TabActionState int initialTabActionState,
             @Nullable DataSharingTabManager dataSharingTabManager,
@@ -3122,6 +3122,7 @@ class TabListMediator implements TabListNotificationHandler {
                     @Override
                     public void onDismiss(PropertyModel model, int dismissalCause) {
                         if (dismissalCause == DialogDismissalCause.POSITIVE_BUTTON_CLICKED) {
+                            boolean stillExists = filter.tabGroupExists(tabGroupId);
                             @TabGroupColorId
                             int oldColorId = filter.getTabGroupColorWithFallback(tabGroupId);
                             @TabGroupColorId
@@ -3129,7 +3130,9 @@ class TabListMediator implements TabListNotificationHandler {
                                     tabGroupVisualDataDialogManager.getCurrentColorId();
                             boolean didChangeColor = oldColorId != currentColorId;
                             if (didChangeColor) {
-                                filter.setTabGroupColor(tabGroupId, currentColorId);
+                                if (stillExists) {
+                                    filter.setTabGroupColor(tabGroupId, currentColorId);
+                                }
                                 RecordUserAction.record("TabGroup.RenameDialog.ColorChanged");
                             }
 
@@ -3142,12 +3145,14 @@ class TabListMediator implements TabListNotificationHandler {
                             // This check must be included in case the user has a null title
                             // which is displayed as a tab count and chooses not to change it.
                             if (didChangeTitle) {
-                                filter.setTabGroupTitle(tabGroupId, inputGroupTitle);
+                                if (stillExists) {
+                                    filter.setTabGroupTitle(tabGroupId, inputGroupTitle);
+                                }
                                 RecordUserAction.record("TabGroup.RenameDialog.TitleChanged");
                             }
                         }
 
-                        tabGroupVisualDataDialogManager.hideDialog();
+                        tabGroupVisualDataDialogManager.onHideDialog();
                     }
                 };
 

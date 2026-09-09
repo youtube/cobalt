@@ -423,8 +423,8 @@ static X509 *find_issuer(X509_STORE_CTX *ctx, STACK_OF(X509) *sk, X509 *x) {
 
 // Given a possible certificate and issuer check them
 
-int x509_check_issued_with_callback(X509_STORE_CTX *ctx, X509 *x,
-                                    X509 *issuer) {
+int x509_check_issued_with_callback(X509_STORE_CTX *ctx, const X509 *x,
+                                    const X509 *issuer) {
   int ret;
   ret = X509_check_issued(issuer, x);
   if (ret == X509_V_OK) {
@@ -436,7 +436,7 @@ int x509_check_issued_with_callback(X509_STORE_CTX *ctx, X509 *x,
   }
 
   ctx->error = ret;
-  ctx->current_cert = x;
+  ctx->current_cert = const_cast<X509 *>(x);
   return call_verify_cb(0, ctx);
 }
 

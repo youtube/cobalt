@@ -367,9 +367,8 @@ class NumberBuiltinsAssemblerTS
     {
       // Both {lhs} and {rhs} are of BigInt type.
       CombineFeedbackOnException(BinaryOperationFeedback::kAny);
-      V<BigInt> result = CallBuiltin<builtin::BigIntAdd>(
-          context,
-          {.left = V<BigInt>::Cast(lhs), .right = V<BigInt>::Cast(rhs)});
+      V<BigInt> result = CallBuiltin_BigIntAdd(
+          isolate(), context, V<BigInt>::Cast(lhs), V<BigInt>::Cast(rhs));
       CombineFeedback(BinaryOperationFeedback::kBigInt);
       GOTO(done, result);
     }
@@ -383,7 +382,8 @@ class NumberBuiltinsAssemblerTS
     BIND(call_add_stub);
     {
       V<Object> result =
-          CallBuiltin<builtin::Add>(context, {.left = lhs, .right = rhs});
+          CallBuiltin_Add(isolate(), FrameStateForCall::NoFrameState(this),
+                          context, lhs, rhs, compiler::LazyDeoptOnThrow::kNo);
       GOTO(done, result);
     }
 

@@ -34,8 +34,9 @@ bool SSLCertificateVerifierWrapper::Verify(const SSLCertificate& certificate) {
   // Serialize the der encoding of the cert into a jbyteArray
   Buffer cert_der_buffer;
   certificate.ToDER(&cert_der_buffer);
-  ScopedJavaLocalRef<jbyteArray> jni_buffer(
-      jni, jni->NewByteArray(cert_der_buffer.size()));
+  ScopedJavaLocalRef<jbyteArray> jni_buffer =
+      ScopedJavaLocalRef<jbyteArray>::Adopt(
+          jni, jni->NewByteArray(cert_der_buffer.size()));
   jni->SetByteArrayRegion(
       jni_buffer.obj(), 0, cert_der_buffer.size(),
       reinterpret_cast<const jbyte*>(cert_der_buffer.data()));

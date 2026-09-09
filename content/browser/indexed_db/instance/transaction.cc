@@ -47,10 +47,12 @@
 #include "content/browser/indexed_db/status.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "third_party/blink/public/common/indexeddb/indexeddb_metadata.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 using blink::IndexedDBIndexKeys;
+using blink::IndexedDBIndexMetadata;
 using blink::IndexedDBKey;
 using blink::IndexedDBKeyPath;
 using blink::IndexedDBObjectStoreMetadata;
@@ -126,9 +128,9 @@ void Transaction::TaskQueue::clear() {
   }
 }
 
-Transaction::Operation Transaction::TaskQueue::pop() {
+Transaction::TaskQueue::Task Transaction::TaskQueue::pop() {
   DCHECK(!queue_.empty());
-  Operation task = std::move(queue_.front());
+  Task task = std::move(queue_.front());
   queue_.pop();
   return task;
 }
@@ -187,6 +189,12 @@ void Transaction::BindReceiver(
     mojo::PendingAssociatedReceiver<blink::mojom::IDBTransaction>
         mojo_receiver) {
   receiver_.Bind(std::move(mojo_receiver));
+  if (receiver_.is_bound()) {
+    // `receiver_` might not be bound in tests that pass an invalid pending
+    // receiver.
+    receiver_.set_disconnect_handler(base::BindOnce(
+        &Transaction::OnMojoReceiverDisconnected, ptr_factory_.GetWeakPtr()));
+  }
 }
 
 void Transaction::SetCommitFlag() {
@@ -200,7 +208,9 @@ void Transaction::SetCommitFlag() {
   bucket_context_->QueueRunTasks();
 }
 
-void Transaction::ScheduleTask(blink::mojom::IDBTaskType type, Operation task) {
+void Transaction::ScheduleTask(blink::mojom::IDBTaskType type,
+                               Operation task,
+                               VerificationCallback verify) {
   if (state_ == FINISHED) {
     return;
   }
@@ -208,11 +218,11 @@ void Transaction::ScheduleTask(blink::mojom::IDBTaskType type, Operation task) {
   ResetTimeoutTimer();
   used_ = true;
   if (type == blink::mojom::IDBTaskType::Normal) {
-    task_queue_.push(std::move(task));
+    task_queue_.push(std::move(task), std::move(verify));
     ++diagnostics_.tasks_scheduled;
     NotifyOfIdbInternalsRelevantChange();
   } else {
-    preemptive_task_queue_.push(std::move(task));
+    preemptive_task_queue_.push(std::move(task), std::move(verify));
   }
   if (state() == STARTED) {
     bucket_context_->QueueRunTasks();
@@ -405,13 +415,10 @@ void Transaction::CreateObjectStore(int64_t object_store_id,
                                     const std::u16string& name,
                                     const IndexedDBKeyPath& key_path,
                                     bool auto_increment) {
-  if (mode() != blink::mojom::IDBTransactionMode::VersionChange) {
-    mojo::ReportBadMessage(
-        "CreateObjectStore must be called from a version change transaction.");
-    return;
-  }
-
-  if (!IsAcceptingRequests() || !connection()->IsConnected()) {
+  if (!connection()
+           ->GetTransactionAndVerifyState(
+               id(), blink::mojom::IDBTransactionMode::VersionChange)
+           .has_value()) {
     return;
   }
 
@@ -424,26 +431,44 @@ void Transaction::CreateObjectStore(int64_t object_store_id,
             return transaction->BackingStoreTransaction()->CreateObjectStore(
                 object_store_id, name, key_path, auto_increment);
           },
-          object_store_id, name, key_path, auto_increment));
+          object_store_id, name, key_path, auto_increment),
+      // The object store ID must be a valid new ID.
+      base::BindOnce(
+          [](int64_t object_store_id,
+             mojo::ReportBadMessageCallback report_bad_message_callback,
+             Transaction& transaction) {
+            if (transaction.connection()->database()->IsObjectStoreIdInMetadata(
+                    object_store_id) ||
+                object_store_id <= transaction.connection()
+                                       ->database()
+                                       ->metadata()
+                                       .max_object_store_id) {
+              std::move(report_bad_message_callback)
+                  .Run("Invalid object_store_id");
+              return Status::InvalidArgument("Invalid object_store_id.");
+            }
+
+            return Status::OK();
+          },
+          object_store_id, mojo::GetBadMessageCallback()));
 }
 
 void Transaction::DeleteObjectStore(int64_t object_store_id) {
-  if (mode() != blink::mojom::IDBTransactionMode::VersionChange) {
-    mojo::ReportBadMessage(
-        "DeleteObjectStore must be called from a version change transaction.");
+  if (!connection()
+           ->GetTransactionAndVerifyState(
+               id(), blink::mojom::IDBTransactionMode::VersionChange)
+           .has_value()) {
     return;
   }
 
-  if (!IsAcceptingRequests() || !connection()->IsConnected()) {
-    return;
-  }
-
-  ScheduleTask(base::BindOnce(
-      [](int64_t object_store_id, Transaction* transaction) {
-        return transaction->BackingStoreTransaction()->DeleteObjectStore(
-            object_store_id);
-      },
-      object_store_id));
+  ScheduleTask(
+      base::BindOnce(
+          [](int64_t object_store_id, Transaction* transaction) {
+            return transaction->BackingStoreTransaction()->DeleteObjectStore(
+                object_store_id);
+          },
+          object_store_id),
+      ObjectStoreMustExist(object_store_id));
 }
 
 void Transaction::Put(int64_t object_store_id,
@@ -488,10 +513,11 @@ void Transaction::Put(int64_t object_store_id,
 
   // This is decremented in DoPut.
   in_flight_memory_ += value.SizeEstimate();
-  ScheduleTask(base::BindOnce(&Transaction::DoPut, base::Unretained(this),
-                              object_store_id, std::move(value), std::move(key),
-                              mode, std::move(index_keys),
-                              std::move(wrapped_callback)));
+  ScheduleTask(
+      base::BindOnce(&Transaction::DoPut, base::Unretained(this),
+                     object_store_id, std::move(value), std::move(key), mode,
+                     std::move(index_keys), std::move(wrapped_callback)),
+      ObjectStoreMustExist(object_store_id));
 }
 
 Status Transaction::DoPut(int64_t object_store_id,
@@ -636,7 +662,8 @@ void Transaction::SetIndexKeys(int64_t object_store_id,
   ScheduleTask(blink::mojom::IDBTaskType::Preemptive,
                base::BindOnce(&Transaction::DoSetIndexKeys,
                               base::Unretained(this), object_store_id,
-                              std::move(primary_key), std::move(index_keys)));
+                              std::move(primary_key), std::move(index_keys)),
+               ObjectStoreMustExist(object_store_id));
 }
 
 Status Transaction::DoSetIndexKeys(int64_t object_store_id,
@@ -1023,8 +1050,11 @@ StatusOr<Transaction::RunTasksResult> Transaction::RunTasks() {
       run_preemptive_queue ? &preemptive_task_queue_ : &task_queue_;
   while (!task_queue->empty() && state_ != FINISHED) {
     DCHECK(state_ == STARTED || state_ == COMMITTING) << state_;
-    Operation task(task_queue->pop());
-    Status result = std::move(task).Run(this);
+    auto [operation, verify] = task_queue->pop();
+    Status result = verify ? std::move(verify).Run(*this) : Status::OK();
+    if (result.ok()) {
+      result = std::move(operation).Run(this);
+    }
     if (!run_preemptive_queue) {
       DCHECK(diagnostics_.tasks_completed < diagnostics_.tasks_scheduled);
       ++diagnostics_.tasks_completed;
@@ -1122,6 +1152,34 @@ void Transaction::NotifyOfIdbInternalsRelevantChange() {
 }
 
 void Transaction::TimeoutFired() {
+  // Histograms to diagnose memory leak crbug.com/381086791.
+  // TODO(crbug.com/381086791): Remove after the leak is fixed.
+  base::UmaHistogramEnumeration("IndexedDB.TransactionTimeout.Mode", mode_);
+  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.Used", used_);
+  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.MojoDisconnected",
+                            diagnostics_.mojo_receiver_disconnected);
+  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.CommitPending",
+                            is_commit_pending_);
+  base::UmaHistogramCounts100("IndexedDB.TransactionTimeout.NumPendingTasks",
+                              task_queue_.size());
+  base::UmaHistogramCounts100(
+      "IndexedDB.TransactionTimeout.NumPendingPreemptiveTasks",
+      preemptive_task_queue_.size());
+  base::UmaHistogramCounts10000(
+      "IndexedDB.TransactionTimeout.NumTransactionsInDB",
+      database_->GetNumTransactionsAcrossAllConnections());
+
+  const bool has_connection = (connection_.get() != nullptr);
+  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.HasConnection",
+                            has_connection);
+  if (has_connection) {
+    base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.Connected",
+                              connection_->IsConnected());
+    base::UmaHistogramCounts10000(
+        "IndexedDB.TransactionTimeout.NumTransactionsInConnection",
+        connection_->transactions().size());
+  }
+
   if (!IsTransactionBlockingOtherClients(/*consider_priority=*/true)) {
     return;
   }
@@ -1190,6 +1248,10 @@ IndexedDBKey Transaction::GenerateAutoIncrementKey(int64_t object_store_id) {
   return IndexedDBKey(current_number, blink::mojom::IDBKeyType::Number);
 }
 
+void Transaction::OnMojoReceiverDisconnected() {
+  diagnostics_.mojo_receiver_disconnected = true;
+}
+
 blink::mojom::IDBValuePtr Transaction::BuildMojoValue(IndexedDBValue value) {
   return backing_store_transaction_->BuildMojoValue(
       std::move(value),
@@ -1201,6 +1263,53 @@ blink::mojom::IDBValuePtr Transaction::BuildMojoValue(IndexedDBValue value) {
           &storage::mojom::FileSystemAccessContext::DeserializeHandle,
           base::Unretained(bucket_context_->file_system_access_context()),
           bucket_context_->bucket_info().storage_key));
+}
+
+// static
+Transaction::VerificationCallback Transaction::ObjectStoreMustExist(
+    int64_t object_store_id) {
+  return base::BindOnce(
+      [](int64_t object_store_id,
+         mojo::ReportBadMessageCallback report_bad_message_callback,
+         Transaction& transaction) {
+        if (!transaction.connection()->database()->IsObjectStoreIdInMetadata(
+                object_store_id)) {
+          std::move(report_bad_message_callback).Run("Invalid object_store_id");
+          return Status::InvalidArgument("Invalid object_store_id.");
+        }
+
+        return Status::OK();
+      },
+      object_store_id, mojo::GetBadMessageCallback());
+}
+
+// static
+Transaction::VerificationCallback Transaction::ObjectStoreAndIndexMustExist(
+    int64_t object_store_id,
+    std::optional<int64_t> index_id) {
+  return base::BindOnce(
+      [](int64_t object_store_id, std::optional<int64_t> index_id,
+         mojo::ReportBadMessageCallback report_bad_message_callback,
+         Transaction& transaction) {
+        if (index_id.has_value() &&
+            *index_id == IndexedDBIndexMetadata::kInvalidId) {
+          std::move(report_bad_message_callback).Run("index_id must be valid");
+          return Status::InvalidArgument("index_id must be valid.");
+        }
+        if (!transaction.connection()
+                 ->database()
+                 ->IsObjectStoreIdAndMaybeIndexIdInMetadata(
+                     object_store_id,
+                     index_id.value_or(IndexedDBIndexMetadata::kInvalidId))) {
+          std::move(report_bad_message_callback)
+              .Run("Invalid object_store_id or index_id");
+          return Status::InvalidArgument(
+              "Invalid object_store_id or index_id.");
+        }
+
+        return Status::OK();
+      },
+      object_store_id, index_id, mojo::GetBadMessageCallback());
 }
 
 }  // namespace content::indexed_db

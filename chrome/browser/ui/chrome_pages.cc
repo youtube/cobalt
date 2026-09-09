@@ -90,6 +90,12 @@
 #include "chrome/browser/web_applications/web_app_utils.h"
 #endif
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+#include "components/webapps/isolated_web_apps/scheme.h"
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
+
 using base::UserMetricsAction;
 
 namespace chrome {
@@ -228,6 +234,8 @@ std::string GenerateContentSettingsExceptionsSubPage(ContentSettingsType type) {
           {ContentSettingsType::STORAGE_ACCESS, "storageAccess"},
           {ContentSettingsType::USB_CHOOSER_DATA, "usbDevices"},
           {ContentSettingsType::WEB_PRINTING, "webPrinting"},
+          {ContentSettingsType::AUTO_PICTURE_IN_PICTURE,
+           "autoPictureInPicture"},
       });
 
   const std::string_view* override =
@@ -243,8 +251,13 @@ bool SiteGURLIsValid(const GURL& url) {
   // TODO(crbug.com/40399136): Site Details should work with file:// urls
   // when this bug is fixed, so add it to the allowlist when that happens.
   return !site_origin.opaque() && (url.SchemeIsHTTPOrHTTPS() ||
-                                   url.SchemeIs(extensions::kExtensionScheme) ||
-                                   url.SchemeIs(chrome::kIsolatedAppScheme));
+                                   url.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+                                   || url.SchemeIs(webapps::kIsolatedAppScheme)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
+                                  );
 }
 
 void ShowSiteSettingsImpl(Browser* browser, Profile* profile, const GURL& url) {

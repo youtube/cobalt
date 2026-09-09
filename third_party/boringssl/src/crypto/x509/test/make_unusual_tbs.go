@@ -121,6 +121,8 @@ func main() {
 	}
 
 	paths := []string{
+		"unusual_tbs_critical_ber.pem",
+		"unusual_tbs_critical_false_not_omitted.pem",
 		"unusual_tbs_empty_extension_not_omitted.pem",
 		"unusual_tbs_null_sigalg_param.pem",
 		"unusual_tbs_uid_both.pem",

@@ -210,7 +210,7 @@ class MarkCompactCollector final {
   void MarkLiveObjects();
 
   // Marks the object and adds it to the worklist.
-  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj,
+  V8_INLINE void MarkObject(Tagged<HeapObject> obj,
                             MarkingHelper::WorklistTarget target_worklist);
 
   // Marks the root object and adds it to the worklist.
@@ -359,7 +359,7 @@ class MarkCompactCollector final {
 
   // Goes through the list of encountered JSWeakRefs and WeakCells and clears
   // those with dead values.
-  void ClearJSWeakRefs();
+  void ProcessJSWeakRefs();
 
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.

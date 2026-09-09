@@ -2312,6 +2312,50 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   j(cc, condition_met, condition_met_distance);
 }
 
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  lea(scratch, Operand(object, -kHeapObjectTag));
+  cmp(scratch,
+      Operand(kRootRegister, IsolateData::last_young_allocation_offset()));
+  j(Condition::equal, ok);
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, not_zero,
+                ok);
+
+  Label not_ok;
+
+  // Handle allocation folding, allow WB removal if:
+  //   LAB start <= last_young_allocation_ < (object address+1) < LAB top
+  // Note that object has tag bit set, so object == object address+1.
+
+  // Check LAB start <= last_young_allocation_.
+  mov(scratch,
+      Operand(kRootRegister, IsolateData::last_young_allocation_offset()));
+  cmp(scratch,
+      Operand(kRootRegister, IsolateData::new_allocation_info_start_offset()));
+  j(Condition::kUnsignedLessThan, &not_ok);
+
+  // Check last_young_allocation_ < (object address+1).
+  cmp(scratch, object);
+  j(Condition::kUnsignedGreaterThanEqual, &not_ok);
+
+  // Check (object address+1) < LAB top.
+  cmp(object,
+      Operand(kRootRegister, IsolateData::new_allocation_info_top_offset()));
+  j(Condition::kUnsignedLessThan, ok);
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
+}
+
 void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   ASM_CODE_COMMENT(this);
   // In order to get the address of the current instruction, we first need

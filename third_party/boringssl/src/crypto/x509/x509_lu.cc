@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
+#include <limits.h>
 #include <string.h>
 
 #include <openssl/err.h>
@@ -23,17 +25,18 @@
 
 
 static int X509_OBJECT_idx_by_subject(STACK_OF(X509_OBJECT) *h, int type,
-                                      X509_NAME *name);
+                                      const X509_NAME *name);
 static X509_OBJECT *X509_OBJECT_retrieve_by_subject(STACK_OF(X509_OBJECT) *h,
-                                                    int type, X509_NAME *name);
+                                                    int type,
+                                                    const X509_NAME *name);
 static X509_OBJECT *X509_OBJECT_retrieve_match(STACK_OF(X509_OBJECT) *h,
                                                X509_OBJECT *x);
 static int X509_OBJECT_up_ref_count(X509_OBJECT *a);
 
 static X509_LOOKUP *X509_LOOKUP_new(const X509_LOOKUP_METHOD *method,
                                     X509_STORE *store);
-static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type, X509_NAME *name,
-                                  X509_OBJECT *ret);
+static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type,
+                                  const X509_NAME *name, X509_OBJECT *ret);
 
 static X509_LOOKUP *X509_LOOKUP_new(const X509_LOOKUP_METHOD *method,
                                     X509_STORE *store) {
@@ -74,8 +77,8 @@ int X509_LOOKUP_ctrl(X509_LOOKUP *ctx, int cmd, const char *argc, long argl,
   }
 }
 
-static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type, X509_NAME *name,
-                                  X509_OBJECT *ret) {
+static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type,
+                                  const X509_NAME *name, X509_OBJECT *ret) {
   if (ctx->method == NULL || ctx->method->get_by_subject == NULL) {
     return 0;
   }
@@ -86,16 +89,32 @@ static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type, X509_NAME *name,
   return ctx->method->get_by_subject(ctx, type, name, ret) > 0;
 }
 
-static int x509_object_cmp(const X509_OBJECT *a, const X509_OBJECT *b) {
-  int ret = a->type - b->type;
+// x509_object_cmp_name compares |a| against the specified type and name. This
+// avoids needing to construct a reference certificate or CRL.
+static int x509_object_cmp_name(const X509_OBJECT *a, int type,
+                                const X509_NAME *name) {
+  int ret = a->type - type;
   if (ret) {
     return ret;
   }
-  switch (a->type) {
+  switch (type) {
     case X509_LU_X509:
-      return X509_subject_name_cmp(a->data.x509, b->data.x509);
+      return X509_NAME_cmp(X509_get_subject_name(a->data.x509), name);
     case X509_LU_CRL:
-      return X509_CRL_cmp(a->data.crl, b->data.crl);
+      return X509_NAME_cmp(X509_CRL_get_issuer(a->data.crl), name);
+    default:
+      // abort();
+      return 0;
+  }
+}
+
+static int x509_object_cmp(const X509_OBJECT *a, const X509_OBJECT *b) {
+  switch (b->type) {
+    case X509_LU_X509:
+      return x509_object_cmp_name(a, b->type,
+                                  X509_get_subject_name(b->data.x509));
+    case X509_LU_CRL:
+      return x509_object_cmp_name(a, b->type, X509_CRL_get_issuer(b->data.crl));
     default:
       // abort();
       return 0;
@@ -163,8 +182,8 @@ X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *v, const X509_LOOKUP_METHOD *m) {
   return lu;
 }
 
-int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, int type, X509_NAME *name,
-                                  X509_OBJECT *ret) {
+int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, int type,
+                                  const X509_NAME *name, X509_OBJECT *ret) {
   X509_STORE *ctx = vs->ctx;
   X509_OBJECT stmp;
   CRYPTO_MUTEX_lock_write(&ctx->objs_lock);
@@ -284,55 +303,56 @@ X509 *X509_OBJECT_get0_X509(const X509_OBJECT *a) {
 }
 
 static int x509_object_idx_cnt(STACK_OF(X509_OBJECT) *h, int type,
-                               X509_NAME *name, int *pnmatch) {
-  X509_OBJECT stmp;
-  X509 x509_s;
-  X509_CRL crl_s;
-  X509_CRL_INFO crl_info_s;
-
-  stmp.type = type;
-  switch (type) {
-    case X509_LU_X509:
-      stmp.data.x509 = &x509_s;
-      x509_s.subject = name;
-      break;
-    case X509_LU_CRL:
-      stmp.data.crl = &crl_s;
-      crl_s.crl = &crl_info_s;
-      crl_info_s.issuer = name;
-      break;
-    default:
-      // abort();
-      return -1;
-  }
-
-  size_t idx;
+                               const X509_NAME *name, int *out_num_match) {
   sk_X509_OBJECT_sort(h);
-  if (!sk_X509_OBJECT_find(h, &idx, &stmp)) {
+
+  // Find the first matching object. |sk_X509_OBJECT_find| would require
+  // constructing an |X509| or |X509_CRL| object, so implement our own binary
+  // search.
+  size_t start = 0, end = sk_X509_OBJECT_num(h);
+  while (end - start > 1) {
+    // Bias |mid| towards |start|. The range has more than one element, so |mid|
+    // is not the last element.
+    size_t mid = start + (end - start - 1) / 2;
+    assert(start <= mid && mid + 1 < end);
+    int r = x509_object_cmp_name(sk_X509_OBJECT_value(h, mid), type, name);
+    if (r < 0) {
+      start = mid + 1;  // |mid| is too low.
+    } else if (r > 0) {
+      end = mid;  // |mid| is too high.
+    } else {
+      // |mid| matches, but we need to keep searching to find the first match.
+      end = mid + 1;
+    }
+  }
+  if (start == end ||
+      x509_object_cmp_name(sk_X509_OBJECT_value(h, start), type, name) != 0) {
     return -1;
   }
 
-  if (pnmatch != NULL) {
-    *pnmatch = 1;
-    for (size_t tidx = idx + 1; tidx < sk_X509_OBJECT_num(h); tidx++) {
+  if (out_num_match != nullptr) {
+    *out_num_match = 1;
+    for (size_t tidx = start + 1; tidx < sk_X509_OBJECT_num(h); tidx++) {
       const X509_OBJECT *tobj = sk_X509_OBJECT_value(h, tidx);
-      if (x509_object_cmp(tobj, &stmp)) {
+      if (x509_object_cmp_name(tobj, type, name) != 0) {
         break;
       }
-      (*pnmatch)++;
+      (*out_num_match)++;
     }
   }
 
-  return (int)idx;
+  assert(start <= INT_MAX);  // |STACK_OF(T)| never stores more than |INT_MAX|.
+  return static_cast<int>(start);
 }
 
 static int X509_OBJECT_idx_by_subject(STACK_OF(X509_OBJECT) *h, int type,
-                                      X509_NAME *name) {
+                                      const X509_NAME *name) {
   return x509_object_idx_cnt(h, type, name, NULL);
 }
 
 static X509_OBJECT *X509_OBJECT_retrieve_by_subject(STACK_OF(X509_OBJECT) *h,
-                                                    int type, X509_NAME *name) {
+                                                    int type,
+                                                    const X509_NAME *name) {
   int idx;
   idx = X509_OBJECT_idx_by_subject(h, type, name);
   if (idx == -1) {
@@ -364,7 +384,8 @@ STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(X509_STORE *store) {
   return store->objs;
 }
 
-STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm) {
+STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx,
+                                          const X509_NAME *nm) {
   int cnt;
   STACK_OF(X509) *sk = sk_X509_new_null();
   if (sk == NULL) {
@@ -405,7 +426,7 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm) {
 }
 
 STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(X509_STORE_CTX *ctx,
-                                             X509_NAME *nm) {
+                                             const X509_NAME *nm) {
   int cnt;
   X509_OBJECT xobj;
   STACK_OF(X509_CRL) *sk = sk_X509_CRL_new_null();
@@ -473,7 +494,7 @@ static X509_OBJECT *X509_OBJECT_retrieve_match(STACK_OF(X509_OBJECT) *h,
 }
 
 int X509_STORE_CTX_get1_issuer(X509 **out_issuer, X509_STORE_CTX *ctx,
-                               X509 *x) {
+                               const X509 *x) {
   X509_NAME *xn;
   X509_OBJECT obj, *pobj;
   int idx, ret;

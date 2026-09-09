@@ -41,6 +41,7 @@
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/native_widget_delegate.h"
 #include "ui/views/window/client_view.h"
+#include "ui/views/window/frame_view.h"
 #include "ui/views/window/non_client_view.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -77,7 +78,6 @@ namespace views {
 
 class DesktopWindowTreeHost;
 class NativeWidget;
-class NonClientFrameView;
 class SublevelManager;
 class TooltipManager;
 class View;
@@ -1181,11 +1181,11 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   void set_frame_type(FrameType frame_type) { frame_type_ = frame_type; }
   FrameType frame_type() const { return frame_type_; }
 
-  // Creates an appropriate NonClientFrameView for this widget. The
+  // Creates an appropriate FrameView for this widget. The
   // WidgetDelegate is given the first opportunity to create one, followed by
   // the NativeWidget implementation. If both return NULL, a default one is
   // created.
-  virtual std::unique_ptr<NonClientFrameView> CreateNonClientFrameView();
+  virtual std::unique_ptr<FrameView> CreateFrameView();
 
   // Whether we should be using a native frame.
   bool ShouldUseNativeFrame() const;
@@ -1435,12 +1435,6 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   ui::RendererColorMap GetRendererColorMap(
       ui::ColorProviderKey::ColorMode color_mode,
       ui::ColorProviderKey::ForcedColors forced_colors) const override;
-
-  // Set the native theme from which this widget gets color from for testing.
-  void SetNativeThemeForTest(ui::NativeTheme* native_theme) {
-    SetNativeTheme(native_theme);
-    native_theme_set_for_testing_ = true;
-  }
 
   ui::ColorProviderKey GetColorProviderKeyForTesting() const;
 
@@ -1754,11 +1748,6 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // The native theme this widget is using.
   // If nullptr, defaults to use the regular native theme.
   raw_ptr<ui::NativeTheme> native_theme_ = nullptr;
-
-  // A flag that prevents the widget from updating its instance of
-  // `native_theme_`. This is necessary during testing as theme updates may
-  // trigger a reset of the explicitly set test theme.
-  bool native_theme_set_for_testing_ = false;
 
   // By default, widgets are assumed to correspond to windows. If a parent
   // widget is fullscreen, then the child widget is a popup which is not

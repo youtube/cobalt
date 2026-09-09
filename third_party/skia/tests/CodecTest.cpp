@@ -11,6 +11,7 @@
 #include "include/codec/SkGifDecoder.h"
 #include "include/codec/SkJpegDecoder.h"
 #include "include/codec/SkPngChunkReader.h"
+#include "include/codec/SkPngDecoder.h"
 #include "include/core/SkAlphaType.h"
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
@@ -52,6 +53,10 @@
 #include "tools/DecodeUtils.h"
 #include "tools/Resources.h"
 #include "tools/ToolUtils.h"
+
+#if defined(SK_CODEC_DECODES_PNG_WITH_RUST)
+#include "include/codec/SkPngRustDecoder.h"
+#endif
 
 #ifdef SK_ENABLE_ANDROID_UTILS
 #include "client_utils/android/FrontBufferedStream.h"
@@ -874,7 +879,7 @@ DEF_TEST(Codec_Empty, r) {
     test_invalid(r, "invalid_images/ossfuzz6347");
 }
 
-#ifdef PNG_READ_UNKNOWN_CHUNKS_SUPPORTED
+#if defined(SK_CODEC_DECODES_PNG_WITH_LIBPNG) && defined(PNG_READ_UNKNOWN_CHUNKS_SUPPORTED)
 
 #ifndef SK_PNG_DISABLE_TESTS   // reading chunks does not work properly with older versions.
                                // It does not appear that anyone in Google3 is reading chunks.
@@ -1033,7 +1038,7 @@ DEF_TEST(Codec_pngChunkReader, r) {
     REPORTER_ASSERT(r, chunkReader.allHaveBeenSeen());
 }
 #endif // SK_PNG_DISABLE_TESTS
-#endif // PNG_READ_UNKNOWN_CHUNKS_SUPPORTED
+#endif // PNG_READ_UNKNOWN_CHUNKS_SUPPORTED and SK_CODEC_DECODES_PNG_WITH_LIBPNG
 
 // Stream that can only peek up to a limit
 class LimitedPeekingMemStream : public SkStream {
@@ -1279,7 +1284,7 @@ static void check_round_trip(skiatest::Reporter* r, SkCodec* origCodec, const Sk
     REPORTER_ASSERT(r, md5(bm1) == md5(bm2));
 }
 
-DEF_TEST(Codec_PngRoundTrip, r) {
+DEF_TEST(Codec_pngRoundTrip, r) {
     auto codec = SkCodec::MakeFromStream(GetResourceAsStream("images/mandrill_512_q075.jpg"));
 
     SkColorType colorTypesOpaque[] = {
@@ -2609,4 +2614,52 @@ DEF_TEST(HdrMetadata_ParseSerialize_MasteringDisplayColorVolume, r) {
     REPORTER_ASSERT(r, mdcv == mdcvExpected);
     REPORTER_ASSERT(r, skData->equals(mdcv.serialize().get()));
 }
+
+#if defined(SK_CODEC_DECODES_PNG_WITH_LIBPNG) && \
+    defined(SK_CODEC_ENCODES_PNG_WITH_LIBPNG) && \
+    !defined(SK_PNG_DISABLE_TESTS)
+DEF_TEST(PngHdrMetadataRoundTrip, r) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(10, 10));
+
+    SkPngEncoder::Options options;
+    options.fHdrMetadata.setMasteringDisplayColorVolume(
+        skhdr::MasteringDisplayColorVolume({SkNamedPrimaries::kRec2020, 500.f, 0.0005f}));
+    options.fHdrMetadata.setContentLightLevelInformation(
+        skhdr::ContentLightLevelInformation({1000.f, 150.f}));
+
+    SkDynamicMemoryWStream wstream;
+    SkPngEncoder::Encode(&wstream, bm.pixmap(), options);
+
+    SkCodec::Result result;
+    auto codec = SkPngDecoder::Decode(wstream.detachAsData(), &result);
+
+    REPORTER_ASSERT(r, options.fHdrMetadata == codec->getHdrMetadata());
+}
+#endif
+
+#if defined(SK_CODEC_DECODES_PNG_WITH_RUST) && \
+    defined(SK_CODEC_ENCODES_PNG_WITH_LIBPNG) && \
+    !defined(SK_PNG_DISABLE_TESTS)
+DEF_TEST(PngRustHdrMetadataRoundTrip, r) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(10, 10));
+
+    // The SkPngRustEncoder doesn't support writing HDR metadata, so this uses the libpng encoder.
+    SkPngEncoder::Options options;
+    options.fHdrMetadata.setMasteringDisplayColorVolume(
+        skhdr::MasteringDisplayColorVolume({SkNamedPrimaries::kRec2020, 500.f, 0.0005f}));
+    options.fHdrMetadata.setContentLightLevelInformation(
+        skhdr::ContentLightLevelInformation({1000.f, 150.f}));
+
+    SkDynamicMemoryWStream wstream;
+    SkPngEncoder::Encode(&wstream, bm.pixmap(), options);
+
+    SkCodec::Result result;
+    auto codec = SkPngRustDecoder::Decode(
+        std::make_unique<SkMemoryStream>(wstream.detachAsData()), &result);
+
+    REPORTER_ASSERT(r, options.fHdrMetadata == codec->getHdrMetadata());
+}
+#endif
 

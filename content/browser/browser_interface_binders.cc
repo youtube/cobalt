@@ -688,23 +688,6 @@ void BindPressureManager(
 }
 #endif  // BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
 
-VibrationManagerBinder& GetVibrationManagerBinderOverride() {
-  static base::NoDestructor<VibrationManagerBinder> binder;
-  return *binder;
-}
-
-void BindVibrationManager(
-    RenderFrameHostImpl* frame,
-    mojo::PendingReceiver<device::mojom::VibrationManager> receiver) {
-  const auto& binder = GetVibrationManagerBinderOverride();
-  if (binder) {
-    binder.Run(std::move(receiver), frame->CreateVibrationManagerListener());
-  } else {
-    GetDeviceService().BindVibrationManager(
-        std::move(receiver), frame->CreateVibrationManagerListener());
-  }
-}
-
 void BindMediaPlayerObserverClientHandler(
     RenderFrameHost* frame_host,
     mojo::PendingReceiver<media::mojom::MediaPlayerObserverClient> receiver) {
@@ -913,9 +896,6 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
 
   map->Add<blink::mojom::WebSensorProvider>(base::BindRepeating(
       &RenderFrameHostImpl::GetSensorProvider, base::Unretained(host)));
-
-  map->Add<device::mojom::VibrationManager>(
-      base::BindRepeating(&BindVibrationManager, base::Unretained(host)));
 
   map->Add<payments::mojom::PaymentManager>(base::BindRepeating(
       &RenderFrameHostImpl::CreatePaymentManager, base::Unretained(host)));
@@ -1277,6 +1257,14 @@ void PopulateBinderMapWithContext(
   map->Add<blink::mojom::SpeculationHost>(&SpeculationHostImpl::Bind);
   map->Add<blink::mojom::AnchorElementInteractionHost>(
       &AnchorElementInteractionHostImpl::Create);
+
+  map->Add<device::mojom::VibrationManager>(
+      [](RenderFrameHost* host,
+         mojo::PendingReceiver<device::mojom::VibrationManager> receiver) {
+        GetDeviceService().BindVibrationManager(
+            std::move(receiver), static_cast<RenderFrameHostImpl*>(host)
+                                     ->CreateVibrationManagerListener());
+      });
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (base::FeatureList::IsEnabled(features::kWebLockScreenApi)) {
@@ -1862,10 +1850,6 @@ void PopulateBinderMap(ServiceWorkerHost* host, mojo::BinderMap* map) {
 
 void OverrideBatteryMonitorBinderForTesting(BatteryMonitorBinder binder) {
   internal::GetBatteryMonitorBinderOverride() = std::move(binder);
-}
-
-void OverrideVibrationManagerBinderForTesting(VibrationManagerBinder binder) {
-  internal::GetVibrationManagerBinderOverride() = std::move(binder);
 }
 
 }  // namespace content

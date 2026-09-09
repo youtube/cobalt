@@ -301,12 +301,13 @@ static void rand_get_seed(struct rand_thread_state *state,
     }
   }
 
-  // If we used something other than system entropy then also
-  // opportunistically read from the system. This avoids solely relying on the
-  // hardware once the entropy pool has been initialized.
+  // If we used something other than system entropy then also read from the
+  // system. This avoids solely relying on the hardware.
+  // TODO(crbug.com/446280903): Once this change sticks, switch
+  // |get_seed_entropy| to draw from the OS instead of RDRAND.
   *out_additional_input_len = 0;
-  if (want_additional_input &&
-      CRYPTO_sysrand_if_available(additional_input, CTR_DRBG_SEED_LEN)) {
+  if (want_additional_input) {
+    CRYPTO_sysrand(additional_input, CTR_DRBG_SEED_LEN);
     *out_additional_input_len = CTR_DRBG_SEED_LEN;
   }
 }
@@ -352,13 +353,7 @@ bcm_infallible BCM_rand_bytes_with_additional_data(
     // promised not to fork.
     if (fork_generation != 0 || fork_unsafe_buffering) {
       OPENSSL_memset(additional_data, 0, sizeof(additional_data));
-    } else if (!have_rdrand()) {
-      // No alternative so block for OS entropy.
-      CRYPTO_sysrand(additional_data, sizeof(additional_data));
-    } else if (!CRYPTO_sysrand_if_available(additional_data,
-                                            sizeof(additional_data)) &&
-               !rdrand(additional_data, sizeof(additional_data))) {
-      // RDRAND failed: block for OS entropy.
+    } else {
       CRYPTO_sysrand(additional_data, sizeof(additional_data));
     }
   }

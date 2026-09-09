@@ -126,6 +126,7 @@ RtpTransceiver::RtpTransceiver(const Environment& env,
       codec_lookup_helper_(codec_lookup_helper) {
   RTC_DCHECK(media_type == MediaType::AUDIO || media_type == MediaType::VIDEO);
   RTC_DCHECK(context_);
+  RTC_DCHECK(context_->media_engine());
   RTC_DCHECK(codec_lookup_helper_);
 }
 
@@ -147,6 +148,7 @@ RtpTransceiver::RtpTransceiver(
           std::move(header_extensions_to_negotiate)),
       on_negotiation_needed_(std::move(on_negotiation_needed)) {
   RTC_DCHECK(context_);
+  RTC_DCHECK(context_->media_engine());
   RTC_DCHECK(media_type_ == MediaType::AUDIO ||
              media_type_ == MediaType::VIDEO);
   RTC_DCHECK_EQ(sender->media_type(), receiver->media_type());
@@ -211,12 +213,6 @@ RTCError RtpTransceiver::CreateChannel(
     std::function<RtpTransportInternal*(absl::string_view)> transport_lookup) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(!channel());
-
-  if (!media_engine()) {
-    // TODO(hta): Must be a better way
-    return RTCError(RTCErrorType::INTERNAL_ERROR,
-                    "No media engine for mid=" + std::string(mid));
-  }
 
   std::unique_ptr<ChannelInterface> new_channel;
   if (media_type() == MediaType::AUDIO) {
@@ -839,7 +835,7 @@ void RtpTransceiver::OnNegotiationUpdate(
   RTC_DCHECK(content);
   if (sdp_type == SdpType::kAnswer) {
     negotiated_header_extensions_ = content->rtp_header_extensions();
-    if (context_->env().field_trials().IsEnabled(
+    if (env_.field_trials().IsEnabled(
             "WebRTC-HeaderExtensionNegotiateMemory")) {
       header_extensions_to_negotiate_ = GetNegotiatedHeaderExtensions();
     }

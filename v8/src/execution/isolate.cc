@@ -3748,63 +3748,7 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(
   return false;
 }
 
-bool Isolate::IsWasmStringRefEnabled(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  // If Wasm imported strings are explicitly enabled via a callback, also enable
-  // stringref.
-  v8::WasmImportedStringsEnabledCallback callback_imported_strings =
-      wasm_imported_strings_enabled_callback();
-  if (callback_imported_strings) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback_imported_strings(api_context)) return true;
-  }
-  // Otherwise use the runtime flag.
-  return v8_flags.experimental_wasm_stringref;
-#else
-  return false;
-#endif
-}
 
-bool Isolate::IsWasmJSPIRequested(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.wasm_jitless) return false;
-
-  v8::WasmJSPIEnabledCallback jspi_callback = wasm_jspi_enabled_callback();
-  if (jspi_callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (jspi_callback(api_context)) return true;
-  }
-
-  // Otherwise use the runtime flag.
-  return v8_flags.experimental_wasm_jspi;
-#else
-  return false;
-#endif
-}
-
-bool Isolate::IsWasmJSPIEnabled(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  return IsWasmJSPIRequested(context) &&
-         context->is_wasm_jspi_installed() != Smi::zero();
-#else
-  return false;
-#endif
-}
-
-bool Isolate::IsWasmImportedStringsEnabled(
-    DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  v8::WasmImportedStringsEnabledCallback callback =
-      wasm_imported_strings_enabled_callback();
-  if (callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback(api_context)) return true;
-  }
-  return v8_flags.experimental_wasm_imported_strings;
-#else
-  return false;
-#endif
-}
 
 bool Isolate::IsWasmCustomDescriptorsEnabled(
     DirectHandle<NativeContext> context) {
@@ -3960,6 +3904,7 @@ template <wasm::JumpBuffer::StackState new_state_of_old_stack,
 void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
                            Address sp, Address fp, Address pc) {
   SBXCHECK_EQ(from->jmpbuf()->state, wasm::JumpBuffer::Active);
+  DCHECK_EQ(from, isolate_data()->active_stack());
   constexpr bool is_resume =
       expected_target_state == wasm::JumpBuffer::Suspended;
 #if DEBUG
@@ -3982,6 +3927,7 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
   }
   SBXCHECK_EQ(to->jmpbuf()->state, expected_target_state);
   to->jmpbuf()->state = wasm::JumpBuffer::Active;
+  isolate_data()->set_active_stack(to);
   DisallowGarbageCollection no_gc;
   if constexpr (is_resume) {
     // To resume multiple stacks at once, we have to update the parent of the
@@ -6077,9 +6023,18 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
   if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->payload()),
-          WasmNull::kSize - kTaggedSize)) {
+          reinterpret_cast<void*>(factory()->wasm_null()->first_payload()),
+          WasmNull::kFirstPayloadSize)) {
     V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
+  }
+  if (v8_flags.unmap_holes) {
+    // Protect the second payload of wasm null, containing the holes.
+    if (!page_allocator()->DecommitPages(
+            reinterpret_cast<void*>(factory()->wasm_null()->second_payload()),
+            WasmNull::kSecondPayloadSize)) {
+      V8::FatalProcessOutOfMemory(
+          this, "decommitting second WasmNull payload (holes)");
+    }
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 #endif  // V8_ENABLE_WEBASSEMBLY

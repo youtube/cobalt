@@ -143,8 +143,10 @@ class DtlsTestClient : public sigslot::has_slots<> {
         ssl_max_version_);
     // Note: Certificate may be null here if testing passthrough.
     dtls_transport_->SetLocalCertificate(certificate_);
-    dtls_transport_->SignalWritableState.connect(
-        this, &DtlsTestClient::OnTransportWritableState);
+    dtls_transport_->SubscribeWritableState(
+        this, [this](PacketTransportInternal* transport) {
+          OnTransportWritableState(transport);
+        });
     dtls_transport_->RegisterReceivedPacketCallback(
         this, [&](PacketTransportInternal* transport,
                   const ReceivedIpPacket& packet) {

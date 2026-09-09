@@ -226,7 +226,7 @@ void Unpacker::EndUnpacking(UnpackerError error, int extended_error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if !BUILDFLAG(IS_STARBOARD)
   if (error != UnpackerError::kNone && !unpack_path_.empty()) {
-    RetryDeletePathRecursively(unpack_path_);
+    RetryFileOperation(&base::DeletePathRecursively, unpack_path_);
   }
 #endif
 

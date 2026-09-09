@@ -19,6 +19,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -41,6 +42,7 @@
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtc_event_log/rtc_event_log.h"
 #include "api/rtc_event_log_output.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
@@ -73,7 +75,6 @@
 #include "p2p/base/connection_info.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
-#include "p2p/base/p2p_transport_channel.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/transport_description.h"
@@ -98,6 +99,7 @@
 #include "pc/sctp_data_channel.h"
 #include "pc/sctp_transport.h"
 #include "pc/sdp_offer_answer.h"
+#include "pc/sdp_state_provider.h"
 #include "pc/session_description.h"
 #include "pc/transceiver_list.h"
 #include "pc/transport_stats.h"
@@ -131,7 +133,7 @@ class CodecLookupHelperForPeerConnection : public CodecLookupHelper {
       : self_(self),
         codec_vendor_(self_->context()->media_engine(),
                       self_->context()->use_rtx(),
-                      self_->context()->env().field_trials()) {}
+                      self_->trials()) {}
 
   webrtc::PayloadTypeSuggester* PayloadTypeSuggester() override {
     return self_->transport_controller_s();
@@ -360,6 +362,63 @@ void NoteServerUsage(UsagePattern& usage_pattern,
   }
 }
 
+template <typename Observer,
+          typename std::enable_if_t<
+              std::is_same_v<Observer, SetSessionDescriptionObserver*>,
+              bool> = true>
+absl::AnyInvocable<void() &&> ReportFailure(Observer& o, RTCError error) {
+  return [o = scoped_refptr<SetSessionDescriptionObserver>(o),
+          error = std::move(error)]() { o->OnFailure(error); };
+}
+
+template <
+    typename Observer,
+    typename std::enable_if_t<
+        std::is_same_v<Observer,
+                       scoped_refptr<SetLocalDescriptionObserverInterface>>,
+        bool> = true>
+absl::AnyInvocable<void() &&> ReportFailure(Observer& o, RTCError error) {
+  return [o = std::move(o), error = std::move(error)]() {
+    o->OnSetLocalDescriptionComplete(error);
+  };
+}
+
+template <
+    typename Observer,
+    typename std::enable_if_t<
+        std::is_same_v<Observer,
+                       scoped_refptr<SetRemoteDescriptionObserverInterface>>,
+        bool> = true>
+absl::AnyInvocable<void() &&> ReportFailure(Observer& o, RTCError error) {
+  return [o = std::move(o), error = std::move(error)]() {
+    o->OnSetRemoteDescriptionComplete(error);
+  };
+}
+
+// Checks if the observer and description pointers are valid.
+// If there's an error, the function will return false and optionally
+// notify the observer asynchronously of the error.
+// If both are valid, the function will reset the thread ownership of
+// the description object and return true.
+template <typename Observer, typename Description>
+bool CheckValidSetDescription(Observer& observer,
+                              Description& desc,
+                              Thread* signaling) {
+  if (!observer) {
+    RTC_LOG(LS_ERROR) << "Observer is NULL.";
+    return false;
+  } else if (!desc) {
+    signaling->PostTask(
+        ReportFailure(observer, RTCError(RTCErrorType::INVALID_PARAMETER,
+                                         "SessionDescription is NULL.")));
+    return false;
+  }
+  // Make sure the description object now considers the current thread its home
+  // by detaching from any potential previous thread.
+  desc->RelinquishThreadOwnership();
+  return true;
+}
+
 }  // namespace
 
 bool PeerConnectionInterface::RTCConfiguration::operator==(
@@ -565,7 +624,7 @@ PeerConnection::PeerConnection(
   }
 
   sdp_handler_ = SdpOfferAnswerHandler::Create(
-      this, configuration_, std::move(dependencies.cert_generator),
+      env_, this, configuration_, std::move(dependencies.cert_generator),
       std::move(dependencies.video_bitrate_allocator_factory), context_.get(),
       codec_lookup_helper_.get());
   rtp_manager_ = std::make_unique<RtpTransmissionManager>(
@@ -575,7 +634,7 @@ PeerConnection::PeerConnection(
         sdp_handler_->UpdateNegotiationNeeded();
       });
   // Add default audio/video transceivers for Plan B SDP.
-  if (!IsUnifiedPlan()) {
+  if (!IsUnifiedPlan() && ConfiguredForMedia()) {
     rtp_manager_->transceivers()->Add(
         RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
             signaling_thread(), make_ref_counted<RtpTransceiver>(
@@ -689,9 +748,8 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
   config.rtcp_mux_policy = configuration.rtcp_mux_policy;
   config.crypto_options = configuration.crypto_options;
 
-  // Maybe enable PQC from FieldTrials
-  config.crypto_options.ephemeral_key_exchange_cipher_groups.Update(
-      &context_->env().field_trials());
+  // Maybe enable or disable PQC from FieldTrials
+  config.crypto_options.ephemeral_key_exchange_cipher_groups.Update(&trials());
   config.transport_observer = this;
   config.rtcp_handler = InitializeRtcpCallback();
   config.un_demuxable_packet_handler = InitializeUnDemuxablePacketHandler();
@@ -1086,8 +1144,7 @@ PeerConnection::AddTransceiver(webrtc::MediaType media_type,
   std::vector<Codec> codecs;
   // Gather the current codec capabilities to allow checking scalabilityMode and
   // codec selection against supported values.
-  CodecVendor codec_vendor(context_->media_engine(), false,
-                           context_->env().field_trials());
+  CodecVendor codec_vendor(context_->media_engine(), false, trials());
   if (media_type == webrtc::MediaType::VIDEO) {
     codecs = codec_vendor.video_send_codecs().codecs();
   } else {
@@ -1428,16 +1485,28 @@ void PeerConnection::CreateAnswer(CreateSessionDescriptionObserver* observer,
 
 void PeerConnection::SetLocalDescription(
     SetSessionDescriptionObserver* observer,
-    SessionDescriptionInterface* desc_ptr) {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  sdp_handler_->SetLocalDescription(observer, desc_ptr);
+    SessionDescriptionInterface* desc) {
+  if (!CheckValidSetDescription(observer, desc, signaling_thread()))
+    return;
+
+  RunOnSignalingThread([this, desc, observer]() mutable {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    sdp_handler_->SetLocalDescription(observer, desc);
+  });
 }
 
+// This method bypasses the proxy, so can be called from any thread.
 void PeerConnection::SetLocalDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
     scoped_refptr<SetLocalDescriptionObserverInterface> observer) {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  sdp_handler_->SetLocalDescription(std::move(desc), observer);
+  if (!CheckValidSetDescription(observer, desc, signaling_thread()))
+    return;
+
+  RunOnSignalingThread(
+      [this, desc = std::move(desc), observer = std::move(observer)]() mutable {
+        RTC_DCHECK_RUN_ON(signaling_thread());
+        sdp_handler_->SetLocalDescription(std::move(desc), observer);
+      });
 }
 
 void PeerConnection::SetLocalDescription(
@@ -1454,16 +1523,27 @@ void PeerConnection::SetLocalDescription(
 
 void PeerConnection::SetRemoteDescription(
     SetSessionDescriptionObserver* observer,
-    SessionDescriptionInterface* desc_ptr) {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  sdp_handler_->SetRemoteDescription(observer, desc_ptr);
+    SessionDescriptionInterface* desc) {
+  if (!CheckValidSetDescription(observer, desc, signaling_thread()))
+    return;
+
+  RunOnSignalingThread([this, desc, observer]() mutable {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    sdp_handler_->SetRemoteDescription(observer, desc);
+  });
 }
 
 void PeerConnection::SetRemoteDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
     scoped_refptr<SetRemoteDescriptionObserverInterface> observer) {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  sdp_handler_->SetRemoteDescription(std::move(desc), observer);
+  if (!CheckValidSetDescription(observer, desc, signaling_thread()))
+    return;
+
+  RunOnSignalingThread(
+      [this, desc = std::move(desc), observer = std::move(observer)]() mutable {
+        RTC_DCHECK_RUN_ON(signaling_thread());
+        sdp_handler_->SetRemoteDescription(std::move(desc), observer);
+      });
 }
 
 PeerConnectionInterface::RTCConfiguration PeerConnection::GetConfiguration() {
@@ -1728,37 +1808,41 @@ scoped_refptr<SctpTransportInterface> PeerConnection::GetSctpTransport() const {
 }
 
 const SessionDescriptionInterface* PeerConnection::local_description() const {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  return sdp_handler_->local_description();
+  return HandleSessionDescriptionAccessor<&SdpStateProvider::local_description>(
+      local_description_clone_);
 }
 
 const SessionDescriptionInterface* PeerConnection::remote_description() const {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  return sdp_handler_->remote_description();
+  return HandleSessionDescriptionAccessor<
+      &SdpStateProvider::remote_description>(remote_description_clone_);
 }
 
 const SessionDescriptionInterface* PeerConnection::current_local_description()
     const {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  return sdp_handler_->current_local_description();
+  return HandleSessionDescriptionAccessor<
+      &SdpStateProvider::current_local_description>(
+      current_local_description_clone_);
 }
 
 const SessionDescriptionInterface* PeerConnection::current_remote_description()
     const {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  return sdp_handler_->current_remote_description();
+  return HandleSessionDescriptionAccessor<
+      &SdpStateProvider::current_remote_description>(
+      current_remote_description_clone_);
 }
 
 const SessionDescriptionInterface* PeerConnection::pending_local_description()
     const {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  return sdp_handler_->pending_local_description();
+  return HandleSessionDescriptionAccessor<
+      &SdpStateProvider::pending_local_description>(
+      pending_local_description_clone_);
 }
 
 const SessionDescriptionInterface* PeerConnection::pending_remote_description()
     const {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  return sdp_handler_->pending_remote_description();
+  return HandleSessionDescriptionAccessor<
+      &SdpStateProvider::pending_remote_description>(
+      pending_remote_description_clone_);
 }
 
 void PeerConnection::Close() {
@@ -3032,6 +3116,19 @@ PeerConnection::InitializeUnDemuxablePacketHandler() {
 bool PeerConnection::CanAttemptDtlsStunPiggybacking() {
   return dtls_enabled_ &&
          env_.field_trials().IsEnabled("WebRTC-IceHandshakeDtls");
+}
+
+void PeerConnection::RunOnSignalingThread(absl::AnyInvocable<void() &&> task) {
+  if (signaling_thread()->IsCurrent()) {
+    std::move(task)();
+  } else {
+    // Consider if we can use PostTask instead in some situations:
+    //   signaling_thread()->PostTask(
+    //      SafeTask(signaling_thread_safety_.flag(), std::move(task)));
+    // Currently we use BlockingCall() to be compatible with how the
+    // api proxies work by default.
+    signaling_thread()->BlockingCall([&] { std::move(task)(); });
+  }
 }
 
 }  // namespace webrtc

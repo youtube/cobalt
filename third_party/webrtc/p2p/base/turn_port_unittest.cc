@@ -372,9 +372,12 @@ class TurnPortTest : public ::testing::Test,
         [this](Port* port, const IceCandidateErrorEvent& event) {
           OnCandidateError(port, event);
         });
-
-    turn_port_->SignalUnknownAddress.connect(
-        this, &TurnPortTest::OnTurnUnknownAddress);
+    turn_port_->SubscribeUnknownAddress(
+        [this](PortInterface* port, const SocketAddress& address,
+               ProtocolType proto, IceMessage* stun_msg, const std::string& rf,
+               bool port_muxed) {
+          OnTurnUnknownAddress(port, address, proto, stun_msg, rf, port_muxed);
+        });
     turn_port_->SubscribePortDestroyed(
         [this](PortInterface* port) { OnTurnPortDestroyed(port); });
     turn_port_->SetCallbacksForTest(this);

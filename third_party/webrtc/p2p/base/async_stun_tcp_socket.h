@@ -42,6 +42,8 @@ class AsyncStunTCPSocket : public AsyncTCPSocketBase {
   // This method also returns the number of padding bytes needed/added to the
   // turn message. `pad_bytes` should be used only when `is_turn` is true.
   size_t GetExpectedLength(const void* data, size_t len, int* pad_bytes);
+
+  const Environment env_;
 };
 
 }  //  namespace webrtc

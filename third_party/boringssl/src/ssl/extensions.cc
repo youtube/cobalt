@@ -2197,6 +2197,45 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
     return true;
   }
 
+  const Span<const uint16_t> supported_group_list =
+      hs->config->supported_group_list;
+  if (supported_group_list.empty()) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_NO_GROUPS_SPECIFIED);
+    return false;
+  }
+
+  InplaceVector<uint16_t, 2> default_key_shares;
+
+  Span<const uint16_t> selected_key_shares;
+
+  // Determine the key shares to send.
+  if (override_group_id != 0) {
+    assert(std::find(supported_group_list.begin(), supported_group_list.end(),
+                     override_group_id) != supported_group_list.end());
+    selected_key_shares = Span(&override_group_id, 1u);
+  } else if (ssl->config->client_key_share_selections.has_value()) {
+    selected_key_shares = *(ssl->config->client_key_share_selections);
+  } else {
+    // By default, predict the most preferred group.
+    if (!default_key_shares.TryPushBack(supported_group_list[0])) {
+      return false;
+    }
+    // We'll try to include one post-quantum and one classical initial key
+    // share.
+    for (size_t i = 1; i < supported_group_list.size(); i++) {
+      if (is_post_quantum_group(default_key_shares[0]) ==
+          is_post_quantum_group(supported_group_list[i])) {
+        continue;
+      }
+      if (!default_key_shares.TryPushBack(supported_group_list[i])) {
+        return false;
+      }
+      assert(default_key_shares[1] != default_key_shares[0]);
+      break;
+    }
+    selected_key_shares = default_key_shares;
+  }
+
   bssl::ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 64)) {
     return false;
@@ -2211,45 +2250,13 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
     }
   }
 
-  uint16_t group_id = override_group_id;
-  uint16_t second_group_id = 0;
-  if (override_group_id == 0) {
-    // Predict the most preferred group.
-    Span<const uint16_t> groups = hs->config->supported_group_list;
-    if (groups.empty()) {
-      OPENSSL_PUT_ERROR(SSL, SSL_R_NO_GROUPS_SPECIFIED);
-      return false;
-    }
-
-    group_id = groups[0];
-
-    // We'll try to include one post-quantum and one classical initial key
-    // share.
-    for (size_t i = 1; i < groups.size() && second_group_id == 0; i++) {
-      if (is_post_quantum_group(group_id) != is_post_quantum_group(groups[i])) {
-        second_group_id = groups[i];
-        assert(second_group_id != group_id);
-      }
-    }
-  }
-
   CBB key_exchange;
-  {
+  for (const uint16_t group_id : selected_key_shares) {
     UniquePtr<SSLKeyShare> key_share = SSLKeyShare::Create(group_id);
-    if (key_share == nullptr || !CBB_add_u16(cbb.get(), group_id) ||
-        !CBB_add_u16_length_prefixed(cbb.get(), &key_exchange) ||
-        !key_share->Generate(&key_exchange) ||
-        !hs->key_shares.TryPushBack(std::move(key_share))) {
-      return false;
-    }
-  }
-
-  if (second_group_id != 0) {
-    // TODO(chlily): Fix temporary code duplication.
-    UniquePtr<SSLKeyShare> key_share = SSLKeyShare::Create(second_group_id);
-    if (key_share == nullptr || !CBB_add_u16(cbb.get(), second_group_id) ||
-        !CBB_add_u16_length_prefixed(cbb.get(), &key_exchange) ||
-        !key_share->Generate(&key_exchange) ||
+    if (key_share == nullptr ||                                    //
+        !CBB_add_u16(cbb.get(), group_id) ||                       //
+        !CBB_add_u16_length_prefixed(cbb.get(), &key_exchange) ||  //
+        !key_share->Generate(&key_exchange) ||                     //
         !hs->key_shares.TryPushBack(std::move(key_share))) {
       return false;
     }
@@ -2267,7 +2274,12 @@ static bool ext_key_share_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
     return true;
   }
 
-  assert(!hs->key_share_bytes.empty());
+  // The caller may explicitly configure empty key shares to request a
+  // HelloRetryRequest.
+  assert(!hs->key_share_bytes.empty() ||
+         (hs->config->client_key_share_selections.has_value() &&
+          hs->config->client_key_share_selections->empty()));
+
   CBB contents, kse_bytes;
   if (!CBB_add_u16(out_compressible, TLSEXT_TYPE_key_share) ||
       !CBB_add_u16_length_prefixed(out_compressible, &contents) ||

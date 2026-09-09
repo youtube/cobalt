@@ -21,6 +21,7 @@
 #include "include/v8-isolate.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/enum-set.h"
+#include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
@@ -307,14 +308,6 @@ class Heap final {
   };
   using Reservation = std::vector<Chunk>;
 
-#if V8_OS_ANDROID
-  // Don't apply pointer multiplier on Android since it has no swap space and
-  // should instead adapt it's heap size based on available physical memory.
-  static const int kPointerMultiplier = 1;
-#else
-  static const int kPointerMultiplier = kTaggedSize / 4;
-#endif
-
   // These constants control heap configuration based on the physical memory.
   static constexpr size_t kPhysicalMemoryToOldGenerationRatio = 4;
   static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
@@ -588,7 +581,7 @@ class Heap final {
   bool IsGCWithMainThreadStack() const;
 
   // This method is only safe to use in a safepoint.
-  bool IsGCWithStack() const;
+  V8_EXPORT_PRIVATE bool IsGCWithStack() const;
 
   bool CanShortcutStringsDuringGC(GarbageCollector collector) const;
 
@@ -1966,9 +1959,10 @@ class Heap final {
 
   void UpdateTotalGCTime(base::TimeDelta duration);
 
-  bool IsIneffectiveMarkCompact(size_t old_generation_size,
+  bool IsIneffectiveMarkCompact(size_t old_generation_size, size_t global_size,
                                 double mutator_utilization);
   void CheckIneffectiveMarkCompact(size_t old_generation_size,
+                                   size_t global_size,
                                    double mutator_utilization);
 
   inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,

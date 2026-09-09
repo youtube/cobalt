@@ -18,6 +18,7 @@
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/objects/casting-inl.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
@@ -30,7 +31,8 @@ namespace internal {
 bool Scavenger::ShouldEagerlyProcessPromotedList() const {
   // Threshold when to prioritize processing of the promoted list. Right
   // now we only look into the regular object list.
-  const int kProcessPromotedListThreshold = kPromotedListSegmentSize / 2;
+  static constexpr int kProcessPromotedListThreshold =
+      ScavengedObjectList::kMinSegmentSize / 2;
   return local_promoted_list_.PushSegmentSize() >=
          kProcessPromotedListThreshold;
 }
@@ -121,10 +123,10 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
   if (TryMigrateObject(
           map, slot, object, object_size, NEW_SPACE, kPromoteIntoLocalHeap,
-          [this, object_fields, object_size](Tagged<HeapObject> target) {
+          [this, map, object_fields, object_size](Tagged<HeapObject> target) {
             copied_size_ += object_size.value();
             if (object_fields == ObjectFields::kMaybePointers) {
-              local_copied_list_.Push(target);
+              local_copied_list_.Push({target, map, object_size});
             }
           })) {
     return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
@@ -451,34 +453,35 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   return REMOVE_SLOT;
 }
 
-class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
-  using Base = NewSpaceVisitor<ScavengeVisitor>;
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
+  using Base = NewSpaceVisitor<ConcreteVisitor>;
 
  public:
-  explicit ScavengeVisitor(Scavenger* scavenger);
+  explicit ScavengerObjectVisitorBase(Scavenger* scavenger);
+
+  V8_INLINE static constexpr bool ShouldUseUncheckedCast() { return true; }
+  V8_INLINE static constexpr bool UsePrecomputedObjectSize() { return true; }
 
   V8_INLINE void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
-                               ObjectSlot end) final;
-
+                               ObjectSlot end) override;
   V8_INLINE void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
-                               MaybeObjectSlot end) final;
+                               MaybeObjectSlot end) override;
   V8_INLINE void VisitCustomWeakPointers(Tagged<HeapObject> host,
                                          ObjectSlot start,
-                                         ObjectSlot end) final;
-  V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
-                                           Tagged<EphemeronHashTable> object,
-                                           MaybeObjectSize);
+                                         ObjectSlot end) override;
+
+  V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
+                                      ExternalPointerSlot slot) override;
+
   V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
                                       Tagged<JSArrayBuffer> object,
                                       MaybeObjectSize);
-  V8_INLINE size_t VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object,
-                                    MaybeObjectSize);
-  V8_INLINE size_t VisitCppHeapExternalObject(
-      Tagged<Map> map, Tagged<CppHeapExternalObject> object, MaybeObjectSize);
-  V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
-                                      ExternalPointerSlot slot) final;
+
   V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
                                   MaybeObjectSize maybe_size);
+  V8_INLINE size_t VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object,
+                                 MaybeObjectSize maybe_size);
 
   V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
     return false;
@@ -489,55 +492,53 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
     return GCSafeCast<T>(object, heap);
   }
 
- private:
-  template <typename TSlot>
-  V8_INLINE void VisitHeapObjectImpl(TSlot slot,
-                                     Tagged<HeapObject> heap_object);
-
+ protected:
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
                                    TSlot end);
 
-  Scavenger* const scavenger_;
-  bool allow_weakness_ = false;
+  void CheckObjectAge(Tagged<HeapObject>);
 
-  friend class Scavenger;
+  Scavenger* const scavenger_;
 };
 
-void ScavengeVisitor::VisitCustomWeakPointers(Tagged<HeapObject> host,
-                                              ObjectSlot start,
-                                              ObjectSlot end) {
-  if (allow_weakness_) {
-    DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+void ScavengerObjectVisitorBase<
+    ConcreteVisitor, kExpectedObjectAge>::VisitPointers(Tagged<HeapObject> host,
+                                                        ObjectSlot start,
+                                                        ObjectSlot end) {
+  return VisitPointersImpl(host, start, end);
+}
+
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+void ScavengerObjectVisitorBase<
+    ConcreteVisitor, kExpectedObjectAge>::VisitPointers(Tagged<HeapObject> host,
+                                                        MaybeObjectSlot start,
+                                                        MaybeObjectSlot end) {
+  return VisitPointersImpl(host, start, end);
+}
+
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+void ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::
+    VisitCustomWeakPointers(Tagged<HeapObject> host, ObjectSlot start,
+                            ObjectSlot end) {
+  DCHECK(
+      GCAwareObjectTypeCheck<JSWeakRef>(host, scavenger_->heap_) ||
+      GCAwareObjectTypeCheck<WeakCell>(host, scavenger_->heap_) ||
+      GCAwareObjectTypeCheck<JSFinalizationRegistry>(host, scavenger_->heap_));
+  if (v8_flags.handle_weak_ref_weakly_in_minor_gc) {
     return;
   }
   // Strongify the weak pointers.
   VisitPointersImpl(host, start, end);
 }
 
-void ScavengeVisitor::VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
-                                    ObjectSlot end) {
-  return VisitPointersImpl(host, start, end);
-}
-
-void ScavengeVisitor::VisitPointers(Tagged<HeapObject> host,
-                                    MaybeObjectSlot start,
-                                    MaybeObjectSlot end) {
-  return VisitPointersImpl(host, start, end);
-}
-
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
 template <typename TSlot>
-void ScavengeVisitor::VisitHeapObjectImpl(TSlot slot,
-                                          Tagged<HeapObject> heap_object) {
-  if (HeapLayout::InYoungGeneration(heap_object)) {
-    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
-    scavenger_->ScavengeObject(THeapObjectSlot(slot), heap_object);
-  }
-}
-
-template <typename TSlot>
-void ScavengeVisitor::VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
-                                        TSlot end) {
+void ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::
+    VisitPointersImpl(Tagged<HeapObject> host, TSlot start, TSlot end) {
+  using THeapObjectSlot = typename TSlot::THeapObjectSlot;
+  CheckObjectAge(host);
   for (TSlot slot = start; slot < end; ++slot) {
     const std::optional<Tagged<Object>> optional_object =
         this->GetObjectFilterReadOnlyAndSmiFast(slot);
@@ -548,42 +549,20 @@ void ScavengeVisitor::VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
     Tagged<HeapObject> heap_object;
     // Treat weak references as strong.
     if (object.GetHeapObject(&heap_object)) {
-      VisitHeapObjectImpl(slot, heap_object);
+      static_cast<ConcreteVisitor*>(this)->HandleSlot(
+          host, THeapObjectSlot(slot), heap_object);
     }
   }
 }
 
-size_t ScavengeVisitor::VisitJSArrayBuffer(Tagged<Map> map,
-                                           Tagged<JSArrayBuffer> object,
-                                           MaybeObjectSize) {
-  object->YoungMarkExtension();
-  int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
-  JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
-  return size;
-}
-
-size_t ScavengeVisitor::VisitJSApiObject(Tagged<Map> map,
-                                         Tagged<JSObject> object,
-                                         MaybeObjectSize) {
-  int size = JSAPIObjectWithEmbedderSlots::BodyDescriptor::SizeOf(map, object);
-  JSAPIObjectWithEmbedderSlots::BodyDescriptor::IterateBody(map, object, size,
-                                                            this);
-  return size;
-}
-
-size_t ScavengeVisitor::VisitCppHeapExternalObject(
-    Tagged<Map> map, Tagged<CppHeapExternalObject> object, MaybeObjectSize) {
-  int size = CppHeapExternalObject::BodyDescriptor::SizeOf(map, object);
-  CppHeapExternalObject::BodyDescriptor::IterateBody(map, object, size, this);
-  return size;
-}
-
-void ScavengeVisitor::VisitExternalPointer(Tagged<HeapObject> host,
-                                           ExternalPointerSlot slot) {
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+void ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::
+    VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot) {
 #ifdef V8_COMPRESS_POINTERS
   DCHECK(!slot.tag_range().IsEmpty());
   DCHECK(!IsSharedExternalPointerType(slot.tag_range()));
-  DCHECK(HeapLayout::InYoungGeneration(host));
+  DCHECK_IMPLIES(kExpectedObjectAge == ObjectAge::kYoung,
+                 HeapLayout::InYoungGeneration(host));
 
   // TODO(chromium:337580006): Remove when pointer compression always uses
   // EPT.
@@ -592,11 +571,84 @@ void ScavengeVisitor::VisitExternalPointer(Tagged<HeapObject> host,
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   Heap* heap = scavenger_->heap();
   ExternalPointerTable& table = heap->isolate()->external_pointer_table();
-  table.Mark(heap->young_external_pointer_space(), handle, slot.address());
+  if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
+    // For survivor objects, mark their EPT entries when they are
+    // copied. Scavenger then sweeps the young EPT space at the end of
+    // collection, reclaiming unmarked EPT entries.
+    table.Mark(heap->young_external_pointer_space(), handle, slot.address());
+  } else {
+    // When promoting, we just evacuate the entry from new to old space.
+    // Usually the entry will be unmarked, unless the slot was initialized since
+    // the last GC (external pointer tags have the mark bit set), in which case
+    // it may be marked already. In any case, transfer the color from new to
+    // old EPT space.
+    table.Evacuate(heap->young_external_pointer_space(),
+                   heap->old_external_pointer_space(), handle, slot.address(),
+                   ExternalPointerTable::EvacuateMarkMode::kTransferMark);
+  }
 #endif  // V8_COMPRESS_POINTERS
 }
 
-size_t ScavengeVisitor::VisitEphemeronHashTable(
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+size_t ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::
+    VisitJSArrayBuffer(Tagged<Map> map, Tagged<JSArrayBuffer> object,
+                       MaybeObjectSize) {
+  if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
+    object->YoungMarkExtension();
+  } else {
+    object->YoungMarkExtensionPromoted();
+  }
+  int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
+  JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
+  return size;
+}
+
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+size_t
+ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::VisitJSWeakRef(
+    Tagged<Map> map, Tagged<JSWeakRef> object, MaybeObjectSize maybe_size) {
+  scavenger_->RecordJSWeakRefIfNeeded<kExpectedObjectAge>(object);
+  return Base::VisitJSWeakRef(map, object, maybe_size);
+}
+
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+size_t
+ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::VisitWeakCell(
+    Tagged<Map> map, Tagged<WeakCell> object, MaybeObjectSize maybe_size) {
+  scavenger_->RecordWeakCellIfNeeded<kExpectedObjectAge>(object);
+  return Base::VisitWeakCell(map, object, maybe_size);
+}
+
+class ScavengerCopiedObjectVisitor final
+    : public ScavengerObjectVisitorBase<ScavengerCopiedObjectVisitor,
+                                        ObjectAge::kYoung> {
+ public:
+  explicit ScavengerCopiedObjectVisitor(Scavenger* scavenger);
+
+  V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
+                                           Tagged<EphemeronHashTable> object,
+                                           MaybeObjectSize);
+
+ private:
+  template <typename THeapObjectSlot>
+  V8_INLINE void HandleSlot(Tagged<HeapObject> host, THeapObjectSlot slot,
+                            Tagged<HeapObject> heap_object);
+
+  friend class ScavengerObjectVisitorBase<ScavengerCopiedObjectVisitor,
+                                          ObjectAge::kYoung>;
+  friend class Scavenger;
+};
+
+template <typename THeapObjectSlot>
+void ScavengerCopiedObjectVisitor::HandleSlot(Tagged<HeapObject> host,
+                                              THeapObjectSlot slot,
+                                              Tagged<HeapObject> heap_object) {
+  if (HeapLayout::InYoungGeneration(heap_object)) {
+    scavenger_->ScavengeObject(slot, heap_object);
+  }
+}
+
+size_t ScavengerCopiedObjectVisitor::VisitEphemeronHashTable(
     Tagged<Map> map, Tagged<EphemeronHashTable> table, MaybeObjectSize) {
   // Register table with the scavenger, so it can take care of the weak keys
   // later. This allows to only iterate the tables' values, which are treated
@@ -609,17 +661,6 @@ size_t ScavengeVisitor::VisitEphemeronHashTable(
   }
 
   return table->SafeSizeFromMap(map).value();
-}
-
-size_t ScavengeVisitor::VisitJSWeakRef(Tagged<Map> map,
-                                       Tagged<JSWeakRef> object,
-                                       MaybeObjectSize maybe_size) {
-  DCHECK(!allow_weakness_);
-  allow_weakness_ = v8_flags.handle_weak_ref_weakly_in_minor_gc;
-  const size_t size = Base::VisitJSWeakRef(map, object, maybe_size);
-  allow_weakness_ = false;
-  scavenger_->RecordJSWeakRefIfNeeded<Scavenger::WeakObjectAge::kYoung>(object);
-  return size;
 }
 
 }  // namespace internal

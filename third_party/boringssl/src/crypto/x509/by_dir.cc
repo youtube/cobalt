@@ -47,7 +47,7 @@ static int dir_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
 static int new_dir(X509_LOOKUP *lu);
 static void free_dir(X509_LOOKUP *lu);
 static int add_cert_dir(BY_DIR *ctx, const char *dir, int type);
-static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
+static int get_cert_by_subject(X509_LOOKUP *xl, int type, const X509_NAME *name,
                                X509_OBJECT *ret);
 static const X509_LOOKUP_METHOD x509_dir_lookup = {
     new_dir,              // new
@@ -189,7 +189,7 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type) {
   return 1;
 }
 
-static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
+static int get_cert_by_subject(X509_LOOKUP *xl, int type, const X509_NAME *name,
                                X509_OBJECT *ret) {
   bssl::UniquePtr<X509> lookup_cert;
   bssl::UniquePtr<X509_CRL> lookup_crl;

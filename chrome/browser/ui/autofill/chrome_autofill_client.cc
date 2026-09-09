@@ -39,6 +39,7 @@
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller.h"
 #include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/password_manager_settings_service_factory.h"
@@ -75,7 +76,6 @@
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/autofill/content/browser/content_identity_credential_delegate.h"
-#include "components/autofill/content/browser/integrators/one_time_tokens/content_otp_field_detector.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
@@ -86,6 +86,7 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
+#include "components/autofill/core/browser/integrators/one_time_tokens/otp_field_detector.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
 #include "components/autofill/core/browser/logging/log_router.h"
@@ -110,6 +111,7 @@
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
 #include "components/password_manager/content/browser/password_form_classification_util.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_manager_setting.h"
 #include "components/password_manager/core/browser/password_manager_settings_service.h"
@@ -533,6 +535,18 @@ AutofillAiModelExecutor* ChromeAutofillClient::GetAutofillAiModelExecutor() {
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   return AutofillAiModelExecutorFactory::GetForProfile(profile);
+}
+
+optimization_guide::OptimizationGuideModelExecutor*
+ChromeAutofillClient::GetOptimizationGuideModelExecutor() {
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  if (!profile || profile->ShutdownStarted()) {
+    return nullptr;
+  }
+  OptimizationGuideKeyedService* service =
+      OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
+  return service;
 }
 
 IdentityCredentialDelegate*
@@ -1113,7 +1127,7 @@ ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
 #endif
       ablation_study_(g_browser_process->local_state()),
       identity_credential_delegate_(web_contents),
-      otp_field_detector_(std::make_unique<ContentOtpFieldDetector>(this)) {
+      otp_field_detector_(std::make_unique<OtpFieldDetector>(this)) {
   // Initialize StrikeDatabase so its cache will be loaded and ready to use
   // when requested by other Autofill classes.
   GetStrikeDatabase();
@@ -1184,12 +1198,14 @@ OtpFieldDetector* ChromeAutofillClient::GetOtpFieldDetector() {
 
 one_time_tokens::SmsOtpBackend* ChromeAutofillClient::GetSmsOtpBackend() const {
 #if BUILDFLAG(IS_ANDROID)
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  return AndroidSmsOtpBackendFactory::GetForProfile(profile);
-#else
-  return nullptr;
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kAndroidSmsOtpFilling)) {
+    Profile* profile =
+        Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+    return AndroidSmsOtpBackendFactory::GetForProfile(profile);
+  }
 #endif  // BUILDFLAG(IS_ANDROID)
+  return nullptr;
 }
 
 void ChromeAutofillClient::set_test_addresses(

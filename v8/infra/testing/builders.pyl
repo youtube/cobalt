@@ -434,6 +434,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_maglev_future', 'shards': 2},
       {'name': 'v8testing', 'variant': 'turbolev', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future', 'shards': 2},
       # Code serializer.
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 2},
@@ -625,9 +626,15 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {
+        'name': 'v8testing',
+        'suffix': 'noavx',
+        'test_args': ['--extra-flags', '--noenable-avx']
+      },
     ],
   },
   'v8_linux64_perfetto_dbg': {
@@ -753,6 +760,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       # Code serializer.
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
@@ -935,12 +943,28 @@
   },
   ##############################################################################
   # Linux with RISC-V simulators
+  'v8_linux_riscv32_dbg': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
+    ],
+  },
   'v8_linux_riscv32_rel': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'v8_linux64_riscv64_dbg': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
     ],
   },
   'v8_linux64_riscv64_rel': {
@@ -1132,6 +1156,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
@@ -1153,6 +1178,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
@@ -1174,6 +1200,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
@@ -1481,6 +1508,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -1592,6 +1620,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -2108,6 +2137,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
@@ -2130,6 +2160,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
@@ -2152,6 +2183,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_non_eager_inlining'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
@@ -2500,6 +2532,19 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'V8 Linux - riscv32 - sim - debug': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
+    ],
+  },
   'V8 Linux - riscv32 - sim': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
@@ -2511,6 +2556,19 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'V8 Linux - riscv64 - sim - debug': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
     ],
   },
   'V8 Linux - riscv64 - sim': {
@@ -2609,6 +2667,11 @@
     'tests': [
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=2100', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=2100', '--stress-deopt=1']
       },
@@ -2641,6 +2704,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=4200', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=4200', '--stress-marking=1']
       },
@@ -2670,6 +2738,7 @@
         'test_args': [
           '--total-timeout-sec=4200',
           '--allocation-offset=2',
+          '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2712,6 +2781,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=4200', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=4200', '--stress-marking=1'],
         'shards': 2
@@ -2742,6 +2816,7 @@
         'test_args': [
           '--total-timeout-sec=4200',
           '--allocation-offset=2',
+          '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2774,6 +2849,11 @@
     'tests': [
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=900', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=900', '--stress-deopt=1']
       },
@@ -2797,6 +2877,11 @@
           '--allocation-offset=1',
           '--extra-flags=--gc-interval=500',
         ]
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=900', '--stress-bytecode-budget=1']
       },
       {
         'name': 'numfuzz',
@@ -2829,6 +2914,7 @@
         'test_args': [
           '--total-timeout-sec=900',
           '--allocation-offset=2',
+          '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2863,6 +2949,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=900', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=900', '--stress-marking=1'],
       },
@@ -2892,6 +2983,7 @@
         'test_args': [
           '--total-timeout-sec=900',
           '--allocation-offset=2',
+          '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',

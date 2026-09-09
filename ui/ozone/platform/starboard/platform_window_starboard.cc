@@ -26,7 +26,6 @@
 #include "ui/events/event_utils.h"
 #include "ui/events/ozone/events_ozone.h"
 #include "ui/events/platform/platform_event_source.h"
-#include "ui/gfx/native_widget_types.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 #if BUILDFLAG(IS_COBALT)

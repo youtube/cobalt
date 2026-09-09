@@ -27,6 +27,7 @@
 #include "api/call/audio_sink.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
+#include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"

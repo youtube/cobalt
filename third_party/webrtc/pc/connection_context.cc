@@ -101,10 +101,9 @@ ConnectionContext::ConnectionContext(
                      }),
       signaling_thread_(MaybeWrapThread(dependencies->signaling_thread,
                                         wraps_current_thread_)),
-      env_(env),
       media_engine_(
           dependencies->media_factory != nullptr
-              ? dependencies->media_factory->CreateMediaEngine(env_,
+              ? dependencies->media_factory->CreateMediaEngine(env,
                                                                *dependencies)
               : nullptr),
       network_monitor_factory_(

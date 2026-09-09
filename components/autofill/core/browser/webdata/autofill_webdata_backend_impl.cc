@@ -132,7 +132,9 @@ enum class Result {
   kRemoveEntityInstancesModifiedBetween_Failure = 311,
   kCleanupForCrbug411681430_Success = 312,
   kCleanupForCrbug411681430_Failure = 313,
-  kMaxValue = kCleanupForCrbug411681430_Failure,
+  kCleanupForCrbug445879524_Success = 314,
+  kCleanupForCrbug445879524_Failure = 315,
+  kMaxValue = kCleanupForCrbug445879524_Failure,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:AutofillWebDataBackendImplOperationResult)
 
@@ -491,6 +493,8 @@ WebDatabase::State AutofillWebDataBackendImpl::AddOrUpdateEntityInstance(
     ReportResult(Result::kAddOrUpdateEntityInstance_Failure);
     return WebDatabase::COMMIT_NOT_NEEDED;
   }
+  // TODO(crbug.com/441736370): Notify web_data observers of ADD and UPDATE
+  // events.
   EntityInstance::EntityId guid = entity.guid();
   ui_task_runner_->PostTask(
       FROM_HERE,
@@ -511,11 +515,14 @@ WebDatabase::State AutofillWebDataBackendImpl::RemoveEntityInstance(
     ReportResult(Result::kRemoveEntityInstance_Failure);
     return WebDatabase::COMMIT_NOT_NEEDED;
   }
+  EntityInstanceChange change(EntityInstanceChange::REMOVE, std::move(guid),
+                              std::nullopt);
+  for (AutofillWebDataServiceObserverOnDBSequence& db_observer :
+       db_observer_list_) {
+    db_observer.EntityInstanceChanged(change);
+  }
   ui_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(std::move(on_success),
-                     EntityInstanceChange(EntityInstanceChange::REMOVE,
-                                          std::move(guid), std::nullopt)));
+      FROM_HERE, base::BindOnce(std::move(on_success), std::move(change)));
   ReportResult(Result::kRemoveEntityInstance_Success);
   return WebDatabase::COMMIT_NEEDED;
 }
@@ -905,6 +912,19 @@ WebDatabase::State AutofillWebDataBackendImpl::CleanupForCrbug411681430(
   ReportResult(Result::kCleanupForCrbug411681430_Failure);
   return WebDatabase::COMMIT_NOT_NEEDED;
 }
+
+#if BUILDFLAG(IS_IOS)
+WebDatabase::State AutofillWebDataBackendImpl::CleanupForCrbug445879524(
+    WebDatabase* db) {
+  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  if (PaymentsAutofillTable::FromWebDatabase(db)->CleanupForCrbug445879524()) {
+    ReportResult(Result::kCleanupForCrbug445879524_Success);
+    return WebDatabase::COMMIT_NEEDED;
+  }
+  ReportResult(Result::kCleanupForCrbug445879524_Failure);
+  return WebDatabase::COMMIT_NOT_NEEDED;
+}
+#endif  // BUILDFLAG(IS_IOS)
 
 std::unique_ptr<WDTypedResult>
 AutofillWebDataBackendImpl::GetPaymentsCustomerData(WebDatabase* db) {

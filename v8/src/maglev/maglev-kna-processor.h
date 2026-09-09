@@ -7,7 +7,9 @@
 
 #include <type_traits>
 
+#include "src/base/base-export.h"
 #include "src/base/logging.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
@@ -41,12 +43,7 @@ class RecomputeKnownNodeAspectsProcessor {
       if (block->has_state()) {
         block->state()->ClearKnownNodeAspects();
       }
-      if (block->is_exception_handler_block()) {
-        // TODO(victorgomes): Figure it out the first block to throw to this
-        // node and set KNA.
-        block->state()->MergeNodeAspects(zone(), *known_node_aspects_);
-      } else if (block->is_loop() &&
-                 block->state()->IsUnreachableByForwardEdge()) {
+      if (block->is_loop() && block->state()->IsUnreachableByForwardEdge()) {
         DCHECK(block->state()->is_resumable_loop());
         block->state()->MergeNodeAspects(zone(), *known_node_aspects_);
       }
@@ -55,7 +52,15 @@ class RecomputeKnownNodeAspectsProcessor {
   void PostProcessGraph(Graph* graph) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     if (block->has_state()) {
-      known_node_aspects_ = block->state()->TakeKnownNodeAspects();
+      if (V8_UNLIKELY(block->predecessor_count() == 0 &&
+                      !block->is_exception_handler_block())) {
+        // The block is unreachable, we probably never set the KNA to this
+        // block. Just use an empty one.
+        // TODO(victorgomes): Maybe we shouldn't visit unreachable blocks.
+        known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
+      } else {
+        known_node_aspects_ = block->state()->TakeKnownNodeAspects();
+      }
     }
     DCHECK_IMPLIES(known_node_aspects_ == nullptr,
                    block->is_edge_split_block());
@@ -66,8 +71,14 @@ class RecomputeKnownNodeAspectsProcessor {
 
   template <IsNodeT NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.can_throw()) {
+      ExceptionHandlerInfo* info = node->exception_handler_info();
+      if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
+        Merge(node->exception_handler_info()->catch_block());
+      }
+    }
     MarkPossibleSideEffect(node);
-    return ProcessResult::kContinue;
+    return ProcessNode(node);
   }
 
   ProcessResult Process(Switch* node, const ProcessingState& state) {
@@ -128,6 +139,17 @@ class RecomputeKnownNodeAspectsProcessor {
   KnownNodeAspects* known_node_aspects_;
 
   Zone* zone() { return graph_->zone(); }
+  compiler::JSHeapBroker* broker() { return graph_->broker(); }
+
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+    return known_node_aspects().GetOrCreateInfoFor(broker(), node);
+  }
+  bool EnsureType(ValueNode* node, NodeType type) {
+    return known_node_aspects().EnsureType(broker(), node, type);
+  }
+  NodeType GetType(ValueNode* node) {
+    return known_node_aspects().GetType(broker(), node);
+  }
 
   void Merge(BasicBlock* block) {
     while (block->is_edge_split_block()) {
@@ -156,6 +178,76 @@ class RecomputeKnownNodeAspectsProcessor {
                                      known_node_aspects());
     }
   }
+
+#define PROCESS_CHECK(Type)                             \
+  ProcessResult ProcessNode(Check##Type* node) {        \
+    EnsureType(node->input_node(0), NodeType::k##Type); \
+    return ProcessResult::kContinue;                    \
+  }
+  PROCESS_CHECK(Smi)
+  PROCESS_CHECK(Number)
+  PROCESS_CHECK(String)
+  PROCESS_CHECK(SeqOneByteString)
+  PROCESS_CHECK(StringOrStringWrapper)
+  PROCESS_CHECK(StringOrOddball)
+  PROCESS_CHECK(Symbol)
+#undef PROCESS_CHECK
+
+#define PROCESS_SAFE_CONV(Node, Alt, Type)                                     \
+  ProcessResult ProcessNode(Node* node) {                                      \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
+    if (!info->alternative().Alt()) {                                          \
+      /* TODO(victorgomes): What happens if we we have an alternative already? \
+       * Should we remove this one as well? */                                 \
+      info->alternative().set_##Alt(node);                                     \
+    }                                                                          \
+    info->IntersectType(NodeType::k##Type);                                    \
+    return ProcessResult::kContinue;                                           \
+  }
+// TODO(victorgomes): Ideally we would like to check we already know the type,
+// but currently we cannot. The issue is that if the GraphBuilder emits a
+// node A and then Ensure(A, kSmi), we are not able to recover that A is an Smi.
+// This happens for instance for LoadProperty.
+#define PROCESS_UNSAFE_CONV(Node, Alt, Type)                                   \
+  ProcessResult ProcessNode(Node* node) {                                      \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
+    if (!info->alternative().Alt()) {                                          \
+      /* TODO(victorgomes): What happens if we we have an alternative already? \
+       * Should we remove this one as well? */                                 \
+      info->alternative().set_##Alt(node);                                     \
+    }                                                                          \
+    /* CHECK(NodeTypeIs(GetType(node->input_node(0)), NodeType::k##Type)); */  \
+    return ProcessResult::kContinue;                                           \
+  }
+  PROCESS_SAFE_CONV(CheckedSmiUntag, int32, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiUntag, int32, Smi)
+  PROCESS_SAFE_CONV(CheckedSmiTagInt32, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagInt32, tagged, Smi)
+  PROCESS_SAFE_CONV(CheckedSmiTagUint32, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagUint32, tagged, Smi)
+  PROCESS_SAFE_CONV(CheckedSmiTagIntPtr, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagIntPtr, tagged, Smi)
+  PROCESS_SAFE_CONV(TruncateCheckedNumberOrOddballToInt32,
+                    truncated_int32_to_number, NumberOrOddball)
+  PROCESS_UNSAFE_CONV(TruncateUnsafeNumberOrOddballToInt32,
+                      truncated_int32_to_number, NumberOrOddball)
+  PROCESS_SAFE_CONV(CheckedUint32ToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(UnsafeInt32ToUint32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedIntPtrToInt32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedHoleyFloat64ToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(UnsafeHoleyFloat64ToInt32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedNumberToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
+  PROCESS_SAFE_CONV(CheckedSmiTagFloat64, float64, Smi)
+  PROCESS_SAFE_CONV(CheckedNumberOrOddballToFloat64, float64, NumberOrOddball)
+  PROCESS_UNSAFE_CONV(UncheckedNumberOrOddballToFloat64, float64,
+                      NumberOrOddball)
+  PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
+  PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
+#undef PROCESS_SAFE_CONV
+#undef PROCESS_UNSAFE_CONV
+
+  ProcessResult ProcessNode(Node* node) { return ProcessResult::kContinue; }
 };
 
 }  // namespace maglev

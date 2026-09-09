@@ -54,7 +54,7 @@ class ClassLoader {
     const jclass clazz = static_cast<jclass>(env->CallObjectMethod(
         class_loader_.obj(), load_class_method_, j_name.obj()));
     CHECK_EXCEPTION(env);
-    return ScopedJavaLocalRef<jclass>(env, clazz);
+    return ScopedJavaLocalRef<jclass>::Adopt(env, clazz);
   }
 
  private:
@@ -92,7 +92,7 @@ ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* c_name) {
 
   std::string name(c_name);
   std::replace(name.begin(), name.end(), '.', '/');
-  return ScopedJavaLocalRef<jclass>(env, env->FindClass(name.c_str()));
+  return ScopedJavaLocalRef<jclass>::Adopt(env, env->FindClass(name.c_str()));
 }
 
 }  // namespace webrtc

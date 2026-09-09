@@ -44,8 +44,19 @@ class PeerConnectionCongestionControlTest
       : PeerConnectionIntegrationBaseTest(SdpSemantics::kUnifiedPlan) {}
 };
 
-TEST_F(PeerConnectionCongestionControlTest, OfferContainsCcfbIfEnabled) {
+TEST_F(PeerConnectionCongestionControlTest,
+       OfferDoesNotContainCcfbEvenIfEnabled) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  caller()->AddAudioVideoTracks();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
+  std::string offer_str = absl::StrCat(*offer);
+  EXPECT_THAT(offer_str, Not(HasSubstr("a=rtcp-fb:* ack ccfb\r\n")));
+}
+
+TEST_F(PeerConnectionCongestionControlTest, OfferContainsCcfbIfFieldTrial) {
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   caller()->AddAudioVideoTracks();
   std::unique_ptr<SessionDescriptionInterface> offer =
@@ -55,7 +66,10 @@ TEST_F(PeerConnectionCongestionControlTest, OfferContainsCcfbIfEnabled) {
 }
 
 TEST_F(PeerConnectionCongestionControlTest, ReceiveOfferSetsCcfbFlag) {
-  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  SetFieldTrials(kCallerName,
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
+  SetFieldTrials(kCalleeName,
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignalingForSdpOnly();
   caller()->AddAudioVideoTracks();
@@ -89,7 +103,7 @@ TEST_F(PeerConnectionCongestionControlTest, ReceiveOfferSetsCcfbFlag) {
 TEST_F(PeerConnectionCongestionControlTest, SendOnlySupportDoesNotEnableCcFb) {
   // Enable CCFB for sender, do not enable it for receiver
   SetFieldTrials(kCallerName,
-                 "WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
   SetFieldTrials(kCalleeName,
                  "WebRTC-RFC8888CongestionControlFeedback/Disabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
@@ -126,7 +140,7 @@ TEST_F(PeerConnectionCongestionControlTest,
        ReNegotiationCalleeDoesNotSupportCcfb) {
   // Enable CCFB for sender, do not enable it for receiver
   SetFieldTrials(kCallerName,
-                 "WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
   SetFieldTrials(kCalleeName,
                  "WebRTC-RFC8888CongestionControlFeedback/Disabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
@@ -152,10 +166,10 @@ TEST_F(PeerConnectionCongestionControlTest,
 
 TEST_F(PeerConnectionCongestionControlTest, ReNegotiationBothSupportCcfb) {
   SetFieldTrials(kCallerName,
-                 "WebRTC-RFC8888CongestionControlFeedback/Enabled/"
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/"
                  "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
   SetFieldTrials(kCalleeName,
-                 "WebRTC-RFC8888CongestionControlFeedback/Enabled/"
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/"
                  "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignalingForSdpOnly();
@@ -191,7 +205,7 @@ TEST_F(PeerConnectionCongestionControlTest, ReNegotiationBothSupportCcfb) {
 #ifdef WEBRTC_HAVE_SCTP
 TEST_F(PeerConnectionCongestionControlTest,
        ReceiveOfferWithDataChannelsSetsCcfbFlag) {
-  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignalingForSdpOnly();
   caller()->AddAudioVideoTracks();
@@ -240,7 +254,7 @@ TEST_F(PeerConnectionCongestionControlTest,
 #endif
 
 TEST_F(PeerConnectionCongestionControlTest, NegotiatingCcfbRemovesTsn) {
-  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignalingForSdpOnly();
   callee()->AddVideoTrack();
@@ -320,7 +334,7 @@ TEST_F(PeerConnectionCongestionControlTest, NegotiatingCcfbRemovesTsn) {
 }
 
 TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsed) {
-  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
@@ -346,6 +360,34 @@ TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsed) {
 
 TEST_F(PeerConnectionCongestionControlTest, TransportCcGetsUsed) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Disabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddAudioVideoTracks();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  MediaExpectations media_expectations;
+  media_expectations.CalleeExpectsSomeAudio();
+  media_expectations.CalleeExpectsSomeVideo();
+  ASSERT_TRUE(ExpectNewFrames(media_expectations));
+  auto pc_internal = caller()->pc_internal();
+  EXPECT_THAT(
+      WaitUntil(
+          [&] {
+            return pc_internal->FeedbackAccordingToTransportCcCountForTesting();
+          },
+          Gt(0)),
+      IsRtcOk());
+  // Test that RFC 8888 feedback is NOT generated when field trial disabled.
+  EXPECT_THAT(pc_internal->FeedbackAccordingToRfc8888CountForTesting(), Eq(0));
+}
+
+TEST_F(PeerConnectionCongestionControlTest,
+       TransportCcGetsUsedIfCalleeNotEnabledRfc8888) {
+  SetFieldTrials(kCallerName,
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
+  SetFieldTrials(kCalleeName,
+                 "WebRTC-RFC8888CongestionControlFeedback/Disabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();

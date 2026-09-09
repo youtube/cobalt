@@ -6,6 +6,7 @@
 
 #include "base/callback_list.h"
 #include "base/feature_list.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
@@ -25,6 +26,7 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
+#include "chrome/browser/actor/aggregated_journal_file_serializer.h"
 #include "chrome/browser/actor/aggregated_journal_in_memory_serializer.h"
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/browser_process.h"
@@ -32,6 +34,7 @@
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/feedback/feedback_uploader_chrome.h"
 #include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
+#include "chrome/browser/feedback/system_logs/chrome_system_logs_fetcher.h"
 #include "chrome/browser/glic/glic_hotkey.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -73,6 +76,7 @@
 #include "components/feedback/content/content_tracing_manager.h"
 #include "components/feedback/feedback_data.h"
 #include "components/feedback/feedback_uploader.h"
+#include "components/feedback/system_logs/system_logs_fetcher.h"
 #include "components/metrics/metrics_service.h"
 #include "components/optimization_guide/content/browser/page_content_metadata_observer.h"
 #include "components/optimization_guide/core/model_quality/model_quality_util.h"
@@ -226,6 +230,10 @@ class ActiveStateCalculator : public GlicWindowController::StateObserver {
   }
 
   bool Calculate() {
+    // TODO(b:444463509): Implement better calculation.
+    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+      return true;
+    }
     if (panel_state_kind_ == glic::mojom::PanelState::Kind::kHidden) {
       return false;
     }
@@ -345,11 +353,27 @@ class DebouncerDeduper {
   glic::mojom::FocusedTabDataPtr next_data_candidate_;
 };
 
+const char kGlicActorJournalLog[] = "glic-actor-journal";
+
 // Class that encapsulates interacting with the actor journal.
 class JournalHandler {
  public:
   explicit JournalHandler(Profile* profile)
-      : actor_keyed_service_(actor::ActorKeyedService::Get(profile)) {}
+      : actor_keyed_service_(actor::ActorKeyedService::Get(profile)) {
+    base::FilePath path =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
+            kGlicActorJournalLog);
+    if (!path.empty()) {
+      path = base::GetUniquePathWithSuffixFormat(path, "_%d");
+      LOG(ERROR) << "Glic Journal: " << path;
+      file_journal_serializer_ =
+          std::make_unique<actor::AggregatedJournalFileSerializer>(
+              actor_keyed_service_->GetJournal());
+      file_journal_serializer_->Init(
+          path, base::BindOnce(&JournalHandler::FileInitDone,
+                               base::Unretained(this)));
+    }
+  }
 
   void LogBeginAsyncEvent(uint64_t event_async_id,
                           int32_t task_id,
@@ -482,8 +506,25 @@ class JournalHandler {
               .email);
     }
 
-    feedback_data->CompressSystemInfo();
-    feedback_data->OnFeedbackPageDataComplete();
+    system_logs::BuildChromeSystemLogsFetcher(
+        actor_keyed_service_->GetProfile(), /*scrub_data=*/false)
+        ->Fetch(base::BindOnce(
+            [](scoped_refptr<::feedback::FeedbackData> feedback_data,
+               std::unique_ptr<system_logs::SystemLogsResponse>
+                   system_logs_response) {
+              if (system_logs_response) {
+                feedback_data->AddLogs(*system_logs_response);
+              }
+              feedback_data->CompressSystemInfo();
+              feedback_data->OnFeedbackPageDataComplete();
+            },
+            std::move(feedback_data)));
+  }
+
+  void FileInitDone(bool success) {
+    if (!success) {
+      file_journal_serializer_.reset();
+    }
   }
 
   absl::flat_hash_map<
@@ -492,6 +533,8 @@ class JournalHandler {
       active_journal_events_;
   std::unique_ptr<actor::AggregatedJournalInMemorySerializer>
       journal_serializer_;
+  std::unique_ptr<actor::AggregatedJournalFileSerializer>
+      file_journal_serializer_;
   raw_ptr<actor::ActorKeyedService> actor_keyed_service_;
 };
 
@@ -502,13 +545,12 @@ class JournalHandler {
 // events through GlicKeyedService to other components, relies on the assumption
 // that there is exactly 1 WebUI instance. If this assumption is ever violated
 // then many classes will break.
-class GlicWebClientHandler
-    : public glic::mojom::WebClientHandler,
-      public GlicWindowController::StateObserver,
-      public GlicWebClientAccess,
-      public BrowserAttachObserver,
-      public ActiveStateCalculator::Observer,
-      public BrowserIsOpenCalculator::Observer {
+class GlicWebClientHandler : public glic::mojom::WebClientHandler,
+                             public GlicWindowController::StateObserver,
+                             public GlicWebClientAccess,
+                             public BrowserAttachObserver,
+                             public ActiveStateCalculator::Observer,
+                             public BrowserIsOpenCalculator::Observer {
  public:
   explicit GlicWebClientHandler(
       GlicPageHandler* page_handler,
@@ -540,6 +582,29 @@ class GlicWebClientHandler
   GlicSharingManager& sharing_manager() { return host().sharing_manager(); }
 
   // glic::mojom::WebClientHandler implementation.
+  void SwitchConversation(const std::string& conversation_id,
+                          SwitchConversationCallback callback) override {
+    if (conversation_id.empty()) {
+      receiver_.ReportBadMessage(
+          "DetachPanel cannot be called when always detached mode is enabled.");
+    }
+    page_handler_->host().SwitchConversation(conversation_id,
+                                             std::move(callback));
+  }
+
+  void RegisterConversation(const std::string& conversation_id,
+                            RegisterConversationCallback callback) override {
+    // TODO(crbug.com/443793992): Plumb the conversation switch into
+    // `GlicInstance`.
+    NOTIMPLEMENTED() << "RegisterConversation called with: " << conversation_id;
+    if (conversation_id.empty()) {
+      receiver_.ReportBadMessage(
+          "DetachPanel cannot be called when always detached mode is enabled.");
+    }
+    std::move(callback).Run(
+        glic::mojom::RegisterConversationErrorReason::kUnknown);
+  }
+
   void WebClientCreated(
       ::mojo::PendingRemote<glic::mojom::WebClient> web_client,
       WebClientCreatedCallback callback) override {
@@ -630,6 +695,10 @@ class GlicWebClientHandler
             actor_service->AddTaskStateChangedCallback(base::BindRepeating(
                 &GlicWebClientHandler::NotifyActorTaskStateChanged,
                 base::Unretained(this)));
+        // CallbackListSubscription prevents these callbacks from being invoked
+        // when this object is destructed.
+        // TODO(crbug.com/445224605): Right now this code assumes that
+        //   ActorKeyedService only owns a single Execution engine instance.
         request_to_show_credential_selection_dialog_subscription_ =
             actor_service
                 ->AddRequestToShowCredentialSelectionDialogSubscriberCallback(
@@ -637,6 +706,12 @@ class GlicWebClientHandler
                         &GlicWebClientHandler::
                             RequestToShowCredentialSelectionDialog,
                         base::Unretained(this)));
+        request_to_show_user_confirmation_dialog_subscription_ =
+            actor_service
+                ->AddRequestToShowUserConfirmationDialogSubscriberCallback(
+                    base::BindRepeating(&GlicWebClientHandler::
+                                            RequestToShowUserConfirmationDialog,
+                                        base::Unretained(this)));
       }
     }
 
@@ -711,6 +786,9 @@ class GlicWebClientHandler
             features::kGlicPanelResetSizeAndLocationOnOpen)) {
       state->host_capabilities.push_back(
           mojom::HostCapability::kResetSizeAndLocationOnOpen);
+    }
+    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+      state->host_capabilities.push_back(mojom::HostCapability::kMultiInstance);
     }
     state->enable_get_page_metadata =
         base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver);
@@ -901,8 +979,9 @@ class GlicWebClientHandler
 
   void UnpinAllTabs() override { sharing_manager().UnpinAllTabs(); }
 
-  void CreateTask(CreateTaskCallback callback) override {
-    glic_service_->CreateTask(std::move(callback));
+  void CreateTask(actor::webui::mojom::TaskOptionsPtr options,
+                  CreateTaskCallback callback) override {
+    glic_service_->CreateTask(std::move(options), std::move(callback));
   }
 
   void PerformActions(const std::vector<uint8_t>& actions_proto,
@@ -1126,9 +1205,21 @@ class GlicWebClientHandler
     journal_handler_.RecordFeedback(positive, reason);
   }
 
-  void OnUserInputSubmitted(glic::mojom::WebClientMode mode) override {
+  void OnUserInputSubmitted(mojom::WebClientMode mode) override {
     glic_service_->OnUserInputSubmitted(mode);
     glic_service_->metrics()->OnUserInputSubmitted(mode);
+  }
+
+  void OnContextUploadStarted() override {
+    glic_service_->metrics()->OnContextUploadStarted();
+  }
+
+  void OnContextUploadCompleted() override {
+    glic_service_->metrics()->OnContextUploadCompleted();
+  }
+
+  void OnReaction(mojom::MetricUserInputReactionType reaction_type) override {
+    glic_service_->metrics()->OnReaction(reaction_type);
   }
 
   void OnResponseStarted() override {
@@ -1296,7 +1387,7 @@ class GlicWebClientHandler
 
     // TODO(crbug.com/424472586): Pass supported tools to service from web
     // client.
-    glic_service_->FetchZeroStateSuggestions(
+    host().instance_delegate().FetchZeroStateSuggestions(
         is_fre.value_or(false),
         /*supported_tools=*/{},
         base::BindOnce(
@@ -1375,7 +1466,6 @@ class GlicWebClientHandler
   }
 
  private:
-
   void Uninstall() {
     page_metadata_manager_.reset();
     SetAudioDucking(false, base::DoNothing());
@@ -1387,6 +1477,7 @@ class GlicWebClientHandler
     pinned_tabs_changed_subscription_ = {};
     pinned_tab_data_changed_subscription_ = {};
     request_to_show_credential_selection_dialog_subscription_ = {};
+    request_to_show_user_confirmation_dialog_subscription_ = {};
     browser_attach_observation_.reset();
     glic_service_->zero_state_suggestions_manager().Reset();
   }
@@ -1510,6 +1601,27 @@ class GlicWebClientHandler
         std::move(dialog_request), std::move(on_credential_selected));
   }
 
+  void RequestToShowUserConfirmationDialog(
+      const std::optional<url::Origin>& navigation_origin,
+      const std::optional<int32_t> download_id,
+      actor::ActorKeyedService::UserConfirmationDialogCallback callback) {
+    actor::webui::mojom::UserConfirmationDialogPayloadPtr payload = nullptr;
+    if (navigation_origin) {
+      payload = actor::webui::mojom::UserConfirmationDialogPayload::
+          NewNavigationOrigin(*navigation_origin);
+    } else if (download_id) {
+      payload =
+          actor::webui::mojom::UserConfirmationDialogPayload::NewDownloadId(
+              *download_id);
+    } else {
+      NOTREACHED();
+    }
+    web_client_->RequestToShowUserConfirmationDialog(
+        actor::webui::mojom::UserConfirmationDialogRequest::New(
+            std::move(payload)),
+        std::move(callback));
+  }
+
   PrefChangeRegistrar pref_change_registrar_;
   PrefChangeRegistrar local_state_pref_change_registrar_;
   raw_ptr<Profile> profile_;
@@ -1528,6 +1640,8 @@ class GlicWebClientHandler
   base::CallbackListSubscription actor_task_state_changed_subscription_;
   base::CallbackListSubscription
       request_to_show_credential_selection_dialog_subscription_;
+  base::CallbackListSubscription
+      request_to_show_user_confirmation_dialog_subscription_;
   mojo::Receiver<glic::mojom::WebClientHandler> receiver_;
   mojo::Remote<glic::mojom::WebClient> web_client_;
   std::unique_ptr<BrowserAttachObservation> browser_attach_observation_;

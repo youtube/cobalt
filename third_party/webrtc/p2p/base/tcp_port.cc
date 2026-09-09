@@ -358,7 +358,8 @@ TCPConnection::TCPConnection(const Environment& env,
   RTC_DCHECK_EQ(port()->GetProtocol(),
                 PROTO_TCP);  // Needs to be TCPPort.
 
-  SignalDestroyed.connect(this, &TCPConnection::OnDestroyed);
+  SubscribeDestroyed(
+      this, [this](Connection* connection) { OnDestroyed(connection); });
 
   if (outgoing_) {
     CreateOutgoingTcpSocket();
@@ -428,7 +429,7 @@ void TCPConnection::OnSentPacket(AsyncPacketSocket* socket,
                                  const SentPacketInfo& sent_packet) {
   RTC_DCHECK_RUN_ON(network_thread());
   if (port()) {
-    port()->SignalSentPacket(sent_packet);
+    port()->NotifySentPacket(sent_packet);
   }
 }
 

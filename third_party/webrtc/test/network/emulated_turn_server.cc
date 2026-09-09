@@ -49,21 +49,24 @@ class PacketSocketFactoryWrapper : public webrtc::PacketSocketFactory {
 
   // This method is called from TurnServer when making a TURN ALLOCATION.
   // It will create a socket on the `peer_` endpoint.
-  webrtc::AsyncPacketSocket* CreateUdpSocket(
+  std::unique_ptr<webrtc::AsyncPacketSocket> CreateUdpSocket(
+      const webrtc::Environment& env,
       const webrtc::SocketAddress& address,
       uint16_t min_port,
       uint16_t max_port) override {
-    return turn_server_->CreatePeerSocket().release();
+    return turn_server_->CreatePeerSocket();
   }
 
-  webrtc::AsyncListenSocket* CreateServerTcpSocket(
+  std::unique_ptr<webrtc::AsyncListenSocket> CreateServerTcpSocket(
+      const webrtc::Environment& env,
       const webrtc::SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port,
       int opts) override {
     return nullptr;
   }
-  webrtc::AsyncPacketSocket* CreateClientTcpSocket(
+  std::unique_ptr<webrtc::AsyncPacketSocket> CreateClientTcpSocket(
+      const webrtc::Environment& env,
       const webrtc::SocketAddress& local_address,
       const webrtc::SocketAddress& remote_address,
       const webrtc::PacketSocketTcpOptions& tcp_options) override {

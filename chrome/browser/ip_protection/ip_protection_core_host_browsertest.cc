@@ -13,10 +13,12 @@
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "chrome/browser/browser_process.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/ip_protection/ip_protection_core_host_factory.h"
+#include "chrome/browser/net/profile_network_context_service.h"
 #include "chrome/browser/policy/policy_test_utils.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
@@ -26,6 +28,7 @@
 #include "components/ip_protection/common/ip_protection_data_types.h"
 #include "components/ip_protection/mojom/core.mojom-test-utils.h"
 #include "components/ip_protection/mojom/core.mojom.h"
+#include "components/ip_protection/mojom/core_test.mojom.h"
 #include "components/ip_protection/mojom/data_types.mojom-test-utils.h"
 #include "components/ip_protection/mojom/data_types.mojom.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
@@ -187,6 +190,8 @@ class IpProtectionCoreHostBrowserTest : public PlatformBrowserTest {
     network::mojom::NetworkContext* main_profile_network_context =
         GetProfile()->GetDefaultStoragePartition()->GetNetworkContext();
     main_profile_ipp_control_ = provider->last_remote_for_testing();
+    main_profile_ipp_control_->BindTestInterfaceForTesting(
+        main_profile_ipp_control_test_.BindNewPipeAndPassReceiver());
 
     incognito_profile_ =
         GetProfile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
@@ -194,6 +199,8 @@ class IpProtectionCoreHostBrowserTest : public PlatformBrowserTest {
     network::mojom::NetworkContext* incognito_profile_network_context =
         incognito_profile_->GetDefaultStoragePartition()->GetNetworkContext();
     incognito_profile_ipp_control_ = provider->last_remote_for_testing();
+    incognito_profile_ipp_control_->BindTestInterfaceForTesting(
+        incognito_profile_ipp_control_test_.BindNewPipeAndPassReceiver());
     ASSERT_NE(main_profile_network_context, incognito_profile_network_context);
     ASSERT_NE(main_profile_ipp_control_, incognito_profile_ipp_control_);
 
@@ -215,7 +222,9 @@ class IpProtectionCoreHostBrowserTest : public PlatformBrowserTest {
     main_profile_auth_token_getter_interceptor_ = nullptr;
 
     main_profile_ipp_control_ = nullptr;
+    main_profile_ipp_control_test_.reset();
     incognito_profile_ipp_control_ = nullptr;
+    incognito_profile_ipp_control_test_.reset();
 
     Profile* incognito_profile = incognito_profile_;
     incognito_profile_ = nullptr;
@@ -227,12 +236,16 @@ class IpProtectionCoreHostBrowserTest : public PlatformBrowserTest {
  protected:
   raw_ptr<ip_protection::mojom::CoreControl> main_profile_ipp_control_ =
       nullptr;
+  mojo::Remote<ip_protection::mojom::CoreControlTest>
+      main_profile_ipp_control_test_;
   std::unique_ptr<IpProtectionCoreHostInterceptor>
       main_profile_auth_token_getter_interceptor_;
 
   raw_ptr<Profile> incognito_profile_ = nullptr;
   raw_ptr<ip_protection::mojom::CoreControl> incognito_profile_ipp_control_ =
       nullptr;
+  mojo::Remote<ip_protection::mojom::CoreControlTest>
+      incognito_profile_ipp_control_test_;
   std::unique_ptr<IpProtectionCoreHostInterceptor>
       incognito_profile_auth_token_getter_interceptor_;
 
@@ -267,7 +280,10 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostBrowserTest,
                          std::optional<base::Time>>
       future;
   auto* ipp_control = getter->last_remote_for_testing();
-  ipp_control->VerifyIpProtectionCoreHostForTesting(future.GetCallback());
+  mojo::Remote<ip_protection::mojom::CoreControlTest> ipp_control_test;
+  ipp_control->BindTestInterfaceForTesting(
+      ipp_control_test.BindNewPipeAndPassReceiver());
+  ipp_control_test->VerifyIpProtectionCoreHostForTesting(future.GetCallback());
   const std::optional<BlindSignedAuthToken>& result =
       future.Get<std::optional<BlindSignedAuthToken>>();
   ASSERT_TRUE(result);
@@ -289,8 +305,12 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostBrowserTest,
   // Verify that we can get tokens from the incognito mode profile.
   future.Clear();
   auto* incognito_ipp_control = getter->last_remote_for_testing();
+  mojo::Remote<ip_protection::mojom::CoreControlTest>
+      incognito_ipp_control_test;
+  incognito_ipp_control->BindTestInterfaceForTesting(
+      incognito_ipp_control_test.BindNewPipeAndPassReceiver());
   ASSERT_NE(incognito_ipp_control, ipp_control);
-  incognito_ipp_control->VerifyIpProtectionCoreHostForTesting(
+  incognito_ipp_control_test->VerifyIpProtectionCoreHostForTesting(
       future.GetCallback());
   const std::optional<BlindSignedAuthToken>& incognito_result =
       future.Get<std::optional<BlindSignedAuthToken>>();
@@ -300,12 +320,78 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostBrowserTest,
 
   // Ensure that we can still get tokens from the main profile.
   future.Clear();
-  ipp_control->VerifyIpProtectionCoreHostForTesting(future.GetCallback());
+  ipp_control_test->VerifyIpProtectionCoreHostForTesting(future.GetCallback());
   const std::optional<BlindSignedAuthToken>& second_attempt_result =
       future.Get<std::optional<BlindSignedAuthToken>>();
   ASSERT_TRUE(second_attempt_result);
   EXPECT_EQ(second_attempt_result->token, token);
   EXPECT_LT(second_attempt_result->expiration, expiration);
+}
+
+IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostBrowserTest,
+                       ReturnAndRecycleTokens) {
+  IpProtectionCoreHost* host =
+      IpProtectionCoreHostFactory::GetForProfile(GetProfile());
+  auto* prev_control = host->last_remote_for_testing();
+  ASSERT_TRUE(host);
+  const GeoHint geo_hint = {.country_code = "US",
+                            .iso_region = "US-CA",
+                            .city_name = "MOUNTAIN VIEW"};
+  const std::string token = "orphan-token";
+
+  // Start a first Incognito session, populate the token cache, and then
+  // destroy the session. The interceptor is scoped to this session and will be
+  // destroyed with it, ensuring that the second session uses the recycled
+  // token.
+  {
+    Profile* incognito_profile =
+        GetProfile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+    auto* incognito_ipp_control = host->last_remote_for_testing();
+    mojo::Remote<ip_protection::mojom::CoreControlTest>
+        incognito_ipp_control_test;
+    incognito_ipp_control->BindTestInterfaceForTesting(
+        incognito_ipp_control_test.BindNewPipeAndPassReceiver());
+    EXPECT_NE(incognito_ipp_control, prev_control);
+
+    base::Time expiration = base::Time::Now() + base::Hours(1);
+    auto interceptor = std::make_unique<IpProtectionCoreHostInterceptor>(
+        host, token, expiration, geo_hint);
+
+    base::test::TestFuture<std::optional<BlindSignedAuthToken>,
+                           std::optional<base::Time>>
+        future;
+    incognito_ipp_control_test->VerifyIpProtectionCoreHostForTesting(
+        future.GetCallback());
+    ASSERT_TRUE(future.Get<0>().has_value());
+
+    // Finish the first Incognito session, and flush the pending RecycleTokens
+    // call from the network service.
+    GetProfile()->DestroyOffTheRecordProfile(incognito_profile);
+    host->receivers_for_testing().FlushForTesting();
+  }
+
+  // Start a second Incognito session.
+  Profile* incognito_profile =
+      GetProfile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+  auto* incognito_ipp_control = host->last_remote_for_testing();
+  mojo::Remote<ip_protection::mojom::CoreControlTest>
+      incognito_ipp_control_test;
+  incognito_ipp_control->BindTestInterfaceForTesting(
+      incognito_ipp_control_test.BindNewPipeAndPassReceiver());
+
+  // Verify that the orphaned token from the first session is now in the second
+  // session's token cache.
+  base::test::TestFuture<std::optional<BlindSignedAuthToken>> get_token_future;
+  incognito_ipp_control_test->GetAuthTokenForTesting(
+      ip_protection::ProxyLayer::kProxyA,
+      ip_protection::GetGeoIdFromGeoHint(geo_hint),
+      get_token_future.GetCallback());
+  auto cached_token = get_token_future.Get();
+  ASSERT_TRUE(cached_token.has_value());
+  EXPECT_EQ(cached_token->token, token);
+
+  // Clean up the second incognito profile.
+  GetProfile()->DestroyOffTheRecordProfile(incognito_profile);
 }
 
 IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostBrowserTest,
@@ -522,14 +608,14 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostIdentityBrowserTest,
   base::test::TestFuture<std::optional<BlindSignedAuthToken>,
                          std::optional<base::Time>>
       future;
-  main_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  main_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       future.GetCallback());
   const std::optional<base::Time>& main_profile_first_attempt_result =
       future.Get<std::optional<base::Time>>();
   EXPECT_EQ(main_profile_first_attempt_result.value(), kDontRetry);
 
   future.Clear();
-  incognito_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  incognito_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       future.GetCallback());
   const std::optional<base::Time>& incognito_profile_first_attempt_result =
       future.Get<std::optional<base::Time>>();
@@ -543,14 +629,14 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostIdentityBrowserTest,
   // Run the test again and check that the network service is still in a
   // cooldown phase.
   future.Clear();
-  main_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  main_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       future.GetCallback());
   const std::optional<base::Time>& main_profile_second_attempt_result =
       future.Get<std::optional<base::Time>>();
   EXPECT_EQ(main_profile_second_attempt_result.value(), kDontRetry);
 
   future.Clear();
-  incognito_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  incognito_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       future.GetCallback());
   const std::optional<base::Time>& incognito_profile_second_attempt_result =
       future.Get<std::optional<base::Time>>();
@@ -575,7 +661,7 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostIdentityBrowserTest,
   // Verify that cooldown timers in the network context have been reset and
   // that we can now request tokens successfully.
   future.Clear();
-  main_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  main_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       future.GetCallback());
   const std::optional<BlindSignedAuthToken>& main_profile_third_attempt_result =
       future.Get<std::optional<BlindSignedAuthToken>>();
@@ -586,7 +672,7 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostIdentityBrowserTest,
             main_profile_auth_token_getter_interceptor_->expiration());
 
   future.Clear();
-  incognito_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  incognito_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       future.GetCallback());
   const std::optional<BlindSignedAuthToken>&
       incognito_profile_third_attempt_result =
@@ -608,12 +694,16 @@ class IpProtectionCoreHostUserSettingBrowserTest
     scoped_feature_list_.InitAndEnableFeature(privacy_sandbox::kIpProtectionUx);
   }
 
+ protected:
+  const GURL kTestUrl = GURL("https://a.test");
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+// FLAKY <https://crbug.com/445760641>
 IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
-                       OnIpProtectionEnabledChanged) {
+                       DISABLED_OnIpProtectionEnabledChanged) {
   IpProtectionCoreHost* provider =
       IpProtectionCoreHostFactory::GetForProfile(GetProfile());
   ASSERT_TRUE(provider);
@@ -623,15 +713,17 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
   // Simulate the user disabling the IP Protection setting.
   GetProfile()->GetPrefs()->SetBoolean(prefs::kIpProtectionEnabled, false);
   provider->OnIpProtectionEnabledChanged();
+  main_profile_ipp_control_test_.FlushForTesting();
+  incognito_profile_ipp_control_test_.FlushForTesting();
 
   // Check that network contexts got notified that IP Protection should be
   // disabled.
   base::test::TestFuture<bool> main_profile_is_enabled_future;
   base::test::TestFuture<bool> incognito_profile_is_enabled_future;
 
-  main_profile_ipp_control_->IsIpProtectionEnabledForTesting(
+  main_profile_ipp_control_test_->IsIpProtectionEnabledForTesting(
       main_profile_is_enabled_future.GetCallback());
-  incognito_profile_ipp_control_->IsIpProtectionEnabledForTesting(
+  incognito_profile_ipp_control_test_->IsIpProtectionEnabledForTesting(
       incognito_profile_is_enabled_future.GetCallback());
 
   EXPECT_FALSE(main_profile_is_enabled_future.Get());
@@ -646,9 +738,9 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
                          std::optional<base::Time>>
       incognito_profile_verification_future;
 
-  main_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  main_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       main_profile_verification_future.GetCallback());
-  incognito_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  incognito_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       incognito_profile_verification_future.GetCallback());
 
   const std::optional<base::Time>& main_profile_first_attempt_result =
@@ -667,9 +759,9 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
   main_profile_is_enabled_future.Clear();
   incognito_profile_is_enabled_future.Clear();
 
-  main_profile_ipp_control_->IsIpProtectionEnabledForTesting(
+  main_profile_ipp_control_test_->IsIpProtectionEnabledForTesting(
       main_profile_is_enabled_future.GetCallback());
-  incognito_profile_ipp_control_->IsIpProtectionEnabledForTesting(
+  incognito_profile_ipp_control_test_->IsIpProtectionEnabledForTesting(
       incognito_profile_is_enabled_future.GetCallback());
 
   EXPECT_TRUE(main_profile_is_enabled_future.Get());
@@ -684,9 +776,9 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
 
   // Verify that cooldown timers in the network context have been reset and
   // that we can now request tokens successfully.
-  main_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  main_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       main_profile_verification_future.GetCallback());
-  incognito_profile_ipp_control_->VerifyIpProtectionCoreHostForTesting(
+  incognito_profile_ipp_control_test_->VerifyIpProtectionCoreHostForTesting(
       incognito_profile_verification_future.GetCallback());
 
   const std::optional<BlindSignedAuthToken>&
@@ -712,6 +804,155 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
             incognito_profile_auth_token_getter_interceptor_->expiration());
 
   DestroyIncognitoNetworkContextAndInterceptors();
+}
+
+// TODO(crbug.com/445983566): Re-enable once PRE_ tests are fixed on Android
+// (crbug.com/40200835).
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_PRE_TrackingProtectionExceptionRemainsAfterRestart \
+  DISABLED_PRE_TrackingProtectionExceptionRemainsAfterRestart
+#define MAYBE_TrackingProtectionExceptionRemainsAfterRestart \
+  DISABLED_TrackingProtectionExceptionRemainsAfterRestart
+#else
+#define MAYBE_PRE_TrackingProtectionExceptionRemainsAfterRestart \
+  PRE_TrackingProtectionExceptionRemainsAfterRestart
+#define MAYBE_TrackingProtectionExceptionRemainsAfterRestart \
+  TrackingProtectionExceptionRemainsAfterRestart
+#endif
+
+// Verify that Tracking Protection exceptions persist across network service
+// restarts and crashes.
+IN_PROC_BROWSER_TEST_F(
+    IpProtectionCoreHostUserSettingBrowserTest,
+    MAYBE_PRE_TrackingProtectionExceptionRemainsAfterRestart) {
+  // Ensure that the tracking protection exception is not set yet.
+  base::test::TestFuture<bool> has_exception_future;
+
+  ip_protection::mojom::CoreControl* ipp_control =
+      IpProtectionCoreHostFactory::GetForProfile(GetProfile())
+          ->last_remote_for_testing();
+
+  mojo::Remote<ip_protection::mojom::CoreControlTest> ipp_control_test;
+  ipp_control->BindTestInterfaceForTesting(
+      ipp_control_test.BindNewPipeAndPassReceiver());
+
+  ipp_control_test->HasTrackingProtectionExceptionForTesting(
+      kTestUrl, has_exception_future.GetCallback());
+
+  ASSERT_FALSE(has_exception_future.Get());
+
+  // Simulate setting User Bypass settings.
+  auto* host_content_settings_map =
+      HostContentSettingsMapFactory::GetForProfile(GetProfile());
+
+  host_content_settings_map->SetContentSettingCustomScope(
+      ContentSettingsPattern::Wildcard(),
+      ContentSettingsPattern::FromURLToSchemefulSitePattern(kTestUrl),
+      ContentSettingsType::TRACKING_PROTECTION, CONTENT_SETTING_ALLOW);
+
+  GetProfile()->GetDefaultStoragePartition()->FlushNetworkInterfaceForTesting();
+
+  // Verify that the settings are propagated to IP Protection Core.
+  has_exception_future.Clear();
+
+  ipp_control_test->HasTrackingProtectionExceptionForTesting(
+      kTestUrl, has_exception_future.GetCallback());
+  // Ensure that the exception is present before the restart.
+  EXPECT_TRUE(has_exception_future.Get());
+}
+
+IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
+                       MAYBE_TrackingProtectionExceptionRemainsAfterRestart) {
+  // Check that the settings are still propagated to IP Protection Core after
+  // restart.
+  ip_protection::mojom::CoreControl* ipp_control =
+      IpProtectionCoreHostFactory::GetForProfile(GetProfile())
+          ->last_remote_for_testing();
+  mojo::Remote<ip_protection::mojom::CoreControlTest> ipp_control_test;
+  ipp_control->BindTestInterfaceForTesting(
+      ipp_control_test.BindNewPipeAndPassReceiver());
+
+  base::test::TestFuture<bool> has_exception_future;
+
+  ipp_control_test->HasTrackingProtectionExceptionForTesting(
+      kTestUrl, has_exception_future.GetCallback());
+
+  EXPECT_TRUE(has_exception_future.Get());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    IpProtectionCoreHostUserSettingBrowserTest,
+    TrackingProtectionExceptionRemainsAfterNetworkServiceCrash) {
+  // If the network service isn't out-of-process then we can't crash it.
+  if (!content::IsOutOfProcessNetworkService()) {
+    GTEST_SKIP() << "Unable to crash: Network service is not out-of-process. "
+                    "Skipping test.";
+  }
+
+  // Ensure that the tracking protection exception is not set yet.
+  ip_protection::mojom::CoreControl* ipp_control_pre_crash =
+      IpProtectionCoreHostFactory::GetForProfile(GetProfile())
+          ->last_remote_for_testing();
+
+  mojo::Remote<ip_protection::mojom::CoreControlTest>
+      ipp_control_test_pre_crash;
+  ipp_control_pre_crash->BindTestInterfaceForTesting(
+      ipp_control_test_pre_crash.BindNewPipeAndPassReceiver());
+
+  base::test::TestFuture<bool> has_exception_future;
+
+  ipp_control_test_pre_crash->HasTrackingProtectionExceptionForTesting(
+      kTestUrl, has_exception_future.GetCallback());
+
+  ASSERT_FALSE(has_exception_future.Get());
+
+  // Simulate setting User Bypass settings.
+  auto* host_content_settings_map =
+      HostContentSettingsMapFactory::GetForProfile(GetProfile());
+
+  host_content_settings_map->SetContentSettingCustomScope(
+      ContentSettingsPattern::Wildcard(),
+      ContentSettingsPattern::FromURLToSchemefulSitePattern(kTestUrl),
+      ContentSettingsType::TRACKING_PROTECTION, CONTENT_SETTING_ALLOW);
+
+  GetProfile()->GetDefaultStoragePartition()->FlushNetworkInterfaceForTesting();
+
+  // Check that the settings are propagated to IP Protection Core before the
+  // crash.
+  has_exception_future.Clear();
+
+  ipp_control_test_pre_crash->HasTrackingProtectionExceptionForTesting(
+      kTestUrl, has_exception_future.GetCallback());
+
+  ASSERT_TRUE(has_exception_future.Get());
+
+  // Crash the Network Service, and then restart it to ensure that the settings
+  // are still propagated after the crash.
+  SimulateNetworkServiceCrash();
+
+  // Even though the network service has crashed and restarted by this point,
+  // not all of its related interfaces have been notified of the crash yet.
+  // Flush them so they get the error message and restart.
+  GetProfile()->GetDefaultStoragePartition()->FlushNetworkInterfaceForTesting();
+
+  // Check that the settings are still propagated to IP Protection Core after
+  // the crash.
+  ip_protection::mojom::CoreControl* ipp_control_post_crash =
+      IpProtectionCoreHostFactory::GetForProfile(GetProfile())
+          ->last_remote_for_testing();
+
+  ASSERT_NE(ipp_control_post_crash, ipp_control_pre_crash);
+
+  mojo::Remote<ip_protection::mojom::CoreControlTest>
+      ipp_control_test_post_crash;
+  ipp_control_post_crash->BindTestInterfaceForTesting(
+      ipp_control_test_post_crash.BindNewPipeAndPassReceiver());
+
+  has_exception_future.Clear();
+  ipp_control_test_post_crash->HasTrackingProtectionExceptionForTesting(
+      kTestUrl, has_exception_future.GetCallback());
+
+  EXPECT_TRUE(has_exception_future.Get());
 }
 
 class IpProtectionCoreHostPolicyBrowserTest : public policy::PolicyTest {

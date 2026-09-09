@@ -460,8 +460,8 @@ declare_args() {
   # Use the experimental TSA-based definition for some builtins.
   v8_enable_experimental_tsa_builtins = false
 
-  # Use the experimental encoding of undefined in double values.
-  v8_enable_experimental_undefined_double = false
+  # Use the encoding of undefined in double values.
+  v8_enable_undefined_double = false
 
   v8_dcheck_always_on = dcheck_always_on
 
@@ -479,10 +479,7 @@ declare_args() {
   # closely mimic in-browser behavior.
   #
   # Currently used in d8.
-  v8_enable_partition_alloc =
-      !build_with_v8_embedder &&
-      !(defined(build_with_node) && build_with_node) &&
-      (v8_target_cpu != "ppc64" && v8_target_cpu != "s390x")
+  v8_enable_partition_alloc = ""
 
   # V8 uses Chrome's blink-gc clang plugin for checking V8's internal cppgc
   # usages. The plugin is not exhaustive but covers most common known pitfalls.
@@ -507,7 +504,8 @@ if (v8_enable_verify_heap == "") {
 }
 if (v8_enable_verify_write_barriers == "") {
   v8_enable_verify_write_barriers =
-      v8_enable_debugging_features && !v8_disable_write_barriers
+      (v8_enable_debugging_features || v8_dcheck_always_on) &&
+      !v8_disable_write_barriers
 }
 if (v8_enable_object_print == "") {
   v8_enable_object_print = v8_enable_debugging_features
@@ -565,8 +563,7 @@ if (v8_multi_arch_build &&
     rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
     "clang_x64_fuzzer_experiments") {
   v8_enable_pointer_compression = !v8_enable_pointer_compression
-  v8_enable_experimental_undefined_double =
-      !v8_enable_experimental_undefined_double
+  v8_enable_undefined_double = !v8_enable_undefined_double
   v8_lower_limits_mode = !v8_lower_limits_mode
 }
 
@@ -612,10 +609,21 @@ if (v8_enable_maglev == "") {
   v8_enable_maglev = v8_enable_turbofan &&
                      (v8_current_cpu == "arm" || v8_current_cpu == "x64" ||
                       v8_current_cpu == "arm64" || v8_current_cpu == "s390x" ||
-                      v8_current_cpu == "riscv64")
+                      v8_current_cpu == "ppc64" || v8_current_cpu == "riscv64")
 }
 assert(v8_enable_turbofan || !v8_enable_maglev,
        "Maglev is not available when Turbofan is disabled.")
+
+if (v8_enable_partition_alloc == "") {
+  v8_enable_partition_alloc =
+      !build_with_v8_embedder &&
+      !(defined(build_with_node) && build_with_node) &&
+      (v8_target_cpu != "ppc64" && v8_target_cpu != "s390x") &&
+      v8_enable_pointer_compression_shared_cage
+}
+
+assert(!v8_enable_partition_alloc || v8_enable_pointer_compression_shared_cage,
+       "partition_alloc is not available for multi-cage mode.")
 
 is_wasm_interpreter_mode_enabled =
     !v8_enable_sparkplug && !v8_enable_maglev && !v8_enable_turbofan &&
@@ -1454,8 +1462,8 @@ config("features") {
   if (v8_enable_experimental_tsa_builtins) {
     defines += [ "V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS" ]
   }
-  if (v8_enable_experimental_undefined_double) {
-    defines += [ "V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE" ]
+  if (v8_enable_undefined_double) {
+    defines += [ "V8_ENABLE_UNDEFINED_DOUBLE" ]
   }
   if (v8_enable_leaptiering) {
     defines += [ "V8_ENABLE_LEAPTIERING" ]
@@ -1794,6 +1802,32 @@ config("always_turbofanimize") {
     configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     configs += [ "//build/config/compiler:optimize_max" ]
+  }
+}
+
+# Sanitizer defines. V8 will inherit a default `-fsanitize=array-bounds`
+# from Chromium's `//build/config/`, which prevents clean usage of
+# `__has_feature(undefined_behavior_sanitizer)` in the short term,
+# until something like `--lie-about-ubsan-enablement=array-bounds`
+# can be implemented.
+#
+# This config provides a clear signal of "are we sanitizing" tied to
+# GN configuration.
+#
+# See also: https://crbug.com/386992829
+config("sanitizer_defines") {
+  defines = []
+  if (is_asan) {
+    defines += [ "V8_USE_ADDRESS_SANITIZER" ]
+  }
+  if (is_hwasan) {
+    defines += [ "V8_USE_HWADDRESS_SANITIZER" ]
+  }
+  if (is_msan) {
+    defines += [ "V8_USE_MEMORY_SANITIZER" ]
+  }
+  if (is_ubsan) {
+    defines += [ "V8_USE_UNDEFINED_BEHAVIOR_SANITIZER" ]
   }
 }
 
@@ -3382,7 +3416,8 @@ if (v8_enable_temporal_support) {
   # we "bake" in a zoneinfo64.res binary for Temporal
   action("make_temporal_zoneinfo_cpp") {
     script = "tools/include-file-as-bytes.py"
-    inputs = [  get_label_info("//third_party/icu/", "dir") + "/tzres/zoneinfo64.res" ]
+    inputs = [ get_label_info("//third_party/icu/", "dir") +
+               "/tzres/zoneinfo64.res" ]
     outputs =
         [ "$target_gen_dir/src/builtins/builtins-temporal-zoneinfo64-data.cc" ]
     args = [
@@ -4978,6 +5013,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/extension-riscv-zicond.h",
       "src/codegen/riscv/extension-riscv-zicsr.h",
       "src/codegen/riscv/extension-riscv-zifencei.h",
+      "src/codegen/riscv/extension-riscv-zimop.h",
       "src/codegen/riscv/interface-descriptors-riscv-inl.h",
       "src/codegen/riscv/macro-assembler-riscv.h",
       "src/codegen/riscv/register-riscv.h",
@@ -5034,6 +5070,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/extension-riscv-v.h",
       "src/codegen/riscv/extension-riscv-zicsr.h",
       "src/codegen/riscv/extension-riscv-zifencei.h",
+      "src/codegen/riscv/extension-riscv-zimop.h",
       "src/codegen/riscv/interface-descriptors-riscv-inl.h",
       "src/codegen/riscv/macro-assembler-riscv.h",
       "src/codegen/riscv/register-riscv.h",
@@ -6340,6 +6377,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
       "src/codegen/riscv/extension-riscv-zifencei.cc",
+      "src/codegen/riscv/extension-riscv-zimop.cc",
       "src/codegen/riscv/macro-assembler-riscv.cc",
       "src/deoptimizer/riscv/deoptimizer-riscv.cc",
       "src/diagnostics/riscv/disasm-riscv.cc",
@@ -6381,6 +6419,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
       "src/codegen/riscv/extension-riscv-zifencei.cc",
+      "src/codegen/riscv/extension-riscv-zimop.cc",
       "src/codegen/riscv/macro-assembler-riscv.cc",
       "src/deoptimizer/riscv/deoptimizer-riscv.cc",
       "src/diagnostics/riscv/disasm-riscv.cc",

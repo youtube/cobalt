@@ -909,7 +909,7 @@ void BackgroundDownloader::CleanupStaleDownloads() {
         base::File::Info info;
         if (base::GetFileInfo(dir, &info) &&
             info.creation_time + base::Days(kPurgeStaleJobsAfterDays) < now) {
-          RetryDeletePathRecursively(dir);
+          RetryFileOperation(&base::DeletePathRecursively, dir);
         }
       });
 }
@@ -919,19 +919,12 @@ void BackgroundDownloader::EnumerateDownloadDirs(
     base::FunctionRef<void(const base::FilePath& dir)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(com_sequence_checker_);
   base::FilePath dir;
-  std::vector<base::FilePath> dirs;
-  if (base::PathService::Get(base::DIR_SYSTEM_TEMP, &dir)) {
-    dirs.push_back(dir);
-  }
-  if (base::GetTempDir(&dir)) {
-    dirs.push_back(dir);
-  }
-  std::ranges::for_each(dirs, [&](const base::FilePath& parent_dir) {
-    base::FileEnumerator(parent_dir,
+  if (base::GetSecureTempDirectory(&dir)) {
+    base::FileEnumerator(dir,
                          /*recursive=*/false, base::FileEnumerator::DIRECTORIES,
                          matcher)
         .ForEach(callback);
-  });
+  }
 }
 
 }  // namespace update_client

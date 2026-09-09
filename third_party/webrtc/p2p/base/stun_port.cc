@@ -413,7 +413,7 @@ void UDPPort::OnReadPacket(AsyncPacketSocket* socket,
 
 void UDPPort::OnSentPacket(AsyncPacketSocket* /* socket */,
                            const SentPacketInfo& sent_packet) {
-  PortInterface::SignalSentPacket(sent_packet);
+  NotifySentPacket(sent_packet);
 }
 
 void UDPPort::OnReadyToSend(AsyncPacketSocket* /* socket */) {

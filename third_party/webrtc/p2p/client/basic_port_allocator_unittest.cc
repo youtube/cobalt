@@ -166,7 +166,7 @@ class BasicPortAllocatorTestBase : public ::testing::Test,
         // must be called.
         nat_factory_(vss_.get(), kNatUdpAddr, kNatTcpAddr),
         nat_socket_factory_(new BasicPacketSocketFactory(&nat_factory_)),
-        stun_server_(TestStunServer::Create(fss_.get(), kStunAddr, thread_)),
+        stun_server_(TestStunServer::Create(env_, kStunAddr, *fss_, thread_)),
         turn_server_(env_,
                      Thread::Current(),
                      fss_.get(),

@@ -26,7 +26,7 @@
 #include "internal.h"
 
 
-int X509_print_ex_fp(FILE *fp, X509 *x, unsigned long nmflag,
+int X509_print_ex_fp(FILE *fp, const X509 *x, unsigned long nmflag,
                      unsigned long cflag) {
   BIO *b = BIO_new_fp(fp, BIO_NOCLOSE);
   if (b == NULL) {
@@ -38,15 +38,15 @@ int X509_print_ex_fp(FILE *fp, X509 *x, unsigned long nmflag,
   return ret;
 }
 
-int X509_print_fp(FILE *fp, X509 *x) {
+int X509_print_fp(FILE *fp, const X509 *x) {
   return X509_print_ex_fp(fp, x, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 }
 
-int X509_print(BIO *bp, X509 *x) {
+int X509_print(BIO *bp, const X509 *x) {
   return X509_print_ex(bp, x, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 }
 
-int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
+int X509_print_ex(BIO *bp, const X509 *x, unsigned long nmflags,
                   unsigned long cflag) {
   char mlch = ' ';
   int nmindent = 0;
@@ -130,13 +130,13 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
     if (BIO_write(bp, "            Not Before: ", 24) <= 0) {
       return 0;
     }
-    if (!ASN1_TIME_print(bp, X509_get_notBefore(x))) {
+    if (!ASN1_TIME_print(bp, X509_get0_notBefore(x))) {
       return 0;
     }
     if (BIO_write(bp, "\n            Not After : ", 25) <= 0) {
       return 0;
     }
-    if (!ASN1_TIME_print(bp, X509_get_notAfter(x))) {
+    if (!ASN1_TIME_print(bp, X509_get0_notAfter(x))) {
       return 0;
     }
     if (BIO_write(bp, "\n", 1) <= 0) {

@@ -74,6 +74,7 @@ rtc_library("audio_device_buffer") {
     "../../rtc_base:timestamp_aligner",
     "../../rtc_base:timeutils",
     "../../rtc_base/synchronization:mutex",
+    "../../rtc_base/system:no_unique_address",
     "../../system_wrappers",
     "../../system_wrappers:metrics",
   ]
@@ -478,6 +479,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../../rtc_base:race_checker",
       "../../rtc_base:rtc_event",
       "../../rtc_base:safe_conversions",
+      "../../rtc_base:task_queue_for_test",
       "../../rtc_base:timeutils",
       "../../rtc_base/synchronization:mutex",
       "../../system_wrappers",

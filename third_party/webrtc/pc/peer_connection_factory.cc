@@ -87,21 +87,24 @@ Environment AssembleEnvironment(PeerConnectionFactoryDependencies& deps) {
 // Static
 scoped_refptr<PeerConnectionFactory> PeerConnectionFactory::Create(
     PeerConnectionFactoryDependencies dependencies) {
-  auto context = ConnectionContext::Create(AssembleEnvironment(dependencies),
-                                           &dependencies);
+  Environment env = AssembleEnvironment(dependencies);
+  auto context = ConnectionContext::Create(env, &dependencies);
   if (!context) {
     return nullptr;
   }
-  return make_ref_counted<PeerConnectionFactory>(context, &dependencies);
+  return make_ref_counted<PeerConnectionFactory>(env, context, &dependencies);
 }
 
 PeerConnectionFactory::PeerConnectionFactory(
+    Environment env,
     scoped_refptr<ConnectionContext> context,
     PeerConnectionFactoryDependencies* dependencies)
-    : context_(context),
+    : env_(env),
+      context_(context ? context
+                       : ConnectionContext::Create(env_, dependencies)),
       codec_vendor_(context_->media_engine(),
                     context_->use_rtx(),
-                    context_->env().field_trials()),
+                    env_.field_trials()),
 
       event_log_factory_(std::move(dependencies->event_log_factory)),
       fec_controller_factory_(std::move(dependencies->fec_controller_factory)),
@@ -115,10 +118,9 @@ PeerConnectionFactory::PeerConnectionFactory(
 
 PeerConnectionFactory::PeerConnectionFactory(
     PeerConnectionFactoryDependencies dependencies)
-    : PeerConnectionFactory(
-          ConnectionContext::Create(AssembleEnvironment(dependencies),
-                                    &dependencies),
-          &dependencies) {}
+    : PeerConnectionFactory(AssembleEnvironment(dependencies),
+                            /* context= */ nullptr,
+                            &dependencies) {}
 
 PeerConnectionFactory::~PeerConnectionFactory() {
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -239,7 +241,7 @@ PeerConnectionFactory::CreatePeerConnectionOrError(
                     "Attempt to create a PeerConnection without an observer");
   }
 
-  EnvironmentFactory env_factory(context_->env());
+  EnvironmentFactory env_factory(env_);
 
   // Field trials active for this PeerConnection is the first of:
   // a) Specified in the PeerConnectionDependencies

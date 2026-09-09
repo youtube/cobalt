@@ -662,8 +662,11 @@ void DcSctpTransport::ConnectTransportSignals() {
   if (!transport_) {
     return;
   }
-  transport_->SignalWritableState.connect(
-      this, &DcSctpTransport::OnTransportWritableState);
+  transport_->SubscribeWritableState(
+      this, [this](PacketTransportInternal* transport) {
+        OnTransportWritableState(transport);
+      });
+
   transport_->RegisterReceivedPacketCallback(
       this,
       [&](PacketTransportInternal* transport, const ReceivedIpPacket& packet) {
@@ -687,7 +690,7 @@ void DcSctpTransport::DisconnectTransportSignals() {
   if (!transport_) {
     return;
   }
-  transport_->SignalWritableState.disconnect(this);
+  transport_->UnsubscribeWritableState(this);
   transport_->DeregisterReceivedPacketCallback(this);
   transport_->SetOnCloseCallback(nullptr);
   transport_->UnsubscribeDtlsTransportState(this);

@@ -530,8 +530,8 @@ MediaSessionOptions CreateAudioMediaSession() {
 // these tests may be obsolete as a result, and should be refactored or removed.
 class MediaSessionDescriptionFactoryTest : public testing::Test {
  public:
-  MediaSessionDescriptionFactoryTest()
-      : field_trials_(CreateTestFieldTrials()),
+  MediaSessionDescriptionFactoryTest(absl::string_view field_trials_string = "")
+      : field_trials_(CreateTestFieldTrials(field_trials_string)),
         tdf1_(field_trials_),
         tdf2_(field_trials_),
         codec_lookup_helper_1_(field_trials_),
@@ -3657,10 +3657,16 @@ TEST_F(MediaSessionDescriptionFactoryTest, SimSsrcsGenerateMultipleRtxSsrcs) {
   EXPECT_EQ(3u, fid_ssrcs.size());
 }
 
+class MediaSessionDescriptionFactoryFecTest
+    : public MediaSessionDescriptionFactoryTest {
+ public:
+  MediaSessionDescriptionFactoryFecTest()
+      : MediaSessionDescriptionFactoryTest("WebRTC-FlexFEC-03/Enabled/") {}
+};
+
 // Test that, when the FlexFEC codec is added, a FlexFEC ssrc is created
 // together with a FEC-FR grouping. Guarded by WebRTC-FlexFEC-03 trial.
-TEST_F(MediaSessionDescriptionFactoryTest, GenerateFlexfecSsrc) {
-  field_trials_.Set("WebRTC-FlexFEC-03", "Enabled");
+TEST_F(MediaSessionDescriptionFactoryFecTest, GenerateFlexfecSsrc) {
   MediaSessionOptions opts;
   AddMediaDescriptionOptions(webrtc::MediaType::VIDEO, kVideoMid,
                              RtpTransceiverDirection::kSendRecv, kActive,
@@ -3702,8 +3708,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, GenerateFlexfecSsrc) {
 // Test that FlexFEC is disabled for simulcast.
 // TODO(brandtr): Remove this test when we support simulcast, either through
 // multiple FlexfecSenders, or through multistream protection.
-TEST_F(MediaSessionDescriptionFactoryTest, SimSsrcsGenerateNoFlexfecSsrcs) {
-  field_trials_.Set("WebRTC-FlexFEC-03", "Enabled");
+TEST_F(MediaSessionDescriptionFactoryFecTest, SimSsrcsGenerateNoFlexfecSsrcs) {
   MediaSessionOptions opts;
   AddMediaDescriptionOptions(webrtc::MediaType::VIDEO, kVideoMid,
                              RtpTransceiverDirection::kSendRecv, kActive,

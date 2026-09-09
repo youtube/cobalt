@@ -122,7 +122,7 @@ X509_CRL *d2i_X509_CRL_fp(FILE *fp, X509_CRL **crl) {
       ASN1_item_d2i_fp(ASN1_ITEM_rptr(X509_CRL), fp, crl));
 }
 
-int i2d_X509_CRL_fp(FILE *fp, X509_CRL *crl) {
+int i2d_X509_CRL_fp(FILE *fp, const X509_CRL *crl) {
   return ASN1_item_i2d_fp(ASN1_ITEM_rptr(X509_CRL), fp, crl);
 }
 
@@ -131,7 +131,7 @@ X509_CRL *d2i_X509_CRL_bio(BIO *bp, X509_CRL **crl) {
       ASN1_item_d2i_bio(ASN1_ITEM_rptr(X509_CRL), bp, crl));
 }
 
-int i2d_X509_CRL_bio(BIO *bp, X509_CRL *crl) {
+int i2d_X509_CRL_bio(BIO *bp, const X509_CRL *crl) {
   return ASN1_item_i2d_bio(ASN1_ITEM_rptr(X509_CRL), bp, crl);
 }
 
@@ -140,7 +140,7 @@ X509_REQ *d2i_X509_REQ_fp(FILE *fp, X509_REQ **req) {
       ASN1_item_d2i_fp(ASN1_ITEM_rptr(X509_REQ), fp, req));
 }
 
-int i2d_X509_REQ_fp(FILE *fp, X509_REQ *req) {
+int i2d_X509_REQ_fp(FILE *fp, const X509_REQ *req) {
   return ASN1_item_i2d_fp(ASN1_ITEM_rptr(X509_REQ), fp, req);
 }
 
@@ -149,7 +149,7 @@ X509_REQ *d2i_X509_REQ_bio(BIO *bp, X509_REQ **req) {
       ASN1_item_d2i_bio(ASN1_ITEM_rptr(X509_REQ), bp, req));
 }
 
-int i2d_X509_REQ_bio(BIO *bp, X509_REQ *req) {
+int i2d_X509_REQ_bio(BIO *bp, const X509_REQ *req) {
   return ASN1_item_i2d_bio(ASN1_ITEM_rptr(X509_REQ), bp, req);
 }
 
@@ -166,7 +166,7 @@ int i2d_X509_REQ_bio(BIO *bp, X509_REQ *req) {
   }
 
 #define IMPLEMENT_I2D_FP(type, name, bio_func) \
-  int name(FILE *fp, type *obj) {              \
+  int name(FILE *fp, const type *obj) {        \
     BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);    \
     if (bio == NULL) {                         \
       return 0;                                \
@@ -202,7 +202,7 @@ IMPLEMENT_I2D_FP(RSA, i2d_RSA_PUBKEY_fp, i2d_RSA_PUBKEY_bio)
   }
 
 #define IMPLEMENT_I2D_BIO(type, name, i2d_func) \
-  int name(BIO *bio, type *obj) {               \
+  int name(BIO *bio, const type *obj) {         \
     uint8_t *data = NULL;                       \
     int len = i2d_func(obj, &data);             \
     if (len < 0) {                              \
@@ -262,8 +262,7 @@ int X509_pubkey_digest(const X509 *data, const EVP_MD *type, unsigned char *md,
 int X509_digest(const X509 *x509, const EVP_MD *md, uint8_t *out,
                 unsigned *out_len) {
   uint8_t *der = NULL;
-  // TODO(https://crbug.com/boringssl/407): This function is not const-correct.
-  int der_len = i2d_X509((X509 *)x509, &der);
+  int der_len = i2d_X509(x509, &der);
   if (der_len < 0) {
     return 0;
   }
@@ -302,7 +301,7 @@ IMPLEMENT_D2I_FP(PKCS8_PRIV_KEY_INFO, d2i_PKCS8_PRIV_KEY_INFO_fp,
 IMPLEMENT_I2D_FP(PKCS8_PRIV_KEY_INFO, i2d_PKCS8_PRIV_KEY_INFO_fp,
                  i2d_PKCS8_PRIV_KEY_INFO_bio)
 
-int i2d_PKCS8PrivateKeyInfo_fp(FILE *fp, EVP_PKEY *key) {
+int i2d_PKCS8PrivateKeyInfo_fp(FILE *fp, const EVP_PKEY *key) {
   PKCS8_PRIV_KEY_INFO *p8inf;
   int ret;
   p8inf = EVP_PKEY2PKCS8(key);
@@ -344,4 +343,4 @@ IMPLEMENT_D2I_BIO(EVP_PKEY, d2i_PUBKEY_bio, d2i_PUBKEY)
 IMPLEMENT_I2D_BIO(EVP_PKEY, i2d_PUBKEY_bio, i2d_PUBKEY)
 
 IMPLEMENT_D2I_BIO(DH, d2i_DHparams_bio, d2i_DHparams)
-IMPLEMENT_I2D_BIO(const DH, i2d_DHparams_bio, i2d_DHparams)
+IMPLEMENT_I2D_BIO(DH, i2d_DHparams_bio, i2d_DHparams)

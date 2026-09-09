@@ -1770,9 +1770,7 @@ struct SSL_HANDSHAKE {
   UniquePtr<ERR_SAVE_STATE> error;
 
   // key_shares are the current key exchange instances, in preference order. Any
-  // members of this vector must be non-null. By default, no more than two are
-  // used, and the second is only used as a client if we believe that we should
-  // offer two key shares in a ClientHello.
+  // members of this vector must be non-null.
   InplaceVector<UniquePtr<SSLKeyShare>, kNumNamedGroups> key_shares;
 
   // transcript is the current handshake transcript.
@@ -2130,9 +2128,19 @@ bssl::UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSL *ssl,
 bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs);
 
 // ssl_setup_key_shares computes client key shares and saves them in |hs|. It
-// returns true on success and false on failure. If |override_group_id| is zero,
-// it offers the default groups, including GREASE. If it is non-zero, it offers
-// a single key share of the specified group.
+// returns true on success and false on failure. In order of precedence:
+//
+// - If |override_group_id| is non-zero, it offers a single key share of the
+//   specified group.
+//
+// - If key shares were previously specified by the caller via
+//   |SSL_set_client_key_shares|, those are used.
+//
+// - If |override_group_id| is zero and no selections were made by the caller
+//   via |SSL_set_client_key_shares|, it selects the first supported group and
+//   may select a second if at most one of the two is a post-quantum group.
+//
+// GREASE will be included if enabled, when |override_group_id| is zero.
 bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id);
 
 // ssl_setup_pake_shares computes the client PAKE shares and saves them in |hs|.
@@ -3275,7 +3283,19 @@ struct SSL_CONFIG {
   // Trust anchor IDs to be requested in the trust_anchors extension.
   std::optional<Array<uint8_t>> requested_trust_anchors;
 
-  Array<uint16_t> supported_group_list;  // our list
+  // Our list of supported groups. If this list is modified, for a client,
+  // |client_key_share_selections| must be reset if the key shares are no longer
+  // a valid subsequence of the supported group list.
+  Array<uint16_t> supported_group_list;
+
+  // For a client, this may contain a subsequence of the group IDs in
+  // |suppported_group_list|, which gives the groups for which key shares should
+  // be sent in the client's key_share extension. This is non-nullopt iff
+  // |SSL_set_client_key_shares| was successfully called to configure key
+  // shares. If non-nullopt, these groups are in the same order as they appear
+  // in |supported_group_list|, and may not contain duplicates.
+  std::optional<InplaceVector<uint16_t, kNumNamedGroups>>
+      client_key_share_selections;
 
   // channel_id_private is the client's Channel ID private key, or null if
   // Channel ID should not be offered on this connection.

@@ -99,6 +99,7 @@ W <ph name="BEGIN_LINK2" />usługach Google<ph name="END_LINK2" /> znajdziesz w
 <translation id="1407135791313364759">Otwórz wszystkie</translation>
 <translation id="1409879593029778104">Plik <ph name="FILE_NAME" /> nie został pobrany, bo już istnieje.</translation>
 <translation id="1413446866325418126">Zapisz dane na koncie Google</translation>
+<translation id="1414919006379339073">Zamknij bieżące okno</translation>
 <translation id="1416550906796893042">Wersja aplikacji</translation>
 <translation id="1419753403124156396">Uruchomić ponownie Chrome?</translation>
 <translation id="1428770807407000502">Wyłączyć synchronizację?</translation>
@@ -709,6 +710,7 @@ Twoje zaszyfrowane dane może odczytać tylko osoba znająca hasło. Nie jest on
 <translation id="4380055775103003110">Jeśli problem będzie się powtarzał, możesz wypróbować inne sposoby logowania w witrynie <ph name="SITE_ETLD_PLUS_ONE" />.</translation>
 <translation id="4384468725000734951">Korzystam z wyszukiwarki Sogou</translation>
 <translation id="4387647248986092471">Utwórz blokadę profilu samochodu</translation>
+<translation id="4387817230000841154">Otwórz Pobrane</translation>
 <translation id="4401432223274567153">{INACTIVE_TIME_DAYS,plural, =1{Karty i grupy nieużywane od co najmniej 1 dnia}few{Karty i grupy nieużywane od co najmniej # dni}many{Karty i grupy nieużywane od co najmniej # dni}other{Karty i grupy nieużywane od co najmniej # dnia}}</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> – pobieram…</translation>
 <translation id="4404568932422911380">Brak zakładek</translation>
@@ -1699,7 +1701,6 @@ Aby zmienić to ustawienie, <ph name="BEGIN_LINK" />wyczyść dane Chrome na swo
 <translation id="8617240290563765734">Otworzyć sugerowany URL określony w pobranych materiałach?</translation>
 <translation id="8635399646025169806">Zachować grupę kart?</translation>
 <translation id="8636825310635137004">Aby korzystać z kart ze swoich innych urządzeń, włącz synchronizację</translation>
-<translation id="864544049772947936">Zarządzaj oknami (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487">Zaloguj się w usłudze <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="8664979001105139458">Ta nazwa pliku już istnieje</translation>
 <translation id="8676276370198826499">Zarejestruj się w witrynie <ph name="SITE_ETLD_PLUS_ONE" />, używając: <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>

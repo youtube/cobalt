@@ -1370,7 +1370,7 @@ void Device::drawAtlasSubRun(const sktext::gpu::AtlasSubRun* subRun,
             // necessarily specific to this Device. This addresses both multiple SkSurfaces within
             // a Recorder, and nested layers.
             TRACE_EVENT_INSTANT0("skia.gpu", "Glyph atlas full", TRACE_EVENT_SCOPE_NAME_THREAD);
-            fRecorder->priv().flushTrackedDevices();
+            fRecorder->priv().flushTrackedDevices(SK_DUMP_TASKS_CODE("Device::drawAtlasSubRun"));
         }
     }
 }
@@ -1587,7 +1587,8 @@ void Device::drawGeometry(const Transform& localToDevice,
         if (pathAtlas != nullptr) {
             // We need to flush work for all devices associated with the current Recorder.
             // Otherwise we may end up with outstanding draws that depend on past atlas state.
-            fRecorder->priv().flushTrackedDevices();
+            fRecorder->priv().flushTrackedDevices(
+                    SK_DUMP_TASKS_CODE("Device::drawGeometry Flush Before Draw"));
         } else {
             this->flushPendingWork(/*drawContext=*/nullptr);
         }
@@ -1614,7 +1615,8 @@ void Device::drawGeometry(const Transform& localToDevice,
         if (!atlasMask && !needsFlush) {
             // We need to flush work for all devices associated with the current Recorder.
             // Otherwise we may end up with outstanding draws that depend on past atlas state.
-            fRecorder->priv().flushTrackedDevices();
+            fRecorder->priv().flushTrackedDevices(
+                    SK_DUMP_TASKS_CODE("Device::drawGeometry Atlas Flush"));
 
             // Try inserting the shape again.
             std::tie(renderer, atlasMask) = pathAtlas->addShape(clippedShapeBounds,
@@ -1633,6 +1635,7 @@ void Device::drawGeometry(const Transform& localToDevice,
         }
         // Since addShape() was successful we should have a valid Renderer now.
         SkASSERT(renderer && renderer->numRenderSteps() == 1 && !renderer->emitsPrimitiveColor());
+        fAtlasedPathCount++;
     }
 
 #if defined(SK_DEBUG)
@@ -1927,9 +1930,11 @@ std::pair<const Renderer*, PathAtlas*> Device::chooseRenderer(const Transform& l
 
     // Fall back to CPU rendered paths when multisampling is disabled and the compute atlas is not
     // available.
+    static constexpr int kMaxSmallPathAtlasCount = 256;
     const float minPathSizeForMSAA = fRecorder->priv().caps()->minPathSizeForMSAA();
-    const bool useRasterAtlasByDefault =
-            !fMSAASupported || all(drawBounds.size() <= minPathSizeForMSAA);
+    const bool useRasterAtlasByDefault = !fMSAASupported ||
+                                         (fAtlasedPathCount < kMaxSmallPathAtlasCount &&
+                                          all(drawBounds.size() <= minPathSizeForMSAA));
     if (!pathAtlas && atlasProvider->isAvailable(AtlasProvider::PathAtlasFlags::kRaster) &&
         (strategy == PathRendererStrategy::kRasterAA ||
          (strategy == PathRendererStrategy::kDefault && useRasterAtlasByDefault))) {
@@ -2065,6 +2070,7 @@ void Device::internalFlush() {
     fColorDepthBoundsManager->reset();
     fDisjointStencilSet->reset();
     fCurrentDepth = DrawOrder::kClearDepth;
+    fAtlasedPathCount = 0;
 
      // Any cleanup in the AtlasProvider
     fRecorder->priv().atlasProvider()->compact();

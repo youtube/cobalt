@@ -284,6 +284,7 @@ if (is_android) {
     visibility = [ "*" ]
     sources = [
       "api/org/webrtc/AddIceObserver.java",
+      "api/org/webrtc/AudioFrameProcessor.java",
       "api/org/webrtc/AudioProcessingFactory.java",
       "api/org/webrtc/AudioSource.java",
       "api/org/webrtc/AudioTrack.java",
@@ -847,6 +848,7 @@ if (current_os == "linux" || is_android) {
       "../../api:scoped_refptr",
       "../../api:turn_customizer",
       "../../api/audio:audio_device",
+      "../../api/audio:audio_frame_processor",
       "../../api/audio:audio_processing",
       "../../api/audio:builtin_audio_processing_builder",
       "../../api/audio_codecs:audio_codecs_api",

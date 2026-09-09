@@ -40,9 +40,7 @@ static constexpr CBS_ASN1_TAG kSubjectUIDTag = CBS_ASN1_CONTEXT_SPECIFIC | 2;
 static constexpr CBS_ASN1_TAG kExtensionsTag =
     CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 3;
 
-// x509_new_null returns a new |X509| object where the |issuer| and |subject|
-// fields are not yet filled in.
-static bssl::UniquePtr<X509> x509_new_null(void) {
+X509 *X509_new(void) {
   bssl::UniquePtr<X509> ret(
       reinterpret_cast<X509 *>(OPENSSL_zalloc(sizeof(X509))));
   if (ret == nullptr) {
@@ -54,29 +52,15 @@ static bssl::UniquePtr<X509> x509_new_null(void) {
   ret->version = X509_VERSION_1;
   asn1_string_init(&ret->serialNumber, V_ASN1_INTEGER);
   x509_algor_init(&ret->tbs_sig_alg);
+  x509_name_init(&ret->issuer);
   asn1_string_init(&ret->notBefore, -1);
   asn1_string_init(&ret->notAfter, -1);
+  x509_name_init(&ret->subject);
   x509_pubkey_init(&ret->key);
   x509_algor_init(&ret->sig_alg);
   asn1_string_init(&ret->signature, V_ASN1_BIT_STRING);
   CRYPTO_new_ex_data(&ret->ex_data);
   CRYPTO_MUTEX_init(&ret->lock);
-  return ret;
-}
-
-X509 *X509_new(void) {
-  bssl::UniquePtr<X509> ret = x509_new_null();
-  if (ret == nullptr) {
-    return nullptr;
-  }
-  // TODO(crbug.com/42290417): When the |X509_NAME| parser is CBS-based and
-  // writes into a pre-existing |X509_NAME|, we will no longer need the
-  // |X509_new| and |x509_new_null| split.
-  ret->issuer = X509_NAME_new();
-  ret->subject = X509_NAME_new();
-  if (ret->issuer == nullptr || ret->subject == nullptr) {
-    return nullptr;
-  }
   return ret.release();
 }
 
@@ -89,10 +73,10 @@ void X509_free(X509 *x509) {
 
   asn1_string_cleanup(&x509->serialNumber);
   x509_algor_cleanup(&x509->tbs_sig_alg);
-  X509_NAME_free(x509->issuer);
+  x509_name_cleanup(&x509->issuer);
   asn1_string_cleanup(&x509->notBefore);
   asn1_string_cleanup(&x509->notAfter);
-  X509_NAME_free(x509->subject);
+  x509_name_cleanup(&x509->subject);
   x509_pubkey_cleanup(&x509->key);
   ASN1_BIT_STRING_free(x509->issuerUID);
   ASN1_BIT_STRING_free(x509->subjectUID);
@@ -111,23 +95,10 @@ void X509_free(X509 *x509) {
   OPENSSL_free(x509);
 }
 
-static int parse_name(CBS *cbs, X509_NAME **out) {
-  // TODO(crbug.com/42290417): Make the |X509_NAME| parser CBS-based and avoid
-  // this awkward conversion.
-  const uint8_t *p = CBS_data(cbs);
-  X509_NAME_free(*out);
-  *out = d2i_X509_NAME(nullptr, &p, CBS_len(cbs));
-  if (*out == nullptr) {
-    return 0;
-  }
-  BSSL_CHECK(CBS_skip(cbs, p - CBS_data(cbs)));
-  return 1;
-}
-
 X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
                                  const EVP_PKEY_ALG *const *algs,
                                  size_t num_algs) {
-  bssl::UniquePtr<X509> ret(x509_new_null());
+  bssl::UniquePtr<X509> ret(X509_new());
   if (ret == nullptr) {
     return nullptr;
   }
@@ -166,11 +137,9 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
       return nullptr;
     }
-    // The version must be one of v1(0), v2(1), or v3(2).
-    // TODO(https://crbug.com/42290225): Also reject |X509_VERSION_1|. v1 is
-    // DEFAULT, so DER requires it be omitted.
-    if (version != X509_VERSION_1 && version != X509_VERSION_2 &&
-        version != X509_VERSION_3) {
+    // Versions v1, v2, and v3 are defined. v1 is DEFAULT, so cannot be encoded
+    // explicitly.
+    if (version != X509_VERSION_2 && version != X509_VERSION_3) {
       OPENSSL_PUT_ERROR(X509, X509_R_INVALID_VERSION);
       return nullptr;
     }
@@ -181,14 +150,14 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
   CBS validity;
   if (!asn1_parse_integer(&tbs, &ret->serialNumber, /*tag=*/0) ||
       !x509_parse_algorithm(&tbs, &ret->tbs_sig_alg) ||
-      !parse_name(&tbs, &ret->issuer) ||
+      !x509_parse_name(&tbs, &ret->issuer) ||
       !CBS_get_asn1(&tbs, &validity, CBS_ASN1_SEQUENCE) ||
       !asn1_parse_time(&validity, &ret->notBefore,
                        /*allow_utc_timezone_offset=*/1) ||
       !asn1_parse_time(&validity, &ret->notAfter,
                        /*allow_utc_timezone_offset=*/1) ||
       CBS_len(&validity) != 0 ||  //
-      !parse_name(&tbs, &ret->subject) ||
+      !x509_parse_name(&tbs, &ret->subject) ||
       !x509_parse_public_key(&tbs, &ret->key, bssl::Span(algs, num_algs))) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
     return nullptr;
@@ -218,13 +187,13 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
       return nullptr;
     }
-    // TODO(crbug.com/42290219): Empty extension lists should be rejected. An
-    // empty extensions list is encoded by omitting the field altogether. libpki
-    // already rejects this.
     const uint8_t *p = CBS_data(&wrapper);
     ret->extensions = d2i_X509_EXTENSIONS(nullptr, &p, CBS_len(&wrapper));
     if (ret->extensions == nullptr ||
-        p != CBS_data(&wrapper) + CBS_len(&wrapper)) {
+        p != CBS_data(&wrapper) + CBS_len(&wrapper) ||
+        // Extensions is a SEQUENCE SIZE (1..MAX), so it cannot be empty. An
+        // empty extensions list is encoded by omitting the OPTIONAL field.
+        sk_X509_EXTENSION_num(ret->extensions) == 0) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
       return nullptr;
     }
@@ -256,7 +225,7 @@ static bssl::UniquePtr<X509> x509_parse(CBS *cbs) {
   return bssl::UniquePtr<X509>(X509_parse_from_buffer(buf.get()));
 }
 
-int x509_marshal_tbs_cert(CBB *cbb, X509 *x509) {
+int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509) {
   if (x509->buf != nullptr) {
     // Replay the saved TBSCertificate from the |CRYPTO_BUFFER|, to verify
     // exactly what we parsed. The |CRYPTO_BUFFER| contains the full
@@ -285,11 +254,11 @@ int x509_marshal_tbs_cert(CBB *cbb, X509 *x509) {
   }
   if (!asn1_marshal_integer(&tbs, &x509->serialNumber, /*tag=*/0) ||
       !x509_marshal_algorithm(&tbs, &x509->tbs_sig_alg) ||
-      !x509_marshal_name(&tbs, x509->issuer) ||
+      !x509_marshal_name(&tbs, &x509->issuer) ||
       !CBB_add_asn1(&tbs, &validity, CBS_ASN1_SEQUENCE) ||
       !asn1_marshal_time(&validity, &x509->notBefore) ||
       !asn1_marshal_time(&validity, &x509->notAfter) ||
-      !x509_marshal_name(&tbs, x509->subject) ||
+      !x509_marshal_name(&tbs, &x509->subject) ||
       !x509_marshal_public_key(&tbs, &x509->key) ||
       (x509->issuerUID != nullptr &&
        !asn1_marshal_bit_string(&tbs, x509->issuerUID, kIssuerUIDTag)) ||
@@ -310,7 +279,7 @@ int x509_marshal_tbs_cert(CBB *cbb, X509 *x509) {
   return CBB_flush(cbb);
 }
 
-static int x509_marshal(CBB *cbb, X509 *x509) {
+static int x509_marshal(CBB *cbb, const X509 *x509) {
   CBB cert;
   return CBB_add_asn1(cbb, &cert, CBS_ASN1_SEQUENCE) &&
          x509_marshal_tbs_cert(&cert, x509) &&
@@ -323,7 +292,7 @@ X509 *d2i_X509(X509 **out, const uint8_t **inp, long len) {
   return bssl::D2IFromCBS(out, inp, len, x509_parse);
 }
 
-int i2d_X509(X509 *x509, uint8_t **outp) {
+int i2d_X509(const X509 *x509, uint8_t **outp) {
   if (x509 == NULL) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_MISSING_VALUE);
     return -1;
@@ -369,7 +338,7 @@ static const ASN1_EXTERN_FUNCS x509_extern_funcs = {x509_new_cb, x509_free_cb,
                                                     x509_parse_cb, x509_i2d_cb};
 IMPLEMENT_EXTERN_ASN1(X509, x509_extern_funcs)
 
-X509 *X509_dup(X509 *x509) {
+X509 *X509_dup(const X509 *x509) {
   uint8_t *der = NULL;
   int len = i2d_X509(x509, &der);
   if (len < 0) {
@@ -441,7 +410,7 @@ err:
 // length if pp == NULL.  We ultimately want to avoid modifying *pp in the
 // error path, but that depends on similar hygiene in lower-level functions.
 // Here we avoid compounding the problem.
-static int i2d_x509_aux_internal(X509 *a, unsigned char **pp) {
+static int i2d_x509_aux_internal(const X509 *a, unsigned char **pp) {
   int length, tmplen;
   unsigned char *start = pp != NULL ? *pp : NULL;
 
@@ -476,7 +445,7 @@ static int i2d_x509_aux_internal(X509 *a, unsigned char **pp) {
 // we're writing two ASN.1 objects back to back, we can't have i2d_X509() do
 // the allocation, nor can we allow i2d_X509_CERT_AUX() to increment the
 // allocated buffer.
-int i2d_X509_AUX(X509 *a, unsigned char **pp) {
+int i2d_X509_AUX(const X509 *a, unsigned char **pp) {
   int length;
   unsigned char *tmp;
 
@@ -505,13 +474,13 @@ int i2d_X509_AUX(X509 *a, unsigned char **pp) {
   return length;
 }
 
-int i2d_re_X509_tbs(X509 *x509, unsigned char **outp) {
+int i2d_re_X509_tbs(X509 *x509, uint8_t **outp) {
   CRYPTO_BUFFER_free(x509->buf);
   x509->buf = nullptr;
   return i2d_X509_tbs(x509, outp);
 }
 
-int i2d_X509_tbs(X509 *x509, unsigned char **outp) {
+int i2d_X509_tbs(const X509 *x509, uint8_t **outp) {
   return bssl::I2DFromCBB(/*initial_capacity=*/128, outp, [&](CBB *cbb) -> bool {
     return x509_marshal_tbs_cert(cbb, x509);
   });

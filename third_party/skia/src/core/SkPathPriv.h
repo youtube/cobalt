@@ -47,6 +47,10 @@ struct SkPathVerbAnalysis {
 
 class SkPathPriv {
 public:
+    static SkPathConvexity ComputeConvexity(SkSpan<const SkPoint> pts,
+                                            SkSpan<const SkPathVerb> points,
+                                            SkSpan<const float> conicWeights);
+
     static uint8_t ComputeSegmentMask(SkSpan<const SkPathVerb>);
 
     static SkPathVerbAnalysis AnalyzeVerbs(SkSpan<const SkPathVerb> verbs);
@@ -402,6 +406,16 @@ public:
 
     static void ReverseAddPath(SkPathBuilder* builder, const SkPath& reverseMe) {
         builder->privateReverseAddPath(reverseMe);
+    }
+
+    static void ReversePathTo(SkPathBuilder* builder, const SkPath& reverseMe) {
+        builder->privateReversePathTo(reverseMe);
+    }
+
+    static SkPath ReversePath(const SkPath& reverseMe) {
+        SkPathBuilder bu;
+        bu.privateReverseAddPath(reverseMe);
+        return bu.detach();
     }
 
     static std::optional<SkPoint> GetPoint(const SkPathBuilder& builder, int index) {

@@ -831,6 +831,7 @@ if (is_linux || is_chromeos || is_win) {
     testonly = true
     sources = [ "stunserver/stunserver_main.cc" ]
     deps = [
+      "../api/environment:environment_factory",
       "../p2p:p2p_server_utils",
       "../pc:rtc_pc",
       "../rtc_base:async_udp_socket",

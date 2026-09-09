@@ -9,7 +9,7 @@
 #include "ash/app_list/app_list_controller_impl.h"
 #include "ash/constants/ash_features.h"
 #include "ash/display/screen_orientation_controller_test_api.h"
-#include "ash/frame/non_client_frame_view_ash.h"
+#include "ash/frame/frame_view_ash.h"
 #include "ash/public/cpp/shelf_config.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/public/cpp/window_properties.h"
@@ -34,7 +34,7 @@
 #include "ash/wm/splitview/split_view_controller.h"
 #include "ash/wm/splitview/split_view_metrics_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
-#include "ash/wm/test/test_non_client_frame_view_ash.h"
+#include "ash/wm/test/test_frame_view_ash.h"
 #include "ash/wm/window_positioning_utils.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
@@ -81,7 +81,7 @@ chromeos::HeaderView* GetHeaderView(aura::Window* window) {
   // like it does in production code. Here we force a layout, otherwise the
   // client view will remain the size of the widget, and dragging it will give
   // us HTCLIENT.
-  auto* frame = NonClientFrameViewAsh::Get(window);
+  auto* frame = FrameViewAsh::Get(window);
   DCHECK(frame);
   views::test::RunScheduledLayout(frame);
   return frame->GetHeaderView();
@@ -1385,8 +1385,8 @@ TEST_F(TabletWindowFloatTest, MinimumSizeChangeOnTablet) {
   auto window =
       CreateAppWindow(gfx::Rect(500, 500), chromeos::AppType::SYSTEM_APP,
                       kShellWindowId_DeskContainerA, new TestWidgetDelegateAsh);
-  auto* custom_frame = static_cast<TestNonClientFrameViewAsh*>(
-      NonClientFrameViewAsh::Get(window.get()));
+  auto* custom_frame =
+      static_cast<TestFrameViewAsh*>(FrameViewAsh::Get(window.get()));
   wm::ActivateWindow(window.get());
   PressAndReleaseKey(ui::VKEY_F, ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN);
   ASSERT_TRUE(WindowState::Get(window.get())->IsFloated());

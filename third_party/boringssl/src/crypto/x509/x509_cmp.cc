@@ -29,11 +29,11 @@
 
 
 int X509_issuer_name_cmp(const X509 *a, const X509 *b) {
-  return X509_NAME_cmp(a->issuer, b->issuer);
+  return X509_NAME_cmp(&a->issuer, &b->issuer);
 }
 
 int X509_subject_name_cmp(const X509 *a, const X509 *b) {
-  return X509_NAME_cmp(a->subject, b->subject);
+  return X509_NAME_cmp(&a->subject, &b->subject);
 }
 
 int X509_CRL_cmp(const X509_CRL *a, const X509_CRL *b) {
@@ -46,18 +46,20 @@ int X509_CRL_match(const X509_CRL *a, const X509_CRL *b) {
 
 X509_NAME *X509_get_issuer_name(const X509 *a) {
   // This function is not const-correct for OpenSSL compatibility.
-  return a->issuer;
+  return const_cast<X509_NAME*>(&a->issuer);
 }
 
-uint32_t X509_issuer_name_hash(X509 *x) { return X509_NAME_hash(x->issuer); }
+uint32_t X509_issuer_name_hash(const X509 *x) {
+  return X509_NAME_hash(&x->issuer);
+}
 
-uint32_t X509_issuer_name_hash_old(X509 *x) {
-  return X509_NAME_hash_old(x->issuer);
+uint32_t X509_issuer_name_hash_old(const X509 *x) {
+  return X509_NAME_hash_old(&x->issuer);
 }
 
 X509_NAME *X509_get_subject_name(const X509 *a) {
   // This function is not const-correct for OpenSSL compatibility.
-  return a->subject;
+  return const_cast<X509_NAME*>(&a->subject);
 }
 
 ASN1_INTEGER *X509_get_serialNumber(X509 *a) { return &a->serialNumber; }
@@ -66,10 +68,12 @@ const ASN1_INTEGER *X509_get0_serialNumber(const X509 *x509) {
   return &x509->serialNumber;
 }
 
-uint32_t X509_subject_name_hash(X509 *x) { return X509_NAME_hash(x->subject); }
+uint32_t X509_subject_name_hash(const X509 *x) {
+  return X509_NAME_hash(&x->subject);
+}
 
-uint32_t X509_subject_name_hash_old(X509 *x) {
-  return X509_NAME_hash_old(x->subject);
+uint32_t X509_subject_name_hash_old(const X509 *x) {
+  return X509_NAME_hash_old(&x->subject);
 }
 
 // Compare two certificates: they must be identical for this to work. NB:
@@ -94,59 +98,57 @@ int X509_cmp(const X509 *a, const X509 *b) {
 }
 
 int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b) {
-  int ret;
-
-  // Ensure canonical encoding is present and up to date
-
-  if (!a->canon_enc || a->modified) {
-    ret = i2d_X509_NAME((X509_NAME *)a, NULL);
-    if (ret < 0) {
-      return -2;
-    }
+  const X509_NAME_CACHE *a_cache = x509_name_get_cache(a);
+  if (a_cache == nullptr) {
+    return -2;
   }
-
-  if (!b->canon_enc || b->modified) {
-    ret = i2d_X509_NAME((X509_NAME *)b, NULL);
-    if (ret < 0) {
-      return -2;
-    }
+  const X509_NAME_CACHE *b_cache = x509_name_get_cache(b);
+  if (b_cache == nullptr) {
+    return -2;
   }
-
-  ret = a->canon_enclen - b->canon_enclen;
-
-  if (ret) {
-    return ret;
+  if (a_cache->canon_len < b_cache->canon_len) {
+    return -1;
   }
-
-  return OPENSSL_memcmp(a->canon_enc, b->canon_enc, a->canon_enclen);
+  if (a_cache->canon_len > b_cache->canon_len) {
+    return 1;
+  }
+  int ret = OPENSSL_memcmp(a_cache->canon, b_cache->canon, a_cache->canon_len);
+  // Canonicalize the return value so it is even possible to distinguish the
+  // error case from a < b, though ideally we would not have an error case.
+  if (ret < 0) {
+    return -1;
+  }
+  if (ret > 0) {
+    return 1;
+  }
+  return 0;
 }
 
-uint32_t X509_NAME_hash(X509_NAME *x) {
-  // Make sure the X509_NAME structure contains a valid cached encoding.
-  if (i2d_X509_NAME(x, NULL) < 0) {
+uint32_t X509_NAME_hash(const X509_NAME *x) {
+  const X509_NAME_CACHE *cache = x509_name_get_cache(x);
+  if (cache == nullptr) {
     return 0;
   }
-
   uint8_t md[SHA_DIGEST_LENGTH];
-  SHA1(x->canon_enc, x->canon_enclen, md);
+  SHA1(cache->canon, cache->canon_len, md);
   return CRYPTO_load_u32_le(md);
 }
 
 // I now DER encode the name and hash it.  Since I cache the DER encoding,
 // this is reasonably efficient.
 
-uint32_t X509_NAME_hash_old(X509_NAME *x) {
-  // Make sure the X509_NAME structure contains a valid cached encoding.
-  if (i2d_X509_NAME(x, NULL) < 0) {
+uint32_t X509_NAME_hash_old(const X509_NAME *x) {
+  const X509_NAME_CACHE *cache = x509_name_get_cache(x);
+  if (cache == nullptr) {
     return 0;
   }
-
-  uint8_t md[SHA_DIGEST_LENGTH];
-  MD5((const uint8_t *)x->bytes->data, x->bytes->length, md);
+  uint8_t md[MD5_DIGEST_LENGTH];
+  MD5(cache->der, cache->der_len, md);
   return CRYPTO_load_u32_le(md);
 }
 
-X509 *X509_find_by_issuer_and_serial(const STACK_OF(X509) *sk, X509_NAME *name,
+X509 *X509_find_by_issuer_and_serial(const STACK_OF(X509) *sk,
+                                     const X509_NAME *name,
                                      const ASN1_INTEGER *serial) {
   if (serial->type != V_ASN1_INTEGER && serial->type != V_ASN1_NEG_INTEGER) {
     return NULL;
@@ -162,7 +164,7 @@ X509 *X509_find_by_issuer_and_serial(const STACK_OF(X509) *sk, X509_NAME *name,
   return NULL;
 }
 
-X509 *X509_find_by_subject(const STACK_OF(X509) *sk, X509_NAME *name) {
+X509 *X509_find_by_subject(const STACK_OF(X509) *sk, const X509_NAME *name) {
   for (size_t i = 0; i < sk_X509_num(sk); i++) {
     X509 *x509 = sk_X509_value(sk, i);
     if (X509_NAME_cmp(X509_get_subject_name(x509), name) == 0) {

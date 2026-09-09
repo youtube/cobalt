@@ -112,7 +112,8 @@ int i2d_X509_ALGOR(const X509_ALGOR *in, uint8_t **outp) {
 }
 
 IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_ALGOR, X509_ALGOR_new, X509_ALGOR_free,
-                             x509_parse_algorithm, i2d_X509_ALGOR)
+                             CBS_ASN1_SEQUENCE, x509_parse_algorithm,
+                             i2d_X509_ALGOR)
 
 X509_ALGOR *X509_ALGOR_dup(const X509_ALGOR *alg) {
   bssl::UniquePtr<X509_ALGOR> copy(X509_ALGOR_new());

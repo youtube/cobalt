@@ -24,29 +24,9 @@ bool DeviceInfo::IsVp8DecoderAvailable() {
   return result;
 }
 
-bool DeviceInfo::IsVp9DecoderAvailable() {
-  static const bool result = MediaCodecUtil::IsVp9DecoderAvailable();
-  return result;
-}
-
-bool DeviceInfo::IsAv1DecoderAvailable() {
-  static const bool result = MediaCodecUtil::IsAv1DecoderAvailable();
-  return result;
-}
-
 bool DeviceInfo::IsDecoderKnownUnaccelerated(VideoCodec codec) {
   return MediaCodecUtil::IsKnownUnaccelerated(codec,
                                               MediaCodecDirection::DECODER);
-}
-
-bool DeviceInfo::IsSetOutputSurfaceSupported() {
-  static const bool result = MediaCodecUtil::IsSetOutputSurfaceSupported();
-  return result;
-}
-
-bool DeviceInfo::SupportsOverlaySurfaces() {
-  static const bool result = MediaCodecUtil::IsSurfaceViewOutputSupported();
-  return result;
 }
 
 void DeviceInfo::AddSupportedCodecProfileLevels(

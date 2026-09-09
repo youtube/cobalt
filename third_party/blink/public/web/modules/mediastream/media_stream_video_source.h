@@ -18,6 +18,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/token.h"
 #include "build/build_config.h"
+#include "media/base/capture_version.h"
 #include "media/capture/mojom/video_capture_types.mojom-shared.h"
 #include "media/capture/video_capture_types.h"
 #include "third_party/blink/public/mojom/mediastream/media_devices.mojom-shared.h"
@@ -52,7 +53,6 @@ class VideoTrackAdapterSettings;
 // `encoded_frame_cb` is called when an encoded video frame is available.
 // `settings_cb` is called when the video track settings are updated.
 // `format_cb` is called when the video track format is updated.
-// `state_update_cb` is called when the video capturer state is updated.
 struct MediaStreamVideoSourceCallbacks {
   VideoCaptureDeliverFrameCB deliver_frame_cb;
   VideoCaptureNotifyFrameDroppedCB frame_dropped_cb;
@@ -60,7 +60,6 @@ struct MediaStreamVideoSourceCallbacks {
   EncodedVideoFrameCB encoded_frame_cb;
   VideoTrackSettingsCallback settings_cb;
   VideoTrackFormatCallback format_cb;
-  VideoCaptureStateUpdateCB state_update_cb;
 };
 
 // MediaStreamVideoSource is an interface used for sending video frames to a
@@ -217,19 +216,15 @@ class BLINK_MODULES_EXPORT MediaStreamVideoSource
   // documentation for details.)
   virtual media::CaptureVersion GetCaptureVersion() const;
 
-  // If a new |sub_capture_target_version| can be assigned, returns it.
-  // Otherwise, returns nullopt. (Can happen if the source does not support
-  // cropping/restriction, or if a change of target is not possible at this
-  // time due to technical limitations, e.g. if clones exist.)
+  // If the capture-version can be incremented, do so and return the new value.
+  // Otherwise, returns nullopt. (Inability to increment can happen if the
+  // source does not support cropping/restriction, or if a change of target
+  // is not possible at this time due to technical limitations, e.g. because
+  // of clones.
   //
-  // For an explanation of what a |sub_capture_target_version| is,
-  // see ApplySubCaptureTarget().
-  //
-  // TODO(crbug.com/1332628): Make the sub-capture-target-version an
-  // implementation detail that is not exposed to the entity
-  // calling ApplySubCaptureTarget().
-  // TODO(crbug.com/394794490): Replace with GetNextCaptureVersion().
-  virtual std::optional<uint32_t> GetNextSubCaptureTargetVersion();
+  // TODO(crbug.com/40227755): Make the capture-version an implementation detail
+  // that is not exposed to the entity calling ApplySubCaptureTarget().
+  virtual std::optional<media::CaptureVersion> GetNextCaptureVersion();
 
   // Notifies the source about that the number of encoded sinks have been
   // updated. Note: Can only be called if the number of encoded sinks have

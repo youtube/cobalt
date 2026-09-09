@@ -26,6 +26,7 @@
 #include "modules/audio_device/include/test_audio_device.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread_annotations.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
@@ -185,6 +186,20 @@ TEST(TestAudioDeviceTest, EnablingRecordingProducesAudio) {
   EXPECT_THAT(audio_transport.bytes_per_sample(), ElementsAre(4, 4, 4));
   EXPECT_THAT(audio_transport.samples_per_second(),
               ElementsAre(48000, 48000, 48000));
+}
+
+// Construct an AudioDeviceBuffer on one thread, use it and delete it on a
+// different thread.
+TEST(TestAudioDeviceTest, AudioDeviceBufferOnDifferentThread) {
+  GlobalSimulatedTimeController time_controller(kStartTime);
+  const Environment env = CreateTestEnvironment({.time = &time_controller});
+  auto audio_buffer = std::make_unique<AudioDeviceBuffer>(env);
+  TaskQueueForTest queue;
+  queue.SendTask([&] {
+    TestAudioTransport audio_transport(TestAudioTransport::Mode::kRecording);
+    ASSERT_EQ(audio_buffer->RegisterAudioCallback(&audio_transport), 0);
+    audio_buffer = nullptr;
+  });
 }
 
 TEST(TestAudioDeviceTest, RecordingIsAvailableWhenCapturerIsSet) {

@@ -22,6 +22,8 @@ namespace webrtc {
 
 // An interface that provides the means to access field trials.
 //
+// A FieldTrialsView is guaranteed to be immutable,
+//
 // Note that there are no guarantess that the meaning of a particular key-value
 // mapping will be preserved over time and no announcements will be made if they
 // are changed. It's up to the library user to ensure that the behavior does not

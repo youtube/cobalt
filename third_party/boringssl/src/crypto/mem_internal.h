@@ -379,6 +379,8 @@ using PackedSize = std::conditional_t<
 template <typename T, size_t N>
 class InplaceVector {
  public:
+  using value_type = std::remove_cv_t<T>;
+
   InplaceVector() = default;
   InplaceVector(const InplaceVector &other) { *this = other; }
   InplaceVector(InplaceVector &&other) { *this = std::move(other); }

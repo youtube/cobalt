@@ -63,7 +63,8 @@ JNI_CallSessionFileRotatingLogSink_GetLogData(
   if (log_size == 0) {
     RTC_LOG_V(LoggingSeverity::LS_WARNING)
         << "CallSessionFileRotatingStream returns 0 size for path " << dir_path;
-    return jni_zero::ScopedJavaLocalRef<jbyteArray>(jni, jni->NewByteArray(0));
+    return jni_zero::ScopedJavaLocalRef<jbyteArray>::Adopt(
+        jni, jni->NewByteArray(0));
   }
 
   // TODO(nisse, sakal): To avoid copying, change api to use ByteBuffer.
@@ -71,7 +72,8 @@ JNI_CallSessionFileRotatingLogSink_GetLogData(
   size_t read = file_reader.ReadAll(buffer.get(), log_size);
 
   jni_zero::ScopedJavaLocalRef<jbyteArray> result =
-      jni_zero::ScopedJavaLocalRef<jbyteArray>(jni, jni->NewByteArray(read));
+      jni_zero::ScopedJavaLocalRef<jbyteArray>::Adopt(jni,
+                                                      jni->NewByteArray(read));
   jni->SetByteArrayRegion(result.obj(), 0, read, buffer.get());
 
   return result;

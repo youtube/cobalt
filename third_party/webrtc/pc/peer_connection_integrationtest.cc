@@ -2005,8 +2005,8 @@ class PeerConnectionIntegrationIceStatesTest
   }
 
   void StartStunServer(const SocketAddress& server_address) {
-    stun_server_ =
-        TestStunServer::Create(firewall(), server_address, *network_thread());
+    stun_server_ = TestStunServer::Create(env_, server_address, *firewall(),
+                                          *network_thread());
   }
 
   bool TestIPv6() {
@@ -5029,8 +5029,7 @@ TEST_P(PeerConnectionIntegrationTest, DtlsPqcFieldTrial) {
 
 #endif  // WEBRTC_HAVE_SCTP
 
-TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
-       PerPeerConnectionHeaderExtensions) {
+TEST_P(PeerConnectionIntegrationTest, PerPeerConnectionHeaderExtensions) {
   SetFieldTrials("caller", "WebRTC-VideoFrameTrackingIdAdvertised/Enabled/");
   SetFieldTrials("callee", "WebRTC-VideoFrameTrackingIdAdvertised/Disabled/");
   PeerConnectionInterface::RTCConfiguration config;
@@ -5052,7 +5051,11 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   const std::string uri =
       "http://www.webrtc.org/experiments/rtp-hdrext/video-frame-tracking-id";
   {
-    caller()->pc()->AddTransceiver(MediaType::VIDEO);
+    scoped_refptr<VideoTrackInterface> caller_track =
+        caller()->CreateLocalVideoTrack();
+    scoped_refptr<RtpSenderInterface> caller_sender =
+        caller()->AddTrack(caller_track);
+
     auto session_description = caller()->CreateOfferAndWait();
     EXPECT_THAT(session_description->description()
                     ->contents()[0]
@@ -5062,7 +5065,11 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   }
 
   {
-    callee()->pc()->AddTransceiver(MediaType::VIDEO);
+    scoped_refptr<VideoTrackInterface> callee_track =
+        callee()->CreateLocalVideoTrack();
+
+    scoped_refptr<RtpSenderInterface> callee_sender =
+        callee()->AddTrack(callee_track);
     auto session_description = callee()->CreateOfferAndWait();
     EXPECT_THAT(session_description->description()
                     ->contents()[0]

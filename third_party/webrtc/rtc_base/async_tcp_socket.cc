@@ -21,7 +21,6 @@
 #include "absl/memory/memory.h"
 #include "api/array_view.h"
 #include "api/environment/environment.h"
-#include "api/units/timestamp.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
@@ -30,7 +29,6 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/time_utils.h"
 
 #if defined(WEBRTC_POSIX)
 #include <cerrno>
@@ -233,9 +231,9 @@ void AsyncTCPSocketBase::OnCloseEvent(Socket* socket, int error) {
   NotifyClosed(error);
 }
 
-AsyncTCPSocket::AsyncTCPSocket(const Environment& /*env*/,
+AsyncTCPSocket::AsyncTCPSocket(const Environment& env,
                                absl_nonnull std::unique_ptr<Socket> socket)
-    : AsyncTCPSocketBase(std::move(socket), kBufSize) {}
+    : AsyncTCPSocketBase(std::move(socket), kBufSize), env_(env) {}
 
 int AsyncTCPSocket::Send(const void* pv,
                          size_t cb,
@@ -260,7 +258,8 @@ int AsyncTCPSocket::Send(const void* pv,
     return res;
   }
 
-  SentPacketInfo sent_packet(options.packet_id, TimeMillis(),
+  SentPacketInfo sent_packet(options.packet_id,
+                             env_.clock().TimeInMilliseconds(),
                              options.info_signaled_after_sent);
   CopySocketInformationToPacketInfo(cb, *this, &sent_packet.info);
   SignalSentPacket(this, sent_packet);
@@ -284,7 +283,7 @@ size_t AsyncTCPSocket::ProcessInput(ArrayView<const uint8_t> data) {
 
     ReceivedIpPacket received_packet(
         data.subview(processed_bytes + kPacketLenSize, pkt_len), remote_addr,
-        Timestamp::Micros(TimeMicros()));
+        env_.clock().CurrentTime());
     NotifyPacketReceived(received_packet);
     processed_bytes += kPacketLenSize + pkt_len;
   }

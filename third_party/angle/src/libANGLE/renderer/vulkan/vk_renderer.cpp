@@ -491,6 +491,14 @@ constexpr vk::SkippedSyncvalMessage kSkippedSyncvalMessages[] = {
       "VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT(VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT)",
       "prior_access = SYNC_IMAGE_LAYOUT_TRANSITION", "command = vkCmdDrawIndexed",
       "prior_command = vkCmdEndRenderPass"}},
+    // False positive: https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/10667
+    {"SYNC-HAZARD-WRITE-AFTER-READ",
+     false,
+     {"message_type = DynamicRenderingAttachmentError", "hazard_type = WRITE_AFTER_READ",
+      "access = "
+      "VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT(VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT)",
+      "prior_access = VK_PIPELINE_STAGE_2_BLIT_BIT(VK_ACCESS_2_TRANSFER_READ_BIT)",
+      "command = vkCmdDraw", "prior_command = vkCmdBlitImage"}},
     // https://anglebug.com/443095908
     {"SYNC-HAZARD-WRITE-AFTER-READ",
      false,
@@ -5749,10 +5757,15 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
         (isIntel && IsLinux() && driverVersion >= angle::VersionTriple(22, 0, 0)) ||
         mFeatures.exposeNonConformantExtensionsAndVersions.enabled;
 
-    ANGLE_FEATURE_CONDITION(&mFeatures, supportsShaderFramebufferFetch,
-                            supportsFramebufferFetchInSurface);
-    ANGLE_FEATURE_CONDITION(&mFeatures, supportsShaderFramebufferFetchNonCoherent,
-                            supportsFramebufferFetchInSurface);
+    // Emulating framebuffer fetch causes significant perf regressions on samsung
+    const bool framebufferFetchEmulationCausesPerfRegression = isSamsung;
+
+    ANGLE_FEATURE_CONDITION(
+        &mFeatures, supportsShaderFramebufferFetch,
+        (supportsFramebufferFetchInSurface && !framebufferFetchEmulationCausesPerfRegression));
+    ANGLE_FEATURE_CONDITION(
+        &mFeatures, supportsShaderFramebufferFetchNonCoherent,
+        (supportsFramebufferFetchInSurface && !framebufferFetchEmulationCausesPerfRegression));
 
     // On ARM hardware, framebuffer-fetch-like behavior on Vulkan is known to be coherent even
     // without the Vulkan extension.
@@ -6100,6 +6113,17 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
                                 (!mFeatures.supportsGraphicsPipelineLibrary.enabled ||
                                  (mFeatures.preferMonolithicPipelinesOverLibraries.enabled &&
                                   libraryBlobsAreReusedByMonolithicPipelines)));
+
+    // Whether all accesses to pipeline cache need to be externally synchronized. This should only
+    // be enabled on platforms if:
+    //
+    // - mergeProgramPipelineCachesToGlobalCache is enabled
+    // - preferMonolithicPipelinesOverLibraries is enabled
+    // - stale nvidia drivers
+    ANGLE_FEATURE_CONDITION(&mFeatures, externallySynchronizePipelineCacheAccess,
+                            mFeatures.mergeProgramPipelineCachesToGlobalCache.enabled ||
+                                mFeatures.preferMonolithicPipelinesOverLibraries.enabled ||
+                                (isNvidia && driverVersion < angle::VersionTriple(441, 0, 0)));
 
     ANGLE_FEATURE_CONDITION(&mFeatures, enableAsyncPipelineCacheCompression, true);
 
@@ -6458,12 +6482,15 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
 
     // http://anglebug.com/440941211:
     // Disable the feature on Windows Intel because some shaders using 16-bit floats crash
-    // http://crbug.com/443182226:
-    // Temporarily disable the feature because webgl_conformance_vulkan_passthrough_tests are
-    // failing.
+    // http://anglebug.com/443302350
+    // http://anglebug.com/443302625
+    // Temporarily disable the feature on PowerVR while the above 2 bugs are under investigations
+    // http://anglebug.com/446159597
+    // Disable the feature on Samsung devices
     ANGLE_FEATURE_CONDITION(&mFeatures, convertLowpAndMediumpFloatUniformsTo16Bits,
                             m16BitStorageFeatures.uniformAndStorageBuffer16BitAccess == VK_TRUE &&
-                                !(IsWindows() && isIntel) && false);
+                                mShaderFloat16Int8Features.shaderFloat16 == VK_TRUE &&
+                                !(IsWindows() && isIntel) && !isPowerVR && !isSamsung);
 
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsUnifiedImageLayouts,
                             mUnifiedImageLayoutsFeatures.unifiedImageLayouts == VK_TRUE);
@@ -6574,8 +6601,7 @@ angle::Result Renderer::getPipelineCache(vk::ErrorContext *context,
     ANGLE_TRY(ensurePipelineCacheInitialized(context));
 
     angle::SimpleMutex *pipelineCacheMutex =
-        context->getFeatures().mergeProgramPipelineCachesToGlobalCache.enabled ||
-                context->getFeatures().preferMonolithicPipelinesOverLibraries.enabled
+        context->getFeatures().externallySynchronizePipelineCacheAccess.enabled
             ? &mPipelineCacheMutex
             : nullptr;
 

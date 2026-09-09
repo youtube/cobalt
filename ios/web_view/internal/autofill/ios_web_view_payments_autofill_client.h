@@ -51,6 +51,7 @@ class IOSWebViewPaymentsAutofillClient : public PaymentsAutofillClient {
       base::OnceCallback<void(const std::string&)> callback) override;
 
   // PaymentsAutofillClient:
+  bool LocalCardSaveIsSupported() override;
   void ShowSaveCreditCardToCloud(
       const CreditCard& card,
       const LegalMessageLines& legal_message_lines,
@@ -72,6 +73,12 @@ class IOSWebViewPaymentsAutofillClient : public PaymentsAutofillClient {
   PaymentsDataManager& GetPaymentsDataManager() final;
   payments::MandatoryReauthManager* GetOrCreatePaymentsMandatoryReauthManager()
       override;
+  void ShowAutofillProgressDialog(
+      AutofillProgressDialogType autofill_progress_dialog_type,
+      base::OnceClosure cancel_callback) override;
+  void CloseAutofillProgressDialog(
+      bool show_confirmation_before_closing,
+      base::OnceClosure no_interactive_authentication_callback) override;
 
 #if BUILDFLAG(IS_IOS)
   std::unique_ptr<AutofillProgressDialogController> ExtractProgressDialogModel()

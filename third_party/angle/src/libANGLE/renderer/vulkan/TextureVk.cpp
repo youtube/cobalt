@@ -1945,14 +1945,14 @@ angle::Result TextureVk::copySubImageImplWithDraw(ContextVk *contextVk,
 
     gl::LevelIndex level(index.getLevelIndex());
 
-    UtilsVk::CopyImageParameters params;
+    UtilsVk::CopyImageParameters params = {};
     params.srcOffset[0]        = rotatedSourceBox.x;
     params.srcOffset[1]        = rotatedSourceBox.y;
     params.srcExtents[0]       = rotatedSourceBox.width;
     params.srcExtents[1]       = rotatedSourceBox.height;
     params.dstOffset[0]        = dstOffset.x;
     params.dstOffset[1]        = dstOffset.y;
-    params.srcMip              = srcImage->toVkLevel(sourceLevelGL).get();
+    params.srcMip              = srcImage->toVkLevel(sourceLevelGL);
     params.srcSampleCount      = srcImage->getSamples();
     params.srcHeight           = srcExtents.height;
     params.dstMip              = level;

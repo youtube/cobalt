@@ -53,12 +53,17 @@ namespace {
 template <typename Config>
 struct Flag {
   const char *name;
+  // has_param, if true, causes the parser to look for a param value following
+  // this flag's name.
   bool has_param;
   // skip_handshaker, if true, causes this flag to be skipped when
   // forwarding flags to the handshaker. This should be used with flags
   // that only impact connecting to the runner.
   bool skip_handshaker;
-  // If |has_param| is false, |param| will be nullptr.
+  // set_param is called after parsing to interpret and set the result on
+  // `config`. If `has_param` is false for this flag, `param` will be nullptr.
+  // This function should return whether the param value (or lack thereof) was
+  // valid for this flag.
   std::function<bool(Config *config, const char *param)> set_param;
 };
 
@@ -164,6 +169,39 @@ Flag<Config> IntVectorFlag(const char *name, std::vector<T> Config::*field,
                           return false;
                         }
                         (config->*field).push_back(value);
+                        return true;
+                      }};
+}
+
+// Defines a flag which adds an integer param value to an optional vector of
+// integers.
+template <typename Config, typename T>
+Flag<Config> OptionalIntVectorFlag(const char *name,
+                                   std::optional<std::vector<T>> Config::*field,
+                                   bool skip_handshaker = false) {
+  return Flag<Config>{name, true, skip_handshaker,
+                      [=](Config *config, const char *param) -> bool {
+                        if (!(config->*field)) {
+                          (config->*field).emplace();
+                        }
+                        T value;
+                        if (!StringToInt(&value, param)) {
+                          return false;
+                        }
+                        (config->*field)->push_back(value);
+                        return true;
+                      }};
+}
+
+// Defines a flag which resets a std::optional field to its default constructed
+// value.
+template <typename Config, typename T>
+Flag<Config> OptionalDefaultInitFlag(const char *name,
+                                     std::optional<T> Config::*field,
+                                     bool skip_handshaker = false) {
+  return Flag<Config>{name, false, skip_handshaker,
+                      [=](Config *config, const char *) -> bool {
+                        (config->*field).emplace();
                         return true;
                       }};
 }
@@ -327,6 +365,8 @@ const Flag<TestConfig> *FindFlag(const char *name) {
         IntVectorFlag("-expect-peer-verify-pref",
                       &TestConfig::expect_peer_verify_prefs),
         IntVectorFlag("-curves", &TestConfig::curves),
+        OptionalIntVectorFlag("-key-shares", &TestConfig::key_shares),
+        OptionalDefaultInitFlag("-no-key-shares", &TestConfig::key_shares),
         StringFlag("-trust-cert", &TestConfig::trust_cert),
         StringFlag("-expect-server-name", &TestConfig::expect_server_name),
         BoolFlag("-enable-ech-grease", &TestConfig::enable_ech_grease),
@@ -679,6 +719,9 @@ bool ParseConfig(int argc, char **argv, bool is_shim, TestConfig *out_initial,
     if (!skip) {
       if (out != nullptr) {
         if (!flag->set_param(out, param)) {
+          if (!param) {
+            param = "(no parameter)";
+          }
           fprintf(stderr, "Invalid parameter for %s: %s\n", name, param);
           return false;
         }
@@ -687,6 +730,9 @@ bool ParseConfig(int argc, char **argv, bool is_shim, TestConfig *out_initial,
         if (!flag->set_param(out_initial, param) ||
             !flag->set_param(out_resume, param) ||
             !flag->set_param(out_retry, param)) {
+          if (!param) {
+            param = "(no parameter)";
+          }
           fprintf(stderr, "Invalid parameter for %s: %s\n", name, param);
           return false;
         }
@@ -2479,6 +2525,11 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
   }
   if (!curves.empty() &&
       !SSL_set1_group_ids(ssl.get(), curves.data(), curves.size())) {
+    return nullptr;
+  }
+  if (key_shares.has_value() &&
+      !SSL_set1_client_key_shares(ssl.get(), key_shares->data(),
+                                  key_shares->size())) {
     return nullptr;
   }
   if (initial_timeout_duration_ms > 0) {

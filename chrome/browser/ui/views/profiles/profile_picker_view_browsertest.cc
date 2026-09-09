@@ -9,7 +9,6 @@
 
 #include "base/barrier_closure.h"
 #include "base/cfi_buildflags.h"
-#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/json/values_util.h"
 #include "base/memory/raw_ptr.h"
@@ -79,7 +78,6 @@
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/startup/first_run_service.h"
 #include "chrome/browser/ui/tab_dialogs.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_reauth_provider.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_test_base.h"
@@ -1700,6 +1698,7 @@ IN_PROC_BROWSER_TEST_P(ForceSigninProfilePickerCreationFlowBrowserTest,
 }
 
 // Regression test for crbug.com/360733721.
+// TODO(crbug.com/446597206): Test will be re-enabled once this bug is resolved.
 IN_PROC_BROWSER_TEST_P(
     ForceSigninProfilePickerCreationFlowBrowserTest,
     ForceSigninWithPatternMatchingShouldFailSigninWithWrongPatternEmail) {
@@ -1730,14 +1729,15 @@ IN_PROC_BROWSER_TEST_P(
   const std::string email = "joe.consumer@gmail.com";
   // Verify that patternt does not match.
   ASSERT_FALSE(signin::IsUsernameAllowedByPatternFromPrefs(local_state, email));
-  // Signing in with a profile that does not match the pattern should stop the
-  // profile creation flow.
-  FinishDiceSignIn(profile_being_created, email, "Joe", kNoHostedDomainFound);
 
   if (IsParamFeatureEnabled()) {
     // TODO(crbug.com/444639440): Support signin pattern.
     return;
   }
+
+  // Signing in with a profile that does not match the pattern should stop the
+  // profile creation flow.
+  FinishDiceSignIn(profile_being_created, email, "Joe", kNoHostedDomainFound);
 
   // Returning to the profile picker main page.
   WaitForLoadStop(GURL("chrome://profile-picker"));
@@ -2961,10 +2961,6 @@ class ProfilePickerEnterpriseCreationFlowBrowserTest
         context, base::BindRepeating(
                      &policy::FakeUserPolicySigninService::BuildForEnterprise));
   }
-  // `GetLocalProfileName` assertions would fail without enabling the feature
-  // in non-fieldtrial tests.
-  base::test::ScopedFeatureList feature_list_{
-      features::kEnterpriseProfileBadgingForAvatar};
 };
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,

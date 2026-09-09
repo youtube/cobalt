@@ -144,6 +144,12 @@ void MaglevInliner::RunOptimizer() {
       optimization_pass(optimizer, kna_processor,
                         RecomputePhiUseHintsProcessor{graph_->zone()});
   optimization_pass.ProcessGraph(graph_);
+
+  // Remove unreachable blocks if we have any.
+  if (graph_->may_have_unreachable_blocks()) {
+    graph_->RemoveUnreachableBlocks();
+  }
+
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
     std::cout << "\nAfter optimization " << std::endl;
     PrintGraph(std::cout, graph_);
@@ -358,16 +364,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   for (auto bb : saved_bb) {
     graph_->Add(bb);
   }
-
-  if (auto alloc = returned_value->TryCast<InlinedAllocation>()) {
-    // TODO(victorgomes): Support eliding VOs.
-    alloc->ForceEscaping();
-#ifdef DEBUG
-    alloc->set_is_returned_value_from_inline_call();
-#endif  // DEBUG
-  }
   call_node->OverwriteWithReturnValue(returned_value);
-
   return InliningResult::kDone;
 }
 

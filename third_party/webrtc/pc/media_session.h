@@ -28,6 +28,7 @@
 #include "pc/codec_vendor.h"
 #include "pc/media_options.h"
 #include "pc/session_description.h"
+#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/memory/always_valid_pointer.h"
 #include "rtc_base/unique_id_generator.h"
 
@@ -173,6 +174,10 @@ class MediaSessionDescriptionFactory {
     return ssrc_generator_.get();
   }
 
+  // Feedback format according to RFC-8888 will be offered if true.
+  const bool offer_rfc_8888_;
+  // Feedback format according to RFC-8888 will be accepted if offered.
+  const bool accept_offer_with_rfc_8888_;
   bool is_unified_plan_ = false;
   // This object may or may not be owned by this class.
   AlwaysValidPointer<UniqueRandomIdGenerator> const ssrc_generator_;

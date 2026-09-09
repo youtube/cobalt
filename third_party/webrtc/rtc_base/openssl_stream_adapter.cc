@@ -140,21 +140,40 @@ constexpr int kForceDtls13Only = 2;
 #endif
 
 int GetForceDtls13(const FieldTrialsView* field_trials) {
-  if (field_trials == nullptr) {
-    return kForceDtls13Off;
-  }
 #ifdef DTLS1_3_VERSION
-  if (field_trials->IsEnabled("WebRTC-ForceDtls13")) {
-    RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Enabled";
-    return kForceDtls13Enabled;
+  if (field_trials) {
+#if defined(WEBRTC_CHROMIUM_BUILD) && !defined(CHROMEOS) && \
+    !defined(WEBRTC_ANDROID)
+    if (field_trials->IsDisabled("WebRTC-ForceDtls13")) {
+      RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Disabled";
+      return kForceDtls13Off;
+    }
+#else
+    if (field_trials->IsEnabled("WebRTC-ForceDtls13")) {
+      RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Enabled";
+      return kForceDtls13Enabled;
+    }
+#endif  // defined(WEBRTC_CHROMIUM_BUILD) && !defined(CHROMEOS) &&
+        // !defined(WEBRTC_ANDROID)
+    if (field_trials->Lookup("WebRTC-ForceDtls13") == "Only") {
+      RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Only";
+      return kForceDtls13Only;
+    }
   }
-  if (field_trials->Lookup("WebRTC-ForceDtls13") == "Only") {
-    RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Only";
-    return kForceDtls13Only;
-  }
+  // Default behavior:
+#if defined(WEBRTC_CHROMIUM_BUILD) && !defined(CHROMEOS) && \
+    !defined(WEBRTC_ANDROID)
+  RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Enabled";
+  return kForceDtls13Enabled;
+#else
   RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Disabled";
-#endif
   return kForceDtls13Off;
+#endif  // defined(WEBRTC_CHROMIUM_BUILD) && !defined(CHROMEOS) &&
+        // !defined(WEBRTC_ANDROID)
+
+#else
+  return kForceDtls13Off;
+#endif  // DTLS1_3_VERSION
 }
 
 }  // namespace

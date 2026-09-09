@@ -52,7 +52,7 @@ DECLARE_ASN1_ITEM(X509_PUBKEY)
 
 struct X509_name_entry_st {
   ASN1_OBJECT *object;
-  ASN1_STRING *value;
+  ASN1_STRING value;
   int set;
 } /* X509_NAME_ENTRY */;
 
@@ -60,13 +60,19 @@ struct X509_name_entry_st {
 // (RFC 5280) and C type is |X509_NAME_ENTRY*|.
 DECLARE_ASN1_ITEM(X509_NAME_ENTRY)
 
-// we always keep X509_NAMEs in 2 forms.
+struct X509_NAME_CACHE {
+  // canon contains the DER-encoded canonicalized X.509 Name, not including the
+  // outermost TLV.
+  uint8_t *canon;
+  size_t canon_len;
+  // der contains the DER-encoded X.509 Name, including the outermost TLV.
+  uint8_t *der;
+  size_t der_len;
+};
+
 struct X509_name_st {
   STACK_OF(X509_NAME_ENTRY) *entries;
-  int modified;  // true if 'bytes' needs to be built
-  BUF_MEM *bytes;
-  unsigned char *canon_enc;
-  int canon_enclen;
+  mutable bssl::Atomic<X509_NAME_CACHE *> cache;
 } /* X509_NAME */;
 
 struct x509_attributes_st {
@@ -106,14 +112,10 @@ struct x509_st {
   uint8_t version;  // One of the |X509_VERSION_*| constants.
   ASN1_INTEGER serialNumber;
   X509_ALGOR tbs_sig_alg;
-  // TODO(crbug.com/42290417): When |X509_NAME| no longer uses the macro system,
-  // try to embed this struct.
-  X509_NAME *issuer;
+  X509_NAME issuer;
   ASN1_TIME notBefore;
   ASN1_TIME notAfter;
-  // TODO(crbug.com/42290417): When |X509_NAME| no longer uses the macro system,
-  // try to embed this struct.
-  X509_NAME *subject;
+  X509_NAME subject;
   X509_PUBKEY key;
   ASN1_BIT_STRING *issuerUID;            // [ 1 ] optional in v2
   ASN1_BIT_STRING *subjectUID;           // [ 2 ] optional in v2
@@ -143,7 +145,7 @@ struct x509_st {
   CRYPTO_MUTEX lock;
 } /* X509 */;
 
-int x509_marshal_tbs_cert(CBB *cbb, X509 *x509);
+int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509);
 
 // X509 is an |ASN1_ITEM| whose ASN.1 type is X.509 Certificate (RFC 5280) and C
 // type is |X509*|.
@@ -158,9 +160,7 @@ typedef struct {
   STACK_OF(X509_ATTRIBUTE) *attributes;  // [ 0 ]
 } X509_REQ_INFO;
 
-// TODO(https://crbug.com/boringssl/407): This is not const because it contains
-// an |X509_NAME|.
-DECLARE_ASN1_FUNCTIONS(X509_REQ_INFO)
+DECLARE_ASN1_FUNCTIONS_const(X509_REQ_INFO)
 
 struct X509_req_st {
   X509_REQ_INFO *req_info;
@@ -196,9 +196,7 @@ typedef struct {
   ASN1_ENCODING enc;
 } X509_CRL_INFO;
 
-// TODO(https://crbug.com/boringssl/407): This is not const because it contains
-// an |X509_NAME|.
-DECLARE_ASN1_FUNCTIONS(X509_CRL_INFO)
+DECLARE_ASN1_FUNCTIONS_const(X509_CRL_INFO)
 
 // Values in idp_flags field
 // IDP present
@@ -285,7 +283,7 @@ struct x509_lookup_method_st {
   void (*free)(X509_LOOKUP *ctx);
   int (*ctrl)(X509_LOOKUP *ctx, int cmd, const char *argc, long argl,
               char **ret);
-  int (*get_by_subject)(X509_LOOKUP *ctx, int type, X509_NAME *name,
+  int (*get_by_subject)(X509_LOOKUP *ctx, int type, const X509_NAME *name,
                         X509_OBJECT *ret);
 } /* X509_LOOKUP_METHOD */;
 
@@ -426,7 +424,8 @@ int X509_policy_check(const STACK_OF(X509) *certs,
 // TODO(davidben): Reduce the scope of the verify callback and remove this. The
 // callback only runs with |X509_V_FLAG_CB_ISSUER_CHECK|, which is only used by
 // one internal project and rust-openssl, who use it by mistake.
-int x509_check_issued_with_callback(X509_STORE_CTX *ctx, X509 *x, X509 *issuer);
+int x509_check_issued_with_callback(X509_STORE_CTX *ctx, const X509 *x,
+                                    const X509 *issuer);
 
 // x509v3_bytes_to_hex encodes |len| bytes from |in| to hex and returns a
 // newly-allocated NUL-terminated string containing the result, or NULL on
@@ -556,9 +555,7 @@ GENERAL_NAMES *v2i_GENERAL_NAMES(const X509V3_EXT_METHOD *method,
                                  const X509V3_CTX *ctx,
                                  const STACK_OF(CONF_VALUE) *nval);
 
-// TODO(https://crbug.com/boringssl/407): Make |issuer| const once the
-// |X509_NAME| issue is resolved.
-int X509_check_akid(X509 *issuer, const AUTHORITY_KEYID *akid);
+int X509_check_akid(const X509 *issuer, const AUTHORITY_KEYID *akid);
 
 int X509_is_valid_trust_id(int trust);
 
@@ -567,13 +564,21 @@ int X509_PURPOSE_get_trust(const X509_PURPOSE *xp);
 // TODO(https://crbug.com/boringssl/695): Remove this.
 int DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, X509_NAME *iname);
 
+void x509_name_init(X509_NAME *name);
+void x509_name_cleanup(X509_NAME *name);
+
+// x509_parse_name parses a DER-encoded, X.509 Name from |cbs| and writes the
+// result to |*out|. It returns one on success and zero on error.
+int x509_parse_name(CBS *cbs, X509_NAME *out);
+
 // x509_marshal_name marshals |in| as a DER-encoded, X.509 Name and writes the
 // result to |out|. It returns one on success and zero on error.
-//
-// TODO(https://crbug.com/boringssl/407): This function should be const and
-// thread-safe but is currently neither in some cases, notably if |in| was
-// mutated.
-int x509_marshal_name(CBB *out, X509_NAME *in);
+int x509_marshal_name(CBB *out, const X509_NAME *in);
+
+const X509_NAME_CACHE *x509_name_get_cache(const X509_NAME *name);
+void x509_name_invalidate_cache(X509_NAME *name);
+
+int x509_name_copy(X509_NAME *dst, const X509_NAME *src);
 
 void x509_algor_init(X509_ALGOR *alg);
 void x509_algor_cleanup(X509_ALGOR *alg);

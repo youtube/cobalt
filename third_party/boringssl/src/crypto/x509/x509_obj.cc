@@ -73,13 +73,13 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len) {
     }
     l1 = strlen(s);
 
-    type = ne->value->type;
-    num = ne->value->length;
+    type = ne->value.type;
+    num = ne->value.length;
     if (num > NAME_ONELINE_MAX) {
       OPENSSL_PUT_ERROR(X509, X509_R_NAME_TOO_LONG);
       goto err;
     }
-    q = ne->value->data;
+    q = ne->value.data;
 
     if ((type == V_ASN1_GENERALSTRING) && ((num % 4) == 0)) {
       gs_doit[0] = gs_doit[1] = gs_doit[2] = gs_doit[3] = 0;
@@ -130,7 +130,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len) {
     p += l1;
     *(p++) = '=';
 
-    q = ne->value->data;
+    q = ne->value.data;
 
     for (j = 0; j < num; j++) {
       if (!gs_doit[j & 3]) {

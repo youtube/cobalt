@@ -662,6 +662,21 @@ const TransportDescription* GetTransportDescription(
   return desc;
 }
 
+bool OfferRfc8888(const FieldTrialsView& field_trials) {
+  if (field_trials.IsEnabled("WebRTC-RFC8888CongestionControlFeedback")) {
+    FieldTrialParameter<bool> offer_rfc_8888("offer", false);
+    ParseFieldTrial(
+        {&offer_rfc_8888},
+        field_trials.Lookup("WebRTC-RFC8888CongestionControlFeedback"));
+    return offer_rfc_8888;
+  }
+  return false;
+}
+
+bool AcceptOfferWithRfc8888(const FieldTrialsView& field_trials) {
+  return field_trials.IsEnabled("WebRTC-RFC8888CongestionControlFeedback");
+}
+
 }  // namespace
 
 MediaSessionDescriptionFactory::MediaSessionDescriptionFactory(
@@ -670,7 +685,10 @@ MediaSessionDescriptionFactory::MediaSessionDescriptionFactory(
     UniqueRandomIdGenerator* ssrc_generator,
     const TransportDescriptionFactory* transport_desc_factory,
     CodecLookupHelper* codec_lookup_helper)
-    : ssrc_generator_(ssrc_generator),
+    : offer_rfc_8888_(OfferRfc8888(transport_desc_factory->trials())),
+      accept_offer_with_rfc_8888_(
+          AcceptOfferWithRfc8888(transport_desc_factory->trials())),
+      ssrc_generator_(ssrc_generator),
       transport_desc_factory_(transport_desc_factory),
       codec_lookup_helper_(codec_lookup_helper),
       payload_types_in_transport_trial_enabled_(
@@ -838,8 +856,7 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
 
   // Decide what congestion control feedback format we're using.
   bool has_ack_ccfb = false;
-  if (transport_desc_factory_->trials().IsEnabled(
-          "WebRTC-RFC8888CongestionControlFeedback")) {
+  if (accept_offer_with_rfc_8888_) {
     for (const auto& content : offer->contents()) {
       if (content.type != MediaProtocolType::kRtp) {
         continue;
@@ -1169,9 +1186,7 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForOffer(
     content_description = std::make_unique<VideoContentDescription>();
   }
   // RFC 8888 support.
-  content_description->set_rtcp_fb_ack_ccfb(
-      transport_desc_factory_->trials().IsEnabled(
-          "WebRTC-RFC8888CongestionControlFeedback"));
+  content_description->set_rtcp_fb_ack_ccfb(offer_rfc_8888_);
   auto error = CreateMediaContentOffer(
       media_description_options, session_options, codecs_to_include,
       header_extensions, ssrc_generator(), current_streams,
@@ -1338,10 +1353,8 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
   // RFC 8888 support. Only answer with "ack ccfb" if offer has it and
   // experiment is enabled.
   if (offer_content_description->rtcp_fb_ack_ccfb()) {
-    bool use_ccfb = transport_desc_factory_->trials().IsEnabled(
-        "WebRTC-RFC8888CongestionControlFeedback");
-    if (use_ccfb) {
-      answer_content->set_rtcp_fb_ack_ccfb(use_ccfb);
+    if (accept_offer_with_rfc_8888_) {
+      answer_content->set_rtcp_fb_ack_ccfb(true);
       for (auto& codec : codecs_to_include) {
         codec.feedback_params.Remove(FeedbackParam(kRtcpFbParamTransportCc));
       }

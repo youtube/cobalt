@@ -64,12 +64,24 @@ bool VerifyParameterValues(const T& value,
   StringBuilder error_builder;
   error_builder.Append(error_message_base_base);
   error_builder.Append(" Supported values: ");
-  for (auto i = 0u; i < supported_values.size(); i++) {
-    if (i != 0) {
-      error_builder.Append(", ");
-    }
-    error_builder.AppendNumber(supported_values[i]);
+  error_builder.AppendRange(supported_values, ", ");
+  *js_error_message = error_builder.ReleaseString();
+  return false;
+}
+
+bool VerifyDurationValues(int64_t microseconds,
+                          String error_message_base_base,
+                          String* js_error_message) {
+  if (microseconds >= 2500 && microseconds <= 120000 &&
+      microseconds % 2500 == 0) {
+    return true;
   }
+
+  StringBuilder error_builder;
+  error_builder.Append(error_message_base_base);
+  error_builder.Append(
+      " Needs to be a multiple of 2500 and in the range of [2500, 120000] "
+      "microseconds.");
   *js_error_message = error_builder.ToString();
   return false;
 }
@@ -283,12 +295,9 @@ bool VerifyCodecSupportStatic(AudioEncoderTraits::ParsedConfig* config,
 
   switch (config->options.codec) {
     case media::AudioCodec::kOpus: {
-      // TODO(crbug.com/1378399): Support all multiples of basic frame
-      // durations.
-      if (!VerifyParameterValues(
+      if (!VerifyDurationValues(
               config->options.opus->frame_duration.InMicroseconds(),
-              "Unsupported Opus frameDuration.",
-              {2500, 5000, 10000, 20000, 40000, 60000}, js_error_message)) {
+              "Unsupported Opus frameDuration.", js_error_message)) {
         return false;
       }
       if (config->options.channels > 2) {

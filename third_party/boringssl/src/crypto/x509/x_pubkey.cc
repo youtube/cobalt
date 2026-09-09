@@ -130,7 +130,8 @@ int i2d_X509_PUBKEY(const X509_PUBKEY *key, uint8_t **outp) {
 // TODO(crbug.com/42290417): Remove this when |X509| and |X509_REQ| no longer
 // depend on the tables.
 IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_PUBKEY, X509_PUBKEY_new, X509_PUBKEY_free,
-                             x509_parse_public_key_default, i2d_X509_PUBKEY)
+                             CBS_ASN1_SEQUENCE, x509_parse_public_key_default,
+                             i2d_X509_PUBKEY)
 
 int x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey) {
   bssl::ScopedCBB cbb;

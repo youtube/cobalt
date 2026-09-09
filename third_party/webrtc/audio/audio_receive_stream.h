@@ -151,6 +151,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
  private:
   internal::AudioState* audio_state() const;
 
+  const Environment env_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker worker_thread_checker_;
   // TODO(bugs.webrtc.org/11993): This checker conceptually represents
   // operations that belong to the network thread. The Call class is currently

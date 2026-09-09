@@ -121,6 +121,7 @@ VideoCodec VideoCodecInitializer::SetupCodec(
     sim_stream->targetBitrate = streams[i].target_bitrate_bps / 1000;
     sim_stream->maxBitrate = streams[i].max_bitrate_bps / 1000;
     sim_stream->qpMax = streams[i].max_qp;
+    sim_stream->format = config.GetSimulcastVideoFormat(i);
 
     int num_temporal_layers =
         streams[i].scalability_mode.has_value()

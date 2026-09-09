@@ -623,7 +623,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(IsInternalizedString, 1, 1)                                          \
   F(StringToCString, 1, 1)                                               \
   F(StringUtf8Value, 1, 1)                                               \
-  F(IsExperimentalUndefinedDoubleEnabled, 0, 1)                          \
+  F(IsUndefinedDoubleEnabled, 0, 1)                                      \
   F(IsMaglevEnabled, 0, 1)                                               \
   F(IsSameHeapObject, 2, 1)                                              \
   F(IsSharedString, 1, 1)                                                \
@@ -779,7 +779,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(IsWasmPartialOOBWriteNoop, 0, 1)                            \
   F(IsWasmTrapHandlerEnabled, 0, 1)                             \
   F(SetWasmCompileControls, 2, 1)                               \
-  F(SetWasmImportedStringsEnabled, 1, 1)                        \
   F(SetWasmInstantiateControls, 0, 1)                           \
   F(WasmArray, 0, 1)                                            \
   F(WasmCompiledExportWrappersCount, 0, 1)                      \

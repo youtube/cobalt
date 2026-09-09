@@ -34,7 +34,6 @@ import org.chromium.base.TerminationStatus;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.UserData;
 import org.chromium.base.UserDataHost;
-import org.chromium.base.process_launcher.ChildProcessConnection;
 import org.chromium.blink_public.input.SelectionGranularity;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
@@ -614,9 +613,6 @@ public class WebContentsImpl
             @ChildProcessImportance int mainFrameImportance,
             @ChildProcessImportance int subframeImportance) {
         checkNotDestroyed();
-        assert ChildProcessConnection.supportNotPerceptibleBinding()
-                || (mainFrameImportance != ChildProcessImportance.PERCEPTIBLE
-                        && subframeImportance != ChildProcessImportance.PERCEPTIBLE);
         assert mainFrameImportance >= subframeImportance;
         WebContentsImplJni.get()
                 .setPrimaryPageImportance(
@@ -1282,6 +1278,13 @@ public class WebContentsImpl
         return WebContentsImplJni.get().getOriginalWindowOpenDisposition(mNativeWebContentsAndroid);
     }
 
+    @Override
+    public void updateWindowControlsOverlay(Rect rect) {
+        WebContentsImplJni.get()
+                .updateWindowControlsOverlay(
+                        mNativeWebContentsAndroid, rect.left, rect.top, rect.right, rect.bottom);
+    }
+
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     @NativeMethods
     public interface Natives {
@@ -1512,5 +1515,8 @@ public class WebContentsImpl
         boolean hasOpener(long nativeWebContentsAndroid);
 
         int getOriginalWindowOpenDisposition(long nativeWebContentsAndroid);
+
+        void updateWindowControlsOverlay(
+                long nativeWebContentsAndroid, int left, int top, int right, int bottom);
     }
 }

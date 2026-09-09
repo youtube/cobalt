@@ -62,8 +62,6 @@ class VertexArrayVk : public VertexArrayImpl
                             gl::VertexArray::DirtyAttribBitsArray *attribBits,
                             gl::VertexArray::DirtyBindingBitsArray *bindingBits) override;
 
-    angle::Result updateActiveAttribInfo(ContextVk *contextVk);
-
     angle::Result updateDefaultAttrib(ContextVk *contextVk, size_t attribIndex);
 
     angle::Result updateStreamedAttribs(const gl::Context *context,
@@ -105,19 +103,36 @@ class VertexArrayVk : public VertexArrayImpl
         return mCurrentArrayBufferOffsets;
     }
 
+    const gl::AttribArray<VkDeviceSize> &getCurrentArrayBufferSizes() const
+    {
+        return mCurrentArrayBufferSizes;
+    }
+
+    const gl::AttribArray<VkVertexInputBindingDescription2EXT> &getVertexInputBindingDesc() const
+    {
+        return mVertexInputBindingDesc;
+    }
+
+    const gl::AttribArray<VkVertexInputAttributeDescription2EXT> &getVertexInputAttribDesc() const
+    {
+        return mVertexInputAttribDesc;
+    }
+
     GLuint getCurrentArrayBufferRelativeOffset(size_t attribIndex) const
     {
         return mVertexInputAttribDesc[attribIndex].offset;
     }
 
-    const gl::AttribArray<vk::BufferHelper *> &getCurrentArrayBuffers() const
+    VkFormat getCurrentArrayBufferVkFormat(size_t attribIndex) const
     {
-        return mCurrentArrayBuffers;
+        return mVertexInputAttribDesc[attribIndex].format;
     }
 
-    const gl::AttribArray<angle::FormatID> &getCurrentArrayBufferFormats() const
+    angle::FormatID getCurrentArrayBufferFormatID(size_t attribIndex) const
     {
-        return mCurrentArrayBufferFormats;
+        return mCurrentEnabledAttributesMask.test(attribIndex)
+                   ? mState.getVertexAttribute(attribIndex).format->id
+                   : mDefaultAttribFormatIDs[attribIndex];
     }
 
     GLuint getCurrentArrayBufferStride(size_t attribIndex) const
@@ -135,6 +150,11 @@ class VertexArrayVk : public VertexArrayImpl
 
     vk::BufferHelper *getCurrentElementArrayBuffer() const { return mCurrentElementArrayBuffer; }
 
+    const gl::AttribArray<vk::BufferHelper *> &getCurrentArrayBuffers() const
+    {
+        return mCurrentArrayBuffers;
+    }
+
     angle::Result convertIndexBufferGPU(ContextVk *contextVk,
                                         BufferVk *bufferVk,
                                         const void *indices);
@@ -150,9 +170,16 @@ class VertexArrayVk : public VertexArrayImpl
                                         const void *sourcePointer,
                                         BufferBindingDirty *bufferBindingDirty);
 
-    const gl::AttributesMask &getStreamingVertexAttribsMask() const
+    gl::AttributesMask getStreamingVertexAttribsMask() const { return mStreamingVertexAttribsMask; }
+
+    gl::ComponentTypeMask getCurrentVertexAttributesTypeMask() const
     {
-        return mStreamingVertexAttribsMask;
+        return mCurrentVertexAttributesTypeMask;
+    }
+
+    gl::AttributesMask getCurrentEnabledAttributesMask() const
+    {
+        return mCurrentEnabledAttributesMask;
     }
 
   private:
@@ -195,13 +222,22 @@ class VertexArrayVk : public VertexArrayImpl
                                             const gl::VertexBinding &binding,
                                             size_t attribIndex);
 
+    void setVertexInputAttribDescFormat(vk::Renderer *renderer,
+                                        size_t attribIndex,
+                                        angle::FormatID formatID);
+
+    void setVertexInputBindingDescDivisor(vk::Renderer *renderer,
+                                          size_t attribIndex,
+                                          GLuint divisor);
+
     gl::AttribArray<VkBuffer> mCurrentArrayBufferHandles;
     gl::AttribArray<VkDeviceSize> mCurrentArrayBufferOffsets;
+    gl::AttribArray<VkDeviceSize> mCurrentArrayBufferSizes;
     gl::AttribArray<vk::BufferHelper *> mCurrentArrayBuffers;
     // Tracks BufferSerial of mCurrentArrayBuffers since they are always valid to access.
     gl::AttribArray<vk::BufferSerial> mCurrentArrayBufferSerial;
-    // Cache strides of attributes for a fast pipeline cache update when VAOs are changed
-    gl::AttribArray<angle::FormatID> mCurrentArrayBufferFormats;
+    // Tracks the default attribute format ID
+    gl::AttribArray<angle::FormatID> mDefaultAttribFormatIDs;
 
     // These struct are defined by VK_EXT_vertex_input_dynamic_state, for convenience, we these to
     // store offset/divisor even when vertexInputDynamicState not supported.
@@ -229,9 +265,14 @@ class VertexArrayVk : public VertexArrayImpl
     gl::AttributesMask mStreamingVertexAttribsMask;
     gl::AttributesMask mNeedsConversionAttribMask;
 
+    gl::ComponentTypeMask mCurrentVertexAttributesTypeMask;
+
     // The attrib/binding dirty bits that requires graphics pipeline update
     gl::VertexArray::DirtyBindingBits mBindingDirtyBitsRequiresPipelineUpdate;
     gl::VertexArray::DirtyAttribBits mAttribDirtyBitsRequiresPipelineUpdate;
+
+    // This maybe 0 or 1 depends on feature bit
+    uint32_t mZeroDivisor;
 };
 }  // namespace rx
 

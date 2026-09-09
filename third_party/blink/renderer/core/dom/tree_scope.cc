@@ -26,8 +26,10 @@
 
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/v8_observable_array_css_style_sheet.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
 #include "third_party/blink/renderer/core/animation/document_animations.h"
+#include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/resolver/scoped_style_resolver.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
@@ -611,7 +613,7 @@ Element* TreeScope::AdjustedFocusedElementInternal(
   return nullptr;
 }
 
-Element* TreeScope::AdjustedFocusedElement() const {
+Element* TreeScope::AdjustedFocusedElement(bool is_pseudo_allowed) const {
   Document& document = RootNode().GetDocument();
   Element* element = document.FocusedElement();
   if (!element && document.GetPage())
@@ -620,11 +622,13 @@ Element* TreeScope::AdjustedFocusedElement() const {
   if (!element)
     return nullptr;
 
-  // https://drafts.csswg.org/css-overflow-5/#active-element
+  auto* pseudo_element =
+      is_pseudo_allowed ? DynamicTo<PseudoElement>(element) : nullptr;
   if (auto* scroll_marker = DynamicTo<ScrollMarkerPseudoElement>(element)) {
     CHECK(scroll_marker->ScrollMarkerGroup());
+    // https://drafts.csswg.org/css-overflow-5/#active-element
     element = &scroll_marker->ScrollMarkerGroup()->UltimateOriginatingElement();
-  } else if (auto* pseudo_element = DynamicTo<PseudoElement>(element)) {
+  } else if (pseudo_element) {
     element = &pseudo_element->UltimateOriginatingElement();
   }
 
@@ -632,7 +636,10 @@ Element* TreeScope::AdjustedFocusedElement() const {
 
   if (RootNode().IsInShadowTree()) {
     if (Element* retargeted = AdjustedFocusedElementInternal(*element)) {
-      return (this == &retargeted->GetTreeScope()) ? retargeted : nullptr;
+      // If the focused element is a pseudo-element, return it.
+      if (this == &retargeted->GetTreeScope()) {
+        return pseudo_element ? pseudo_element : retargeted;
+      }
     }
     return nullptr;
   }
@@ -640,6 +647,12 @@ Element* TreeScope::AdjustedFocusedElement() const {
   EventPath* event_path = MakeGarbageCollected<EventPath>(*element);
   for (const auto& context : event_path->NodeEventContexts()) {
     if (context.GetNode() == RootNode()) {
+      // If the focused element is a pseudo-element, return it, once we found
+      // the right scope.
+      if (pseudo_element &&
+          pseudo_element->GetTreeScope().RootNode() == context.GetNode()) {
+        return pseudo_element;
+      }
       // context.target() is one of the followings:
       // - InsertionPoint
       // - shadow host
@@ -671,7 +684,7 @@ StyleSheetList& TreeScope::StyleSheets() {
 }
 
 Element* TreeScope::activeElement() const {
-  if (Element* element = AdjustedFocusedElement()) {
+  if (Element* element = AdjustedFocusedElement(/*is_pseudo_allowed=*/false)) {
     return element;
   }
   return document_ == this ? document_->body() : nullptr;

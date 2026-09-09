@@ -11,6 +11,8 @@
 #include "base/feature_list.h"
 #include "base/i18n/rtl.h"
 #include "base/notreached.h"
+#include "chrome/browser/actor/ui/actor_overlay_web_view.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -37,6 +39,7 @@
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_type.h"
 #include "ui/events/types/event_type.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/ozone/public/ozone_platform.h"
@@ -82,7 +85,7 @@ MultiContentsView::MultiContentsView(
       AddChildView(std::make_unique<MultiContentsDropTargetView>());
   drop_target_controller_ =
       std::make_unique<MultiContentsViewDropTargetController>(
-          *drop_target_view_, *delegate_);
+          *drop_target_view_, *delegate_, g_browser_process->local_state());
 
   contents_separators_.top_separator =
       AddChildView(ContentsSeparator::CreateLayerBasedContentsSeparator());
@@ -126,6 +129,14 @@ MultiContentsView::MultiContentsView(
           contents_container_view->new_tab_footer_view()
               ->AddWebContentsFocusedCallback(
                   base::BindRepeating(&MultiContentsView::OnNtpFooterFocused,
+                                      base::Unretained(this))));
+    }
+
+    if (contents_container_view->actor_overlay_web_view()) {
+      actor_overlay_focused_subscriptions_.push_back(
+          contents_container_view->actor_overlay_web_view()
+              ->AddWebContentsFocusedCallback(
+                  base::BindRepeating(&MultiContentsView::OnActorOverlayFocused,
                                       base::Unretained(this))));
     }
   }
@@ -398,6 +409,20 @@ void MultiContentsView::OnWebContentsFocused(views::WebView* web_view) {
   }
 }
 
+void MultiContentsView::OnActorOverlayFocused(views::WebView* web_view) {
+  if (IsInSplitView() && GetWidget()->IsVisible()) {
+    for (auto* contents_container_view : contents_container_views_) {
+      if (contents_container_view->actor_overlay_web_view() &&
+          contents_container_view->actor_overlay_web_view() == web_view &&
+          GetInactiveContentsView() ==
+              contents_container_view->contents_view()) {
+        return delegate_->WebContentsFocused(
+            GetInactiveContentsView()->web_contents());
+      }
+    }
+  }
+}
+
 void MultiContentsView::OnNtpFooterFocused(views::WebView* web_view) {
   if (IsInSplitView() && GetWidget()->IsVisible()) {
     for (auto* contents_container_view : contents_container_views_) {
@@ -424,8 +449,11 @@ views::ProposedLayout MultiContentsView::CalculateProposedLayout(
   const int height = size_bounds.height().value();
 
   gfx::Rect available_space = gfx::Rect(width, height);
-  layouts.child_layouts.emplace_back(
-      background_view_.get(), background_view_->GetVisible(), available_space);
+
+  const bool show_background =
+      drop_target_view_->GetVisible() || IsInSplitView();
+  layouts.child_layouts.emplace_back(background_view_.get(), show_background,
+                                     available_space);
 
   if (IsDragAndDropEnabled()) {
     available_space =

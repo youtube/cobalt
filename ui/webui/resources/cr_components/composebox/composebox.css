@@ -12,8 +12,8 @@
 :host {
   --input-bottom-spacing: 10px;
   --text-input-top-spacing: 10px;
-  --text-input-right-spacing: 80px;
-  --text-input-left-spacing: 16px;
+  --text-input-inline-end-spacing: 80px;
+  --text-input-inline-start-spacing: 16px;
   --expanded-border-radius: 26px;
   --brand-gradient: conic-gradient(
     rgba(52, 168, 82, 0) 0deg,
@@ -99,7 +99,7 @@
     var(--emphasized-accelerate);
 
   --height-expand-duration: 600ms;
-  --submit-enabled-transition: opactiy 255ms;
+  --submit-enabled-transition: opacity 255ms;
 
   --border-radius-transition: border-radius var(--collapse-duration)
     var(--emphasized-curve);
@@ -177,17 +177,13 @@
 
 :host([expanded_]) #composebox {
   height: calc-size(auto, size);
-  max-height: 254px;
+  max-height: 422px;
   transition-duration: var(--expand-duration);
 }
 
 :host([is-collapsible][expanded_]) #composebox {
   min-height: 136px;
   max-height: 254px;
-}
-
-:host([expanded_][show-dropdown_]) #composebox {
-  max-height: 422px;
 }
 
 #inputContainer {
@@ -199,18 +195,17 @@
   width: 100%;
 }
 
-:host-context([dir='rtl']) #inputContainer {
-  padding: 0 var(--text-input-left-spacing) var(--input-bottom-spacing) var(--text-input-right-spacing);
-}
-
 #carousel {
-  padding-inline-start: var(--text-input-left-spacing);
+  padding-inline-start: var(--text-input-inline-start-spacing);
+  margin-bottom: 12px;
+  margin-top: 13px;
 }
 
 #textContainer {
   display: flex;
   flex-direction: row;
-  padding: 8px 0 0 var(--text-input-left-spacing);
+  padding-block: 8px 0;
+  padding-inline: var(--text-input-inline-start-spacing) 0;
 }
 
 #iconContainer {
@@ -222,6 +217,11 @@
 }
 
 #aimIcon {
+  -webkit-mask-image: url(//resources/cr_components/searchbox/icons/search_spark.svg);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: cover;
+  background-color: var(--color-new-tab-page-composebox-input-icon);
   height: 24px;
   width: 24px;
 }
@@ -239,7 +239,8 @@
   line-height: 24px;
   min-height: 48px;
   max-height: 190px;
-  padding: var(--text-input-top-spacing) var(--text-input-right-spacing) 0 12px;
+  padding-block: var(--text-input-top-spacing) 0;
+  padding-inline: 12px var(--text-input-inline-end-spacing);
   scrollbar-width: none;
   width: 100%;
 }
@@ -259,12 +260,20 @@
   transition: padding var(--height-expand-duration) var(--standard-curve);
 }
 
+#input::placeholder {
+  color: var(--color-new-tab-page-composebox-type-ahead);
+}
+
 #smartCompose {
   pointer-events: none;
   position: absolute;
   overflow: scroll;
   top: 0;
   left: 0;
+}
+
+:host(:not([smart-compose-enabled_])) #smartCompose {
+  display: none;
 }
 
 #invisibleText {
@@ -313,14 +322,7 @@
   display: none;
 }
 
-ntp-composebox-dropdown {
-  opacity: 0;
-  transition: var(--icon-exit-transition);
-}
-
 :host([expanded_][show-dropdown_]) ntp-composebox-dropdown {
-  opacity: 1;
-  transition: var(--icon-entry-transition);
   padding-bottom: 8px;
 }
 
@@ -328,12 +330,11 @@ ntp-composebox-dropdown {
 #contextEntrypoint {
   color: var(--color-searchbox-results-foreground);
   margin-inline-start: 6px;
-  margin-top: 8px;
 }
 
 #uploadContainer {
   display: flex;
-  padding-inline-start: var(--text-input-left-spacing);
+  padding-inline-start: var(--text-input-inline-start-spacing);
 }
 
 :host([hide-file-inputs_]) #uploadContainer {
@@ -381,10 +382,39 @@ ntp-composebox-dropdown {
   --cr-icon-button-icon-size: 20px;
   position: absolute;
   top: 8px;
+  /* Uses the same transitions as the submit button so they are in sync. */
+  transition: var(--submit-enabled-transition);
 }
 
 :host([expanded_][is-collapsible]) #cancelIcon {
   top: 16px;
+}
+
+/* Hide the cancel icon when the composebox is expanded and no text is present. */
+:host([is-collapsible]:not([submit-enabled_])) #cancelIcon {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#lensIcon {
+  --cr-icon-button-icon-size: 20px;
+  --cr-icon-image: url(//resources/cr_components/searchbox/icons/camera.svg);
+  bottom: var(--input-bottom-spacing);
+  display: none;
+  pointer-events: auto;
+  position: absolute;
+  right: 68px;
+}
+
+#lensIcon:focus-visible:focus {
+  box-shadow: none;
+  outline: 2px solid var(--color-searchbox-results-icon-focused-outline);
+  outline-offset: 2px;
+}
+
+:host-context([dir='rtl']) #lensIcon {
+  left: 68px;
+  right: unset;
 }
 
 #submitContainer {
@@ -604,7 +634,17 @@ ntp-composebox-dropdown {
   font-weight: 400;
   left: 50%;
   line-height: 18px;
-  margin-top: 38px;
+  margin-top: 20px;
   position: absolute;
   transform: translate(-50%);
+}
+
+.carousel-divider {
+  border-radius: 100px;
+  border-top: 1px solid
+    var(--color-new-tab-page-composebox-file-carousel-divider);
+  margin-inline-end: 16px;
+  margin-inline-start: var(--text-input-inline-start-spacing);
+  margin-top: 8px;
+  margin-bottom: 10px;
 }

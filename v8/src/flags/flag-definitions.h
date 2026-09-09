@@ -929,9 +929,19 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
+#if defined(V8_ENABLE_WEBASSEMBLY) && V8_STATIC_ROOTS_BOOL
+DEFINE_EXPERIMENTAL_FEATURE(unmap_holes, "unmap the page containing the holes.")
+DEFINE_IMPLICATION(experimental_fuzzing, unmap_holes)
 DEFINE_EXPERIMENTAL_FEATURE(assert_hole_checked_by_value,
                             "assert that we always check for holes by value, "
                             "never dereferencing their map.")
+DEFINE_IMPLICATION(experimental_fuzzing, assert_hole_checked_by_value)
+#else
+DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
+DEFINE_BOOL_READONLY(assert_hole_checked_by_value, false,
+                     "assert that we always check for holes by value, never "
+                     "dereferencing their map.")
+#endif
 
 #ifdef V8_ALLOCATION_SITE_TRACKING
 #define V8_ALLOCATION_SITE_TRACKING_BOOL true
@@ -1622,6 +1632,7 @@ DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turbo_inline_js_wasm_calls)
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_inline_js_wasm_wrappers,
     "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
+DEFINE_IMPLICATION(turbolev_future, turbolev_inline_js_wasm_wrappers)
 
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
@@ -1920,13 +1931,6 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
 #undef DECL_EXPERIMENTAL_WASM_FLAG
 
-DEFINE_IMPLICATION(experimental_wasm_stack_switching, experimental_wasm_jspi)
-
-DEFINE_IMPLICATION(experimental_wasm_growable_stacks, experimental_wasm_jspi)
-
-DEFINE_IMPLICATION(experimental_wasm_imported_strings_utf8,
-                   experimental_wasm_imported_strings)
-
 // Unsafe additions to the GC proposal for performance experiments.
 DEFINE_EXPERIMENTAL_FEATURE(
     experimental_wasm_assume_ref_cast_succeeds,
@@ -1940,12 +1944,6 @@ DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_skip_bounds_checks,
                             "skip array bounds checks (unsafe)")
 
 // Experimental variants of the Custom Descriptors prototype implementation.
-DEFINE_BOOL(wasm_explicit_prototypes, true,
-            "enable support for JS Prototypes as first field on Descriptor "
-            "structs (only with --experimental-wasm-custom-descriptors)")
-DEFINE_BOOL(wasm_implicit_prototypes, true,
-            "enable support for engine-created 'invisible' JS Prototypes "
-            "(only with --experimental-wasm-custom-descriptors)")
 DEFINE_EXPERIMENTAL_FEATURE(
     experimental_wasm_js_interop,
     "enable JS Interop part of Custom Descriptors proposal")
@@ -2348,6 +2346,12 @@ DEFINE_BOOL(parallel_weak_ref_clearing, true,
             "use parallel threads to clear weak refs in the atomic pause.")
 DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
             "trigger out-of-memory failure to avoid GC storm near heap limit")
+DEFINE_FLOAT(
+    ineffective_gc_size_threshold, 0.8,
+    "Threshold on heap size to trigger out-of-memory failure near heap limit.")
+DEFINE_FLOAT(ineffective_gc_mutator_utilization_threshold, 0.4,
+             "Threshold on mutator utilization to trigger out-of-memory "
+             "failure near heap limit.")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_BOOL(trace_stress_marking, false, "trace stress marking progress")
@@ -2398,15 +2402,13 @@ DEFINE_BOOL_READONLY(verify_heap, false,
                      "verify heap pointers before and after GC")
 #endif
 #if V8_VERIFY_WRITE_BARRIERS
-#ifdef ENABLE_SLOW_DCHECKS
-DEFINE_BOOL(verify_write_barriers, true, "verify skipped write barriers")
+#define V8_VERIFY_WRITE_BARRIERS_BOOL true
 #else
-DEFINE_BOOL(verify_write_barriers, false, "verify skipped write barriers")
-#endif  // ENABLE_SLOW_DCHECKS
-#else   // V8_VERIFY_WRITE_BARRIERS
-DEFINE_BOOL_READONLY(verify_write_barriers, false,
+#define V8_VERIFY_WRITE_BARRIERS_BOOL false
+#endif  // // V8_VERIFY_WRITE_BARRIERS
+DEFINE_BOOL_READONLY(verify_write_barriers, V8_VERIFY_WRITE_BARRIERS_BOOL,
                      "verify skipped write barriers")
-#endif  // V8_VERIFY_WRITE_BARRIERS
+#undef V8_VERIFY_WRITE_BARRIERS_BOOL
 #if V8_OS_DARWIN
 DEFINE_BOOL(safepoint_bump_qos_class, true,
             "Bump QOS class for running threads to reach safepoint")

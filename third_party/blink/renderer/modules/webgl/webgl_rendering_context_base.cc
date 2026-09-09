@@ -9307,10 +9307,7 @@ void WebGLRenderingContextBase::Trace(Visitor* visitor) const {
   CanvasRenderingContext::Trace(visitor);
 }
 
-int WebGLRenderingContextBase::AllocatedBufferCountPerPixel() {
-  if (isContextLost())
-    return 0;
-
+int WebGLRenderingContextBase::AllocatedBufferCountPerPixel() const {
   int buffer_count = 1;
   buffer_count *= 2;  // WebGL's front and back color buffers.
   int samples = GetDrawingBuffer() ? GetDrawingBuffer()->SampleCount() : 0;
@@ -9327,10 +9324,6 @@ int WebGLRenderingContextBase::AllocatedBufferCountPerPixel() {
     } else if (attribs->depth() || attribs->stencil()) {
       buffer_count += 1;  // regular depth/stencil buffer
     }
-  }
-
-  if (!Host()) {
-    return buffer_count;
   }
 
   auto* provider = resource_provider_.get();

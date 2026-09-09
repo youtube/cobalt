@@ -27,9 +27,12 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_urls.h"
 #include "url/gurl.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using content::WebContents;
 
@@ -359,7 +362,8 @@ void WebstoreStandaloneInstaller::ShowInstallUI() {
 
   install_ui_ = CreateInstallUI();
   install_ui_->ShowDialog(
-      base::BindOnce(&WebstoreStandaloneInstaller::OnInstallPromptDone, this),
+      base::BindOnce(&WebstoreStandaloneInstaller::OnInstallPromptDone,
+                     weak_ptr_factory_.GetWeakPtr()),
       localized_extension.get(), &icon_, std::move(install_prompt_),
       ExtensionInstallPrompt::GetDefaultShowDialogCallback());
 }

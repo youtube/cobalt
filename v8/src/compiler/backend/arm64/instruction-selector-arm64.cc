@@ -1257,7 +1257,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(representation));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[4];
+    InstructionOperand inputs[5];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(store_view.base());
     // OutOfLineRecordWrite uses the index in an add or sub instruction, but we
@@ -1278,7 +1278,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
       DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
-      code = kArchStoreIndirectWithWriteBarrier;
+      code = write_barrier_kind == kSkippedWriteBarrier
+                 ? kArchStoreIndirectSkippedWriteBarrier
+                 : kArchStoreIndirectWithWriteBarrier;
       code |= RecordWriteModeField::encode(
           RecordWriteMode::kValueIsIndirectPointer);
       IndirectPointerTag tag = store_view.indirect_pointer_tag();
@@ -1295,7 +1297,12 @@ void InstructionSelector::VisitStore(OpIndex node) {
     if (store_view.is_store_trap_on_null()) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
     }
-    Emit(code, 0, nullptr, input_count, inputs);
+    InstructionOperand temps[1];
+    size_t temp_count = 0;
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      temps[temp_count++] = g.TempRegister();
+    }
+    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
     return;
   }
 
@@ -2966,9 +2973,19 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
       return op.Cast<ShiftOp>().rep == WordRepresentation::Word32();
     case Opcode::kComparison:
       return op.Cast<ComparisonOp>().rep == RegisterRepresentation::Word32();
-    case Opcode::kOverflowCheckedBinop:
-      return op.Cast<OverflowCheckedBinopOp>().rep ==
-             WordRepresentation::Word32();
+    case Opcode::kOverflowCheckedBinop: {
+      const OverflowCheckedBinopOp& binop = op.Cast<OverflowCheckedBinopOp>();
+      if (binop.rep != WordRepresentation::Word32()) return false;
+      switch (binop.kind) {
+        case OverflowCheckedBinopOp::Kind::kSignedAdd:
+        case OverflowCheckedBinopOp::Kind::kSignedSub:
+          return true;
+        case OverflowCheckedBinopOp::Kind::kSignedMul:
+          // EmitInt32MulWithOverflow doesn't zero-extend because Arm64 doesn't
+          // have a flag-setting int32 multiplication.
+          return false;
+      }
+    }
     case Opcode::kProjection:
       return ZeroExtendsWord32ToWord64NoPhis(op.Cast<ProjectionOp>().input());
     case Opcode::kLoad: {
@@ -3809,7 +3826,8 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   InstructionOperand inputs[] = {g.UseUniqueRegister(base),
                                  g.UseUniqueRegister(index),
                                  g.UseUniqueRegister(value)};
-  InstructionOperand temps[] = {g.TempRegister()};
+  InstructionOperand temps[2] = {g.TempRegister()};
+  size_t temp_count = 1;
   InstructionCode code;
 
   if (write_barrier_kind != kNoWriteBarrier &&
@@ -3820,6 +3838,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
       code |= RecordWriteModeField::encode(RecordWriteMode::kValueIsAny);
+      temps[temp_count++] = g.TempRegister();
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
@@ -3866,7 +3885,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   }
 
   code |= AddressingModeField::encode(kMode_MRR);
-  selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps),
+  selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, temp_count,
                  temps);
 }
 
@@ -5661,22 +5680,14 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
   uint8_t shuffle64x1;
   int index = 0;
   if (wasm::SimdShuffle::TryMatch64x1Shuffle(shuffle.data(), &shuffle64x1)) {
-    if (wasm::SimdShuffle::TryMatchSplat<2, kSimd128Size, kSimd128HalfSize>(
-            shuffle.data(), &index)) {
-      DCHECK(is_swizzle);
-      Emit(kArm64S128Dup | LaneSizeField::encode(64), g.DefineAsRegister(node),
-           g.UseRegister(input0), g.UseImmediate(index));
-    } else {
-      Emit(kArm64S64x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-           g.UseRegister(input1), g.UseImmediate(shuffle64x1));
-    }
+    Emit(kArm64S64x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(shuffle64x1));
     return;
   }
   std::array<uint8_t, 2> shuffle32x2;
   if (wasm::SimdShuffle::TryMatch32x2Shuffle(shuffle.data(),
                                              shuffle32x2.data())) {
-    if (wasm::SimdShuffle::TryMatchSplat<4, kSimd128Size, kSimd128HalfSize>(
-            shuffle.data(), &index)) {
+    if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle32x2, &index)) {
       DCHECK(is_swizzle);
       Emit(kArm64S128Dup | LaneSizeField::encode(32), g.DefineAsRegister(node),
            g.UseRegister(input0), g.UseImmediate(index));
@@ -5687,10 +5698,10 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
     }
     return;
   }
-  uint8_t shuffle16x4[4];
-  if (wasm::SimdShuffle::TryMatch16x4Shuffle(shuffle.data(), shuffle16x4)) {
-    if (wasm::SimdShuffle::TryMatchSplat<8, kSimd128Size, kSimd128HalfSize>(
-            shuffle.data(), &index)) {
+  std::array<uint8_t, 4> shuffle16x4;
+  if (wasm::SimdShuffle::TryMatch16x4Shuffle(shuffle.data(),
+                                             shuffle16x4.data())) {
+    if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle16x4, &index)) {
       DCHECK(is_swizzle);
       Emit(kArm64S128Dup | LaneSizeField::encode(16), g.DefineAsRegister(node),
            g.UseRegister(input0), g.UseImmediate(index));
@@ -5718,6 +5729,14 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[0])),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[4])),
        g.UseImmediate(0), g.UseImmediate(0));
+}
+
+template <int LANES>
+bool IsTopHalfSplat(std::array<uint8_t, LANES>& shuffle, int* index) {
+  static constexpr int HALF_LANES = LANES / 2;
+  std::array<uint8_t, HALF_LANES> top_shuffle;
+  std::copy_n(shuffle.begin() + HALF_LANES, HALF_LANES, top_shuffle.begin());
+  return wasm::SimdShuffle::TryMatchSplat<HALF_LANES>(top_shuffle, index);
 }
 
 void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
@@ -5749,7 +5768,7 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   int index = 0;
   if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffle.data(),
                                              shuffle64x2.data())) {
-    if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle.data(), &index)) {
+    if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle64x2, &index)) {
       DCHECK(is_swizzle);
       Emit(kArm64S128Dup | LaneSizeField::encode(64), g.DefineAsRegister(node),
            g.UseRegister(input0), g.UseImmediate(index));
@@ -5760,16 +5779,17 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     }
     return;
   }
-  uint8_t shuffle32x4[4];
+  std::array<uint8_t, 4> shuffle32x4;
   uint8_t from = 0;
   uint8_t to = 0;
-  if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle.data(), shuffle32x4)) {
-    if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle.data(), &index)) {
+  if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle.data(),
+                                             shuffle32x4.data())) {
+    if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle32x4, &index)) {
       DCHECK(is_swizzle);
       Emit(kArm64S128Dup | LaneSizeField::encode(32), g.DefineAsRegister(node),
            g.UseRegister(input0), g.UseImmediate(index));
-    } else if (wasm::SimdShuffle::TryMatch32x4OneLaneSwizzle(shuffle32x4, &from,
-                                                             &to)) {
+    } else if (wasm::SimdShuffle::TryMatch32x4OneLaneSwizzle(shuffle32x4.data(),
+                                                             &from, &to)) {
       Emit(kArm64S32x4OneLaneSwizzle, g.DefineAsRegister(node),
            g.UseRegister(input0), g.TempImmediate(from), g.TempImmediate(to));
     } else if (canonical == CanonicalShuffle::kIdentity) {
@@ -5781,22 +5801,65 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     } else {
       Emit(kArm64S32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseRegister(input1),
-           g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4)));
+           g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4.data())));
     }
     return;
   }
-  if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle.data(), &index)) {
-    DCHECK(is_swizzle);
-    Emit(kArm64S128Dup | LaneSizeField::encode(16), g.DefineAsRegister(node),
-         g.UseRegister(input0), g.UseImmediate(index));
-    return;
-  }
-  if (wasm::SimdShuffle::TryMatchSplat<16>(shuffle.data(), &index)) {
+
+  auto EmitDupAndShuffle = [&, this](InstructionCode shuffle_op, int lanes,
+                                     int dup_index) {
+    OpIndex dup_input = input0;
+    if (dup_index >= lanes) {
+      dup_index -= lanes;
+      dup_input = input1;
+    }
+    InstructionOperand dup = g.TempSimd128Register();
+    int lane_size = kBitsPerByte * kSimd128Size / lanes;
+    Emit(kArm64S128Dup | LaneSizeField::encode(lane_size), dup,
+         g.UseRegister(dup_input), g.UseImmediate(dup_index));
+    if (is_swizzle) {
+      Emit(shuffle_op, g.DefineAsRegister(node), g.UseRegister(input0), dup);
+      return;
+    } else {
+      // For non-swizzles, we first need to perform the shuffles with the two
+      // original inputs, into a temp register.
+      InstructionOperand temp = g.TempSimd128Register();
+      Emit(shuffle_op, temp, g.UseRegister(input0), g.UseRegister(input1));
+      // Then we need to move the dup result into the top 8 bytes.
+      Emit(kArm64S128MoveLane | LaneSizeField::encode(64),
+           g.DefineSameAsFirst(node), temp, dup, g.UseImmediate(1),
+           g.UseImmediate(1));
+    }
+  };
+
+  std::array<uint8_t, kSimd128HalfSize> bottom_shuffle;
+  std::copy_n(shuffle.begin(), kSimd128HalfSize, bottom_shuffle.begin());
+  std::optional<InstructionCode> instr_opcode = TryMapCanonicalShuffleToInstr(
+      wasm::SimdShuffle::TryMatchCanonical(bottom_shuffle));
+
+  std::array<uint8_t, 8> shuffle16x8;
+  if (wasm::SimdShuffle::TryMatch16x8Shuffle(shuffle.data(),
+                                             shuffle16x8.data())) {
+    if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle16x8, &index)) {
+      DCHECK(is_swizzle);
+      Emit(kArm64S128Dup | LaneSizeField::encode(16), g.DefineAsRegister(node),
+           g.UseRegister(input0), g.UseImmediate(index));
+      return;
+    }
+    if (instr_opcode && IsTopHalfSplat<8>(shuffle16x8, &index)) {
+      EmitDupAndShuffle(instr_opcode.value(), 8, index);
+      return;
+    }
+  } else if (wasm::SimdShuffle::TryMatchSplat<16>(shuffle.data(), &index)) {
     DCHECK(is_swizzle);
     Emit(kArm64S128Dup | LaneSizeField::encode(8), g.DefineAsRegister(node),
          g.UseRegister(input0), g.UseImmediate(index));
     return;
+  } else if (instr_opcode && IsTopHalfSplat<16>(shuffle, &index)) {
+    EmitDupAndShuffle(instr_opcode.value(), 16, index);
+    return;
   }
+
   // Code generator uses vtbl, arrange sources to form a valid lookup table.
   InstructionOperand src0, src1;
   ArrangeShuffleTable(&g, input0, input1, &src0, &src1);

@@ -6,9 +6,10 @@
 
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
+#include "components/one_time_tokens/android/backend/sms/sms_otp_retrieval_api_error_codes.h"
 #include "components/one_time_tokens/core/browser/one_time_token.h"
 
-using one_time_tokens::OtpFetchReply;
+namespace one_time_tokens {
 
 AndroidSmsOtpBackend::AndroidSmsOtpBackend()
     : receiver_bridge_(AndroidSmsOtpFetchReceiverBridge::Create()),
@@ -42,7 +43,7 @@ void AndroidSmsOtpBackend::RetrieveSmsOtp(
 
   if (!initialization_result_.has_value()) {
     // The downstream backend initialization is in progress, postpone the call.
-    pending_fetch_request_ = true;
+    has_pending_fetch_request_ = true;
     pending_callbacks_.push(std::move(callback));
     return;
   }
@@ -68,9 +69,8 @@ void AndroidSmsOtpBackend::OnOtpValueRetrieved(std::string value) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
   if (!pending_callbacks_.empty()) {
     std::move(pending_callbacks_.front())
-        .Run(OtpFetchReply{one_time_tokens::OneTimeToken(
-                               one_time_tokens::OneTimeTokenType::kSmsOtp,
-                               std::move(value), base::Time::Now()),
+        .Run(OtpFetchReply{OneTimeToken(OneTimeTokenType::kSmsOtp,
+                                        std::move(value), base::Time::Now()),
                            /*request_complete_=*/true});
     pending_callbacks_.pop();
   }
@@ -117,10 +117,10 @@ void AndroidSmsOtpBackend::OnBridgesInitComplete(bool init_success) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
   initialization_result_ = init_success;
 
-  if (init_success && pending_fetch_request_) {
+  if (init_success && has_pending_fetch_request_) {
     // A request was received while initialization was in progress. Now that
     // initialization is complete, trigger the request.
-    pending_fetch_request_ = false;
+    has_pending_fetch_request_ = false;
     StartDownstreamBackendRequest();
   }
 }
@@ -135,3 +135,5 @@ void AndroidSmsOtpBackend::StartDownstreamBackendRequest() {
           &AndroidSmsOtpFetchDispatcherBridgeInterface::RetrieveSmsOtp,
           base::Unretained(dispatcher_bridge_.get())));
 }
+
+}  // namespace one_time_tokens

@@ -9,7 +9,7 @@
 
 #include "base/android/jni_weak_ref.h"
 #include "content/public/browser/android/compositor_client.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 namespace content {
 class Compositor;

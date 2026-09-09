@@ -27,7 +27,7 @@ std::unique_ptr<VideoSinkInterface<VideoFrame>> JavaToNativeVideoSink(
     JNIEnv* jni,
     jobject video_sink) {
   return std::make_unique<jni::VideoSinkWrapper>(
-      jni, jni_zero::JavaParamRef<jobject>(jni, video_sink));
+      jni, jni_zero::JavaRef<jobject>::CreateLeaky(jni, video_sink));
 }
 
 ScopedJavaLocalRef<jobject> NativeToJavaVideoFrame(JNIEnv* jni,

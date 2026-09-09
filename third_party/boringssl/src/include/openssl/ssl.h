@@ -2605,6 +2605,47 @@ OPENSSL_EXPORT int SSL_set1_groups_list(SSL *ssl, const char *groups);
 OPENSSL_EXPORT int SSL_get_negotiated_group(const SSL *ssl);
 
 
+// Client key shares.
+//
+// The key_share extension in TLS 1.3 (RFC 8446 section 4.2.8) may be sent in
+// the initial ClientHello to provide key exchange parameters for a subset of
+// the groups offered in the client's supported_groups extension, in hopes of
+// saving a round-trip by having proactively started a key exchange for the
+// ultimately-negotiated group.
+//
+// If not otherwise configured, the default client key share selection logic
+// outputs key shares for up to two supported groups, at most one of which is
+// post-quantum.
+
+// SSL_set1_client_key_shares, when called by a client before the handshake,
+// configures |ssl| to send a key_share extension in the initial ClientHello
+// containing exactly the groups given by |group_ids|, in the order given. Each
+// member of |group_ids| should be one of the |SSL_GROUP_*| constants, and they
+// must be unique. This function returns one on success and zero on failure.
+//
+// If non-empty, the sequence of |group_ids| must be a (not necessarily
+// contiguous) subsequence of the groups supported by |ssl|, which may have been
+// configured explicitly on |ssl| or its context, or populated by default.
+// Caller should finish configuring the group list before calling this function.
+// Changing the supported groups for |ssl| after having set client key shares
+// will result in the key share selections being reset if this constraint no
+// longer holds.
+//
+// Setting an empty sequence of |group_ids| results in an empty client
+// key_share, which will cause the handshake to always take an extra round-trip
+// for HelloRetryRequest.
+//
+// An extra round-trip will be needed if the server's choice of group is not
+// among the key shares sent; conversely, sending any key shares other than the
+// server's choice wastes CPU and bandwidth (the latter is particularly costly
+// for post-quantum key exchanges). To avoid these sub-optimal outcomes,
+// key shares should be chosen such that they are likely to be supported by the
+// peer server.
+OPENSSL_EXPORT int SSL_set1_client_key_shares(SSL *ssl,
+                                              const uint16_t *group_ids,
+                                              size_t num_group_ids);
+
+
 // Certificate verification.
 //
 // SSL may authenticate either endpoint with an X.509 certificate. Typically

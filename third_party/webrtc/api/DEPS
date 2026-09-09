@@ -95,6 +95,14 @@ specific_include_rules = {
     "+rtc_base/copy_on_write_buffer.h",
   ],
 
+  "datagram_connection\.h": [
+    "+p2p/base/transport_description.h",
+  ],
+
+  "datagram_connection_factory\.h": [
+    "+p2p/base/port_allocator.h",
+  ],
+
   "dtls_transport_interface\.h": [
     "+rtc_base/ssl_certificate.h",
   ],
@@ -106,6 +114,7 @@ specific_include_rules = {
   "jsep\.h": [
     "+absl/strings/has_absl_stringify.h",
     "+absl/strings/str_format.h",
+    "+rtc_base/system/no_unique_address.h",
   ],
 
   "local_network_access_permission\.h": [

@@ -222,6 +222,14 @@ TEST_F(ArcUtilTest, IsArcVmDlcEnabled) {
   EXPECT_TRUE(IsArcVmDlcEnabled());
 }
 
+TEST_F(ArcUtilTest, IsArcVmDlcHardwareRequirementSatisfied) {
+  EXPECT_FALSE(IsArcVmDlcHardwareRequirementSatisfied());
+
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  command_line->InitFromArgv({"", "--arcvm-dlc-hardware-satisfied"});
+  EXPECT_TRUE(IsArcVmDlcHardwareRequirementSatisfied());
+}
+
 TEST_F(ArcUtilTest, GetArcAndroidSdkVersionAsInt) {
   // Make sure that the function does not crash even when /etc/lsb-release is
   // not available (e.g. unit tests) or corrupted.
@@ -523,7 +531,7 @@ TEST_F(ArcUtilTest, ConfigureUpstartJobs_StartFail) {
 
 TEST_F(ArcUtilTest, GetArcWindowTaskId) {
   std::unique_ptr<aura::Window> window =
-      aura::test::CreateTestWindow({.window_id = 100});
+      aura::test::CreateTestWindow({.bounds = {100, 100}, .window_id = 100});
 
   exo::SetShellApplicationId(window.get(), "org.chromium.arc.100");
 
@@ -547,7 +555,7 @@ TEST_F(ArcUtilTest, GetArcWindowTaskId) {
 
 TEST_F(ArcUtilTest, GetArcWindowSessionId) {
   std::unique_ptr<aura::Window> window =
-      aura::test::CreateTestWindow({.window_id = 200});
+      aura::test::CreateTestWindow({.bounds = {100, 100}, .window_id = 200});
 
   exo::SetShellApplicationId(window.get(), "org.chromium.arc.session.200");
 

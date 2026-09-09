@@ -50,7 +50,7 @@ int CRYPTO_get_ex_new_index_ex(CRYPTO_EX_DATA_CLASS *ex_data_class, long argl,
 
   CRYPTO_MUTEX_lock_write(&ex_data_class->lock);
 
-  uint32_t num_funcs = CRYPTO_atomic_load_u32(&ex_data_class->num_funcs);
+  uint32_t num_funcs = ex_data_class->num_funcs.load();
   // The index must fit in |int|.
   if (num_funcs > (size_t)(INT_MAX - ex_data_class->num_reserved)) {
     OPENSSL_PUT_ERROR(CRYPTO, ERR_R_OVERFLOW);
@@ -68,7 +68,7 @@ int CRYPTO_get_ex_new_index_ex(CRYPTO_EX_DATA_CLASS *ex_data_class, long argl,
     ex_data_class->last = funcs;
   }
 
-  CRYPTO_atomic_store_u32(&ex_data_class->num_funcs, num_funcs + 1);
+  ex_data_class->num_funcs.store(num_funcs + 1);
   CRYPTO_MUTEX_unlock_write(&ex_data_class->lock);
   return (int)num_funcs + ex_data_class->num_reserved;
 }
@@ -115,7 +115,7 @@ void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
     return;
   }
 
-  uint32_t num_funcs = CRYPTO_atomic_load_u32(&ex_data_class->num_funcs);
+  uint32_t num_funcs = ex_data_class->num_funcs.load();
   // |CRYPTO_get_ex_new_index_ex| will not allocate indices beyond |INT_MAX|.
   assert(num_funcs <= (size_t)(INT_MAX - ex_data_class->num_reserved));
 

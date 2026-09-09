@@ -14,6 +14,7 @@
 #include <string>
 
 #include "api/video/video_codec_type.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_codec.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
@@ -108,6 +109,14 @@ bool VideoEncoderConfig::HasScaleResolutionDownTo() const {
 }
 
 VideoEncoderConfig::VideoEncoderConfig(const VideoEncoderConfig&) = default;
+
+SdpVideoFormat VideoEncoderConfig::GetSimulcastVideoFormat(
+    size_t stream_index) const {
+  if (stream_index >= simulcast_layers.size()) {
+    return video_format;
+  }
+  return simulcast_layers[stream_index].video_format.value_or(video_format);
+}
 
 void VideoEncoderConfig::EncoderSpecificSettings::FillEncoderSpecificSettings(
     VideoCodec* codec) const {

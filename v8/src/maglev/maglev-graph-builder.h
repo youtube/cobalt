@@ -197,8 +197,8 @@ class MaglevGraphBuilder {
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return GetLatestCheckpointedFrame();
   }
-  std::tuple<DeoptFrame*, interpreter::Register, int>
-  GetDeoptFrameForLazyDeopt();
+  std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
+      bool can_throw);
 
   bool need_checkpointed_loop_entry() {
     return v8_flags.maglev_speculative_hoist_phi_untagging ||
@@ -481,7 +481,15 @@ class MaglevGraphBuilder {
                                      Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args);
+  ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
+                          Args&&... args);
+
+  // Temporary version while we transition to the AddNewNode returning a
+  // ReduceResult.
+  // TODO(marja): Remove this.
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeNoAbort(std::initializer_list<ValueNode*> inputs,
+                           Args&&... args);
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
@@ -697,9 +705,9 @@ class MaglevGraphBuilder {
   std::optional<double> TryGetFloat64Constant(
       ValueNode* value, TaggedToFloat64ConversionType conversion_type);
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   std::optional<double> TryGetHoleyFloat64Constant(ValueNode* value);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
   // Get a Float64 representation node whose value is equivalent to the given
   // node.
@@ -786,6 +794,15 @@ class MaglevGraphBuilder {
     StoreRegister(interpreter::Register::virtual_accumulator(), node);
   }
 
+  ReduceResult SetAccumulator(ReduceResult result) {
+    ValueNode* node;
+    GET_VALUE_OR_ABORT(node, result);
+    // Accumulator stores are equivalent to stores to the virtual accumulator
+    // register.
+    StoreRegister(interpreter::Register::virtual_accumulator(), node);
+    return ReduceResult::Done();
+  }
+
   void ClobberAccumulator() {
     DCHECK(interpreter::Bytecodes::ClobbersAccumulator(
         iterator_.current_bytecode()));
@@ -806,6 +823,10 @@ class MaglevGraphBuilder {
     DCHECK_IMPLIES(value->properties().can_lazy_deopt() &&
                        IsNodeCreatedForThisBytecode(value),
                    value->lazy_deopt_info()->IsResultRegister(target));
+    // Don't use StoreRegister for the second returned value of a call --
+    // instead, use StoreRegisterPair.
+    DCHECK_IMPLIES(value->properties().can_lazy_deopt(),
+                   value->opcode() != Opcode::kGetSecondReturnedValue);
   }
 
   void SetAccumulatorInBranch(ValueNode* value) {
@@ -830,7 +851,7 @@ class MaglevGraphBuilder {
                                         base::Vector<ValueNode*> args);
   DeoptFrame* GetDeoptFrameForLazyDeoptHelper(
       interpreter::Register result_location, int result_size,
-      LazyDeoptFrameScope* scope, bool mark_accumulator_dead);
+      LazyDeoptFrameScope* scope, bool mark_accumulator_dead, bool can_throw);
   InterpretedDeoptFrame* GetDeoptFrameForEntryStackCheck();
 
   int next_offset() const {
@@ -882,7 +903,7 @@ class MaglevGraphBuilder {
                                           ExternalArrayType type,
                                           Function&& getValue);
 
-  // Returns kDoneWithoutValue if checks passed successfully.
+  // Returns kDoneWithoutPayload if checks passed successfully.
   MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
       compiler::JSFunctionRef target, CallArguments& args);
   MaybeReduceResult TryReduceDatePrototypeGetField(
@@ -962,7 +983,7 @@ class MaglevGraphBuilder {
 
   using InitialCallback = base::FunctionRef<ReduceResult(ValueNode*)>;
   using ProcessElementCallback =
-      base::FunctionRef<void(ValueNode*, ValueNode*)>;
+      base::FunctionRef<ReduceResult(ValueNode*, ValueNode*)>;
   using GetEagerDeoptScopeCallback = base::FunctionRef<EagerDeoptFrameScope(
       compiler::JSFunctionRef, ValueNode*, ValueNode*, ValueNode*, ValueNode*,
       ValueNode*, ValueNode*)>;
@@ -1171,7 +1192,7 @@ class MaglevGraphBuilder {
       std::pair<interpreter::Register, interpreter::Register> result);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
-  ValueNode* BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
+  ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
 
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
   ReduceResult BuildCheckNumber(ValueNode* object);
@@ -1239,6 +1260,7 @@ class MaglevGraphBuilder {
                                             int offset);
   template <typename Instruction = LoadTaggedField, typename... Args>
   ValueNode* BuildLoadTaggedField(ValueNode* object, uint32_t offset,
+                                  LoadType type = LoadType::kUnknown,
                                   Args&&... args);
 
   ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
@@ -1253,13 +1275,13 @@ class MaglevGraphBuilder {
                                              IndirectPointerTag tag,
                                              StoreTaggedMode store_mode);
 
-  ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, int index);
-  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements,
-                                          ValueNode* index);
+  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, int index);
+  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index,
+                                          LoadType type = LoadType::kUnknown);
   ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
                                            ValueNode* index, ValueNode* value);
 
-  ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
+  ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
   ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements,
                                                 ValueNode* index);
   ReduceResult BuildStoreFixedDoubleArrayElement(ValueNode* elements,
@@ -1319,7 +1341,7 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
   ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
-                                      NodeType length_type = NodeType::kSmi);
+                                      LoadType length_type = LoadType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
 
   ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
@@ -1467,8 +1489,6 @@ class MaglevGraphBuilder {
       InlinedAllocation* allocation);
 
   VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
-  VirtualObject* CreateVirtualObject(compiler::MapRef map,
-                                     uint32_t slot_count_including_map);
   VirtualObject* CreateHeapNumber(Float64 value);
   VirtualObject* CreateFixedDoubleArray(uint32_t elements_length,
                                         compiler::FixedDoubleArrayRef elements);
@@ -1481,7 +1501,7 @@ class MaglevGraphBuilder {
                                        ValueNode* iterated_object,
                                        IterationKind kind);
   VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
-  VirtualObject* CreateFixedArray(compiler::MapRef map, int length);
+  VirtualObject* CreateFixedArray(base::Vector<ValueNode* const> values);
   VirtualObject* CreateContext(compiler::MapRef map, int length,
                                compiler::ScopeInfoRef scope_info,
                                ValueNode* previous_context,
@@ -1778,10 +1798,10 @@ class MaglevGraphBuilder {
                                                  ValueNode* node);
   BranchResult BuildBranchIfFloat64IsHole(BranchBuilder& builder,
                                           ValueNode* node);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   BranchResult BuildBranchIfFloat64IsUndefinedOrHole(BranchBuilder& builder,
                                                      ValueNode* node);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   BranchResult BuildBranchIfReferenceEqual(BranchBuilder& builder,
                                            ValueNode* lhs, ValueNode* rhs);
   BranchResult BuildBranchIfInt32Compare(BranchBuilder& builder, Operation op,

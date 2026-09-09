@@ -65,28 +65,28 @@ class DebugFeatureLoweringReducer : public Next {
       switch (rep.value()) {
         case RegisterRepresentation::Word32():
           __ template WasmCallBuiltinThroughJumptable<
-              deprecated::BuiltinCallDescriptor::DebugPrintWord32>(
-              __ NoContextConstant(), {label_or_0, input});
+              BuiltinCallDescriptor::DebugPrintWord32>(__ NoContextConstant(),
+                                                       {label_or_0, input});
           break;
         case RegisterRepresentation::Word64():
           __ template WasmCallBuiltinThroughJumptable<
-              deprecated::BuiltinCallDescriptor::DebugPrintWord64>(
-              __ NoContextConstant(), {label_or_0, input});
+              BuiltinCallDescriptor::DebugPrintWord64>(__ NoContextConstant(),
+                                                       {label_or_0, input});
           break;
         case RegisterRepresentation::Float32():
           __ template WasmCallBuiltinThroughJumptable<
-              deprecated::BuiltinCallDescriptor::DebugPrintFloat32>(
-              __ NoContextConstant(), {label_or_0, input});
+              BuiltinCallDescriptor::DebugPrintFloat32>(__ NoContextConstant(),
+                                                        {label_or_0, input});
           break;
         case RegisterRepresentation::Float64():
           __ template WasmCallBuiltinThroughJumptable<
-              deprecated::BuiltinCallDescriptor::DebugPrintFloat64>(
-              __ NoContextConstant(), {label_or_0, input});
+              BuiltinCallDescriptor::DebugPrintFloat64>(__ NoContextConstant(),
+                                                        {label_or_0, input});
           break;
         case RegisterRepresentation::Tagged():
           __ template WasmCallBuiltinThroughJumptable<
-              deprecated::BuiltinCallDescriptor::DebugPrintObject>(
-              __ NoContextConstant(), {label_or_0, input});
+              BuiltinCallDescriptor::DebugPrintObject>(__ NoContextConstant(),
+                                                       {label_or_0, input});
           break;
         default:
           // TODO(mliedtke): Support other representations.

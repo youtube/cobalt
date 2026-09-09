@@ -7919,7 +7919,15 @@ angle::Result ImageHelper::generateMipmapsWithBlit(ContextVk *contextVk,
     barrier.subresourceRange.layerCount     = mLayerCount;
     barrier.subresourceRange.levelCount     = 1;
 
-    const VkImageLayout blitSrcLayout = barrier.newLayout;
+    // The barriers can be simplified if the image layout does not need to change.
+    const bool isGeneralLayout    = getCurrentLayout(renderer) == VK_IMAGE_LAYOUT_GENERAL;
+    VkMemoryBarrier globalBarrier = {};
+    globalBarrier.sType           = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    globalBarrier.srcAccessMask   = VK_ACCESS_TRANSFER_WRITE_BIT;
+    globalBarrier.dstAccessMask   = VK_ACCESS_TRANSFER_READ_BIT;
+
+    const VkImageLayout blitSrcLayout =
+        isGeneralLayout ? VK_IMAGE_LAYOUT_GENERAL : barrier.newLayout;
     const VkImageLayout blitDstLayout = barrier.oldLayout;
 
     const VkFilter filter =
@@ -7933,10 +7941,18 @@ angle::Result ImageHelper::generateMipmapsWithBlit(ContextVk *contextVk,
 
         if (mipLevel > baseLevel && mipLevel <= maxLevel)
         {
-            barrier.subresourceRange.baseMipLevel = mipLevel.get() - 1;
+            if (isGeneralLayout)
+            {
+                commandBuffer->memoryBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                             VK_PIPELINE_STAGE_TRANSFER_BIT, globalBarrier);
+            }
+            else
+            {
+                barrier.subresourceRange.baseMipLevel = mipLevel.get() - 1;
 
-            commandBuffer->imageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                        VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
+                commandBuffer->imageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                            VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
+            }
 
             // We can do it for all layers at once.
             VkImageBlit blit                   = {};
@@ -7961,40 +7977,52 @@ angle::Result ImageHelper::generateMipmapsWithBlit(ContextVk *contextVk,
         mipDepth  = nextMipDepth;
     }
 
-    // Transition all mip level to the same layout so we can declare our whole image layout to
-    // one ImageAccess. FragmentShaderReadOnly is picked here since this is the most reasonable
-    // usage after glGenerateMipmap call.
-    barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    if (baseLevel.get() > 0)
+    // If the GENERAL layout is not used, the layout of the mips need to be unified because we
+    // really only track one layout for the whole image.
+    if (!isGeneralLayout)
     {
-        // [0:baseLevel-1] from TRANSFER_DST to SHADER_READ
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount   = baseLevel.get();
+        // Transition all mip level to the same layout so we can declare our whole image layout to
+        // one ImageAccess. FragmentShaderReadOnly is picked here since this is the most reasonable
+        // usage after glGenerateMipmap call.
+        barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        if (baseLevel.get() > 0)
+        {
+            // [0:baseLevel-1] from TRANSFER_DST to SHADER_READ
+            barrier.subresourceRange.baseMipLevel = 0;
+            barrier.subresourceRange.levelCount   = baseLevel.get();
+            commandBuffer->imageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
+        }
+        // [maxLevel:mLevelCount-1] from TRANSFER_DST to SHADER_READ
+        ASSERT(mLevelCount > maxLevel.get());
+        barrier.subresourceRange.baseMipLevel = maxLevel.get();
+        barrier.subresourceRange.levelCount   = mLevelCount - maxLevel.get();
         commandBuffer->imageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
                                     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
-    }
-    // [maxLevel:mLevelCount-1] from TRANSFER_DST to SHADER_READ
-    ASSERT(mLevelCount > maxLevel.get());
-    barrier.subresourceRange.baseMipLevel = maxLevel.get();
-    barrier.subresourceRange.levelCount   = mLevelCount - maxLevel.get();
-    commandBuffer->imageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
-    // [baseLevel:maxLevel-1] from TRANSFER_SRC to SHADER_READ
-    barrier.oldLayout                     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_READ_BIT;
-    barrier.subresourceRange.baseMipLevel = baseLevel.get();
-    barrier.subresourceRange.levelCount   = maxLevel.get() - baseLevel.get();
-    commandBuffer->imageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
+        // [baseLevel:maxLevel-1] from TRANSFER_SRC to SHADER_READ
+        barrier.oldLayout                     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.subresourceRange.baseMipLevel = baseLevel.get();
+        barrier.subresourceRange.levelCount   = maxLevel.get() - baseLevel.get();
+        commandBuffer->imageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
 
-    // This is just changing the internal state of the image helper so that the next call
-    // to changeLayout will use this layout as the "oldLayout" argument.
-    // mLastNonShaderReadOnlyAccess is used to ensure previous write are made visible to reads,
-    // since the only write here is transfer, hence mLastNonShaderReadOnlyAccess is set to
-    // ImageAccess::TransferDst.
-    setCurrentImageAccess(renderer, ImageAccess::FragmentShaderReadOnly);
+        // This is just changing the internal state of the image helper so that the next call
+        // to changeLayout will use this layout as the "oldLayout" argument.
+        // mLastNonShaderReadOnlyAccess is used to ensure previous write are made visible to reads,
+        // since the only write here is transfer, hence mLastNonShaderReadOnlyAccess is set to
+        // ImageAccess::TransferDst.
+        setCurrentImageAccess(renderer, ImageAccess::FragmentShaderReadOnly);
+    }
+    else
+    {
+        // Make sure the following commands know a transfer operation has happened since the last
+        // barrier, and what subresource it has affected.
+        setCurrentImageAccess(renderer, ImageAccess::TransferSrcDst);
+        onWrite(baseLevelGL + 1, mLevelCount - 1, 0, mLayerCount, VK_IMAGE_ASPECT_COLOR_BIT);
+    }
 
     contextVk->trackImageWithOutsideRenderPassEvent(this);
 
@@ -11708,7 +11736,6 @@ ComputePipelineOptions GetComputePipelineOptions(vk::PipelineRobustness robustne
 // ImageViewHelper implementation.
 ImageViewHelper::ImageViewHelper()
     : mCurrentBaseMaxLevelHash(0),
-      mIsCopyImageViewShared(false),
       mReadColorspace(ImageViewColorspace::Invalid),
       mWriteColorspace(ImageViewColorspace::Invalid)
 {}
@@ -11722,12 +11749,12 @@ ImageViewHelper::ImageViewHelper(ImageViewHelper &&other)
 
     std::swap(mPerLevelRangeLinearReadImageViews, other.mPerLevelRangeLinearReadImageViews);
     std::swap(mPerLevelRangeSRGBReadImageViews, other.mPerLevelRangeSRGBReadImageViews);
-    std::swap(mPerLevelRangeLinearCopyImageViews, other.mPerLevelRangeLinearCopyImageViews);
-    std::swap(mPerLevelRangeSRGBCopyImageViews, other.mPerLevelRangeSRGBCopyImageViews);
-    std::swap(mIsCopyImageViewShared, other.mIsCopyImageViewShared);
     std::swap(mPerLevelRangeStencilReadImageViews, other.mPerLevelRangeStencilReadImageViews);
     std::swap(mPerLevelRangeSamplerExternal2DY2YEXTImageViews,
               other.mPerLevelRangeSamplerExternal2DY2YEXTImageViews);
+
+    std::swap(mLinearCopyImageView, other.mLinearCopyImageView);
+    std::swap(mSRGBCopyImageView, other.mSRGBCopyImageView);
 
     std::swap(mLayerLevelDrawImageViews, other.mLayerLevelDrawImageViews);
     std::swap(mLayerLevelDrawImageViewsLinear, other.mLayerLevelDrawImageViewsLinear);
@@ -11760,7 +11787,6 @@ void ImageViewHelper::release(Renderer *renderer, const ResourceUse &use)
     mReadColorspace          = ImageViewColorspace::Invalid;
     mWriteColorspace         = ImageViewColorspace::Invalid;
     // Clear shared flag
-    mIsCopyImageViewShared = false;
     mColorspaceState.reset();
 
     GarbageObjects garbage;
@@ -11770,10 +11796,18 @@ void ImageViewHelper::release(Renderer *renderer, const ResourceUse &use)
     // Release the read views
     ReleaseImageViews(&mPerLevelRangeLinearReadImageViews, &garbage);
     ReleaseImageViews(&mPerLevelRangeSRGBReadImageViews, &garbage);
-    ReleaseImageViews(&mPerLevelRangeLinearCopyImageViews, &garbage);
-    ReleaseImageViews(&mPerLevelRangeSRGBCopyImageViews, &garbage);
     ReleaseImageViews(&mPerLevelRangeStencilReadImageViews, &garbage);
     ReleaseImageViews(&mPerLevelRangeSamplerExternal2DY2YEXTImageViews, &garbage);
+
+    // Release the copy views
+    if (mLinearCopyImageView.valid())
+    {
+        garbage.emplace_back(GetGarbage(&mLinearCopyImageView));
+    }
+    if (mSRGBCopyImageView.valid())
+    {
+        garbage.emplace_back(GetGarbage(&mSRGBCopyImageView));
+    }
 
     // Release the draw views
     ReleaseLayerLevelImageViews(&mLayerLevelDrawImageViews, &garbage);
@@ -11807,15 +11841,15 @@ void ImageViewHelper::release(Renderer *renderer, const ResourceUse &use)
 
 bool ImageViewHelper::isImageViewGarbageEmpty() const
 {
-    return mPerLevelRangeLinearReadImageViews.empty() &&
-           mPerLevelRangeLinearCopyImageViews.empty() && mPerLevelRangeSRGBReadImageViews.empty() &&
-           mPerLevelRangeSRGBCopyImageViews.empty() &&
+    return mPerLevelRangeLinearReadImageViews.empty() && !mLinearCopyImageView.valid() &&
+           mPerLevelRangeSRGBReadImageViews.empty() && !mSRGBCopyImageView.valid() &&
            mPerLevelRangeStencilReadImageViews.empty() &&
            mPerLevelRangeSamplerExternal2DY2YEXTImageViews.empty() &&
            mLayerLevelDrawImageViews.empty() && mLayerLevelDrawImageViewsLinear.empty() &&
            mSubresourceDrawImageViews.empty() && mLayerLevelDepthOnlyImageViews.empty() &&
            mLayerLevelStencilOnlyImageViews.empty() && mSubresourceDepthOnlyImageViews.empty() &&
-           mSubresourceStencilOnlyImageViews.empty() && mLayerLevelStorageImageViews.empty();
+           mSubresourceStencilOnlyImageViews.empty() && mLayerLevelStorageImageViews.empty() &&
+           !mFragmentShadingRateImageView.valid();
 }
 
 void ImageViewHelper::destroy(VkDevice device)
@@ -11828,10 +11862,12 @@ void ImageViewHelper::destroy(VkDevice device)
     // Release the read views
     DestroyImageViews(&mPerLevelRangeLinearReadImageViews, device);
     DestroyImageViews(&mPerLevelRangeSRGBReadImageViews, device);
-    DestroyImageViews(&mPerLevelRangeLinearCopyImageViews, device);
-    DestroyImageViews(&mPerLevelRangeSRGBCopyImageViews, device);
     DestroyImageViews(&mPerLevelRangeStencilReadImageViews, device);
     DestroyImageViews(&mPerLevelRangeSamplerExternal2DY2YEXTImageViews, device);
+
+    // Release the copy views
+    mLinearCopyImageView.destroy(device);
+    mSRGBCopyImageView.destroy(device);
 
     // Release the draw views
     DestroyLayerLevelImageViews(&mLayerLevelDrawImageViews, device);
@@ -11881,8 +11917,6 @@ angle::Result ImageViewHelper::initReadViews(ContextVk *contextVk,
 
         mPerLevelRangeLinearReadImageViews.resize(maxViewCount);
         mPerLevelRangeSRGBReadImageViews.resize(maxViewCount);
-        mPerLevelRangeLinearCopyImageViews.resize(maxViewCount);
-        mPerLevelRangeSRGBCopyImageViews.resize(maxViewCount);
         mPerLevelRangeStencilReadImageViews.resize(maxViewCount);
         mPerLevelRangeSamplerExternal2DY2YEXTImageViews.resize(maxViewCount);
     }
@@ -11961,20 +11995,11 @@ angle::Result ImageViewHelper::initReadViewsImpl(ContextVk *contextVk,
         fetchType = Get2DTextureType(layerCount, image.getSamples());
     }
 
-    if (!image.getActualFormat().isBlock)
+    if (!image.getActualFormat().isBlock && !getCopyImageView().valid())
     {
-        if (fetchType != viewType || readSwizzle != formatSwizzle ||
-            HasBothDepthAndStencilAspects(aspectFlags))
-        {
-            ANGLE_TRY(image.initLayerImageViewWithUsage(
-                contextVk, fetchType, aspectFlags, formatSwizzle, &getCopyImageViewStorage(),
-                baseLevel, levelCount, baseLayer, layerCount, imageUsageFlags,
-                astcDecodePrecision));
-        }
-        else
-        {
-            mIsCopyImageViewShared = true;
-        }
+        ANGLE_TRY(image.initLayerImageViewWithUsage(
+            contextVk, fetchType, aspectFlags, formatSwizzle, &getCopyImageView(), LevelIndex(0),
+            image.getLevelCount(), baseLayer, layerCount, imageUsageFlags, astcDecodePrecision));
     }
     return angle::Result::Continue;
 }
@@ -12061,30 +12086,19 @@ angle::Result ImageViewHelper::initLinearAndSrgbReadViewsImpl(ContextVk *context
 
     if (!image.getActualFormat().isBlock)
     {
-        if (fetchType != viewType || formatSwizzle != readSwizzle ||
-            HasBothDepthAndStencilAspects(aspectFlags))
+        if (!mLinearCopyImageView.valid())
         {
-            if (!mPerLevelRangeLinearCopyImageViews[mCurrentBaseMaxLevelHash].valid())
-            {
-                ANGLE_TRY(image.initReinterpretedLayerImageView(
-                    contextVk, fetchType, aspectFlags, formatSwizzle,
-                    &mPerLevelRangeLinearCopyImageViews[mCurrentBaseMaxLevelHash], baseLevel,
-                    levelCount, baseLayer, layerCount, imageUsageFlags, linearFormat,
-                    astcDecodePrecision));
-            }
-            if (srgbFormat != angle::FormatID::NONE &&
-                !mPerLevelRangeSRGBCopyImageViews[mCurrentBaseMaxLevelHash].valid())
-            {
-                ANGLE_TRY(image.initReinterpretedLayerImageView(
-                    contextVk, fetchType, aspectFlags, formatSwizzle,
-                    &mPerLevelRangeSRGBCopyImageViews[mCurrentBaseMaxLevelHash], baseLevel,
-                    levelCount, baseLayer, layerCount, imageUsageFlags, srgbFormat,
-                    astcDecodePrecision));
-            }
+            ANGLE_TRY(image.initReinterpretedLayerImageView(
+                contextVk, fetchType, aspectFlags, formatSwizzle, &mLinearCopyImageView,
+                LevelIndex(0), image.getLevelCount(), baseLayer, layerCount, imageUsageFlags,
+                linearFormat, astcDecodePrecision));
         }
-        else
+        if (srgbFormat != angle::FormatID::NONE && !mSRGBCopyImageView.valid())
         {
-            mIsCopyImageViewShared = true;
+            ANGLE_TRY(image.initReinterpretedLayerImageView(
+                contextVk, fetchType, aspectFlags, formatSwizzle, &mSRGBCopyImageView,
+                LevelIndex(0), image.getLevelCount(), baseLayer, layerCount, imageUsageFlags,
+                srgbFormat, astcDecodePrecision));
         }
     }
 

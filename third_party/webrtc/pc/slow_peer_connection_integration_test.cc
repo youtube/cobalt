@@ -277,8 +277,8 @@ class PeerConnectionIntegrationIceStatesTest
   }
 
   void StartStunServer(const SocketAddress& server_address) {
-    stun_server_ =
-        TestStunServer::Create(firewall(), server_address, *network_thread());
+    stun_server_ = TestStunServer::Create(env_, server_address, *firewall(),
+                                          *network_thread());
   }
 
   bool TestIPv6() {

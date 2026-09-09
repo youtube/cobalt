@@ -399,6 +399,33 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   void SubscribeRoleConflict(absl::AnyInvocable<void()> callback) override;
   void NotifyRoleConflict() override;
 
+  void SubscribeUnknownAddress(
+      absl::AnyInvocable<void(PortInterface*,
+                              const SocketAddress&,
+                              ProtocolType,
+                              IceMessage*,
+                              const std::string&,
+                              bool)> callback) override;
+  void NotifyUnknownAddress(PortInterface* port,
+                            const SocketAddress& address,
+                            ProtocolType proto,
+                            IceMessage* msg,
+                            const std::string& rf,
+                            bool port_muxed) override;
+
+  void SubscribeReadPacket(
+      absl::AnyInvocable<
+          void(PortInterface*, const char*, size_t, const SocketAddress&)>
+          callback) override;
+  void NotifyReadPacket(PortInterface* prot,
+                        const char* data,
+                        size_t size,
+                        const SocketAddress& remote_address) override;
+
+  void SubscribeSentPacket(
+      absl::AnyInvocable<void(const SentPacketInfo&)> callback) override;
+  void NotifySentPacket(const SentPacketInfo& packet) override;
+
  protected:
   void UpdateNetworkCost() override;
 
@@ -580,6 +607,13 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   // Keep as the last member variable.
   WeakPtrFactory<Port> weak_factory_ RTC_GUARDED_BY(thread_);
+
+  SignalTrampoline<PortInterface, &PortInterface::SignalUnknownAddress>
+      unknown_address_trampoline_;
+  SignalTrampoline<PortInterface, &PortInterface::SignalReadPacket>
+      read_packet_trampoline_;
+  SignalTrampoline<PortInterface, &PortInterface::SignalSentPacket>
+      sent_packet_trampoline_;
 };
 
 }  //  namespace webrtc

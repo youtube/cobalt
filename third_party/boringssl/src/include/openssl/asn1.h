@@ -77,10 +77,6 @@ extern "C" {
 // V_ASN1_ANY is used by the ASN.1 templates to indicate an ANY type.
 #define V_ASN1_ANY (-4)
 
-// V_ASN1_ANY_AS_STRING is used by the ASN.1 templates to indicate an ANY type
-// represented with |ASN1_STRING| instead of |ASN1_TYPE|.
-#define V_ASN1_ANY_AS_STRING (-5)
-
 // The following constants are tag numbers for universal types.
 #define V_ASN1_EOC 0
 #define V_ASN1_BOOLEAN 1
@@ -335,8 +331,10 @@ OPENSSL_EXPORT void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *out);
 //
 // These functions may not be used with |ASN1_ITEM|s whose C type is
 // |ASN1_BOOLEAN|.
-OPENSSL_EXPORT int ASN1_item_i2d_fp(const ASN1_ITEM *it, FILE *out, void *in);
-OPENSSL_EXPORT int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out, void *in);
+OPENSSL_EXPORT int ASN1_item_i2d_fp(const ASN1_ITEM *it, FILE *out,
+                                    const void *in);
+OPENSSL_EXPORT int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out,
+                                     const void *in);
 
 // ASN1_item_unpack parses |oct|'s contents as |it|'s ASN.1 type. It returns a
 // newly-allocated instance of |it|'s C type on success, or NULL on error.

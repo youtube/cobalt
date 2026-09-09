@@ -45,34 +45,6 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
 
   JsepSessionDescription(const JsepSessionDescription&) = delete;
   JsepSessionDescription& operator=(const JsepSessionDescription&) = delete;
-
-  std::unique_ptr<SessionDescriptionInterface> Clone() const override;
-
-  SessionDescription* description() override { return description_.get(); }
-  const SessionDescription* description() const override {
-    return description_.get();
-  }
-  std::string session_id() const override { return session_id_; }
-  std::string session_version() const override { return session_version_; }
-  SdpType GetType() const override { return type_; }
-  std::string type() const override { return SdpTypeToString(type_); }
-  bool AddCandidate(const IceCandidate* candidate) override;
-  bool RemoveCandidate(const IceCandidate* candidate) override;
-  size_t number_of_mediasections() const override;
-  const IceCandidateCollection* candidates(
-      size_t mediasection_index) const override;
-  bool ToString(std::string* out) const override;
-
- private:
-  const std::unique_ptr<SessionDescription> description_;
-  const std::string session_id_;
-  const std::string session_version_;
-  const SdpType type_;
-  std::vector<IceCandidateCollection> candidate_collection_;
-
-  bool IsValidMLineIndex(int index) const;
-  bool GetMediasectionIndex(const IceCandidate* candidate, size_t* index) const;
-  int GetMediasectionIndex(absl::string_view mid) const;
 };
 
 }  // namespace webrtc

@@ -613,8 +613,10 @@ int DtlsTransportInternalImpl::SetOption(Socket::Option opt, int value) {
 
 void DtlsTransportInternalImpl::ConnectToIceTransport() {
   RTC_DCHECK(ice_transport_);
-  ice_transport_->SignalWritableState.connect(
-      this, &DtlsTransportInternalImpl::OnWritableState);
+  ice_transport_->SubscribeWritableState(
+      this, [this](PacketTransportInternal* transport) {
+        OnWritableState(transport);
+      });
   ice_transport_->RegisterReceivedPacketCallback(
       this,
       [&](PacketTransportInternal* transport, const ReceivedIpPacket& packet) {
@@ -623,32 +625,36 @@ void DtlsTransportInternalImpl::ConnectToIceTransport() {
 
   ice_transport_->SignalSentPacket.connect(
       this, &DtlsTransportInternalImpl::OnSentPacket);
-  ice_transport_->SignalReadyToSend.connect(
-      this, &DtlsTransportInternalImpl::OnReadyToSend);
-  ice_transport_->SignalReceivingState.connect(
-      this, &DtlsTransportInternalImpl::OnReceivingState);
-  ice_transport_->SignalNetworkRouteChanged.connect(
-      this, &DtlsTransportInternalImpl::OnNetworkRouteChanged);
-  ice_transport_->SetDtlsStunPiggybackCallbacks(
-      DtlsStunPiggybackCallbacks(
-          [&](auto stun_message_type) {
-            std::optional<absl::string_view> data;
-            std::optional<std::vector<uint32_t>> ack;
-            if (dtls_in_stun_) {
-              data = dtls_stun_piggyback_controller_.GetDataToPiggyback(
-                  stun_message_type);
-              ack = dtls_stun_piggyback_controller_.GetAckToPiggyback(
-                  stun_message_type);
-            }
-            return std::make_pair(data, ack);
-          },
-          [&](std::optional<ArrayView<uint8_t>> data,
-              std::optional<std::vector<uint32_t>> acks) {
-            if (!dtls_in_stun_) {
-              return;
-            }
-            dtls_stun_piggyback_controller_.ReportDataPiggybacked(data, acks);
-          }));
+  ice_transport_->SubscribeReadyToSend(
+      this,
+      [this](PacketTransportInternal* transport) { OnReadyToSend(transport); });
+  ice_transport_->SubscribeReceivingState(
+      [this](PacketTransportInternal* transport) {
+        OnReceivingState(transport);
+      });
+  ice_transport_->SubscribeNetworkRouteChanged(
+      this, [this](std::optional<NetworkRoute> network_route) {
+        OnNetworkRouteChanged(network_route);
+      });
+  ice_transport_->SetDtlsStunPiggybackCallbacks(DtlsStunPiggybackCallbacks(
+      [&](auto stun_message_type) {
+        std::optional<absl::string_view> data;
+        std::optional<std::vector<uint32_t>> ack;
+        if (dtls_in_stun_) {
+          data = dtls_stun_piggyback_controller_.GetDataToPiggyback(
+              stun_message_type);
+          ack = dtls_stun_piggyback_controller_.GetAckToPiggyback(
+              stun_message_type);
+        }
+        return std::make_pair(data, ack);
+      },
+      [&](std::optional<ArrayView<uint8_t>> data,
+          std::optional<std::vector<uint32_t>> acks) {
+        if (!dtls_in_stun_) {
+          return;
+        }
+        dtls_stun_piggyback_controller_.ReportDataPiggybacked(data, acks);
+      }));
   SetPiggybackDtlsDataCallback([this](PacketTransportInternal* transport,
                                       const ReceivedIpPacket& packet) {
     RTC_DCHECK(dtls_active_);
@@ -847,7 +853,7 @@ void DtlsTransportInternalImpl::OnReadyToSend(
     PacketTransportInternal* /* transport */) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   if (writable()) {
-    SignalReadyToSend(this);
+    NotifyReadyToSend(this);
   }
 }
 
@@ -922,7 +928,7 @@ void DtlsTransportInternalImpl::OnDtlsEvent(int sig, int err) {
 void DtlsTransportInternalImpl::OnNetworkRouteChanged(
     std::optional<NetworkRoute> network_route) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  SignalNetworkRouteChanged(network_route);
+  NotifyNetworkRouteChanged(network_route);
 }
 
 void DtlsTransportInternalImpl::MaybeStartDtls() {
@@ -988,7 +994,7 @@ void DtlsTransportInternalImpl::set_receiving(bool receiving) {
     return;
   }
   receiving_ = receiving;
-  SignalReceivingState(this);
+  NotifyReceivingState(this);
 }
 
 void DtlsTransportInternalImpl::set_writable(bool writable) {
@@ -1009,9 +1015,9 @@ void DtlsTransportInternalImpl::set_writable(bool writable) {
   RTC_LOG(LS_VERBOSE) << ToString() << ": set_writable to: " << writable;
   writable_ = writable;
   if (writable_) {
-    SignalReadyToSend(this);
+    NotifyReadyToSend(this);
   }
-  SignalWritableState(this);
+  NotifyWritableState(this);
 }
 
 void DtlsTransportInternalImpl::set_dtls_state(DtlsTransportState state) {

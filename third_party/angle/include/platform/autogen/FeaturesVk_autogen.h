@@ -1556,6 +1556,18 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo clSerializedExecution = {
+        "clSerializedExecution",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo externallySynchronizePipelineCacheAccess = {
+        "externallySynchronizePipelineCacheAccess",
+        FeatureCategory::VulkanWorkarounds,
+        &members,
+    };
+
 };
 
 inline FeaturesVk::FeaturesVk()  = default;

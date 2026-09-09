@@ -261,11 +261,7 @@ Connection::Connection(const Environment& env,
       delta_internal_unix_epoch_(Timestamp::Millis(TimeUTCMillis()) -
                                  time_created_),
       field_trials_(&kDefaultFieldTrials),
-      rtt_estimate_(kDefaultRttEstimateHalfTimeMs),
-      state_change_trampoline_(this),
-      destroyed_trampoline_(this),
-      ready_to_send_trampoline_(this),
-      nominated_trampoline_(this) {
+      rtt_estimate_(kDefaultRttEstimateHalfTimeMs) {
   RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(port_);
   RTC_LOG(LS_INFO) << ToString() << ": Connection created";
@@ -339,7 +335,7 @@ void Connection::set_write_state(WriteState value) {
   if (value != old_value) {
     RTC_LOG(LS_VERBOSE) << ToString() << ": set_write_state from: " << old_value
                         << " to " << value;
-    SignalStateChange(this);
+    NotifyStateChange(this);
   }
 }
 
@@ -367,7 +363,7 @@ void Connection::UpdateReceiving(Timestamp now) {
   RTC_LOG(LS_VERBOSE) << ToString() << ": set_receiving to " << receiving;
   receiving_ = receiving;
   receiving_unchanged_since_ = now;
-  SignalStateChange(this);
+  NotifyStateChange(this);
 }
 
 void Connection::set_state(IceCandidatePairState state) {
@@ -385,7 +381,7 @@ void Connection::set_connected(bool value) {
   connected_ = value;
   if (value != old_value) {
     RTC_LOG(LS_VERBOSE) << ToString() << ": Change connected_ to " << value;
-    SignalStateChange(this);
+    NotifyStateChange(this);
   }
 }
 
@@ -755,7 +751,7 @@ void Connection::HandleStunBindingOrGoogPingRequest(IceMessage* msg) {
     // We don't un-nominate a connection, so we only keep a larger nomination.
     if (nomination > remote_nomination_) {
       set_remote_nomination(nomination);
-      SignalNominated(this);
+      NotifyNominated(this);
     }
   }
   // Set the remote cost if the network_info attribute is available.
@@ -770,7 +766,7 @@ void Connection::HandleStunBindingOrGoogPingRequest(IceMessage* msg) {
       remote_candidate_.set_network_cost(network_cost);
       // Network cost change will affect the connection ranking, so signal
       // state change to force a re-sort in P2PTransportChannel.
-      SignalStateChange(this);
+      NotifyStateChange(this);
     }
   }
 
@@ -911,7 +907,7 @@ void Connection::set_remote_nomination(uint32_t remote_nomination) {
 
 void Connection::OnReadyToSend() {
   RTC_DCHECK_RUN_ON(network_thread_);
-  SignalReadyToSend(this);
+  NotifyReadyToSend(this);
 }
 
 bool Connection::pruned() const {
@@ -948,9 +944,11 @@ bool Connection::Shutdown() {
   // intentionally to avoid a situation whereby the signal might have dangling
   // pointers to objects that have been deleted by the time the async task
   // that deletes the connection object runs.
-  auto destroyed_signals = SignalDestroyed;
-  SignalDestroyed.disconnect_all();
-  destroyed_signals(this);
+  // Note: With CallbackList, there's no way of clearing all callbacks.
+  // It would be cleaner if all callbacks used a safety flag on objects
+  // whose existence they care about.
+  // TODO: issues.webrtc.org/42222066 - figure out if this matters.
+  NotifyDestroyed(this);
 
   LogCandidatePairConfig(IceCandidatePairConfigType::kDestroyed);
 
@@ -1792,9 +1790,9 @@ void Connection::MaybeUpdateLocalCandidate(StunRequest* request,
         RTC_LOG(LS_INFO) << ToString()
                          << ": Updating local candidate type to srflx.";
         local_candidate_ = candidate;
-        // SignalStateChange to force a re-sort in P2PTransportChannel as this
+        // NotifyStateChange to force a re-sort in P2PTransportChannel as this
         // Connection's local candidate has changed.
-        SignalStateChange(this);
+        NotifyStateChange(this);
       }
       return;
     }
@@ -1828,9 +1826,9 @@ void Connection::MaybeUpdateLocalCandidate(StunRequest* request,
   RTC_LOG(LS_INFO) << ToString() << ": Updating local candidate type to prflx.";
   port_->AddPrflxCandidate(local_candidate_);
 
-  // SignalStateChange to force a re-sort in P2PTransportChannel as this
+  // NotifyStateChange to force a re-sort in P2PTransportChannel as this
   // Connection's local candidate has changed.
-  SignalStateChange(this);
+  NotifyStateChange(this);
 }
 
 bool Connection::rtt_converged() const {
@@ -1873,7 +1871,7 @@ void Connection::SetLocalCandidateNetworkCost(uint16_t cost) {
   // Network cost change will affect the connection selection criteria.
   // Signal the connection state change to force a re-sort in
   // P2PTransportChannel.
-  SignalStateChange(this);
+  NotifyStateChange(this);
 }
 
 bool Connection::ShouldSendGoogPing(const StunMessage* message) {

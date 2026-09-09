@@ -21,11 +21,12 @@
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_screen/account_picker_screen_slide_transition_animator.h"
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_selection/account_picker_selection_screen_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin/reauth/reauth_coordinator.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/reauth/signin_reauth_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/constants.h"
@@ -40,7 +41,7 @@
     AccountPickerLayoutDelegate,
     AccountPickerSelectionScreenCoordinatorDelegate,
     AccountPickerScreenPresentationControllerDelegate,
-    ReauthCoordinatorDelegate,
+    SigninReauthCoordinatorDelegate,
     UINavigationControllerDelegate,
     UIViewControllerTransitioningDelegate>
 
@@ -52,7 +53,7 @@
 @implementation AccountPickerCoordinator {
   SigninCoordinator* _addAccountSigninCoordinator;
   // Coordinator to show a reauth screen.
-  __strong ReauthCoordinator* _reauthCoordinator;
+  __strong SigninReauthCoordinator* _reauthCoordinator;
   signin_metrics::AccessPoint _accessPoint;
 
   // Navigation controller for the account picker.
@@ -69,6 +70,9 @@
 
   // The configuration for the account picker.
   __strong AccountPickerConfiguration* _configuration;
+
+  // Whether the identity button has been hidden.
+  BOOL _identityButtonHidden;
 }
 
 #pragma mark - Public
@@ -80,6 +84,8 @@
                    accessPoint:(signin_metrics::AccessPoint)accessPoint {
   self = [super initWithBaseViewController:baseViewController browser:browser];
   if (self) {
+    CHECK_EQ(browser->type(), Browser::Type::kRegular,
+             base::NotFatalUntil::M145);
     _accessPoint = accessPoint;
     _configuration = configuration;
   }
@@ -122,6 +128,7 @@
   [_accountPickerConfirmationScreenCoordinator
       setIdentityButtonHidden:hidden
                      animated:animated];
+  _identityButtonHidden = hidden;
 }
 
 #pragma mark - ChromeCoordinator
@@ -159,6 +166,9 @@
 #pragma mark - Properties
 
 - (id<SystemIdentity>)selectedIdentity {
+  if (_identityButtonHidden) {
+    return nil;
+  }
   return _accountPickerConfirmationScreenCoordinator.selectedIdentity;
 }
 
@@ -215,7 +225,7 @@
 // Starts the validation flow.
 - (void)startValidation {
   if (base::FeatureList::IsEnabled(switches::kEnableIdentityInAuthError) &&
-      !self.selectedIdentity.hasValidAuth) {
+      self.selectedIdentity && !self.selectedIdentity.hasValidAuth) {
     [self startReauthFlowWithIdentity:self.selectedIdentity];
     return;
   }
@@ -236,7 +246,7 @@
     return;
   }
   [self stopReauthCoordinator];
-  _reauthCoordinator = [[ReauthCoordinator alloc]
+  _reauthCoordinator = [[SigninReauthCoordinator alloc]
       initWithBaseViewController:_navigationController
                          browser:self.browser
                          account:account
@@ -251,7 +261,7 @@
   _reauthCoordinator = nil;
 }
 
-#pragma mark - ReauthCoordinatorDelegate
+#pragma mark - SigninReauthCoordinatorDelegate
 
 - (void)reauthFinishedWithResult:(ReauthResult)result {
   [self stopReauthCoordinator];

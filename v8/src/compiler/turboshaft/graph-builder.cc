@@ -717,7 +717,7 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(ChangeFloat16RawBitsToFloat64, ChangeFloat16RawBitsToFloat64)
 #undef UNARY_CASE
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     case IrOpcode::kNumberSilenceNaN: {
       DCHECK_EQ(SilenceNanModeOf(node->op()),
                 SilenceNanMode::kPreserveUndefined);
@@ -743,7 +743,7 @@ OpIndex GraphBuilder::Process(
           ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
       return input;
     }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
     case IrOpcode::kTruncateInt64ToInt32:
       return __ TruncateWord64ToWord32(Map(node->InputAt(0)));
@@ -1071,10 +1071,10 @@ OpIndex GraphBuilder::Process(
                                        NumberOrHole)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64, Float64,
                                        NumberOrOddball)
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64PreserveUndefined,
                                        HoleyFloat64, NumberOrOddball)
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 #undef CONVERT_OBJECT_TO_PRIMITIVE_CASE
 
 #define TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(name, kind, input_assumptions) \
@@ -1986,8 +1986,8 @@ OpIndex GraphBuilder::Process(
       // EffectControlLinearizer used to use `node->op()->properties()` to
       // construct the builtin call descriptor for this operation. However, this
       // always seemed to be `kEliminatable` so the Turboshaft
-      // BuiltinCallDescriptor's for those builtins have this
-      // property hard-coded.
+      // BuiltinCallDescriptor's for those builtins have this property
+      // hard-coded.
       DCHECK_EQ(node->op()->properties(), Operator::kEliminatable);
       return __ NewArgumentsElements(Map(node->InputAt(0)), p.arguments_type(),
                                      p.formal_parameter_count());
@@ -2429,10 +2429,9 @@ OpIndex GraphBuilder::Process(
         allocated_type =
             __ HeapConstant(type.AllocateOnHeap(isolate->factory()));
       }
-      __ CallBuiltin<builtin::CheckTurbofanType>(
-          __ NoContextConstant(), {.value = Map(node->InputAt(0)),
-                                   .expected_type = allocated_type,
-                                   .node_id = __ TagSmi(node->id())});
+      __ CallBuiltin_CheckTurbofanType(isolate, __ NoContextConstant(),
+                                       Map(node->InputAt(0)), allocated_type,
+                                       __ TagSmi(node->id()));
       return OpIndex::Invalid();
     }
 

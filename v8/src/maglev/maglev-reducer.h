@@ -26,18 +26,16 @@ class ReduceResult;
 class V8_NODISCARD MaybeReduceResult {
  public:
   enum Kind {
-    kDoneWithValue = 0,  // No need to mask while returning the pointer.
+    kDoneWithPayload = 0,  // No need to mask while returning the pointer.
     kDoneWithAbort,
-    kDoneWithoutValue,
+    kDoneWithoutPayload,
     kFail,
   };
 
   MaybeReduceResult() : payload_(kFail) {}
 
   // NOLINTNEXTLINE
-  MaybeReduceResult(ValueNode* value) : payload_(value) {
-    DCHECK_NOT_NULL(value);
-  }
+  MaybeReduceResult(Node* node) : payload_(node) { DCHECK_NOT_NULL(node); }
 
   static MaybeReduceResult Fail() { return MaybeReduceResult(kFail); }
 
@@ -46,9 +44,23 @@ class V8_NODISCARD MaybeReduceResult {
 
   ValueNode* value() const {
     DCHECK(HasValue());
-    return payload_.GetPointerWithKnownPayload(kDoneWithValue);
+    Node* value = payload_.GetPointerWithKnownPayload(kDoneWithPayload);
+    return value->Cast<ValueNode>();
   }
-  bool HasValue() const { return kind() == kDoneWithValue; }
+  bool HasValue() const {
+    if (kind() == kDoneWithPayload) {
+      Node* value = payload_.GetPointerWithKnownPayload(kDoneWithPayload);
+      return value->Is<ValueNode>();
+    }
+    return false;
+  }
+
+  bool HasNode() const { return kind() == kDoneWithPayload; }
+
+  Node* node() const {
+    DCHECK(HasNode());
+    return payload_.GetPointerWithKnownPayload(kDoneWithPayload);
+  }
 
   // Either DoneWithValue, DoneWithoutValue or DoneWithAbort.
   bool IsDone() const { return !IsFail(); }
@@ -59,8 +71,11 @@ class V8_NODISCARD MaybeReduceResult {
   // Done with a ValueNode.
   bool IsDoneWithValue() const { return HasValue(); }
 
-  // Done without producing a ValueNode.
-  bool IsDoneWithoutValue() const { return kind() == kDoneWithoutValue; }
+  // Done with a Node.
+  bool IsDoneWithPayload() const { return kind() == kDoneWithPayload; }
+
+  // Done without producing a Node.
+  bool IsDoneWithoutPayload() const { return kind() == kDoneWithoutPayload; }
 
   // Done with an abort (unconditional deopt, infinite loop in an inlined
   // function, etc)
@@ -70,30 +85,29 @@ class V8_NODISCARD MaybeReduceResult {
 
   inline ReduceResult Checked();
 
-  base::PointerWithPayload<ValueNode, Kind, 3> GetPayload() const {
+  base::PointerWithPayload<Node, Kind, 3> GetPayload() const {
     return payload_;
   }
 
  protected:
   explicit MaybeReduceResult(Kind kind) : payload_(kind) {}
-  explicit MaybeReduceResult(
-      base::PointerWithPayload<ValueNode, Kind, 3> payload)
+  explicit MaybeReduceResult(base::PointerWithPayload<Node, Kind, 3> payload)
       : payload_(payload) {}
-  base::PointerWithPayload<ValueNode, Kind, 3> payload_;
+  base::PointerWithPayload<Node, Kind, 3> payload_;
 };
 
 class V8_NODISCARD ReduceResult : public MaybeReduceResult {
  public:
   // NOLINTNEXTLINE
-  ReduceResult(ValueNode* value) : MaybeReduceResult(value) {}
+  ReduceResult(Node* node) : MaybeReduceResult(node) {}
 
   explicit ReduceResult(const MaybeReduceResult& other)
       : MaybeReduceResult(other.GetPayload()) {
     CHECK(!IsFail());
   }
 
-  static ReduceResult Done(ValueNode* value) { return ReduceResult(value); }
-  static ReduceResult Done() { return ReduceResult(kDoneWithoutValue); }
+  static ReduceResult Done(Node* node) { return ReduceResult(node); }
+  static ReduceResult Done() { return ReduceResult(kDoneWithoutPayload); }
   static ReduceResult DoneWithAbort() { return ReduceResult(kDoneWithAbort); }
 
   bool IsFail() const { return false; }
@@ -142,6 +156,16 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.value()->Cast<T>();                                 \
   } while (false)
 
+#define GET_NODE_OR_ABORT(variable, result) \
+  do {                                      \
+    MaybeReduceResult res = (result);       \
+    if (res.IsDoneWithAbort()) {            \
+      return ReduceResult::DoneWithAbort(); \
+    }                                       \
+    DCHECK(res.IsDoneWithPayload());        \
+    variable = res.node();                  \
+  } while (false)
+
 template <typename BaseT>
 concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 
@@ -151,7 +175,7 @@ concept ReducerBaseWithEagerDeopt =
 
 template <typename BaseT>
 concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
-  b->GetDeoptFrameForLazyDeopt();
+  b->GetDeoptFrameForLazyDeopt(false);
   // TODO(victorgomes): Bring exception handler logic to the reducer?
   b->AttachExceptionHandlerInfo(std::declval<Node*>());
 };
@@ -220,7 +244,14 @@ class MaglevReducer {
                                      Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args);
+  ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
+                          Args&&... args);
+  // Temporary version while we transition to the AddNewNode returning a
+  // ReduceResult.
+  // TODO(marja): Remove this.
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeNoAbort(std::initializer_list<ValueNode*> inputs,
+                           Args&&... args);
   template <typename NodeT, typename... Args>
   NodeT* AddUnbufferedNewNodeNoInputConversion(
       BasicBlock* block, std::initializer_list<ValueNode*> inputs,
@@ -399,6 +430,8 @@ class MaglevReducer {
 
   ValueNode* GetNumberConstant(double constant);
 
+  ReduceResult BuildCheckedSmiSizedInt32(ValueNode* input);
+
   template <Operation kOperation>
   MaybeReduceResult TryFoldInt32UnaryOperation(ValueNode* value);
   template <Operation kOperation>
@@ -409,6 +442,14 @@ class MaglevReducer {
                                                 int32_t cst_right);
   template <Operation kOperation>
   MaybeReduceResult TryFoldInt32BinaryOperation(int32_t left, int32_t right);
+
+  std::optional<bool> TryFoldInt32CompareOperation(Operation op,
+                                                   ValueNode* left,
+                                                   ValueNode* right);
+  std::optional<bool> TryFoldInt32CompareOperation(Operation op,
+                                                   ValueNode* left,
+                                                   int32_t cst_right);
+  bool TryFoldInt32CompareOperation(Operation op, int32_t left, int32_t right);
 
   template <Operation kOperation>
   MaybeReduceResult TryFoldFloat64UnaryOperationForToNumber(
@@ -421,6 +462,35 @@ class MaglevReducer {
   MaybeReduceResult TryFoldFloat64BinaryOperationForToNumber(
       TaggedToFloat64ConversionType conversion_type, ValueNode* left,
       double cst_right);
+
+  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+    return known_node_aspects().CheckType(broker(), node, type, old);
+  }
+  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
+    return known_node_aspects().CheckTypes(broker(), node, types);
+  }
+  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+    return known_node_aspects().EnsureType(broker(), node, type, old);
+  }
+  NodeType GetType(ValueNode* node) {
+    return known_node_aspects().GetType(broker(), node);
+  }
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+    return known_node_aspects().GetOrCreateInfoFor(broker(), node);
+  }
+  // Returns true if we statically know that {lhs} and {rhs} have disjoint
+  // types.
+  bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
+    return known_node_aspects().HaveDisjointTypes(broker(), lhs, rhs);
+  }
+  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
+    return known_node_aspects().HasDisjointType(broker(), lhs, rhs_type);
+  }
+
+  Zone* zone() const { return zone_; }
+  Graph* graph() const { return graph_; }
+  compiler::JSHeapBroker* broker() const { return broker_; }
+  LocalIsolate* local_isolate() const { return broker()->local_isolate(); }
 
  protected:
   class LazyDeoptResultLocationScope;
@@ -451,7 +521,10 @@ class MaglevReducer {
   // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
   // since std::intializer_list can be converted to std::span.
   template <typename NodeT, typename InputsT>
-  void SetNodeInputs(NodeT* node, InputsT inputs);
+  ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
+
+  template <typename NodeT, typename InputsT>
+  void SetNodeInputsOld(NodeT* node, InputsT inputs);
 
   // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
   // since std::intializer_list can be converted to std::span.
@@ -470,43 +543,16 @@ class MaglevReducer {
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node);
   template <typename NodeT>
+  void MarkForInt32Truncation(NodeT* node);
+  template <typename NodeT>
   void UpdateRange(NodeT* node);
 
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
-
-  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
-    return known_node_aspects().CheckType(broker(), node, type, old);
-  }
-  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
-    return known_node_aspects().CheckTypes(broker(), node, types);
-  }
-  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
-    return known_node_aspects().EnsureType(broker(), node, type, old);
-  }
-  NodeType GetType(ValueNode* node) {
-    return known_node_aspects().GetType(broker(), node);
-  }
-  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
-    return known_node_aspects().GetOrCreateInfoFor(broker(), node);
-  }
-  // Returns true if we statically know that {lhs} and {rhs} have disjoint
-  // types.
-  bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
-    return known_node_aspects().HaveDisjointTypes(broker(), lhs, rhs);
-  }
-  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
-    return known_node_aspects().HasDisjointType(broker(), lhs, rhs_type);
-  }
 
   KnownNodeAspects& known_node_aspects() {
     static_assert(ReducerBaseWithKNA<BaseT>);
     return base_->known_node_aspects();
   }
-
-  Zone* zone() const { return zone_; }
-  Graph* graph() const { return graph_; }
-  compiler::JSHeapBroker* broker() const { return broker_; }
-  LocalIsolate* local_isolate() const { return broker()->local_isolate(); }
 
  private:
   BaseT* base_;

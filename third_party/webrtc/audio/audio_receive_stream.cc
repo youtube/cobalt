@@ -113,12 +113,13 @@ AudioReceiveStreamImpl::AudioReceiveStreamImpl(
 }
 
 AudioReceiveStreamImpl::AudioReceiveStreamImpl(
-    const Environment& /* env */,
+    const Environment& env,
     PacketRouter* packet_router,
     const AudioReceiveStreamInterface::Config& config,
     const scoped_refptr<AudioState>& audio_state,
     std::unique_ptr<voe::ChannelReceiveInterface> channel_receive)
-    : config_(config),
+    : env_(env),
+      config_(config),
       audio_state_(audio_state),
       channel_receive_(std::move(channel_receive)) {
   RTC_LOG(LS_INFO) << "AudioReceiveStreamImpl: " << config.rtp.remote_ssrc;
@@ -311,7 +312,8 @@ AudioReceiveStreamInterface::Stats AudioReceiveStreamImpl::GetStats(
   stats.total_output_energy = channel_receive_->GetTotalOutputEnergy();
   stats.total_output_duration = channel_receive_->GetTotalOutputDuration();
   stats.estimated_playout_ntp_timestamp_ms =
-      channel_receive_->GetCurrentEstimatedPlayoutNtpTimestampMs(TimeMillis());
+      channel_receive_->GetCurrentEstimatedPlayoutNtpTimestampMs(
+          env_.clock().TimeInMilliseconds());
 
   // Get jitter buffer and total delay (alg + jitter + playout) stats.
   auto ns = channel_receive_->GetNetworkStatistics(get_and_clear_legacy_stats);

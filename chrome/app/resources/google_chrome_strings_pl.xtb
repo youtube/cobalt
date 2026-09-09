@@ -441,6 +441,9 @@
 <translation id="6180522807229584611">Ta karta wykorzystuje dodatkowe zasoby. Aby zwiększyć wydajność, pozwól Chrome ją dezaktywować.</translation>
 <translation id="6182736845697986886">Instalacja się nie udała z powodu wewnętrznego błędu serwera aktualizacji.</translation>
 <translation id="6192058120268468905">Twoje konto w Chrome</translation>
+<translation id="6220551899604141979">Rozszerzenie dodane przez: <ph name="PARTNER_NAME" /> może zmienić sposób działania Chrome.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">Reguła dla ruchu przychodzącego w Google Chrome zezwalająca na ruch mDNS.</translation>
 <translation id="624230925347970731">Przeglądarka Chrome zostanie wkrótce zamknięta</translation>
 <translation id="6247557882553405851">Menedżer haseł Google</translation>
@@ -469,6 +472,7 @@
 <translation id="6506909944137591434">Aby utworzyć mapę 3D Twojego otoczenia, Chrome potrzebuje dostępu do aparatu</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> – Google Chrome Dev</translation>
 <translation id="6520670145826811516">Aby używać lokalizacji, przyznaj Chrome dostęp w <ph name="BEGIN_LINK" />ustawieniach systemu<ph name="END_LINK" /></translation>
+<translation id="652948702951888897">Historia Chrome</translation>
 <translation id="6532945796722480006">Otwórz Gemini w Chrome Canary</translation>
 <translation id="6585124893636629274">Zamknij Gemini w Chrome</translation>
 <translation id="659498884637196217">W menedżerze haseł Google w przypadku tego urządzenia</translation>

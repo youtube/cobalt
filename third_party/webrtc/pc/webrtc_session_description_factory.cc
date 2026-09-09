@@ -296,7 +296,7 @@ void WebRtcSessionDescriptionFactory::InternalCreateOffer(
   // is created regardless if it's identical to the previous one or not.
   // The `session_version_` is a uint64_t, the wrap around should not happen.
   RTC_DCHECK(session_version_ + 1 > session_version_);
-  auto offer = std::make_unique<JsepSessionDescription>(
+  auto offer = SessionDescriptionInterface::Create(
       SdpType::kOffer, std::move(desc), session_id_,
       absl::StrCat(session_version_++));
   if (sdp_info_->local_description()) {
@@ -355,7 +355,7 @@ void WebRtcSessionDescriptionFactory::InternalCreateAnswer(
   // Get a new version number by increasing the `session_version_answer_`.
   // The `session_version_` is a uint64_t, the wrap around should not happen.
   RTC_DCHECK(session_version_ + 1 > session_version_);
-  auto answer = std::make_unique<JsepSessionDescription>(
+  auto answer = SessionDescriptionInterface::Create(
       SdpType::kAnswer, std::move(desc), session_id_,
       absl::StrCat(session_version_++));
   if (sdp_info_->local_description()) {
@@ -401,6 +401,7 @@ void WebRtcSessionDescriptionFactory::PostCreateSessionDescriptionFailed(
 void WebRtcSessionDescriptionFactory::PostCreateSessionDescriptionSucceeded(
     CreateSessionDescriptionObserver* observer,
     std::unique_ptr<SessionDescriptionInterface> description) {
+  description->RelinquishThreadOwnership();
   Post([observer = scoped_refptr<CreateSessionDescriptionObserver>(observer),
         description = std::move(description)]() mutable {
     observer->OnSuccess(description.release());

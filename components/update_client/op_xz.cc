@@ -19,6 +19,7 @@
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
+#include "components/update_client/utils.h"
 #include "components/zucchini/zucchini.h"
 
 #if defined(IN_MEMORY_UPDATES)
@@ -104,7 +105,7 @@ base::OnceClosure XzOperation(
       base::BindOnce(
           [](const base::FilePath& in_file, std::unique_ptr<Unzipper> unzipper,
              bool result) {
-            base::DeleteFile(in_file);
+            RetryFileOperation(&base::DeleteFile, in_file);
             return result;
           },
           in_file, std::move(unzipper))

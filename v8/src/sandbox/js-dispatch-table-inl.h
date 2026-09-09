@@ -8,6 +8,8 @@
 #include "src/sandbox/js-dispatch-table.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <atomic>
+
 #include "src/builtins/builtins-inl.h"
 #include "src/common/code-memory-access-inl.h"
 #include "src/objects/objects-inl.h"
@@ -63,14 +65,6 @@ Tagged<Code> JSDispatchEntry::GetCode() const {
   return TrustedCast<Code>(Tagged<Object>(GetCodePointer()));
 }
 
-Tagged<Code> JSDispatchEntry::GetCodeForGC() const {
-  const Address code_address = GetCodePointer();
-#ifdef THREAD_SANITIZER
-  MemoryChunk::FromAddress(code_address)->SynchronizedLoad();
-#endif
-  return TrustedCast<Code>(Tagged<Object>(code_address));
-}
-
 uint16_t JSDispatchEntry::GetParameterCount() const {
   // Loading a pointer out of a freed entry will always result in an invalid
   // pointer (e.g. upper bits set or nullptr). However, here we're just loading
@@ -91,9 +85,9 @@ Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
   return at(index).GetCode();
 }
 
-Tagged<Code> JSDispatchTable::GetCodeForGC(JSDispatchHandle handle) {
-  uint32_t index = HandleToIndex(handle);
-  return at(index).GetCodeForGC();
+Address JSDispatchTable::GetCodePointerForGC(JSDispatchHandle handle) {
+  const uint32_t index = HandleToIndex(handle);
+  return at(index).GetCodePointer();
 }
 
 void JSDispatchTable::SetCodeNoWriteBarrier(JSDispatchHandle handle,
@@ -202,8 +196,8 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
       ((new_object - kObjectPointerOffset) << kObjectPointerShift) &
       ~kMarkingBit;
   Address new_payload = object | marking_bit | parameter_count;
-  encoded_word_.store(new_payload, std::memory_order_relaxed);
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
+  encoded_word_.store(new_payload, std::memory_order_release);
   DCHECK(!IsFreelistEntry());
 }
 
@@ -291,6 +285,15 @@ void JSDispatchTable::Mark(JSDispatchHandle handle) {
   at(index).Mark();
 }
 
+bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
+  const uint32_t index = HandleToIndex(handle);
+  // The read-only space is immortal and always considered alive.
+  if (index < kEndOfReadOnlyIndex) {
+    return true;
+  }
+  return at(index).IsMarked();
+}
+
 #if defined(DEBUG) || defined(VERIFY_HEAP)
 void JSDispatchTable::VerifyEntry(JSDispatchHandle handle, Space* space,
                                   Space* ro_space) {
@@ -339,6 +342,10 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
                                        uint16_t parameter_count) {
   if (code->entrypoint_tag() != kJSEntrypointTag) {
     // Target code doesn't use JS linkage. This cannot be valid.
+    return false;
+  }
+  // TODO(saelo): turn this into DCHECK once entrypoint tag check is enough.
+  if (code->is_builtin() && !Builtins::HasJSLinkage(code->builtin_id())) {
     return false;
   }
   if (code->parameter_count() == parameter_count) {

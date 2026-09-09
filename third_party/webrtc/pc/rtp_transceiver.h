@@ -33,6 +33,7 @@
 #include "api/rtp_transceiver_direction.h"
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/video/video_bitrate_allocator_factory.h"
@@ -300,7 +301,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
                            const MediaContentDescription* content);
 
  private:
-  MediaEngineInterface* media_engine() const {
+  MediaEngineInterface* media_engine() const
+      RTC_RUN_ON(context()->worker_thread()) {
     return context_->media_engine();
   }
   ConnectionContext* context() const { return context_; }

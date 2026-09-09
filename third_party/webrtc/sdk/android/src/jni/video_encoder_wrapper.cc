@@ -452,9 +452,10 @@ CodecSpecificInfo VideoEncoderWrapper::ParseCodecSpecificInfo(
 ScopedJavaLocalRef<jobject> VideoEncoderWrapper::ToJavaBitrateAllocation(
     JNIEnv* jni,
     const VideoBitrateAllocation& allocation) {
-  ScopedJavaLocalRef<jobjectArray> j_allocation_array(
-      jni, jni->NewObjectArray(kMaxSpatialLayers, int_array_class_.obj(),
-                               nullptr /* initial */));
+  ScopedJavaLocalRef<jobjectArray> j_allocation_array =
+      ScopedJavaLocalRef<jobjectArray>::Adopt(
+          jni, jni->NewObjectArray(kMaxSpatialLayers, int_array_class_.obj(),
+                                   nullptr /* initial */));
   for (int spatial_i = 0; spatial_i < kMaxSpatialLayers; ++spatial_i) {
     std::array<int32_t, kMaxTemporalStreams> spatial_layer;
     for (int temporal_i = 0; temporal_i < kMaxTemporalStreams; ++temporal_i) {
@@ -500,8 +501,9 @@ JavaToNativeResolutionBitrateLimits(
 
   const jsize array_length = jni->GetArrayLength(j_bitrate_limits_array.obj());
   for (int i = 0; i < array_length; ++i) {
-    ScopedJavaLocalRef<jobject> j_bitrate_limits = ScopedJavaLocalRef<jobject>(
-        jni, jni->GetObjectArrayElement(j_bitrate_limits_array.obj(), i));
+    ScopedJavaLocalRef<jobject> j_bitrate_limits =
+        ScopedJavaLocalRef<jobject>::Adopt(
+            jni, jni->GetObjectArrayElement(j_bitrate_limits_array.obj(), i));
 
     jint frame_size_pixels =
         Java_ResolutionBitrateLimits_getFrameSizePixels(jni, j_bitrate_limits);

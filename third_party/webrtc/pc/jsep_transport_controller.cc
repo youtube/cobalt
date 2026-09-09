@@ -514,10 +514,15 @@ JsepTransportController::CreateDtlsTransport(const ContentInfo& content_info,
   }
 
   // Connect to signals offered by the DTLS and ICE transport.
-  dtls->SignalWritableState.connect(
-      this, &JsepTransportController::OnTransportWritableState_n);
-  dtls->SignalReceivingState.connect(
-      this, &JsepTransportController::OnTransportReceivingState_n);
+  dtls->SubscribeWritableState(this,
+                               [this](PacketTransportInternal* transport) {
+                                 RTC_DCHECK_RUN_ON(network_thread_);
+                                 OnTransportWritableState_n(transport);
+                               });
+  dtls->SubscribeReceivingState([this](PacketTransportInternal* transport) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    OnTransportReceivingState_n(transport);
+  });
   dtls->ice_transport()->AddGatheringStateCallback(
       this, [this](IceTransportInternal* transport) {
         RTC_DCHECK_RUN_ON(network_thread_);

@@ -106,7 +106,7 @@ class FakePacketTransport : public PacketTransportInternal {
   }
   void SetNetworkRoute(std::optional<NetworkRoute> network_route) {
     network_route_ = network_route;
-    SignalNetworkRouteChanged(network_route);
+    NotifyNetworkRouteChanged(network_route);
   }
 
   using PacketTransportInternal::NotifyOnClose;
@@ -119,9 +119,9 @@ class FakePacketTransport : public PacketTransportInternal {
     }
     writable_ = writable;
     if (writable_) {
-      SignalReadyToSend(this);
+      NotifyReadyToSend(this);
     }
-    SignalWritableState(this);
+    NotifyWritableState(this);
   }
 
   void set_receiving(bool receiving) {
@@ -129,7 +129,7 @@ class FakePacketTransport : public PacketTransportInternal {
       return;
     }
     receiving_ = receiving;
-    SignalReceivingState(this);
+    NotifyReceivingState(this);
   }
 
   void SendPacketInternal(const CopyOnWriteBuffer& packet,

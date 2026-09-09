@@ -453,6 +453,17 @@ TEST(ECTest, SetNULLKey) {
   EXPECT_FALSE(EC_KEY_get0_public_key(key.get()));
 }
 
+TEST(ECTest, PointAtInfinity) {
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+  ASSERT_TRUE(key);
+
+  bssl::UniquePtr<EC_POINT> inf(EC_POINT_new(key->group));
+  ASSERT_TRUE(inf);
+  ASSERT_TRUE(EC_POINT_set_to_infinity(key->group, inf.get()));
+  // Configuring a public key with the point at infinity is invalid.
+  EXPECT_FALSE(EC_KEY_set_public_key(key.get(), inf.get()));
+}
+
 TEST(ECTest, GroupMismatch) {
   bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_secp384r1));
   ASSERT_TRUE(key);

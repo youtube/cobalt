@@ -30,6 +30,7 @@ bool PlatformCrashpadInitialization(bool,
                                     const std::string&,
                                     const base::FilePath&,
                                     const std::vector<std::string>&,
+                                    const std::vector<base::FilePath>&,
                                     base::FilePath*) {
   return false;
 }

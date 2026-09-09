@@ -1,0 +1,112 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/actor/ui/actor_overlay_handler.h"
+
+#include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
+#include "chrome/browser/actor/ui/mocks/mock_actor_ui_tab_controller.h"
+#include "chrome/browser/actor/ui/mocks/mock_actor_ui_tab_controller_factory.h"
+#include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/test/base/testing_profile.h"
+#include "components/tabs/public/mock_tab_interface.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/test/browser_task_environment.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace actor::ui {
+namespace {
+
+// Fake implementation for the ActorOverlayPage interface.
+class FakeActorOverlayPage : public mojom::ActorOverlayPage {
+ public:
+  FakeActorOverlayPage() = default;
+  ~FakeActorOverlayPage() override = default;
+
+  mojo::PendingRemote<mojom::ActorOverlayPage> BindAndGetRemote() {
+    return receiver_.BindNewPipeAndPassRemote();
+  }
+
+  void FlushForTesting() { receiver_.FlushForTesting(); }
+
+  // mojom::ActorOverlayPage
+  void SetScrimBackground(bool is_visible) override {
+    is_scrim_background_visible_ = is_visible;
+    set_scrim_background_call_count_++;
+  }
+
+  // Test accessors
+  bool is_scrim_background_visible() { return is_scrim_background_visible_; }
+
+  int scrim_background_call_count() { return set_scrim_background_call_count_; }
+
+ private:
+  mojo::Receiver<mojom::ActorOverlayPage> receiver_{this};
+  bool is_scrim_background_visible_ = false;
+  int set_scrim_background_call_count_ = 0;
+};
+
+class ActorOverlayHandlerTest : public testing::Test {
+ public:
+  ActorOverlayHandlerTest() {
+    profile_ = TestingProfile::Builder().Build();
+    web_contents_ = content::WebContents::Create(
+        content::WebContents::CreateParams(profile_.get()));
+    handler_ = std::make_unique<ActorOverlayHandler>(
+        fake_page_.BindAndGetRemote(),
+        handler_remote_.BindNewPipeAndPassReceiver(), web_contents_.get());
+    MockActorUiTabController::SetupDefaultBrowserWindow(
+        mock_tab_, mock_browser_window_interface_, user_data_host_);
+
+    mock_actor_ui_tab_controller_.emplace(mock_tab_);
+    webui::SetTabInterface(web_contents_.get(), &mock_tab_);
+  }
+
+  MockActorUiTabController* mock_actor_ui_tab_controller() {
+    return &mock_actor_ui_tab_controller_.value();
+  }
+
+ protected:
+  content::BrowserTaskEnvironment task_environment_;
+  FakeActorOverlayPage fake_page_;
+  mojo::Remote<mojom::ActorOverlayPageHandler> handler_remote_;
+  std::unique_ptr<TestingProfile> profile_;
+  ::ui::UnownedUserDataHost user_data_host_;
+  tabs::MockTabInterface mock_tab_;
+  MockBrowserWindowInterface mock_browser_window_interface_;
+  std::unique_ptr<content::WebContents> web_contents_;
+  std::unique_ptr<ActorOverlayHandler> handler_;
+  std::optional<MockActorUiTabController> mock_actor_ui_tab_controller_;
+};
+
+TEST_F(ActorOverlayHandlerTest, OnHoverStatusChanged) {
+  EXPECT_CALL(*mock_actor_ui_tab_controller(),
+              OnOverlayHoverStatusChanged(testing::_))
+      .Times(2);
+  handler_->OnHoverStatusChanged(true);
+  handler_->OnHoverStatusChanged(false);
+  // Verify that if the same hover status is sent, we return early and don't
+  // call the tab controller's OnOverlayHoverStatusChanged function.
+  handler_->OnHoverStatusChanged(false);
+}
+
+TEST_F(ActorOverlayHandlerTest, SetScrimBackground) {
+  handler_->SetOverlayBackground(true);
+  fake_page_.FlushForTesting();
+
+  EXPECT_TRUE(fake_page_.is_scrim_background_visible());
+  EXPECT_EQ(fake_page_.scrim_background_call_count(), 1);
+
+  handler_->SetOverlayBackground(false);
+  fake_page_.FlushForTesting();
+
+  EXPECT_FALSE(fake_page_.is_scrim_background_visible());
+  EXPECT_EQ(fake_page_.scrim_background_call_count(), 2);
+}
+
+}  // namespace
+}  // namespace actor::ui

@@ -1013,8 +1013,24 @@ void VideoStreamEncoder::ConfigureEncoder(VideoEncoderConfig config,
       frame_cadence_adapter_->SetZeroHertzModeEnabled(std::nullopt);
     }
 
+    bool video_format_changed =
+        encoder_config_.video_format != config.video_format;
+    if (!video_format_changed && encoder_config_.simulcast_layers.size() !=
+                                     config.simulcast_layers.size()) {
+      video_format_changed = true;
+    }
+    if (!video_format_changed) {
+      for (size_t i = 0; i < encoder_config_.simulcast_layers.size(); i++) {
+        if (!encoder_config_.GetSimulcastVideoFormat(i).IsSameCodec(
+                config.GetSimulcastVideoFormat(i))) {
+          video_format_changed = true;
+          break;
+        }
+      }
+    }
+
     pending_encoder_creation_ =
-        (!encoder_ || encoder_config_.video_format != config.video_format ||
+        (!encoder_ || video_format_changed ||
          max_data_payload_length_ != max_data_payload_length);
     encoder_config_ = std::move(config);
     max_data_payload_length_ = max_data_payload_length;

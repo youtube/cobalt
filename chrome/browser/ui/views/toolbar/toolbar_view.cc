@@ -123,7 +123,7 @@
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/tooltip_manager.h"
 #include "ui/views/widget/widget.h"
-#include "ui/views/window/non_client_view.h"
+#include "ui/views/window/frame_view.h"
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "chrome/browser/recovery/recovery_install_global_error_factory.h"
@@ -191,7 +191,7 @@ class TabstripLikeBackground : public views::Background {
                                                                  browser_view_);
     if (!painted) {
       SkColor frame_color =
-          browser_view_->frame()->GetFrameView()->GetFrameColor(
+          browser_view_->browser_widget()->GetFrameView()->GetFrameColor(
               BrowserFrameActiveState::kUseCurrent);
       canvas->DrawColor(frame_color);
     }
@@ -1268,7 +1268,9 @@ void ToolbarView::OnTabStripModelChanged(
 
 void ToolbarView::UpdateRecedingCornerRadius() {
   bool tab_strip_has_trailing_frame_buttons =
-      !browser_view_->frame()->GetFrameView()->CaptionButtonsOnLeadingEdge();
+      !browser_view_->browser_widget()
+           ->GetFrameView()
+           ->CaptionButtonsOnLeadingEdge();
   bool tab_strip_has_leading_action_buttons =
       (!tabs::GetTabSearchTrailingTabstrip(browser()->profile()) &&
        !features::HasTabSearchToolbarButton());

@@ -23,6 +23,7 @@
 #include "api/task_queue/task_queue_base.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/timestamp_aligner.h"
 
@@ -153,8 +154,9 @@ class AudioDeviceBuffer {
   // edge cases and it is IMHO not worth the risk to use them in this class.
   // TODO(henrika): see if it is possible to refactor and annotate all members.
 
-  // Main thread on which this object is created.
-  SequenceChecker main_thread_checker_;
+  // Main thread for where this object is used.
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker main_thread_checker_{
+      SequenceChecker::kDetached};
 
   Mutex lock_;
 

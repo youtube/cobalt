@@ -1251,20 +1251,19 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
       isolate->factory()->NewWasmSuspenderObjectInitialized();
 
   // Update the stack state.
-  wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
   std::unique_ptr<wasm::StackMemory> target_stack =
       isolate->stack_pool().GetOrAllocate();
-  target_stack->jmpbuf()->parent = active_stack;
+  target_stack->jmpbuf()->parent = nullptr;
   target_stack->jmpbuf()->stack_limit = target_stack->jslimit();
   target_stack->jmpbuf()->sp = target_stack->base();
   target_stack->jmpbuf()->fp = kNullAddress;
   target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   target_stack->jmpbuf()->is_on_central_stack = false;
-  isolate->isolate_data()->set_active_stack(target_stack.get());
 
   // Update the suspender state.
   suspender->set_parent(isolate->isolate_data()->active_suspender());
   suspender->set_stack(isolate, target_stack.get());
+  // The active stack is updated in {Isolate::SwitchStacks}.
   isolate->isolate_data()->set_active_suspender(*suspender);
 
   target_stack->set_index(isolate->wasm_stacks().size());
@@ -1274,7 +1273,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   }
 
   // Stack limit will be updated in WasmReturnPromiseOnSuspendAsm builtin.
-  DCHECK_EQ(active_stack->jmpbuf()->state, wasm::JumpBuffer::Active);
   return *suspender;
 }
 
@@ -1306,7 +1304,15 @@ class PrototypesSetup : public wasm::Decoder {
 
   PrototypesSetup(Isolate* isolate, const uint8_t* data_begin,
                   const uint8_t* data_end)
-      : Decoder(data_begin, data_end), isolate_(isolate) {}
+      : Decoder(data_begin, data_end), isolate_(isolate) {
+    // kLength == 0 may look weird, but it's what you'd get for
+    // function wrapper(...args) { return wasm_func(this, ...args); }.
+    static constexpr int kLength = 0;
+    method_wrapper_ = isolate_->factory()->NewSharedFunctionInfoForBuiltin(
+        {}, Builtin::kWasmMethodWrapper, kLength, kDontAdapt);
+    method_wrapper_->set_native(true);
+    method_wrapper_->set_language_mode(LanguageMode::kStrict);
+  }
 
   Tagged<Object> SetupPrototypes(DirectHandle<JSObject> constructors) {
     uint32_t num_prototypes = consume_u32v("number of prototypes");
@@ -1459,9 +1465,19 @@ class PrototypesSetup : public wasm::Decoder {
   }
 
   bool InstallMethod(DirectHandle<JSReceiver> receiver, Method method,
-                     DirectHandle<WasmExportedFunction> function) {
+                     DirectHandle<JSFunction> function) {
     if (!method.is_static) {
-      WasmExportedFunction::MarkAsReceiverIsFirstParam(isolate_, function);
+      DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
+          isolate_->native_context(), wasm::kMethodWrapperContextLength);
+      context->SetNoCell(wasm::kMethodWrapperContextSlot, *function);
+      function =
+          Factory::JSFunctionBuilder{isolate_, method_wrapper(), context}
+              .set_map(isolate_->strict_function_with_readonly_prototype_map())
+              .Build();
+      // For nicer stack traces, we could call
+      //   JSFunction::SetName(..., function, name, ...);
+      // here, but that would have a significant performance cost, so for now
+      // we choose to hide the wrappers on stack traces instead.
     }
     DirectHandle<String> name =
         isolate_->factory()->InternalizeUtf8String(method.name);
@@ -1535,9 +1551,11 @@ class PrototypesSetup : public wasm::Decoder {
   virtual DirectHandle<Object> NextFunctionInternal() = 0;
   virtual DirectHandle<Object> NextPrototypeInternal() = 0;
   virtual DirectHandle<JSObject> PrototypeByIndex(uint32_t index) = 0;
+  DirectHandle<SharedFunctionInfo> method_wrapper() { return method_wrapper_; }
 
  private:
   Isolate* isolate_;
+  DirectHandle<SharedFunctionInfo> method_wrapper_;
 };
 
 class PrototypesSetup_Arrays : public PrototypesSetup {

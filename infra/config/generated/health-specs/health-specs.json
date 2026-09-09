@@ -9654,6 +9654,27 @@
           }
         ]
       },
+      "linux-blink-tracing-rel": {
+        "contact_team_email": "chrome-product-engprod@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "linux-blink-web-tests-force-accessibility-rel": {
         "problem_specs": [
           {
@@ -10816,6 +10837,27 @@
       },
       "linux-wpt-chromium-rel": {
         "contact_team_email": "chrome-blink-engprod@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "linux-x64-centipede-asan-rel-tests": {
+        "contact_team_email": "chrome-fuzzing-core@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",

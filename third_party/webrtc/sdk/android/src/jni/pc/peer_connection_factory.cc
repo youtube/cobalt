@@ -23,6 +23,7 @@
 
 #include "absl/memory/memory.h"
 #include "api/audio/audio_device.h"
+#include "api/audio/audio_frame_processor.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -265,7 +266,8 @@ ScopedJavaLocalRef<jobject> CreatePeerConnectionFactoryForJava(
         network_controller_factory,
     std::unique_ptr<NetworkStatePredictorFactoryInterface>
         network_state_predictor_factory,
-    std::unique_ptr<NetEqFactory> neteq_factory) {
+    std::unique_ptr<NetEqFactory> neteq_factory,
+    std::unique_ptr<AudioFrameProcessor> audio_frame_processor) {
   // talk/ assumes pretty widely that the current Thread is ThreadManager'd, but
   // ThreadManager only WrapCurrentThread()s the thread where it is first
   // created.  Since the semantics around when auto-wrapping happens in
@@ -310,6 +312,7 @@ ScopedJavaLocalRef<jobject> CreatePeerConnectionFactoryForJava(
   dependencies.adm = std::move(audio_device_module);
   dependencies.audio_encoder_factory = std::move(audio_encoder_factory);
   dependencies.audio_decoder_factory = std::move(audio_decoder_factory);
+  dependencies.audio_frame_processor = std::move(audio_frame_processor);
   if (audio_processor != nullptr) {
     dependencies.audio_processing_builder =
         CustomAudioProcessing(std::move(audio_processor));
@@ -355,7 +358,8 @@ JNI_PeerConnectionFactory_CreatePeerConnectionFactory(
     jlong native_fec_controller_factory,
     jlong native_network_controller_factory,
     jlong native_network_state_predictor_factory,
-    jlong native_neteq_factory) {
+    jlong native_neteq_factory,
+    jlong native_audio_frame_processor) {
   const Environment* env = reinterpret_cast<Environment*>(webrtc_env_ref);
   RTC_CHECK(env != nullptr);
   scoped_refptr<AudioProcessing> audio_processor(
@@ -373,7 +377,9 @@ JNI_PeerConnectionFactory_CreatePeerConnectionFactory(
           native_network_controller_factory),
       TakeOwnershipOfUniquePtr<NetworkStatePredictorFactoryInterface>(
           native_network_state_predictor_factory),
-      TakeOwnershipOfUniquePtr<NetEqFactory>(native_neteq_factory));
+      TakeOwnershipOfUniquePtr<NetEqFactory>(native_neteq_factory),
+      TakeOwnershipOfUniquePtr<AudioFrameProcessor>(
+          reinterpret_cast<jlong>(native_audio_frame_processor)));
 }
 
 static void JNI_PeerConnectionFactory_FreeFactory(JNIEnv*, jlong j_p) {

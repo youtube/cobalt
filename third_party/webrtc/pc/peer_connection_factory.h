@@ -102,26 +102,26 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
     return options_;
   }
 
-  const FieldTrialsView& field_trials() const {
-    return context_->env().field_trials();
-  }
+  const FieldTrialsView& field_trials() const { return env_.field_trials(); }
 
   MediaEngineInterface* media_engine() const;
   CodecVendor& CodecVendorForTesting() { return codec_vendor_; }
 
  protected:
   // Constructor used by the static Create() method. Modifies the dependencies.
-  PeerConnectionFactory(scoped_refptr<ConnectionContext> context,
+  PeerConnectionFactory(Environment env,
+                        scoped_refptr<ConnectionContext> context,
                         PeerConnectionFactoryDependencies* dependencies);
 
-  // Constructor for use in testing. Ignores the possibility of initialization
-  // failure. The dependencies are passed in by std::move().
+  // Constructor for use in testing. The dependencies are passed in by
+  // std::move().
   explicit PeerConnectionFactory(
       PeerConnectionFactoryDependencies dependencies);
 
   virtual ~PeerConnectionFactory();
 
  private:
+  Environment env_;
   Thread* network_thread() const { return context_->network_thread(); }
 
   std::unique_ptr<Call> CreateCall_w(

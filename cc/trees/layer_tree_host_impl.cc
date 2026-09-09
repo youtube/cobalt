@@ -492,7 +492,9 @@ LayerTreeHostImpl::LayerTreeHostImpl(
               /*should_report_histograms=*/!settings
                   .single_thread_proxy_scheduler,
               /*should_report_ukm=*/!settings.single_thread_proxy_scheduler,
-              id)),
+              id,
+              /*is_trees_in_viz_client=*/
+              settings_.TreesInVizInClientProcess())),
       frame_trackers_(settings.single_thread_proxy_scheduler),
       lcd_text_metrics_reporter_(LCDTextMetricsReporter::CreateIfNeeded(this)),
       has_input_resetter_(
@@ -560,8 +562,8 @@ LayerTreeHostImpl::LayerTreeHostImpl(
 
 #if BUILDFLAG(IS_CHROMEOS)
     frame_sorter_.EnableReportForUI();
-    frame_trackers_.StartSequence(
-        FrameSequenceTrackerType::kCompositorAnimation);
+    frame_trackers_.UpdateSmoothThreadHistory(
+        FrameInfo::SmoothEffectDrivingThread::kMain, /*modifier-*/1);
 #endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
@@ -2910,11 +2912,12 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
                        compositor_frame.render_pass_list);
 
   base::TimeTicks submit_time = base::TimeTicks::Now();
+  base::TimeTicks trees_in_viz_submit_time;
 
   if (settings_.TreesInVizInClientProcess()) {
     send_frame_token_to_embedder_ =
         compositor_frame.metadata.send_frame_token_to_embedder;
-    UpdateDisplayTree(*frame);
+    trees_in_viz_submit_time = UpdateDisplayTree(*frame);
 
     layer_tree_frame_sink_->ExportFrameTiming();
 
@@ -3060,15 +3063,19 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
     }
   }
 
-  return SubmitInfo{frame_token,
-                    submit_time,
-                    frame->checkerboarded_needs_raster,
-                    frame->checkerboarded_needs_record,
-                    top_controls_moved,
-                    std::move(events_metrics),
-                    drawn_with_new_layer_tree,
-                    active_tree_->did_raster_inducing_scroll(),
-                    normalized_invalidated_area};
+  return SubmitInfo{
+      frame_token,
+      submit_time,  // submit time for CFs; branch time in TreesInViz mode.
+      frame->checkerboarded_needs_raster,
+      frame->checkerboarded_needs_record,
+      top_controls_moved,
+      std::move(events_metrics),
+      drawn_with_new_layer_tree,
+      active_tree_->did_raster_inducing_scroll(),
+      normalized_invalidated_area,
+      trees_in_viz_submit_time  // submit time for UpdateLayerTree in TreesInViz
+                                // mode, empty otherwise.
+  };
 }
 
 viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
@@ -3363,11 +3370,11 @@ void LayerTreeHostImpl::DidDrawAllLayers(const FrameData& frame) {
   }
 }
 
-void LayerTreeHostImpl::UpdateDisplayTree(FrameData& frame) {
+base::TimeTicks LayerTreeHostImpl::UpdateDisplayTree(FrameData& frame) {
   DCHECK(settings_.TreesInVizInClientProcess());
   DCHECK(layer_context_);
 
-  layer_context_->UpdateDisplayTreeFrom(
+  return layer_context_->UpdateDisplayTreeFrom(
       *active_tree(), *resource_provider(),
       *layer_tree_frame_sink_->context_provider(), viewport_damage_rect_,
       target_local_surface_id_);
@@ -5561,7 +5568,7 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
 
     client_shared_image = sii->CreateSharedImageForSoftwareCompositor(
         {format, upload_size, color_space, shared_image_usage,
-         "LayerTreeHostUIResource"});
+         "LayerTreeHostUIResourceSoftware"});
     CHECK(client_shared_image);
     shared_mapping = client_shared_image->Map();
   }
@@ -5575,7 +5582,7 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
       auto* sii = context_provider->SharedImageInterface();
       client_shared_image = sii->CreateSharedImage(
           {format, upload_size, color_space, shared_image_usage,
-           "LayerTreeHostUIResource"},
+           "LayerTreeHostUIResourceBitmap"},
           bitmap.GetPixels());
       CHECK(client_shared_image);
     } else {
@@ -5643,7 +5650,7 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
       auto* sii = context_provider->SharedImageInterface();
       client_shared_image = sii->CreateSharedImage(
           {format, upload_size, color_space, shared_image_usage,
-           "LayerTreeHostUIResource"},
+           "LayerTreeHostUIResourceScaledBitmap"},
           gfx::SkPixmapToSpan(pixmap));
       CHECK(client_shared_image);
     }

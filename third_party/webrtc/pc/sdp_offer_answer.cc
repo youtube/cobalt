@@ -966,14 +966,8 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
         desc_(std::move(desc)),
         observer_(std::move(observer)),
         operations_chain_callback_(std::move(operations_chain_callback)),
-        unified_plan_(handler_->IsUnifiedPlan()) {
-    if (!desc_) {
-      type_ = static_cast<SdpType>(-1);
-      InvalidParam("SessionDescription is NULL.");
-    } else {
-      type_ = desc_->GetType();
-    }
-  }
+        type_(desc_->GetType()),
+        unified_plan_(handler_->IsUnifiedPlan()) {}
 
   ~RemoteDescriptionOperation() {
     RTC_DCHECK_RUN_ON(handler_->signaling_thread());
@@ -1190,7 +1184,7 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
   std::function<void()> operations_chain_callback_;
   RTCError error_ = RTCError::OK();
   std::map<std::string, const ContentGroup*> bundle_groups_by_mid_;
-  SdpType type_;
+  const SdpType type_;
   const bool unified_plan_;
 };
 // Used by parameterless SetLocalDescription() to create an offer or answer.
@@ -1279,6 +1273,7 @@ class CreateSessionDescriptionObserverOperationWrapper
     // Completing the operation before invoking the observer allows the observer
     // to execute SetLocalDescription() without delay.
     operation_complete_callback_();
+    desc->RelinquishThreadOwnership();
     observer_->OnSuccess(desc);
   }
 
@@ -1429,9 +1424,11 @@ class SdpOfferAnswerHandler::LocalIceCredentialsToReplace {
   std::set<std::pair<std::string, std::string>> ice_credentials_;
 };
 
-SdpOfferAnswerHandler::SdpOfferAnswerHandler(PeerConnectionSdpMethods* pc,
+SdpOfferAnswerHandler::SdpOfferAnswerHandler(const Environment& env,
+                                             PeerConnectionSdpMethods* pc,
                                              ConnectionContext* context)
-    : pc_(pc),
+    : env_(env),
+      pc_(pc),
       context_(context),
       local_streams_(StreamCollection::Create()),
       remote_streams_(StreamCollection::Create()),
@@ -1451,6 +1448,7 @@ SdpOfferAnswerHandler::~SdpOfferAnswerHandler() {}
 
 // Static
 std::unique_ptr<SdpOfferAnswerHandler> SdpOfferAnswerHandler::Create(
+    const Environment& env,
     PeerConnectionSdpMethods* pc,
     const PeerConnectionInterface::RTCConfiguration& configuration,
     std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator,
@@ -1458,7 +1456,7 @@ std::unique_ptr<SdpOfferAnswerHandler> SdpOfferAnswerHandler::Create(
         video_bitrate_allocator_factory,
     ConnectionContext* context,
     CodecLookupHelper* codec_lookup_helper) {
-  auto handler = absl::WrapUnique(new SdpOfferAnswerHandler(pc, context));
+  auto handler = absl::WrapUnique(new SdpOfferAnswerHandler(env, pc, context));
   handler->Initialize(configuration, std::move(cert_generator),
                       std::move(video_bitrate_allocator_factory), context,
                       codec_lookup_helper);
@@ -1637,6 +1635,8 @@ void SdpOfferAnswerHandler::SetLocalDescription(
     SetSessionDescriptionObserver* observer,
     SessionDescriptionInterface* desc_ptr) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(desc_ptr);
+  RTC_DCHECK(observer);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
@@ -1672,6 +1672,8 @@ void SdpOfferAnswerHandler::SetLocalDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
     scoped_refptr<SetLocalDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(desc);
+  RTC_DCHECK(observer);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
@@ -1698,6 +1700,7 @@ void SdpOfferAnswerHandler::SetLocalDescription(
 void SdpOfferAnswerHandler::SetLocalDescription(
     SetSessionDescriptionObserver* observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(observer);
   SetLocalDescription(make_ref_counted<SetSessionDescriptionObserverAdapter>(
       weak_ptr_factory_.GetWeakPtr(),
       scoped_refptr<SetSessionDescriptionObserver>(observer)));
@@ -1706,6 +1709,7 @@ void SdpOfferAnswerHandler::SetLocalDescription(
 void SdpOfferAnswerHandler::SetLocalDescription(
     scoped_refptr<SetLocalDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(observer);
   // The `create_sdp_observer` handles performing DoSetLocalDescription() with
   // the resulting description as well as completing the operation.
   auto create_sdp_observer =
@@ -2015,6 +2019,8 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
     SetSessionDescriptionObserver* observer,
     SessionDescriptionInterface* desc_ptr) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(observer);
+  RTC_DCHECK(desc_ptr);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
@@ -2046,6 +2052,8 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
     scoped_refptr<SetRemoteDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(desc);
+  RTC_DCHECK(observer);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
@@ -2053,12 +2061,6 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
       [this_weak_ptr = weak_ptr_factory_.GetWeakPtr(), observer,
        desc = std::move(desc)](
           std::function<void()> operations_chain_callback) mutable {
-        if (!observer) {
-          RTC_DLOG(LS_ERROR) << "SetRemoteDescription - observer is NULL.";
-          operations_chain_callback();
-          return;
-        }
-
         // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
           observer->OnSetRemoteDescriptionComplete(RTCError(
@@ -2431,17 +2433,8 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
     scoped_refptr<SetLocalDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::DoSetLocalDescription");
-
-  if (!observer) {
-    RTC_LOG(LS_ERROR) << "SetLocalDescription - observer is NULL.";
-    return;
-  }
-
-  if (!desc) {
-    observer->OnSetLocalDescriptionComplete(
-        RTCError(RTCErrorType::INTERNAL_ERROR, "SessionDescription is NULL."));
-    return;
-  }
+  RTC_DCHECK(desc);
+  RTC_DCHECK(observer);
 
   // If a session error has occurred the PeerConnection is in a possibly
   // inconsistent state so fail right away.
@@ -4400,8 +4393,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
           MediaType::AUDIO, GetDefaultMidForPlanB(MediaType::AUDIO),
           RtpTransceiverDirectionFromSendRecv(send_audio, recv_audio), false);
       options.header_extensions =
-          media_engine()->voice().GetRtpHeaderExtensions(
-              &context_->env().field_trials());
+          media_engine()->voice().GetRtpHeaderExtensions(&pc_->trials());
       session_options->media_description_options.push_back(options);
       audio_index = session_options->media_description_options.size() - 1;
     }
@@ -4410,8 +4402,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
           MediaType::VIDEO, GetDefaultMidForPlanB(MediaType::VIDEO),
           RtpTransceiverDirectionFromSendRecv(send_video, recv_video), false);
       options.header_extensions =
-          media_engine()->video().GetRtpHeaderExtensions(
-              &context_->env().field_trials());
+          media_engine()->video().GetRtpHeaderExtensions(&pc_->trials());
       session_options->media_description_options.push_back(options);
       video_index = session_options->media_description_options.size() - 1;
     }
@@ -5545,8 +5536,7 @@ void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
         *audio_index = session_options->media_description_options.size() - 1;
       }
       session_options->media_description_options.back().header_extensions =
-          media_engine()->voice().GetRtpHeaderExtensions(
-              &context_->env().field_trials());
+          media_engine()->voice().GetRtpHeaderExtensions(&pc_->trials());
     } else if (IsVideoContent(&content)) {
       // If we already have an video m= section, reject this extra one.
       if (*video_index) {
@@ -5562,8 +5552,7 @@ void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
         *video_index = session_options->media_description_options.size() - 1;
       }
       session_options->media_description_options.back().header_extensions =
-          media_engine()->video().GetRtpHeaderExtensions(
-              &context_->env().field_trials());
+          media_engine()->video().GetRtpHeaderExtensions(&pc_->trials());
     } else if (IsUnsupportedContent(&content)) {
       session_options->media_description_options.push_back(
           MediaDescriptionOptions(MediaType::UNSUPPORTED, content.mid(),

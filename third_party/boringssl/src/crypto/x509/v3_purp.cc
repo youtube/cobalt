@@ -356,8 +356,8 @@ static int check_ca(const X509 *x) {
   return ((x->ex_flags & EXFLAG_BCONS) && (x->ex_flags & EXFLAG_CA));
 }
 
-int X509_check_ca(X509 *x) {
-  if (!x509v3_cache_extensions(x)) {
+int X509_check_ca(const X509 *x) {
+  if (!x509v3_cache_extensions(const_cast<X509*>(x))) {
     return 0;
   }
   return check_ca(x);
@@ -460,12 +460,13 @@ static int check_purpose_timestamp_sign(const X509_PURPOSE *xp, const X509 *x,
 
 static int no_check(const X509_PURPOSE *xp, const X509 *x, int ca) { return 1; }
 
-int X509_check_issued(X509 *issuer, X509 *subject) {
+int X509_check_issued(const X509 *issuer, const X509 *subject) {
   if (X509_NAME_cmp(X509_get_subject_name(issuer),
                     X509_get_issuer_name(subject))) {
     return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
   }
-  if (!x509v3_cache_extensions(issuer) || !x509v3_cache_extensions(subject)) {
+  if (!x509v3_cache_extensions(const_cast<X509 *>(issuer)) ||
+      !x509v3_cache_extensions(const_cast<X509 *>(subject))) {
     return X509_V_ERR_UNSPECIFIED;
   }
 
@@ -482,7 +483,7 @@ int X509_check_issued(X509 *issuer, X509 *subject) {
   return X509_V_OK;
 }
 
-int X509_check_akid(X509 *issuer, const AUTHORITY_KEYID *akid) {
+int X509_check_akid(const X509 *issuer, const AUTHORITY_KEYID *akid) {
   if (!akid) {
     return X509_V_OK;
   }
@@ -494,7 +495,7 @@ int X509_check_akid(X509 *issuer, const AUTHORITY_KEYID *akid) {
   }
   // Check serial number
   if (akid->serial &&
-      ASN1_INTEGER_cmp(X509_get_serialNumber(issuer), akid->serial)) {
+      ASN1_INTEGER_cmp(X509_get0_serialNumber(issuer), akid->serial)) {
     return X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
   }
   // Check issuer name
@@ -502,13 +503,8 @@ int X509_check_akid(X509 *issuer, const AUTHORITY_KEYID *akid) {
     // Ugh, for some peculiar reason AKID includes SEQUENCE OF
     // GeneralName. So look for a DirName. There may be more than one but
     // we only take any notice of the first.
-    GENERAL_NAMES *gens;
-    GENERAL_NAME *gen;
-    X509_NAME *nm = NULL;
-    size_t i;
-    gens = akid->issuer;
-    for (i = 0; i < sk_GENERAL_NAME_num(gens); i++) {
-      gen = sk_GENERAL_NAME_value(gens, i);
+    const X509_NAME *nm = nullptr;
+    for (const GENERAL_NAME *gen : akid->issuer) {
       if (gen->type == GEN_DIRNAME) {
         nm = gen->d.dirn;
         break;

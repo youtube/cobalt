@@ -722,6 +722,146 @@ TEST(SSLTest, DefaultCurves) {
   }
 }
 
+TEST(SSLTest, SetClientKeyShares) {
+  const struct {
+    const char *description;
+    std::vector<uint16_t> supported_groups;
+    std::vector<uint16_t> key_shares;
+    bool expected_success;
+  } kTests[] = {
+      {
+          "Empty key shares with default supported groups",
+          {},
+          {},
+          true,
+      },
+      {
+          "Empty key shares with custom supported groups",
+          {SSL_GROUP_X25519, SSL_GROUP_X25519_MLKEM768},
+          {},
+          true,
+      },
+      {
+          "One key share matching default supported groups",
+          {},
+          {SSL_GROUP_X25519},
+          true,
+      },
+      {
+          "One key share matching custom supported groups",
+          {SSL_GROUP_X25519, SSL_GROUP_X25519_MLKEM768},
+          {SSL_GROUP_X25519},
+          true,
+      },
+      {
+          "Key share not in supported default groups",
+          {},
+          {SSL_GROUP_MLKEM1024},
+          false,
+      },
+      {
+          "Key share not in supported custom groups",
+          {SSL_GROUP_X25519, SSL_GROUP_SECP256R1},
+          {SSL_GROUP_X25519_MLKEM768},
+          false,
+      },
+      {
+          "Multiple key shares, in correct order",
+          {SSL_GROUP_X25519, SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768},
+          {SSL_GROUP_X25519, SSL_GROUP_X25519_MLKEM768},
+          true,
+      },
+      {
+          "Multiple key shares, out of order",
+          {SSL_GROUP_X25519, SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768},
+          {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519},
+          false,
+      },
+      {
+          "More than two key shares",
+          {SSL_GROUP_X25519, SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768,
+           SSL_GROUP_MLKEM1024},
+          {SSL_GROUP_X25519, SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768},
+          true,
+      },
+      {
+          "Key shares cover all supported groups",
+          {SSL_GROUP_X25519, SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768},
+          {SSL_GROUP_X25519, SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768},
+          true,
+      },
+      {
+          "Multiple key shares, not all valid",
+          {SSL_GROUP_X25519, SSL_GROUP_X25519_MLKEM768},
+          {SSL_GROUP_X25519, SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768},
+          false,
+      },
+      {
+          "Key shares contain duplicates",
+          {},
+          {SSL_GROUP_X25519, SSL_GROUP_X25519},
+          false,
+      },
+  };
+
+  for (const auto &t : kTests) {
+    SCOPED_TRACE(t.description);
+    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+    ASSERT_TRUE(ctx);
+    bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
+    ASSERT_TRUE(ssl);
+    ASSERT_FALSE(ssl->config->client_key_share_selections.has_value());
+
+    ASSERT_TRUE(SSL_set1_group_ids(ssl.get(), t.supported_groups.data(),
+                                   t.supported_groups.size()));
+    EXPECT_EQ(SSL_set1_client_key_shares(ssl.get(), t.key_shares.data(),
+                                         t.key_shares.size()),
+              t.expected_success);
+    if (t.expected_success) {
+      ASSERT_TRUE(ssl->config->client_key_share_selections.has_value());
+      EXPECT_THAT(ssl->config->client_key_share_selections.value(),
+                  ElementsAreArray(t.key_shares));
+    }
+  }
+}
+
+// Test the behavior that modifying the SSL's supported groups results in
+// clearing the previously set client key shares, iff the supported groups
+// become incompatible with the key shares.
+TEST(SSLTest, ClientKeySharesResetAfterChangingGroups) {
+  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+  ASSERT_TRUE(ctx);
+  bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
+  ASSERT_TRUE(ssl);
+  ASSERT_FALSE(ssl->config->client_key_share_selections.has_value());
+
+  // An initial groups list and key shares that are compatible.
+  const uint16_t kGroups1[] = {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519};
+  const uint16_t kKeyShares[] = {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519};
+  ASSERT_TRUE(
+      SSL_set1_group_ids(ssl.get(), kGroups1, std::size(kGroups1)));
+  ASSERT_TRUE(SSL_set1_client_key_shares(ssl.get(), kKeyShares,
+                                         std::size(kKeyShares)));
+  ASSERT_TRUE(ssl->config->client_key_share_selections.has_value());
+  EXPECT_EQ(ssl->config->client_key_share_selections->size(), 2u);
+
+  // A new groups list that is still compatible with the previously set key
+  // shares.
+  const uint16_t kGroups2[] = {SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768,
+                               SSL_GROUP_X25519};
+  ASSERT_TRUE(
+      SSL_set1_group_ids(ssl.get(), kGroups2, std::size(kGroups2)));
+  ASSERT_TRUE(ssl->config->client_key_share_selections.has_value());
+  EXPECT_EQ(ssl->config->client_key_share_selections->size(), 2u);
+
+  // A new groups list that is no longer compatible with the previously set key
+  // shares.
+  const uint16_t kGroups3[] = {SSL_GROUP_MLKEM1024, SSL_GROUP_X25519};
+  ASSERT_TRUE(
+      SSL_set1_group_ids(ssl.get(), kGroups3, std::size(kGroups3)));
+  EXPECT_FALSE(ssl->config->client_key_share_selections.has_value());
+}
+
 // kOpenSSLSession is a serialized SSL_SESSION.
 static const char kOpenSSLSession[] =
     "MIIFqgIBAQICAwMEAsAvBCAG5Q1ndq4Yfmbeo1zwLkNRKmCXGdNgWvGT3cskV0yQ"

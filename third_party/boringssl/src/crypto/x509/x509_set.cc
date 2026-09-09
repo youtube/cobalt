@@ -46,18 +46,18 @@ int X509_set_serialNumber(X509 *x, const ASN1_INTEGER *serial) {
   return ASN1_STRING_copy(&x->serialNumber, serial);
 }
 
-int X509_set_issuer_name(X509 *x, X509_NAME *name) {
-  if (x == NULL) {
+int X509_set_issuer_name(X509 *x, const X509_NAME *name) {
+  if (x == nullptr) {
     return 0;
   }
-  return (X509_NAME_set(&x->issuer, name));
+  return x509_name_copy(&x->issuer, name);
 }
 
-int X509_set_subject_name(X509 *x, X509_NAME *name) {
-  if (x == NULL) {
+int X509_set_subject_name(X509 *x, const X509_NAME *name) {
+  if (x == nullptr) {
     return 0;
   }
-  return (X509_NAME_set(&x->subject, name));
+  return x509_name_copy(&x->subject, name);
 }
 
 int X509_set1_notBefore(X509 *x, const ASN1_TIME *tm) {

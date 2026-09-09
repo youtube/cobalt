@@ -31,6 +31,8 @@
 #include "ui/gfx/native_ui_types.h"
 #include "url/gurl.h"
 
+static_assert(!BUILDFLAG(IS_IOS));
+
 class OmniboxController;
 class OmniboxPopupView;
 namespace gfx {
@@ -70,8 +72,6 @@ class OmniboxEditModel {
   OmniboxEditModel& operator=(const OmniboxEditModel&) = delete;
 
   void set_popup_view(OmniboxPopupView* popup_view);
-  OmniboxPopupView* get_popup_view() { return popup_view_; }
-  const OmniboxPopupView* get_popup_view() const { return popup_view_; }
 
   metrics::OmniboxEventProto::PageClassification GetPageClassification() const;
 
@@ -219,9 +219,9 @@ class OmniboxEditModel {
       WindowOpenDisposition disposition = WindowOpenDisposition::CURRENT_TAB,
       bool via_keyboard = false);
 
-  // A simplified version of OpenSelection that opens the model's current
+  // A simplified version of `OpenSelection()` that opens the model's current
   // selection.
-  virtual void OpenSelection(
+  void OpenSelectionForTesting(
       base::TimeTicks timestamp = base::TimeTicks(),
       WindowOpenDisposition disposition = WindowOpenDisposition::CURRENT_TAB,
       bool via_keyboard = false);
@@ -396,7 +396,7 @@ class OmniboxEditModel {
   // Returns true if the destination URL of the match is bookmarked.
   bool IsStarredMatch(const AutocompleteMatch& match) const;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID)
   // Gets the icon for the given `match`.
   gfx::Image GetMatchIcon(const AutocompleteMatch& match,
                           SkColor vector_icon_color,

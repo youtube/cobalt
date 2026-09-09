@@ -24,7 +24,9 @@ enum class SplitTabCreatedSource {
   // Extensions API is used to open bookmarks in Split View from the Bookmarks
   // Side Panel.
   kExtensionsApi = 7,
-  kMaxValue = kExtensionsApi,
+  kWhatsNew = 8,
+  kKeyboardShortcut = 9,
+  kMaxValue = kKeyboardShortcut,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:SplitTabCreatedSource)
 

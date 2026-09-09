@@ -479,6 +479,7 @@
 <translation id="2797029671965852011">履歴を表示する</translation>
 <translation id="2797302972324086597">国コード</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT} 件のファイル}other{{COUNT} 件のファイル}}</translation>
+<translation id="2816149645002567541">ダウンロード一時停止</translation>
 <translation id="2816489851009559785">[メニュー] → [設定] → [既定のブラウザ]</translation>
 <translation id="2818821771744632548">iPhone をリセットしている途中で、アカウント <ph name="USER_NAME" /> からログアウトしました。再度ログインするには、下の [続行] をタップします。</translation>
 <translation id="2819667972867209401">オンにすると、データが Google アカウントに保存されます。オフにすると、データはこのデバイスのみに保存され、ログアウトすると削除されます。</translation>
@@ -735,6 +736,7 @@
 <translation id="3921585859122905677">アドレスバーの位置</translation>
 <translation id="3922185497376658606">ウェブページのプリロード</translation>
 <translation id="3922395466317605522">メニューのカスタマイズ</translation>
+<translation id="3926703470020109118">ダウンロード キャンセル</translation>
 <translation id="3929457972718048006">住所</translation>
 <translation id="3931215329146376310">{count,plural, =1{このサイトの新しいパスワード}other{このサイトの新しいパスワード}}</translation>
 <translation id="3934905113567851655">ピンチでサイズを変更</translation>
@@ -787,6 +789,7 @@
 <translation id="4113957097611235433">パスワードを変更してください</translation>
 <translation id="4120936477286528673">このサイトは別のアプリケーションを繰り返し開こうとしています。</translation>
 <translation id="4121993058175073134">エクスポート データのみを送信するには、設定アプリでメール アカウントを設定してください。</translation>
+<translation id="4132991308423633339">パスワードとパスキーをエクスポート…</translation>
 <translation id="4133139945030148655">設定完了</translation>
 <translation id="4133265950310064865">保護強化機能</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />、<ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -951,6 +954,7 @@
 <translation id="4749529195026091676">{count,plural, =1{{count} 件のカードをインポートしました}other{{count} 件のカードをインポートしました}}</translation>
 <translation id="4751645464639803239">新しいシークレット タブ</translation>
 <translation id="4752348350801431746">安全チェックの通知をオフにする…</translation>
+<translation id="4759238208242260848">ダウンロード</translation>
 <translation id="4764612367328936189">組織が特定のアカウントでのログインしか許可していません。許可されていないアカウントは非表示になっています。<ph name="BEGIN_LINK" />詳細<ph name="END_LINK" /></translation>
 <translation id="4766112107778026136">Discover とフォロー</translation>
 <translation id="4769198578611055647">どのデバイスからでも保存済みのパスキーにアクセスできるようになります</translation>
@@ -1171,6 +1175,7 @@
 <translation id="561269594905823128">[<ph name="BEGIN_BOLD" />ファイルを選択<ph name="END_BOLD" />] をタップします</translation>
 <translation id="5613297089029360427">最新で並べ替え</translation>
 <translation id="5614553682702429503">パスワードを保存しますか？</translation>
+<translation id="5617769621178348890">ファイルアプリで開く</translation>
 <translation id="5619871095170816857">このカードには、同期したすべてのデバイスで過去 24 時間以内に使用し開いたタブが表示されます。</translation>
 <translation id="5624120631404540903">パスワードを管理</translation>
 <translation id="5624637933505983014">同期をオンにしない</translation>
@@ -1272,6 +1277,7 @@
 <translation id="5956112131836209882">タブグループのタブ。<ph name="TAB_INDEX_IN_GROUP" />/<ph name="NUMBER_OF_TABS_IN_GROUP" />。</translation>
 <translation id="595769230373966252"><ph name="SEARCH_PROVIDER" /> で検索</translation>
 <translation id="5963939892571022323">選択箇所へのリンクを作成できません。</translation>
+<translation id="5968400720580217226">AI モード</translation>
 <translation id="5971459446352190251">QR コード検索</translation>
 <translation id="5971872012779224351">{count,plural, =1{1 個のブックマークが削除されました}other{{count} 個のブックマークが削除されました}}</translation>
 <translation id="5972844218283131174">すべての選択を解除</translation>
@@ -1322,7 +1328,7 @@
 <translation id="6144589619057374135">${url} をシークレット モードで開く</translation>
 <translation id="6147279996212084542">説明</translation>
 <translation id="6151006591088192882"><ph name="BIOMETRIC_AUTHENITCATION_TYPE" /> でシークレット タブのロックを解除</translation>
-<translation id="6152340033632117531">無効</translation>
+<translation id="6152340033632117531">非アクティブ</translation>
 <translation id="6152406514676263192">同期すると、興味や関心と最も関連性の高いコンテンツが表示されます。</translation>
 <translation id="6159839020698489198">任意</translation>
 <translation id="6160780110287872296">ファイルをダウンロードしますか？</translation>
@@ -1463,6 +1469,7 @@
 <translation id="6627583120233659107">フォルダを編集</translation>
 <translation id="6629759408545977279"><ph name="ORIGINATING_HOST" /> から</translation>
 <translation id="6634432609054530164">シークレット モードは組織によって無効にされています</translation>
+<translation id="6637478299472506933">ダウンロードの失敗</translation>
 <translation id="6638511529934826365">テキストを拡大…</translation>
 <translation id="6640268266988685324">開いているタブ</translation>
 <translation id="6641465290890659327">パスワードを共有する</translation>
@@ -1585,6 +1592,7 @@
 <translation id="7102005569666697658">ダウンロードしています… <ph name="FILE_SIZE" /></translation>
 <translation id="7104701424653979232">[メニュー] → [設定] → [お支払い方法]</translation>
 <translation id="7108338896283013870">非表示</translation>
+<translation id="7127922377013221748">ツールバーを隠す</translation>
 <translation id="7128693485119315539">組織で必要に応じて管理対象アカウントに関連付けられた閲覧データ（閲覧履歴やパスワードなど）を確認、管理する場合があります。</translation>
 <translation id="713215255510512027"><ph name="FILENAME" />（<ph name="FILESIZE" />）</translation>
 <translation id="7136892417564438900">カメラを使用できません</translation>
@@ -1895,6 +1903,7 @@
 <translation id="8283172974887967105">設定…</translation>
 <translation id="8289930144142009940">「<ph name="FEATURE_NAME" />」の通知をオフにしました</translation>
 <translation id="8290077367744012649">タブから価格をトラッキング</translation>
+<translation id="8292893224181644074">ダウンロード完了</translation>
 <translation id="8299417921174340354">パスワードを使用するには、まずデバイスにパスコードを設定する必要があります。</translation>
 <translation id="8307481894409578819">このファイルはアップロードできません</translation>
 <translation id="8319076807703933069">新しく検索</translation>

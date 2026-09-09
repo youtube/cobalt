@@ -543,7 +543,7 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *out_omit,
     }
   }
 
-  if (it->itype == ASN1_ITYPE_MSTRING || it->utype == V_ASN1_ANY_AS_STRING) {
+  if (it->itype == ASN1_ITYPE_MSTRING) {
     // If MSTRING type set the underlying type
     strtmp = (ASN1_STRING *)*pval;
     utype = strtmp->type;

@@ -40,6 +40,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
+#include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "mojo/public/cpp/system/simple_watcher.h"
@@ -127,6 +128,8 @@
 #include "services/network/slop_bucket.h"
 #include "services/network/ssl_private_key_proxy.h"
 #include "services/network/throttling/scoped_throttling_token.h"
+#include "services/network/throttling/throttling_controller.h"
+#include "services/network/throttling/throttling_network_interceptor.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "services/network/trust_tokens/trust_token_request_helper.h"  // nogncheck
 #include "services/network/trust_tokens/trust_token_url_loader_interceptor.h"  // nogncheck
@@ -2247,11 +2250,22 @@ void URLLoader::DispatchOnRawRequest(
         *site_has_cookie_in_other_partition;
   }
 
+  std::optional<base::UnguessableToken> applied_network_conditions_id;
+  if (throttling_token_) {
+    ThrottlingNetworkInterceptor* interceptor =
+        ThrottlingController::GetInterceptor(throttling_token_->source_id(),
+                                             url_request_->url());
+    if (interceptor) {
+      applied_network_conditions_id = interceptor->conditions().rule_id();
+    }
+  }
+
   devtools_observer_->OnRawRequest(
       devtools_request_id().value(), url_request_->maybe_sent_cookies(),
       std::move(headers), load_timing_info.request_start,
       private_network_access_interceptor_.CloneClientSecurityState(),
-      std::move(other_partition_info));
+      std::move(other_partition_info),
+      std::move(applied_network_conditions_id));
 }
 
 void URLLoader::DispatchOnRawResponse() {

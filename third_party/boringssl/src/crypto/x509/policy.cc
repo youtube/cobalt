@@ -24,24 +24,18 @@
 #include "internal.h"
 
 
-// This file computes the X.509 policy tree, as described in RFC 5280, section
-// 6.1. It differs in that:
+// This file computes the X.509 policy graph, as described in RFC 9618.
+// Implementation notes:
 //
 //  (1) It does not track "qualifier_set". This is not needed as it is not
 //      output by this implementation.
 //
-//  (2) It builds a directed acyclic graph, rather than a tree. When a given
-//      policy matches multiple parents, RFC 5280 makes a separate node for
-//      each parent. This representation condenses them into one node with
-//      multiple parents. Thus we refer to this structure as a "policy graph",
-//      rather than a "policy tree".
-//
-//  (3) "expected_policy_set" is not tracked explicitly and built temporarily
+//  (2) "expected_policy_set" is not tracked explicitly and built temporarily
 //      as part of building the graph.
 //
-//  (4) anyPolicy nodes are not tracked explicitly.
+//  (3) anyPolicy nodes are not tracked explicitly.
 //
-//  (5) Some pruning steps are deferred to when policies are evaluated, as a
+//  (4) Some pruning steps are deferred to when policies are evaluated, as a
 //      reachability pass.
 
 // An X509_POLICY_NODE is a node in the policy graph. It corresponds to a node

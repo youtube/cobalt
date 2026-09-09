@@ -1579,12 +1579,8 @@ class MaglevFrameTranslationBuilder {
         return BuildFixedDoubleArray(object->double_elements_length(),
                                      object->double_elements());
       case VirtualObject::kDefault:
-        translation_array_builder_->BeginCapturedObject(object->slot_count() +
-                                                        1);
-        DCHECK(object->has_static_map());
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(*object->map().object()));
-        object->ForEachInput([&](ValueNode* node) {
+        translation_array_builder_->BeginCapturedObject(object->field_count());
+        object->ForEachSlot([&](ValueNode* node, const vobj::Field& desc) {
           BuildNestedValue(node, input_location, virtual_objects);
         });
     }
@@ -1642,6 +1638,7 @@ class MaglevFrameTranslationBuilder {
             if (LazyDeoptInfo::InReturnValues(reg, result_location,
                                               result_size)) {
               translation_array_builder_->StoreOptimizedOut();
+              input_location++;
             } else {
               BuildDeoptFrameSingleValue(value, input_location,
                                          virtual_objects);
@@ -1661,8 +1658,10 @@ class MaglevFrameTranslationBuilder {
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
             if (LazyDeoptInfo::InReturnValues(reg, result_location,
-                                              result_size))
+                                              result_size)) {
+              input_location++;
               return;
+            }
             while (i < reg.index()) {
               translation_array_builder_->StoreOptimizedOut();
               i++;

@@ -34,6 +34,8 @@
 #include "api/candidate.h"
 #include "api/ref_count.h"
 #include "api/rtc_error.h"
+#include "api/sequence_checker.h"
+#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
@@ -206,14 +208,78 @@ void AbslStringify(Sink& sink, SdpType sdp_type) {
 RTC_EXPORT std::optional<SdpType> SdpTypeFromString(
     const std::string& type_str);
 
+// TODO: bugs.webrtc.org/442220720 - This class is temporarily here while
+// SessionDescriptionInterface transforms from a pure interface into a simple
+// non-virtual class. The purpose of `SessionDescriptionInternal` is to provide
+// protected methods to classes currently inheriting from
+// SessionDescriptionInterface, the basic implementation that satisified the
+// interface. Once the migration of the implementation is complete, the
+// SessionDescriptionInterface class can be made non-virtual, final and
+// SessionDescriptionInternal can effectively be renamed to
+// SessionDescriptionInterface. The reason for all of this is that access to and
+// modification of the internal state needs to be made thread aware so that
+// concurrent operations aren't executed on different threads or that the
+// state can be declared const when no known modifications are pending.
+class SessionDescriptionInternal {
+ public:
+  explicit SessionDescriptionInternal(
+      SdpType type,
+      absl_nullable std::unique_ptr<SessionDescription> description,
+      absl::string_view id,
+      absl::string_view version);
+
+  ~SessionDescriptionInternal();
+
+  // Resets the internal sequence_checker_ to not be attached to a particular
+  // thread. Used when transfering object ownership between threads. Must be
+  // called by the thread that currently owns the object before transferring the
+  // ownership.
+  void RelinquishThreadOwnership();
+
+ protected:
+  // Only meant for the SessionDescriptionInterface implementation.
+  SdpType sdp_type() const { return sdp_type_; }
+  absl::string_view id() const { return id_; }
+  absl::string_view version() const { return version_; }
+  const SessionDescription* description() const { return description_.get(); }
+  SessionDescription* description() { return description_.get(); }
+  size_t mediasection_count() const;
+
+ protected:
+  // This method is necessarily `protected`, and not private, while
+  // the SessionDescriptionInterface implementation is being consolidated
+  // into a single class.
+  const SequenceChecker* sequence_checker() const { return &sequence_checker_; }
+
+ private:
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_{
+      SequenceChecker::kDetached};
+  const SdpType sdp_type_;
+  const std::string id_;
+  const std::string version_;
+  absl_nullable const std::unique_ptr<SessionDescription> description_;
+};
+
 // Class representation of an SDP session description.
 //
 // An instance of this interface is supposed to be owned by one class at a time
 // and is therefore not expected to be thread safe.
 //
 // An instance can be created by CreateSessionDescription.
-class RTC_EXPORT SessionDescriptionInterface {
+class RTC_EXPORT SessionDescriptionInterface
+    : public SessionDescriptionInternal {
  public:
+  static std::unique_ptr<SessionDescriptionInterface> Create(
+      SdpType type,
+      std::unique_ptr<SessionDescription> description,
+      absl::string_view id,
+      absl::string_view version,
+      std::vector<IceCandidateCollection> candidates = {});
+
+  SessionDescriptionInterface(const SessionDescriptionInterface&) = delete;
+  SessionDescriptionInterface& operator=(const SessionDescriptionInterface&) =
+      delete;
+
   // String representations of the supported SDP types.
   static const char kOffer[];
   static const char kPrAnswer[];
@@ -224,24 +290,27 @@ class RTC_EXPORT SessionDescriptionInterface {
 
   // Create a new SessionDescriptionInterface object
   // with the same values as the old object.
-  virtual std::unique_ptr<SessionDescriptionInterface> Clone() const = 0;
+  virtual std::unique_ptr<SessionDescriptionInterface> Clone() const;
 
   // Only for use internally.
-  virtual SessionDescription* description() = 0;
-  virtual const SessionDescription* description() const = 0;
+  virtual SessionDescription* description() {
+    return SessionDescriptionInternal::description();
+  }
+  virtual const SessionDescription* description() const {
+    return SessionDescriptionInternal::description();
+  }
 
   // Get the session id and session version, which are defined based on
   // RFC 4566 for the SDP o= line.
-  virtual std::string session_id() const = 0;
-  virtual std::string session_version() const = 0;
+  virtual std::string session_id() const { return std::string(id()); }
+  virtual std::string session_version() const { return std::string(version()); }
 
   // Returns the type of this session description as an SdpType. Descriptions of
   // the various types are found in the SdpType documentation.
-  virtual SdpType GetType() const = 0;
+  virtual SdpType GetType() const { return sdp_type(); }
 
-  // kOffer/kPrAnswer/kAnswer
   // TODO(steveanton): Remove this in favor of `GetType` that returns SdpType.
-  virtual std::string type() const = 0;
+  virtual std::string type() const { return SdpTypeToString(sdp_type()); }
 
   // Adds the specified candidate to the description.
   //
@@ -250,7 +319,7 @@ class RTC_EXPORT SessionDescriptionInterface {
   // Returns false if the session description does not have a media section
   // that corresponds to `candidate.sdp_mid()` or
   // `candidate.sdp_mline_index()`.
-  virtual bool AddCandidate(const IceCandidate* candidate) = 0;
+  virtual bool AddCandidate(const IceCandidate* candidate);
 
   // Removes the first matching candidate (at most 1) from the description
   // that meets the `Candidate::MatchesForRemoval()` requirement and matches
@@ -258,18 +327,21 @@ class RTC_EXPORT SessionDescriptionInterface {
   // `IceCandidate::sdp_mline_index()`.
   //
   // Returns false if no matching candidate was found (and removed).
-  virtual bool RemoveCandidate(const IceCandidate* candidate) = 0;
+  virtual bool RemoveCandidate(const IceCandidate* candidate);
 
   // Returns the number of m= sections in the session description.
-  virtual size_t number_of_mediasections() const = 0;
+  virtual size_t number_of_mediasections() const {
+    return mediasection_count();
+  }
 
   // Returns a collection of all candidates that belong to a certain m=
   // section.
   virtual const IceCandidateCollection* candidates(
-      size_t mediasection_index) const = 0;
+      size_t mediasection_index) const;
 
   // Serializes the description to SDP.
-  virtual bool ToString(std::string* out) const = 0;
+  virtual bool ToString(std::string* out) const;
+
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const SessionDescriptionInterface& p) {
     sink.Append("\n--- BEGIN SDP ");
@@ -283,6 +355,22 @@ class RTC_EXPORT SessionDescriptionInterface {
     }
     sink.Append("--- END SDP ---\n");
   }
+
+ protected:
+  explicit SessionDescriptionInterface(
+      SdpType type,
+      std::unique_ptr<SessionDescription> description,
+      absl::string_view id,
+      absl::string_view version,
+      std::vector<IceCandidateCollection> candidates = {});
+
+ private:
+  bool IsValidMLineIndex(int index) const;
+  bool GetMediasectionIndex(const IceCandidate* candidate, size_t* index) const;
+  int GetMediasectionIndex(absl::string_view mid) const;
+
+  std::vector<IceCandidateCollection> candidate_collection_
+      RTC_GUARDED_BY(sequence_checker());
 };
 
 // Creates a SessionDescriptionInterface based on the SDP string and the type.

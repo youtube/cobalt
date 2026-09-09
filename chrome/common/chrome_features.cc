@@ -331,6 +331,8 @@ const base::FeatureParam<bool> kGlicActorScrollTargetIntoView{
 
 BASE_FEATURE(kGlicActorPermissionsBypass, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicActorToctouValidation, base::FEATURE_ENABLED_BY_DEFAULT);
+
 #if BUILDFLAG(ENABLE_GLIC)
 // Controls whether the Glic feature is enabled.
 // IMPORTANT: this feature should never be expired! It is used as the main
@@ -622,7 +624,9 @@ const base::FeatureParam<double> kGlicPanelResetOnSessionTimeoutDelayH{
     &kGlicPanelResetOnSessionTimeout,
     "glic-panel-reset-session-timeout-delay-h", 1};
 BASE_FEATURE(kGlicPanelResetSizeAndLocationOnOpen,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicPersonalContext, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicRecordActorJournal, base::FEATURE_ENABLED_BY_DEFAULT);
 extern const base::FeatureParam<int> kGlicRecordActorJournalFeedbackProductId{
@@ -1132,9 +1136,6 @@ BASE_FEATURE(kSafetyHubExtensionsOffStoreTrigger,
 #endif
 
 BASE_FEATURE(kSafetyHubThreeDotDetails, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSafetyHubUnusedPermissionRevocationForAllSurfaces,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSafetyHubDisruptiveNotificationRevocation,
              base::FEATURE_DISABLED_BY_DEFAULT);
