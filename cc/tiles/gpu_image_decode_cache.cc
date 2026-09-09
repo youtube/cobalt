@@ -2255,13 +2255,14 @@ void GpuImageDecodeCache::UnrefImageInternal(const DrawImage& draw_image,
 
 // Called any time an image or decode ref count changes. Takes care of any
 // necessary memory budget book-keeping and cleanup.
-void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
-                                           ImageData* image_data
 #if BUILDFLAG(IS_COBALT)
-                                           ,
-                                           bool keep_empty_images
+void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
+                                           ImageData* image_data,
+                                           bool keep_empty_images) {
+#else
+void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
+                                           ImageData* image_data) {
 #endif  // BUILDFLAG(IS_COBALT)
-) {
   bool has_any_refs =
       image_data->upload.ref_count > 0 || image_data->decode.ref_count > 0;
   // If we have no image refs on an image, we should unbudget it.
@@ -2363,6 +2364,7 @@ void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
 
 #if BUILDFLAG(IS_COBALT)
 void GpuImageDecodeCache::OwnershipChanged(ImageData* image_data) {
+  // `draw_image` is not used in this code path.
   OwnershipChanged(DrawImage(), image_data, /*keep_empty_images=*/true);
 }
 #endif  // BUILDFLAG(IS_COBALT)
