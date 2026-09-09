@@ -115,6 +115,13 @@ ApplicationRdk::~ApplicationRdk() {
   if (SbWindowIsValid(window_)) {
     DestroySbWindow(window_);
   }
+  if (native_window_ != 0) {
+    if (!EssContextDestroyNativeWindow(ctx_, native_window_)) {
+      const char* detail = EssContextGetLastErrorDetail(ctx_);
+      SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
+    }
+    native_window_ = 0;
+  }
   if (ctx_) {
     EssContextDestroy(ctx_);
     ctx_ = nullptr;
@@ -243,31 +250,36 @@ SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
 
   bool error = false;
 
-  if (!EssContextGetDisplaySize(ctx_, &window_width_, &window_height_)) {
-    error = true;
-  }
+  if (native_window_ == 0) {
+    if (!EssContextGetDisplaySize(ctx_, &window_width_, &window_height_)) {
+      error = true;
+    }
 
-  if (!error && resize_pending_) {
+    if (!error && resize_pending_) {
+      EssContextResizeWindow(ctx_, window_width_, window_height_);
+      resize_pending_ = false;
+    }
+
+    if (!error) {
+      if (!EssContextCreateNativeWindow(ctx_, window_width_, window_height_,
+                                        &native_window_)) {
+        error = true;
+      } else if (!EssContextStart(ctx_)) {
+        error = true;
+        EssContextDestroyNativeWindow(ctx_, native_window_);
+        native_window_ = 0;
+      }
+    }
+
+    if (error) {
+      const char* detail = EssContextGetLastErrorDetail(ctx_);
+      SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
+      FatalError();
+      return kSbWindowInvalid;
+    }
+  } else if (resize_pending_) {
     EssContextResizeWindow(ctx_, window_width_, window_height_);
     resize_pending_ = false;
-  }
-
-  if (!error) {
-    if (!EssContextCreateNativeWindow(ctx_, window_width_, window_height_,
-                                      &native_window_)) {
-      error = true;
-    } else if (!EssContextStart(ctx_)) {
-      error = true;
-      EssContextDestroyNativeWindow(ctx_, native_window_);
-      native_window_ = 0;
-    }
-  }
-
-  if (error) {
-    const char* detail = EssContextGetLastErrorDetail(ctx_);
-    SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
-    FatalError();
-    return kSbWindowInvalid;
   }
 
   window_ = new SbWindowPrivate(options);
@@ -281,14 +293,6 @@ bool ApplicationRdk::DestroySbWindow(SbWindow window) {
   }
   window_ = kSbWindowInvalid;
   delete window;
-
-  if (native_window_ != 0) {
-    if (!EssContextDestroyNativeWindow(ctx_, native_window_)) {
-      const char* detail = EssContextGetLastErrorDetail(ctx_);
-      SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
-    }
-    native_window_ = 0;
-  }
   return true;
 }
 
