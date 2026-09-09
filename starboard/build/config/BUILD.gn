@@ -51,8 +51,8 @@ config("starboard") {
       defines += [ "SB_IS_EVERGREEN=1" ]
     }
 
-    if (is_starboard_use_libunwind) {
-      defines += [ "SB_IS_STARBOARD_USE_LIBUNWIND=1" ]
+    if (sb_evergreen_compatible_use_libunwind) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
     }
 
     defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]

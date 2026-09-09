@@ -15,5 +15,6 @@
 # Use this file to ensure no conflicting GN build arguments are set for the
 # platform being built.
 
-assert(!is_starboard_use_libunwind || is_starboard,
-       "Can only specify is_starboard_use_libunwind on Starboard platforms.")
+assert(
+    !sb_evergreen_compatible_use_libunwind || is_starboard,
+    "Can only specify sb_evergreen_compatible_use_libunwind on an evergreen-compatible platform.")
