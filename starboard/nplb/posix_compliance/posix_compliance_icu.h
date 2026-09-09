@@ -17,14 +17,14 @@
 
 #include <mutex>
 
-#include "base/i18n/icu_util.h"
+#include "cobalt/common/icu_init/init.h"
 
 namespace starboard {
 namespace nplb {
 
 inline void InitializePosixIcuOnce() {
   static std::once_flag flag;
-  std::call_once(flag, []() { base::i18n::InitializeICU(); });
+  std::call_once(flag, []() { cobalt::common::icu_init::EnsureInitialized(); });
 }
 
 }  // namespace nplb
