@@ -357,8 +357,8 @@ void StarboardRendererClient::InitAndBindMojoRenderer(
   if (gpu_factories_) {
     gpu_factories_->GetChannelToken(
         base::BindOnce(&StarboardRendererClient::OnGpuChannelTokenReady,
-                       weak_factory_.GetWeakPtr(), std::move(command_buffer_id),
-                       std::move(complete_cb)));
+                       token_request_weak_factory_.GetWeakPtr(),
+                       std::move(command_buffer_id), std::move(complete_cb)));
     return;
   }
 
@@ -378,10 +378,11 @@ void StarboardRendererClient::OnGpuChannelTokenReady(
     if (fresh_factories != gpu_factories_) {
       gpu_factories_ = fresh_factories;
       if (gpu_factories_) {
+        token_request_weak_factory_.InvalidateWeakPtrs();
         gpu_factories_->GetChannelToken(base::BindOnce(
             &StarboardRendererClient::OnGpuChannelTokenReady,
-            weak_factory_.GetWeakPtr(), std::move(command_buffer_id),
-            std::move(complete_cb)));
+            token_request_weak_factory_.GetWeakPtr(),
+            std::move(command_buffer_id), std::move(complete_cb)));
         return;
       }
     }

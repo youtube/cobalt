@@ -207,6 +207,8 @@ class MEDIA_EXPORT StarboardRendererClient
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.
   // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<StarboardRendererClient> token_request_weak_factory_{
+      this};
   base::WeakPtrFactory<StarboardRendererClient> weak_factory_{this};
 };
 

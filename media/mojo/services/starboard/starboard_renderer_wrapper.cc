@@ -339,16 +339,18 @@ void StarboardRendererWrapper::OnGpuChannelTokenReady(
   current_shared_image_ = nullptr;
   last_texture_service_ids_.clear();
 
+  // Forward token updates (e.g. after sleep/wake context loss) to update
+  // |stub_| on the GPU thread.
+  base::UnguessableToken channel_token;
+  int32_t route_id = 0;
   if (command_buffer_id_) {
-    GetGpuFactory()
-        ->AsyncCall(&StarboardGpuFactory::Initialize)
-        .WithArgs(command_buffer_id_->channel_token,
-                  command_buffer_id_->route_id, base::NullCallback());
-  } else {
-    GetGpuFactory()
-        ->AsyncCall(&StarboardGpuFactory::Initialize)
-        .WithArgs(base::UnguessableToken(), 0, base::NullCallback());
+    channel_token = command_buffer_id_->channel_token;
+    route_id = command_buffer_id_->route_id;
   }
+
+  GetGpuFactory()
+      ->AsyncCall(&StarboardGpuFactory::Initialize)
+      .WithArgs(std::move(channel_token), route_id, base::NullCallback());
 }
 
 void StarboardRendererWrapper::GetCurrentVideoFrame(
