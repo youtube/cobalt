@@ -189,23 +189,6 @@ void JNI_BaseStarboardBridge_SetYoutubeCertificationScope(
 #endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
-jboolean JNI_BaseStarboardBridge_IsReleaseBuild(JNIEnv* env) {
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  return true;
-#else
-  return false;
-#endif
-}
-
-jboolean JNI_BaseStarboardBridge_IsDevelopmentBuild(JNIEnv* env) {
-// OFFICIAL_BUILD is set for Cobalt QA and Gold releases
-#if defined(OFFICIAL_BUILD)
-  return false;
-#else
-  return true;
-#endif
-}
-
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include
 // this header they don't end up with different copies of the inlined code
@@ -431,11 +414,10 @@ ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
       ConvertUTF8ToJavaString(env, service_name));
 }
 
-void StarboardBridge::CloseCobaltService(JNIEnv* env,
-                                         const char* service_name) {
+void StarboardBridge::CloseCobaltService(JNIEnv* env, jlong native_service) {
   SB_CHECK(env);
-  Java_BaseStarboardBridge_closeCobaltService(
-      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+  Java_BaseStarboardBridge_closeCobaltService(env, j_starboard_bridge_,
+                                              native_service);
 }
 
 bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
