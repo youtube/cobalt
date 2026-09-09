@@ -68,12 +68,11 @@ template("modular_apk") {
       deps += [ "//cobalt/shell:pak($default_toolchain)" ]
     }
 
-    if (_name == "nplb" || _name == "player_filter_tests") {
-      deps += [ "//starboard/shared/starboard/player:player_test_data_assets" ]
-    }
     if (_name == "nplb") {
-      deps +=
-          [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data_assets" ]
+      deps += [
+        "//starboard/nplb/testdata/file_tests:nplb_file_tests_data_assets",
+        "//starboard/shared/starboard/player:player_test_data_assets",
+      ]
     }
   }
 
