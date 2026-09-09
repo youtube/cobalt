@@ -4,8 +4,6 @@
 
 #include "base/android/memory_pressure_listener_android.h"
 
-#include <algorithm>
-
 #include "base/android/pre_freeze_background_memory_trimmer.h"
 #include "base/feature_list.h"
 #include "base/features.h"
@@ -48,7 +46,7 @@ static jboolean JNI_MemoryPressureListener_IsModerateMemoryPressureEnabled(
 static jint JNI_MemoryPressureListener_GetMemoryPressureCooldownSeconds(
     JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
-  return std::max(0, base::features::kCobaltMemoryPressureCooldownSeconds.Get());
+  return base::features::kCobaltMemoryPressureCooldownSeconds.Get();
 #else
   return 60;
 #endif
