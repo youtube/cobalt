@@ -1,3 +1,0 @@
-plotly
-tabulate
-tqdm

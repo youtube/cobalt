@@ -1,6 +1,0 @@
-struct S { float x; };
-S;
-
-/*%%*
-expected an identifier, but found ';'
-*%%*/
