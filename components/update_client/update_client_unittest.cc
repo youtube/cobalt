@@ -1932,10 +1932,6 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
 #endif
 
         result.error = 0;
-<<<<<<< HEAD
-        result.response = path;
-      } else if (url.GetPath() ==
-=======
 #if defined(IN_MEMORY_UPDATES)
       result.installation_dir = path.DirName();
 #else
@@ -1944,8 +1940,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
-      } else if (url.path() ==
->>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      } else if (url.GetPath() ==
                  "/download/ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff") {
         download_metrics.url = url;
         download_metrics.downloader = DownloadMetrics::kNone;
@@ -2697,10 +2692,6 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
 #endif
 
         result.error = 0;
-<<<<<<< HEAD
-        result.response = path;
-      } else if (url.GetPath() ==
-=======
 #if defined(IN_MEMORY_UPDATES)
       result.installation_dir = path.DirName();
 #else
@@ -2709,8 +2700,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
-      } else if (url.path() ==
->>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      } else if (url.GetPath() ==
                  "/download/ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff") {
         // A download error is injected on this execution path.
         download_metrics.url = url;
