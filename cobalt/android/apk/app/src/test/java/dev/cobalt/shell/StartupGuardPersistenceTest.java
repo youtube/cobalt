@@ -1,5 +1,6 @@
 package dev.cobalt.shell;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
@@ -15,41 +16,41 @@ import org.robolectric.RobolectricTestRunner;
 
 @RunWith(RobolectricTestRunner.class)
 public class StartupGuardPersistenceTest {
-  private Context context;
+  private Context mContext;
 
   @Before
   public void setUp() {
-    context = ApplicationProvider.getApplicationContext();
+    mContext = ApplicationProvider.getApplicationContext();
     // Clean up previous files if any
-    new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME).delete();
-    new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_PREVIOUS_FILE_NAME).delete();
+    new File(mContext.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME).delete();
+    new File(mContext.getFilesDir(), StartupGuard.STARTUP_STATE_PREVIOUS_FILE_NAME).delete();
     StartupGuard.getInstance().resetForTesting();
   }
 
   @Test
   public void testInitializeRenamesPreviousFile() throws Exception {
-    File priorFile = new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME);
+    File priorFile = new File(mContext.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME);
     priorFile.createNewFile();
 
     StartupGuard guard = StartupGuard.getInstance();
-    guard.initializePersistenceInternal(context, context.getFilesDir());
+    guard.initializePersistenceInternal(mContext, mContext.getFilesDir());
 
     // Assert the prior file was moved to _previous
-    File prevFile = new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_PREVIOUS_FILE_NAME);
+    File prevFile = new File(mContext.getFilesDir(), StartupGuard.STARTUP_STATE_PREVIOUS_FILE_NAME);
     assertTrue(prevFile.exists());
-    assertTrue(new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME).exists());
+    assertTrue(new File(mContext.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME).exists());
   }
 
   @Test
   public void testSetStartupMilestoneWritesToBuffer() throws Exception {
     StartupGuard guard = StartupGuard.getInstance();
-    guard.initializePersistenceInternal(context, context.getFilesDir());
+    guard.initializePersistenceInternal(mContext, mContext.getFilesDir());
 
     // Flip bits 1 and 3 (0x0A)
     guard.setStartupMilestone(1);
     guard.setStartupMilestone(3);
 
-    File currentStateFile = new File(context.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME);
+    File currentStateFile = new File(mContext.getFilesDir(), StartupGuard.STARTUP_STATE_FILE_NAME);
     assertTrue(currentStateFile.exists());
 
     try (RandomAccessFile raf = new RandomAccessFile(currentStateFile, "r")) {
@@ -62,11 +63,7 @@ public class StartupGuardPersistenceTest {
       // bit 1 (2) + bit 3 (8) = 10 (0x0A)
       long expected = (1L << 1) | (1L << 3);
 
-      // Wait, there might be other bits flipped if it's singleton across tests.
-      // But we just verify the exact bit mask has the bits we set.
-      assertTrue(
-          "Milestone bits not properly set in little-endian order",
-          (storedValue & expected) == expected);
+      assertEquals("Milestone bits not properly set in little-endian order", expected, storedValue);
     }
   }
 }
