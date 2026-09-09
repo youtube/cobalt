@@ -523,7 +523,7 @@ public class JavaSwitches {
       enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
     }
     if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
-      String cooldown = 
+      String cooldown =
           javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
       if (cooldown != null) {
         String cooldownVal = cooldown.replaceAll("[^0-9]", "");
