@@ -52,6 +52,9 @@
 
 #if BUILDFLAG(IS_IOS_TVOS)
 #include "media/starboard/url_player_demuxer.h"
+#if defined(COBALT_INTERNAL_BUILD)
+#include "cobalt/internal/cobalt/components/cdm/renderer/starboard/platform_drm_key_system_info.h"
+#endif  // defined(COBALT_INTERNAL_BUILD)
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
@@ -263,6 +266,16 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
                                                      // identifier.
+
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  key_system_infos->push_back(std::make_unique<cdm::PlatformDrmKeySystemInfo>(
+      codecs,                                        // Regular codecs.
+      kEncryptionSchemes,                            // Encryption schemes.
+      codecs,                                        // Hardware secure codecs.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
+                                                     // identifier.
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 
 std::unique_ptr<::media::KeySystemSupportRegistration>
