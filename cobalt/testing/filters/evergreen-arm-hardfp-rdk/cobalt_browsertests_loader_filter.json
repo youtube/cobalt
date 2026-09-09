@@ -10,6 +10,7 @@
     "All/NavigationBrowserTestReferrerPolicy.*",
     "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.*",
     "All/NavigationBrowserTestPaintHoldingSubframe.*",
+    "ExperimentConfigBrowserTest.NavigationWithExperimentConfig",
     "PrivacySandboxDisabledBrowserTest.VerifyPrivacySandboxApisDisabled",
     "PrivacySandboxDisabledBrowserTest.FetchWithPrivateTokenParamIgnored",
     "PrivacySandboxDisabledBrowserTest.FedCmAndCredentialApisNotExposed",

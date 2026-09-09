@@ -74,14 +74,17 @@ jobs:
           # Sleep to allow GitHub API to transition the run status to in_progress/queued
           sleep 5
 
-  generate-report:
+  update-status:
     runs-on: ubuntu-latest
     needs: deflake
     if: always() && !cancelled()
+    timeout-minutes: 5
     permissions:
       statuses: write
-      pull-requests: write
+      pull-requests: read
       actions: read
+    outputs:
+      pr_number: ${{ steps.update-status.outputs.pr_number }}
     steps:
       - name: Update Triggering Workflow Commit Status
         id: update-status
@@ -138,9 +141,21 @@ jobs:
           pr_number=$(gh pr list --repo "${REPO}" --search "${HEAD_SHA}" --json number --jq '.[0].number // ""')
           echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
 
+  comment-pr:
+    runs-on: ubuntu-latest
+    needs: update-status
+    if: always() && needs.update-status.outputs.pr_number != '' && !cancelled()
+    timeout-minutes: 5
+    permissions:
+      statuses: read
+      pull-requests: write
+    concurrency:
+      # Serialize sticky comment updates per PR so concurrent workflow runs do not race to create duplicate comments.
+      group: ${{ github.workflow }}-comment @ ${{ needs.update-status.outputs.pr_number }}
+      cancel-in-progress: false
+    steps:
       - name: Generate Shepherd Report
         id: report
-        if: steps.update-status.outputs.pr_number != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -167,7 +182,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ steps.update-status.outputs.pr_number }}
+          PR_NUMBER: ${{ needs.update-status.outputs.pr_number }}
         shell: bash
         run: |
           set -euo pipefail

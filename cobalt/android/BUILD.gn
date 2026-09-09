@@ -72,6 +72,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
+    "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
   ]
 
   if (!use_evergreen) {
@@ -364,6 +365,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
     "apk/app/src/test/java/dev/cobalt/coat/ArtworkDownloaderDefaultTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/ArtworkLoaderTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/BaseStarboardBridgeTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltPictureInPictureActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltServiceTest.java",
