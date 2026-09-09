@@ -18,6 +18,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "mojo/public/cpp/base/big_buffer.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
@@ -158,8 +159,13 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
   base::span<const uint8_t> input_data = data && !data->IsDetached()
                                              ? data->ByteSpan()
                                              : base::span<const uint8_t>();
+<<<<<<< HEAD
   std::optional<base::span<const uint8_t>> response_data;
   String error_message;
+=======
+  std::optional<mojo_base::BigBuffer> response_data;
+  WTF::String error_message;
+>>>>>>> 4018a8359b (h5vcc: Use BigBuffer for PlatformService::Send response to fix use-af… (#12499))
 
   bool mojo_result = platform_service_remote_->Send(input_data, &response_data,
                                                     &error_message);
@@ -186,7 +192,7 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
     return nullptr;
   }
 
-  return DOMArrayBuffer::Create(response_data.value());
+  return DOMArrayBuffer::Create(base::span(*response_data));
 }
 
 void H5vccPlatformService::close() {
