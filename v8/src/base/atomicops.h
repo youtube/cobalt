@@ -12,29 +12,8 @@
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
 
-<<<<<<< HEAD
-#if defined(V8_OS_STARBOARD)
-#include "starboard/atomic.h"
-#endif  // V8_OS_STARBOARD
-
 namespace v8::base {
 
-#ifdef V8_OS_STARBOARD
-
-using Atomic8 = SbAtomic8;
-using Atomic16 = int16_t;
-using Atomic32 = SbAtomic32;
-#if SB_IS_64_BIT
-using Atomic64 = SbAtomic64;
-#endif
-
-#else
-
-=======
-namespace v8 {
-namespace base {
-
->>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 using Atomic8 = char;
 using Atomic16 = int16_t;
 using Atomic32 = int32_t;
@@ -47,11 +26,6 @@ using Atomic64 = int64_t;
 using Atomic64 = intptr_t;
 #endif  // defined(__ILP32__)
 #endif  // defined(V8_HOST_ARCH_64_BIT)
-<<<<<<< HEAD
-
-#endif  // V8_OS_STARBOARD
-=======
->>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // Use AtomicWord for a machine-sized pointer. It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
