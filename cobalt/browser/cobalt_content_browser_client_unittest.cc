@@ -14,11 +14,16 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <memory>
 #include <string>
 #include <variant>
 
+#include "base/feature_list.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "content/public/browser/overlay_window.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -63,6 +68,56 @@ TEST_F(CobaltContentBrowserClientTest,
 #else
   EXPECT_EQ(window, nullptr);
 #endif
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       GetUserAgentDefersCachingUntilFeatureListInitialized) {
+  std::unique_ptr<base::FeatureList> prev_feature_list =
+      base::FeatureList::ClearInstanceForTesting();
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  base::HistogramTester histogram_tester;
+
+  // When FeatureList is null, dynamic UA is returned without the Finch token,
+  // static caching is deferred, and PreFeatureListCallCount is logged to UMA.
+  std::string ua_pre1 = client.GetUserAgent();
+  EXPECT_FALSE(ua_pre1.empty());
+  EXPECT_EQ(ua_pre1.find("Finch/"), std::string::npos);
+  histogram_tester.ExpectTotalCount("Cobalt.UserAgent.PreFeatureListCallCount",
+                                    1);
+
+  std::string ua_pre2 = client.GetUserAgent();
+  EXPECT_FALSE(ua_pre2.empty());
+  histogram_tester.ExpectTotalCount("Cobalt.UserAgent.PreFeatureListCallCount",
+                                    2);
+
+  // Initialize FeatureList with the Finch token feature enabled.
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeatureWithParameters(
+        features::kEnableUserAgentFinchToken,
+        {{features::kUserAgentFinchTokenParam.name, "finch_test_token"}});
+
+    // With FeatureList initialized, UA contains the Finch token and is cached.
+    // PreFeatureListCallCount UMA metric should not be logged.
+    std::string ua_post1 = client.GetUserAgent();
+    EXPECT_FALSE(ua_post1.empty());
+    EXPECT_NE(ua_post1.find("Finch/finch_test_token"), std::string::npos);
+    histogram_tester.ExpectTotalCount("Cobalt.UserAgent.PreFeatureListCallCount",
+                                      2);
+
+    // Subsequent calls return the cached UA string.
+    std::string ua_post2 = client.GetUserAgent();
+    EXPECT_EQ(ua_post1, ua_post2);
+    histogram_tester.ExpectTotalCount("Cobalt.UserAgent.PreFeatureListCallCount",
+                                      2);
+  }
+
+  if (prev_feature_list) {
+    base::FeatureList::RestoreInstanceForTesting(std::move(prev_feature_list));
+  }
 }
 
 }  // namespace

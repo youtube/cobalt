@@ -15,6 +15,7 @@
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
 #include <string>
+#include <atomic>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -203,8 +204,14 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
 
 std::string GetCobaltUserAgent() {
   const UserAgentPlatformInfo platform_info;
-  static const std::string user_agent_str = platform_info.ToString();
-  return user_agent_str;
+  if (base::FeatureList::GetInstance()) {
+    static const std::string user_agent_str = platform_info.ToString();
+    return user_agent_str;
+  }
+  static std::atomic<int> pre_feature_list_call_count{0};
+  base::UmaHistogramCounts100("Cobalt.UserAgent.PreFeatureListCallCount",
+                              ++pre_feature_list_call_count);
+  return platform_info.ToString();
 }
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
