@@ -402,21 +402,16 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(int net_error,
   if (error && !download_dir_.empty()) {
     base::ThreadPool::PostTask(
         FROM_HERE, kTaskTraits,
-<<<<<<< HEAD
         base::BindOnce(
             [](const base::FilePath& download_dir) {
               RetryFileOperation(&base::DeletePathRecursively, download_dir);
             },
             download_dir_));
-=======
-        base::BindOnce(IgnoreResult(&RetryDeletePathRecursively),
-                       download_dir_));
-    }
+  }
 #else  // BUILDFLAG(IS_STARBOARD)
   if (error && !download_dir_.empty()) {
     // Cleanup the download dir.
     CleanupDirectory(download_dir_);
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // !defined(IN_MEMORY_UPDATES)                      

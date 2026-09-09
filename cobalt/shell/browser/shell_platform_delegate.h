@@ -25,7 +25,7 @@
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 #if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
 namespace views {
