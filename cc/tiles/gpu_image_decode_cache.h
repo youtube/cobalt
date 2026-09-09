@@ -761,15 +761,15 @@ class CC_EXPORT GpuImageDecodeCache
 
   // Called any time the ownership of an object changed. This includes changes
   // to ref-count or to orphaned status.
+#if BUILDFLAG(IS_COBALT)
   void OwnershipChanged(const DrawImage& draw_image,
-                        ImageData* image_data
-#if BUILDFLAG(IS_COBALT)
-                        ,
-                        bool keep_empty_images = false
-#endif  // BUILDFLAG(IS_COBALT)
-                        ) EXCLUSIVE_LOCKS_REQUIRED(lock_);
-#if BUILDFLAG(IS_COBALT)
+                        ImageData* image_data,
+                        bool keep_empty_images = false)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void OwnershipChanged(ImageData* image_data) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#else
+  void OwnershipChanged(const DrawImage& draw_image, ImageData* image_data)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 #endif  // BUILDFLAG(IS_COBALT)
 
   // Ensures that the working set can hold an element of |required_size|,
