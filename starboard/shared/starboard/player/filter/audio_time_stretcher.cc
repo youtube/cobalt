@@ -274,9 +274,8 @@ void AudioTimeStretcher::GetOptimalBlock() {
 
     // |optimal_index| is in frames and it is relative to the beginning of the
     // |search_block_|.
-    optimal_index = OptimalIndex(&search_block_, &target_block_,
-                                 kSbMediaAudioFrameStorageTypeInterleaved,
-                                 exclude_interval);
+    optimal_index =
+        OptimalIndex(&search_block_, &target_block_, exclude_interval);
 
     // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
     // optimal block.

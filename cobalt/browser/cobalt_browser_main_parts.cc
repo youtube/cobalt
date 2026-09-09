@@ -26,6 +26,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
 #include "base/trace_event/memory_dump_manager.h"
@@ -160,9 +161,30 @@ void RegisterCobaltHeapProfilerOnDumpThread() {
 
   // 4. Add our process as a profiling client to the profiling service.
   auto params = heap_profiling::mojom::ProfilingParams::New();
-  params->sampling_rate = 128 * 1024;  // 128KB sampling rate
-  params->stack_mode =
+  int sampling_rate = 128 * 1024;  // Default to 128KB
+  const auto* cmdline = base::CommandLine::ForCurrentProcess();
+  if (cmdline->HasSwitch("memlog-sampling-rate")) {
+    int parsed_rate = 0;
+    if (base::StringToInt(cmdline->GetSwitchValueASCII("memlog-sampling-rate"),
+                          &parsed_rate) &&
+        parsed_rate > 0) {
+      sampling_rate = parsed_rate;
+    }
+  }
+  params->sampling_rate = sampling_rate;
+  heap_profiling::mojom::StackMode stack_mode =
       heap_profiling::mojom::StackMode::NATIVE_WITH_THREAD_NAMES;
+  if (cmdline->HasSwitch("memlog-stack-mode")) {
+    std::string stack_mode_str =
+        cmdline->GetSwitchValueASCII("memlog-stack-mode");
+    if (stack_mode_str == "native") {
+      stack_mode =
+          heap_profiling::mojom::StackMode::NATIVE_WITHOUT_THREAD_NAMES;
+    } else if (stack_mode_str == "native-with-thread-names") {
+      stack_mode = heap_profiling::mojom::StackMode::NATIVE_WITH_THREAD_NAMES;
+    }
+  }
+  params->stack_mode = stack_mode;
 
   (*g_profiling_service)
       ->AddProfilingClient(
