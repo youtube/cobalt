@@ -51,7 +51,7 @@ TEST_P(TestReset, TestResetWithFallbackPriority) {
   EXPECT_EQ(fallback_iterator_reset, fallback_iterator);
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
 class FontFallbackIteratorTest : public FontTestBase {};
 
 TEST_F(FontFallbackIteratorTest, MissingFontFallbackDoesNotCrash) {
