@@ -1135,22 +1135,6 @@ TEST_F(TreesInVizClientCompositorFrameReportingControllerTest,
       35 + 2 + 3 + 5 + 6 + 7 + 8 + 9 + 10, 1);
 }
 
-TEST_F(TreesInVizClientCompositorFrameReportingControllerTest,
-       EmitBothBranchesOfHistograms) {
-  base::HistogramTester histogram_tester;
-
-  // This function will simulate stepping through the entire CFRC flow,
-  // with timestamps added to the stages relevant for TreesInViz.
-  // This emits the TreesInViz branch of histograms.
-  SimulatePresentCompositorFrameWithTreesInVizTimingDetails();
-
-  // This emits the normal-path histograms.
-  reporting_controller_.trees_in_viz_client(false);
-  SimulatePresentCompositorFrame();
-
-  // Test should not crash.
-}
-
 // If the presentation of the frame happens before deadline.
 TEST_F(CompositorFrameReportingControllerTest, ReportingMissedDeadlineFrame1) {
   base::HistogramTester histogram_tester;
@@ -2161,7 +2145,6 @@ TEST_F(CompositorFrameReportingControllerTest, MainFrameBeforeCommit) {
       CompositorFrameReportingController::PipelineStage::kActivate));
 }
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // Glossary of acronyms used in the tests below.
 // AMF - Activate Main Frame
 // AbMF - AbortMainFrame
@@ -3017,7 +3000,6 @@ TEST_F(CompositorFrameReportingControllerTest, VsyncIntervalArg) {
                                   std::vector<std::string>{"8", "1"},
                                   std::vector<std::string>{"32", "1"}));
 }
-#endif
 
 }  // namespace
 }  // namespace cc

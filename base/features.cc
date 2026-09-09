@@ -35,7 +35,6 @@
 #include "base/task/sequence_manager/thread_controller_power_monitor.h"
 #endif
 
-
 namespace base::features {
 
 namespace {
@@ -54,12 +53,6 @@ std::atomic_bool g_is_reduce_ppms_enabled{false};
 // kInteractive when not in input or loading scenarios.
 BASE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle,
              FEATURE_DISABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_COBALT)
-// When enabled, image transfer cache entries bypass serialization and transfer
-// images directly to the GPU service thread in-process.
-BASE_FEATURE(kCobaltInProcessImageTransferCache, FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
 // so that ScopedFeatureList can disable it to turn off caching.

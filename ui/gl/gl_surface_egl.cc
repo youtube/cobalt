@@ -24,7 +24,6 @@
 #include "base/system/sys_info.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "build/buildflag.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
 #include "ui/gfx/geometry/rect.h"
@@ -41,9 +40,6 @@
 #include "ui/gl/scoped_make_current.h"
 #include "ui/gl/sync_control_vsync_provider.h"
 
-#if BUILDFLAG(IS_COBALT)
-using ui::GetEGLErrorString;
-#endif
 using ui::GetLastEGLErrorString;
 
 namespace gl {
@@ -63,27 +59,6 @@ struct TraceSwapEventsInitializer {
 
 static base::LazyInstance<TraceSwapEventsInitializer>::Leaky
     g_trace_swap_enabled = LAZY_INSTANCE_INITIALIZER;
-
-#if BUILDFLAG(IS_COBALT)
-void SafeDestroyEGLSurface(GLDisplayEGL* display, EGLSurface surface) {
-  if (!surface) {
-    return;
-  }
-  // On Starboard, native windows and EGL displays may be torn down on
-  // suspend before the surface object destructor runs. If the display is
-  // uninitialized or the driver already reclaimed the native window,
-  // eglDestroySurface will safely return EGL_BAD_SURFACE or EGL_BAD_DISPLAY.
-  if (display && display->IsInitialized()) {
-    if (!eglDestroySurface(display->GetDisplay(), surface)) {
-      EGLint error = eglGetError();
-      if (error != EGL_BAD_SURFACE && error != EGL_BAD_DISPLAY) {
-        LOG(ERROR) << "eglDestroySurface failed with error "
-                   << GetEGLErrorString(error);
-      }
-    }
-  }
-}
-#endif
 
 class EGLSyncControlVSyncProvider : public SyncControlVSyncProvider {
  public:
@@ -574,19 +549,12 @@ void NativeViewGLSurfaceEGL::Destroy() {
   vsync_provider_internal_ = nullptr;
 
   if (surface_) {
-#if BUILDFLAG(IS_COBALT)
-    SafeDestroyEGLSurface(display_, surface_);
-#else
     if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
       LOG(ERROR) << "eglDestroySurface failed with error "
                  << GetLastEGLErrorString();
     }
-#endif
     surface_ = NULL;
   }
-#if BUILDFLAG(IS_COBALT)
-  config_ = nullptr;
-#endif
 }
 
 bool NativeViewGLSurfaceEGL::IsOffscreen() {
@@ -1094,19 +1062,12 @@ bool PbufferGLSurfaceEGL::Initialize(GLSurfaceFormat format) {
 
 void PbufferGLSurfaceEGL::Destroy() {
   if (surface_) {
-#if BUILDFLAG(IS_COBALT)
-    SafeDestroyEGLSurface(display_, surface_);
-#else
     if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
       LOG(ERROR) << "eglDestroySurface failed with error "
                  << GetLastEGLErrorString();
     }
-#endif
     surface_ = NULL;
   }
-#if BUILDFLAG(IS_COBALT)
-  config_ = nullptr;
-#endif
 }
 
 bool PbufferGLSurfaceEGL::IsOffscreen() {

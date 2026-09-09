@@ -47,17 +47,6 @@ MediaCryptoContext* CdmContext::GetMediaCryptoContext() {
 }
 #endif
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-SbDrmSystem CdmContext::GetSbDrmSystem() {
-  return kSbDrmSystemInvalid;
-}
-
-std::optional<std::string> CdmContext::GetKeySystem() const {
-  return std::nullopt;
-}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-
 #if BUILDFLAG(IS_FUCHSIA)
 FuchsiaCdmContext* CdmContext::GetFuchsiaCdmContext() {
   return nullptr;

@@ -847,7 +847,6 @@ target(libcxx_target_type, "libc++") {
     "//build/config:common_deps",
     "//third_party/catapult/devil",
   ]
-
   if (is_linux) {
     # This target packages libc++.so, so must have an explicit dependency on
     # libc++.
@@ -1035,7 +1034,7 @@ target(libcxx_target_type, "libc++") {
 
   if (!is_win) {
     defines += [ "LIBCXX_BUILDING_LIBCXXABI" ]
-    if (!export_libcxxabi_from_executables || is_cobalt_hermetic_build) {
+    if (!export_libcxxabi_from_executables) {
       deps += [ "//buildtools/third_party/libc++abi" ]
     }
   }
@@ -1043,22 +1042,4 @@ target(libcxx_target_type, "libc++") {
   # Disabling -Wexit-time-destructors, as libc++ uses `static string` objects
   # for locale code.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
-  if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
-    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-    #
-    # TODO: b/558305425 - remove the define below and exclude atomic.cpp from
-    # the build in 142.7444.
-    # There is no <linux/futex.h> in the sysroot used by linux-modular builds,
-    # so atomic.cpp can't use the Linux-specific futex path that tries to use
-    # futex_time64 on 32-bit architectures with 64-bit time_t.
-    # _LIBCPP_COBALT_NO_PLATFORM_FUTEX bypasses the __linux__ check and selects
-    # libc++'s version that does not use futexes at all.
-    # sources -= [ "//third_party/libc++/src/src/atomic.cpp" ]
-    defines += [ "_LIBCPP_COBALT_NO_PLATFORM_FUTEX" ]
-    deps += [
-      "//third_party/llvm-project/compiler-rt:compiler_rt",
-      "//third_party/musl:c",
-    ]
-  }
 }
