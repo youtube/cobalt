@@ -12,6 +12,7 @@ component("sync") {
   visibility = [
     "//chrome/browser",
     "//chrome/browser/prefs:impl",
+    "//cobalt/browser:*",
     "//chrome/browser/ui",
     "//chrome/browser/web_applications",
     "//chrome/test:test_support",

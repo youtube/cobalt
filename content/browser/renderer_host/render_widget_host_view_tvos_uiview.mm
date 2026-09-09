@@ -331,24 +331,11 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   // If any of `presses` is not handled, set `needToHandleInFramework`.
   BOOL needToHandleInFramework = NO;
   for (UIPress* press in presses) {
-<<<<<<< HEAD
-    NavigationDirection direction =
-        navigationDirectionFromPressType(press.type);
-    // TODO(391914246): Handle other buttons such as UIPressTypePlayPause from
-    // the remote control.
-    if (direction == kNone) {
-      // Since UIPress has key information from the physical keyboard,
-      // NativeWebKeyboardEvent is built with it in `sendKeyboardEvent`.
-      [self sendKeyboardEvent:press
-                    eventType:blink::WebInputEvent::Type::kKeyDown];
-=======
-    RemoteButton button = remoteButtonFromPressType(press.type);
+RemoteButton button = remoteButtonFromPressType(press.type);
     if (button == kNone) {
       // Since UIPress has key information from the physical keyboard,
       // NativeWebKeyboardEvent is built with it in `sendKeyboardEvent`.
-      needToHandleInFramework |= ![self sendKeyboardEvent:press eventType:type];
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-      continue;
+      needToHandleInFramework |= ![self sendKeyboardEvent:press eventType:type];      continue;
     }
     if (button == kSelect && [self handleSelectPressWithType:type]) {
       continue;
@@ -381,51 +368,18 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
 - (void)pressesEnded:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
-<<<<<<< HEAD
-  for (UIPress* press in presses) {
-    NavigationDirection direction =
-        navigationDirectionFromPressType(press.type);
-    // TODO(391914246): Handle other buttons such as UIPressTypePlayPause from
-    // the remote control.
-    if (direction == kNone) {
-      // Since UIPress has key information from the physical keyboard,
-      // NativeWebKeyboardEvent is built with it in `sendKeyboardEvent`.
-      [self sendKeyboardEvent:press
-                    eventType:blink::WebInputEvent::Type::kKeyUp];
-      continue;
-    }
-    [self sendKeyEventWithDirection:direction
-                          eventType:blink::WebInputEvent::Type::kKeyUp];
-=======
-  BOOL handled = [self handlePresses:presses
+BOOL handled = [self handlePresses:presses
                             withType:blink::WebInputEvent::Type::kKeyUp];
   if (!handled) {
-    [super pressesEnded:presses withEvent:event];
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  }
+    [super pressesEnded:presses withEvent:event];  }
 }
 
 // Helper method to send the keyboard event.
-<<<<<<< HEAD
-- (void)sendKeyboardEvent:(UIPress*)press
-=======
-- (BOOL)sendKeyboardEvent:(UIPress*)press
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-                eventType:(blink::WebInputEvent::Type)type {
+- (void)sendKeyboardEvent:(UIPress*)press                eventType:(blink::WebInputEvent::Type)type {
   input::NativeWebKeyboardEvent native_event =
       input::NativeWebKeyboardEvent(base::apple::OwnedUIPress(press));
   if (!blink::WebInputEvent::IsKeyboardEventType(native_event.GetType())) {
-<<<<<<< HEAD
-    return;
-  }
-  _view->SendKeyEvent(native_event);
-}
-
-// Helper method to generate WebKeyboardEvent with `direction`.
-- (void)sendKeyEventWithDirection:(NavigationDirection)direction
-                        eventType:(blink::WebInputEvent::Type)type {
-=======
-    return NO;
+return NO;
   }
   if (native_event.dom_code == static_cast<uint32_t>(ui::DomCode::NONE)) {
     return NO;
@@ -436,9 +390,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
 // Helper method to generate WebKeyboardEvent with RemoteButton.
 - (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
-                           eventType:(blink::WebInputEvent::Type)type {
->>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
+                           eventType:(blink::WebInputEvent::Type)type {  blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
                                 ui::EventTimeForNow());
 
   switch (remoteButton) {
