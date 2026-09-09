@@ -416,7 +416,7 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(int net_error,
   if (error && !download_dir_.empty()) {
     // Cleanup the download dir.
     CleanupDirectory(download_dir_);
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // !defined(IN_MEMORY_UPDATES)                      

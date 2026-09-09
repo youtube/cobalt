@@ -177,7 +177,7 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
     return gpu_memory_buffer_factory_;
   }
 
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   MemoryTracker::Observer* peak_memory_monitor() {
     return peak_memory_monitor_.get();
   }

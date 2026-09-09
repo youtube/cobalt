@@ -333,7 +333,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
 =======
   std::unique_ptr<CanvasResourceProvider> resource_provider_from_webgpu_access_;
 #endif
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   Canvas2DColorParams color_params_;
   bool need_dispatch_context_restored_ = false;
   base::RepeatingClosure on_restore_failed_callback_for_testing_;

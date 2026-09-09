@@ -84,7 +84,7 @@ BASE_FEATURE(kUseMultipleOverlays,
 =======
              "UseMultipleOverlays",
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT

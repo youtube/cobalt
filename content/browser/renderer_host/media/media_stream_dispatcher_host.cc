@@ -752,7 +752,7 @@ void MediaStreamDispatcherHost::ApplySubCaptureTarget(
   std::move(callback).Run(
       media::mojom::ApplySubCaptureTargetResult::kNotImplemented);
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)

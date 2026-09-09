@@ -2623,7 +2623,7 @@ deps = {
 # Cobalt: imported
 #  'src/third_party/perfetto':
 #    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '4cba3e9e07c02f2528723b8541f5cd127e4257c8',
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3001,7 +3001,7 @@ deps = {
 # Cobalt: imported
 #  'src/third_party/webrtc':
 #    Var('webrtc_git') + '/src.git' + '@' + '9c45144f9b0c10f40d67a7f150f808ac10ea0a3a',
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

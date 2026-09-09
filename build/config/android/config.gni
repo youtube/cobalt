@@ -90,7 +90,7 @@ if (is_android) {
       # forward with deprecating support for older Android SDK versions.
       # Disable this for now to get the code to build.
       # default_min_sdk_version = 24
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     # Static analysis can be either "on" or "off" or "build_server". This

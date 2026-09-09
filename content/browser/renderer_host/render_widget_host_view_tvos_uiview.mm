@@ -35,7 +35,7 @@ typedef NS_ENUM(NSInteger, RemoteButton) {
 <<<<<<< HEAD
 =======
   kSelect,
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   kMenu,
   kNone
 };
@@ -87,7 +87,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     case UIPressTypeSelect:
       button = kSelect;
       break;
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     case UIPressTypeMenu:
       button = kMenu;
       break;
@@ -374,7 +374,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                             withType:blink::WebInputEvent::Type::kKeyDown];
   if (!handled) {
     [super pressesBegan:presses withEvent:event];
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   [super pressesBegan:presses withEvent:event];
 }
@@ -398,7 +398,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                             withType:blink::WebInputEvent::Type::kKeyUp];
   if (!handled) {
     [super pressesEnded:presses withEvent:event];
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   [super pressesEnded:presses withEvent:event];
 }
@@ -423,7 +423,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 - (void)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
 =======
 - (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                            eventType:(blink::WebInputEvent::Type)type {
   blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
                                 ui::EventTimeForNow());
@@ -473,7 +473,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       event.text[0] = '\r';
       event.unmodified_text[0] = '\r';
       break;
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     case kMenu:
       // Refer to https://support.apple.com/en-us/102337.
       // The menu button works to return to the previous screen.
