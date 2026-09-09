@@ -73,12 +73,12 @@ if (is_android) {
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
     default_min_sdk_version = 29
-<<<<<<< HEAD
     if (is_cronet_build) {
       # Cronet's min sdk version support policy is different from the rest of
       # Chromium; Cronet explicitly supports older devices.
       default_min_sdk_version = 23
-=======
+    }
+
     if (is_cobalt) {
       # Cobalt maintains backward compatibility with Android 7.0 (API 24), consistent
       # with Cobalt 25 and 26 releases. Setting this to 24 ensures the Android
@@ -90,7 +90,6 @@ if (is_android) {
       # forward with deprecating support for older Android SDK versions.
       # Disable this for now to get the code to build.
       # default_min_sdk_version = 24
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     # Static analysis can be either "on" or "off" or "build_server". This

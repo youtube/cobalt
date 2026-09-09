@@ -742,17 +742,11 @@ void MediaStreamDispatcherHost::ApplySubCaptureTarget(
       base::BindOnce(
           &MediaStreamDispatcherHost::OnSubCaptureTargetValidationComplete,
           weak_factory_.GetWeakPtr(), device_id, type, sub_capture_target,
-<<<<<<< HEAD
           sub_capture_version, std::move(callback)));
-=======
-          sub_capture_version,
-          WrapApplySubCaptureTarget(std::move(callback),
-                                    mojo::GetBadMessageCallback())));
 #else
   std::move(callback).Run(
       media::mojom::ApplySubCaptureTargetResult::kNotImplemented);
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)

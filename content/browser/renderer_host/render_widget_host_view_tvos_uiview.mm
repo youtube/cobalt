@@ -32,11 +32,7 @@ typedef NS_ENUM(NSInteger, RemoteButton) {
   kLeft,
   kRight,
   kMediaPlayPause,
-<<<<<<< HEAD
-=======
-  kSelect,
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  kMenu,
+kSelect,  kMenu,
   kNone
 };
 
@@ -82,13 +78,9 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     case UIPressTypePlayPause:
       button = kMediaPlayPause;
       break;
-<<<<<<< HEAD
-=======
-    case UIPressTypeSelect:
+case UIPressTypeSelect:
       button = kSelect;
-      break;
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    case UIPressTypeMenu:
+      break;    case UIPressTypeMenu:
       button = kMenu;
       break;
     default:
@@ -344,11 +336,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       needToHandleInFramework |= ![self sendKeyboardEvent:press eventType:type];
       continue;
     }
-<<<<<<< HEAD
-    [self sendKeyEventWithRemoteButton:button
-                             eventType:blink::WebInputEvent::Type::kKeyDown];
-=======
-    if (button == kSelect && [self handleSelectPressWithType:type]) {
+if (button == kSelect && [self handleSelectPressWithType:type]) {
       continue;
     }
     needToHandleInFramework |= ![self sendKeyEventWithRemoteButton:button
@@ -372,17 +360,13 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 #endif
   BOOL handled = [self handlePresses:presses
                             withType:blink::WebInputEvent::Type::kKeyDown];
-  if (!handled) {
-    [super pressesBegan:presses withEvent:event];
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  }
+  if (!handled) {  }
   [super pressesBegan:presses withEvent:event];
 }
 
 - (void)pressesEnded:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
-<<<<<<< HEAD
-  for (UIPress* press in presses) {
+for (UIPress* press in presses) {
     RemoteButton button = remoteButtonFromPressType(press.type);
     if (button == kNone) {
       // Since UIPress has key information from the physical keyboard,
@@ -392,14 +376,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       continue;
     }
     [self sendKeyEventWithRemoteButton:button
-                             eventType:blink::WebInputEvent::Type::kKeyUp];
-=======
-  BOOL handled = [self handlePresses:presses
-                            withType:blink::WebInputEvent::Type::kKeyUp];
-  if (!handled) {
-    [super pressesEnded:presses withEvent:event];
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  }
+                             eventType:blink::WebInputEvent::Type::kKeyUp];  }
   [super pressesEnded:presses withEvent:event];
 }
 
@@ -419,12 +396,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 }
 
 // Helper method to generate WebKeyboardEvent with RemoteButton.
-<<<<<<< HEAD
-- (void)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
-=======
-- (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-                           eventType:(blink::WebInputEvent::Type)type {
+- (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton                           eventType:(blink::WebInputEvent::Type)type {
   blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
                                 ui::EventTimeForNow());
 
@@ -459,9 +431,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       event.dom_key = ui::DomKey::MEDIA_PLAY_PAUSE;
       event.windows_key_code = ui::VKEY_MEDIA_PLAY_PAUSE;
       break;
-<<<<<<< HEAD
-=======
-    case kSelect:
+case kSelect:
       event.native_key_code = UIKeyboardHIDUsageKeyboardReturnOrEnter;
       event.dom_code = static_cast<int>(ui::DomCode::ENTER);
       event.dom_key = ui::DomKey::ENTER;
@@ -472,9 +442,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       // activation (e.g. blink::HTMLElement::HandleKeyboardActivation()).
       event.text[0] = '\r';
       event.unmodified_text[0] = '\r';
-      break;
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    case kMenu:
+      break;    case kMenu:
       // Refer to https://support.apple.com/en-us/102337.
       // The menu button works to return to the previous screen.
       event.native_key_code = UIKeyboardHIDUsageKeyboardEscape;

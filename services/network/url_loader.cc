@@ -128,18 +128,12 @@
 #include "services/network/slop_bucket.h"
 #include "services/network/ssl_private_key_proxy.h"
 #include "services/network/throttling/scoped_throttling_token.h"
-<<<<<<< HEAD
 #include "services/network/throttling/throttling_controller.h"
 #include "services/network/throttling/throttling_network_interceptor.h"
-#include "services/network/trust_tokens/trust_token_request_helper.h"
-#include "services/network/trust_tokens/trust_token_url_loader_interceptor.h"
-=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "services/network/trust_tokens/trust_token_request_helper.h"  // nogncheck
 #include "services/network/trust_tokens/trust_token_url_loader_interceptor.h"  // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 4d760375a87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "services/network/url_loader_factory.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)#include "services/network/url_loader_factory.h"
 #include "services/network/url_loader_util.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 #include "url/origin.h"
