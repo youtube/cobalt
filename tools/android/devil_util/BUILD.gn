@@ -2,19 +2,30 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/symlink.gni")
-  import("//starboard/build/config/android_toolchain.gni")
+
+  # On AOSP, devil pushes only the bare devil_util_bin to the Android device and
+  # runs it outside of an APK, so it must be compiled with the native toolchain.
+  if (is_cobalt && build_with_separate_cobalt_toolchain) {
+    standalone_toolchain = native_toolchain
+  } else {
+    standalone_toolchain = default_toolchain
+  }
 
   group("devil_util") {
     data_deps = [
-      ":devil_util_dist($android_toolchain)",
-      ":devil_util_host($android_toolchain)",
+      ":devil_util_dist($standalone_toolchain)",
+      ":devil_util_host($standalone_toolchain)",
     ]
   }
 
-  if (current_toolchain == android_toolchain) {
+  if (current_toolchain == standalone_toolchain) {
     import("//build/config/android/rules.gni")
 
     create_native_executable_dist("devil_util_dist") {
@@ -52,11 +63,9 @@ executable("devil_util_bin") {
     "//third_party/zstd:decompress",
   ]
 
-  if (is_android && is_starboard) {
-    # TODO(crbug.com/509811765): to avoid a circular dependency, on AOSP //base
-    # doesn't depend on starboard_group, just on starboard_headers_only.
-    # We need to explicitly depend on starboard_group to supply the missing
-    # Starboard symbols that //base uses.
-    deps += [ "//starboard:starboard_group" ]
+  # Statically link libc++ to make it a self-contained executable.
+  if (is_cobalt && is_partner_toolchain) {
+    ldflags = [ "-static-libstdc++" ]
+    deps += [ "//buildtools/third_party/libunwind" ]
   }
 }

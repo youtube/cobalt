@@ -158,7 +158,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                 int channels,
                 int sampling_frequency_hz,
                 SbMediaAudioSampleType audio_sample_type,
-                SbMediaAudioFrameStorageType audio_frame_storage_type,
                 SbAudioSinkFrameBuffers frame_buffers,
                 int frame_buffers_size_in_frames,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -170,8 +169,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
 
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
-                  audio_frame_storage_type, frame_buffers,
-                  frame_buffers_size_in_frames,
+                  frame_buffers, frame_buffers_size_in_frames,
                   {update_source_status_func, consume_frames_func, error_func},
                   start_media_time, tunnel_mode_audio_session_id,
                   /*is_web_audio=*/false, allow_audio_writing_on_pause,

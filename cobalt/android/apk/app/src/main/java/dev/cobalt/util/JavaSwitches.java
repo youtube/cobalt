@@ -181,6 +181,13 @@ public class JavaSwitches {
   public static final String MEMORY_PRESSURE_COOLDOWN_IN_SECONDS =
       "MemoryPressureCooldownInSeconds";
 
+  /**
+   * Flag to enable activity lifecycle coordination and safe surface teardown across overlapping
+   * activities.
+   */
+  public static final String ENABLE_ACTIVITY_LIFECYCLE_COORDINATION =
+      "EnableActivityLifecycleCoordination";
+
   private static Boolean sOverrideForTesting;
 
   public static void setOverrideForTesting(Boolean override) {
@@ -536,6 +543,10 @@ public class JavaSwitches {
     // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
     if (javaSwitches.containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)) {
       extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
+      extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
     }
 
     return extraCommandLineArgs;

@@ -15,6 +15,9 @@
 package dev.cobalt.coat;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
@@ -23,6 +26,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import dev.cobalt.shell.StartupGuard;
@@ -32,6 +36,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.chromium.base.CommandLine;
+import org.chromium.base.ContextUtils;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.junit.After;
 import org.junit.Before;
@@ -39,6 +45,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.shadows.ShadowLooper;
 
 /** CobaltActivityTest. */
@@ -66,70 +73,164 @@ public class CobaltActivityTest {
     return cobaltActivity;
   }
 
-  @Test
-  public void testAppendArgsFromMetaData_NullMetaData() {
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(/* metaData= */ null, args);
-    assertArrayEquals(args, result);
+  public CobaltActivity createActivityForCommandLineTests(
+      final boolean isDevBuild, final Intent intent) {
+    final Intent actualIntent = intent != null ? intent : new Intent();
+    return new CobaltActivity() {
+      @Override
+      protected boolean isDevelopmentBuild() {
+        return isDevBuild;
+      }
+
+      @Override
+      protected boolean isReleaseBuild() {
+        return false;
+      }
+
+      @Override
+      public Intent getIntent() {
+        return actualIntent;
+      }
+
+      @Override
+      protected ImeAdapterImpl getImeAdapterImpl() {
+        return null;
+      }
+
+      @Override
+      protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+        return null;
+      }
+    };
   }
 
   @Test
-  public void testAppendArgsFromMetaData_EmptyMetaData() {
+  public void testGetCommandLineArgs_DevelopmentBuild_AddsDefaultRemoteAllowOrigins() {
+    CobaltActivity activity =
+        createActivityForCommandLineTests(/* isDevBuild= */ true, /* intent= */ null);
+
+    List<String> args = activity.getCommandLineArgs();
+
+    assertTrue(
+        args.contains("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com"));
+  }
+
+  @Test
+  public void testGetCommandLineArgs_NonDevelopmentBuild_DoesNotAddDefaultRemoteAllowOrigins() {
+    CobaltActivity activity =
+        createActivityForCommandLineTests(/* isDevBuild= */ false, /* intent= */ null);
+
+    List<String> args = activity.getCommandLineArgs();
+
+    assertFalse(
+        args.contains("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com"));
+  }
+
+  @Test
+  public void testGetCommandLineArgs_UserRemoteAllowOriginsAppendedAfterDefault() {
+    Intent intent = new Intent();
+    intent.putExtra(
+        CobaltActivity.COMMAND_LINE_ARGS_KEY, new String[] {"--remote-allow-origins=*"});
+    CobaltActivity activity = createActivityForCommandLineTests(/* isDevBuild= */ true, intent);
+
+    List<String> args = activity.getCommandLineArgs();
+
+    int defaultIndex =
+        args.indexOf("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com");
+    int userIndex = args.indexOf("--remote-allow-origins=*");
+    assertTrue(defaultIndex >= 0);
+    assertTrue(userIndex > defaultIndex);
+  }
+
+  @Test
+  public void testGetCommandLineArgs_UserRemoteAllowOriginsOverridesDefaultInCommandLine() {
+    Intent intent = new Intent();
+    intent.putExtra(
+        CobaltActivity.COMMAND_LINE_ARGS_KEY, new String[] {"--remote-allow-origins=*"});
+    CobaltActivity activity = createActivityForCommandLineTests(/* isDevBuild= */ true, intent);
+
+    CommandLine.resetForTesting(true);
+    CommandLineOverrideHelper.getFlagOverrides(activity.getCommandLineArgs());
+
+    assertEquals("*", CommandLine.getInstance().getSwitchValue("remote-allow-origins"));
+  }
+
+  @Test
+  public void testAppendMetaDataArgs_NullMetaData() {
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, /* metaData= */ null);
+    assertArrayEquals(new String[] {"--arg1"}, args.toArray(new String[0]));
+  }
+
+  @Test
+  public void testAppendMetaDataArgs_EmptyMetaData() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(args, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(new String[] {"--arg1"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_EmptyStringFeature() {
+  public void testAppendMetaDataArgs_EmptyStringFeature() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("");
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(args, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(new String[] {"--arg1"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_WithFeature() {
+  public void testAppendMetaDataArgs_WithFeature() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(new String[] {"--arg1", "--enable-features=FeatureA"}, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(
+        new String[] {"--arg1", "--enable-features=FeatureA"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_WithMultipleFeatures() {
+  public void testAppendMetaDataArgs_WithMultipleFeatures() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA;FeatureB");
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(new String[] {"--arg1", "--enable-features=FeatureA;FeatureB"}, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(
+        new String[] {"--arg1", "--enable-features=FeatureA;FeatureB"},
+        args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_NullArgs() {
+  public void testAppendMetaDataArgs_EmptyArgs() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, /* commandLineArgs= */ null);
-    assertArrayEquals(new String[] {"--enable-features=FeatureA"}, result);
+    List<String> args = new ArrayList<>();
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(new String[] {"--enable-features=FeatureA"}, args.toArray(new String[0]));
   }
 
   @Test
-  public void testAppendArgsFromMetaData_DisableSplashScreen() {
+  public void testAppendMetaDataArgs_DisableSplashScreen() {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(false);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
-    String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(new String[] {"--arg1", "--enable-features=DisableSplashScreen"}, result);
+    List<String> args = new ArrayList<>();
+    args.add("--arg1");
+    CobaltActivity.appendMetaDataArgs(args, metaData);
+    assertArrayEquals(
+        new String[] {"--arg1", "--enable-features=DisableSplashScreen"},
+        args.toArray(new String[0]));
   }
 
   @Test
@@ -281,6 +382,7 @@ public class CobaltActivityTest {
 
   @Before
   public void setUp() {
+    ContextUtils.initApplicationContextForTests(RuntimeEnvironment.getApplication());
     AppEventBridgeJni.setInstanceForTesting(mock(AppEventBridge.Natives.class));
     StartupGuard.getInstance().disarm();
   }
