@@ -28,6 +28,10 @@ class AudioParam;
 class BaseAudioContext;
 class Page;
 
+// A stub implementation of InspectorWebAudioAgent used when the DevTools
+// backend is disabled (enable_devtools_backend = false). Its lifetime is
+// managed by the Page/InspectorSession, and it is thread-affine to the main
+// renderer thread.
 class MODULES_EXPORT InspectorWebAudioAgent final : public InspectorAgent {
  public:
   explicit InspectorWebAudioAgent(Page*) {}
