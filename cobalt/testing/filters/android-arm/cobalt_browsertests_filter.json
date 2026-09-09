@@ -31,6 +31,7 @@
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.LoadSplashVideoNoCache",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.SplashContentTooLarge",
     "H5vccSystemBrowserTest.VerifySystemProperties",
+    "MediaNavigationBrowserTest.*",
     "NavigationBrowserTest.AboutMumble",
     "NavigationBrowserTest.BrowserInitiatedNavigations",
     "NavigationBrowserTest.Bug1210234",

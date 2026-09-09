@@ -20,9 +20,12 @@ namespace cobalt {
 // Filenames for persistent preference stores in the cache directory.
 constexpr char kExperimentConfigFilename[] = "Experiment Config";
 constexpr char kMetricsConfigFilename[] = "Metrics Config";
+constexpr char kVariationsBeaconFilename[] = "Variations";
 
 // Variations preference keys.
 constexpr char kVariationsCrashStreak[] = "variations_crash_streak";
+constexpr char kStabilityExitedCleanly[] =
+    "user_experience_metrics.stability.exited_cleanly";
 
 }  // namespace cobalt
 

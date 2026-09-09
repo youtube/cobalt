@@ -79,12 +79,7 @@ void PlatformServiceImpl::StarboardReceiveMessageCallback(void* context,
   const uint8_t* byte_data = static_cast<const uint8_t*>(data);
   std::vector<uint8_t> data_vector(byte_data, byte_data + length);
 
-  // content::DocumentService is bound to the UI thread, via the RFH.
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&PlatformServiceImpl::OnDataReceivedFromStarboard,
-                     instance->weak_factory_.GetWeakPtr(),
-                     std::move(data_vector)));
+  instance->on_data_received_callback_.Run(std::move(data_vector));
 }
 
 PlatformServiceImpl::PlatformServiceImpl(
@@ -95,6 +90,10 @@ PlatformServiceImpl::PlatformServiceImpl(
     : DocumentService(render_frame_host, std::move(receiver)),
       service_name_(service_name),
       observer_(std::move(observer)) {
+  on_data_received_callback_ = base::BindPostTask(
+      content::GetUIThreadTaskRunner({}),
+      base::BindRepeating(&PlatformServiceImpl::OnDataReceivedFromStarboard,
+                          weak_factory_.GetWeakPtr()));
   observer_.set_disconnect_handler(base::BindOnce(
       [] { LOG(INFO) << "PlatformServiceObserver disconnected."; }));
   LOG(INFO) << "PlatformServiceImpl created for " << service_name_;
