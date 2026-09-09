@@ -5,8 +5,13 @@
 #include "base/android/memory_pressure_listener_android.h"
 
 #include "base/android/pre_freeze_background_memory_trimmer.h"
+<<<<<<< HEAD
 #include "base/functional/bind.h"
 #include "base/location.h"
+=======
+#include "base/feature_list.h"
+#include "base/features.h"
+>>>>>>> db06035afb (android: add feature flags to control memory pressure events (#12472))
 #include "base/memory/memory_pressure_listener.h"
 #include "base/task/single_thread_task_runner.h"
 
@@ -41,6 +46,25 @@ static jboolean JNI_MemoryPressureListener_IsTrimMemoryBackgroundCritical(
     JNIEnv* env) {
   return base::android::PreFreezeBackgroundMemoryTrimmer::
       IsTrimMemoryBackgroundCritical();
+}
+
+static jboolean JNI_MemoryPressureListener_IsModerateMemoryPressureEnabled(
+    JNIEnv* env) {
+#if BUILDFLAG(IS_COBALT)
+  return base::FeatureList::IsEnabled(
+      base::features::kCobaltEnableModerateMemoryPressure);
+#else
+  return false;
+#endif
+}
+
+static jint JNI_MemoryPressureListener_GetMemoryPressureCooldownSeconds(
+    JNIEnv* env) {
+#if BUILDFLAG(IS_COBALT)
+  return base::features::kCobaltMemoryPressureCooldownSeconds.Get();
+#else
+  return 60;
+#endif
 }
 
 namespace base::android {
