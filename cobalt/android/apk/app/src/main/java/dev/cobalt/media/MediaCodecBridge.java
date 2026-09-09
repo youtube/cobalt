@@ -32,6 +32,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.graphics.SurfaceTexture;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
@@ -270,6 +271,9 @@ class MediaCodecBridge {
       return mErrorMessage;
     }
   }
+
+  private Surface mDummySurface;
+  private SurfaceTexture mDummyTexture;
 
   public MediaCodecBridge(
       long nativeMediaCodecBridge,
@@ -760,6 +764,14 @@ class MediaCodecBridge {
         // the surface.
         Log.w(TAG, "Failed to release MediaCodec: codec=" + mCodecName, e);
       }
+      if (mDummySurface != null) {
+        mDummySurface.release();
+        mDummySurface = null;
+      }
+      if (mDummyTexture != null) {
+        mDummyTexture.release();
+        mDummyTexture = null;
+      }
       mMediaCodec.set(null);
     } catch (Throwable t) {
       // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
@@ -926,6 +938,25 @@ class MediaCodecBridge {
     }
   }
 
+  @CalledByNative
+  private boolean setOutputSurface(Surface surface) {
+    try {
+      mMediaCodec.get().setOutputSurface(surface);
+      if (mDummySurface != null) {
+        mDummySurface.release();
+        mDummySurface = null;
+      }
+      if (mDummyTexture != null) {
+        mDummyTexture.release();
+        mDummyTexture = null;
+      }
+      return true;
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to set output surface", e);
+      return false;
+    }
+  }
+
   private boolean configureVideo(
       MediaFormat format,
       Surface surface,
@@ -935,6 +966,11 @@ class MediaCodecBridge {
       int maxSupportedHeight,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     try {
+      if (surface == null) {
+        mDummyTexture = new SurfaceTexture(0);
+        mDummySurface = new Surface(mDummyTexture);
+        surface = mDummySurface;
+      }
       // Since we haven't passed the properties of the stream we're playing down to this level, from
       // our perspective, we could potentially adapt up to 8k at any point. We thus request 8k
       // buffers up front, unless the decoder claims to not be able to do 8k, in which case we're

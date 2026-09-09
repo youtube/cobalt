@@ -141,8 +141,16 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
+  // Tracks mid-stream codec transitions (e.g. HDR <-> SDR color space changes).
+  enum class CodecTransitionState {
+    kNone,
+    kDraining,
+    kTransitionScheduled,
+  };
+
   // Attempt to initialize the codec.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
+  void PreallocateNextCodec(const VideoStreamInfo& video_stream_info);
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
@@ -167,6 +175,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void ReportError(SbPlayerError error, const std::string& error_message);
 
   void ResetInternal(bool skip_flush);
+
+  void PerformCodecTransition();
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
@@ -256,10 +266,12 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // media_codec_factory_ cannot be null.
   const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
+  std::unique_ptr<MediaCodecDecoder> next_media_decoder_;
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
 
+  std::string video_mime_;
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
   bool end_of_stream_written_ = false;
@@ -274,6 +286,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
 
+  CodecTransitionState codec_transition_state_ = CodecTransitionState::kNone;
+  VideoStreamInfo pending_codec_transition_stream_info_;
+  std::vector<scoped_refptr<InputBuffer>> pending_codec_transition_buffers_;
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
 

@@ -379,6 +379,15 @@ void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
+bool MediaCodecDecoder::SetOutputSurface(
+    const jni_zero::JavaRef<jobject>& j_surface) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  if (media_codec_bridge_) {
+    return media_codec_bridge_->SetOutputSurface(j_surface);
+  }
+  return false;
+}
+
 bool MediaCodecDecoder::Flush() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 

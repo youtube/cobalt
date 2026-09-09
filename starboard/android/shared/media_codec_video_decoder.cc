@@ -381,6 +381,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
+      video_mime_(stream_config.video_stream_info.mime),
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(
           pipeline_config.experimental_features
@@ -528,6 +529,18 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
 
+  const auto& stream_info = input_buffers.front()->video_stream_info();
+  if (!stream_info.mime.empty() && stream_info.mime != video_mime_) {
+    video_mime_ = stream_info.mime;
+  }
+
+  if (codec_transition_state_ != CodecTransitionState::kNone) {
+    pending_codec_transition_buffers_.insert(
+        pending_codec_transition_buffers_.end(), input_buffers.begin(),
+        input_buffers.end());
+    return;
+  }
+
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
@@ -556,6 +569,23 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         return;
       }
     }
+  }
+
+  bool new_is_hdr = !IsIdentity(stream_info.color_metadata);
+  bool current_is_hdr =
+      color_metadata_.has_value() && !IsIdentity(*color_metadata_);
+
+  if (input_buffer_written_ > 0 && new_is_hdr != current_is_hdr) {
+    SB_LOG(INFO) << "Color space change detected (HDR <-> SDR). "
+                    "Initiating EOS draining and pre-allocating next decoder...";
+    codec_transition_state_ = CodecTransitionState::kDraining;
+    pending_codec_transition_stream_info_ = stream_info;
+    pending_codec_transition_buffers_.insert(
+        pending_codec_transition_buffers_.end(), input_buffers.begin(),
+        input_buffers.end());
+    PreallocateNextCodec(stream_info);
+    media_decoder_->WriteEndOfStream();
+    return;
   }
 
   input_buffer_written_ += input_buffers.size();
@@ -894,6 +924,57 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   return Failure("Media Decoder is not valid: " + result.error());
 }
 
+void MediaCodecVideoDecoder::PreallocateNextCodec(
+    const VideoStreamInfo& video_stream_info) {
+  SB_CHECK(BelongsToCurrentThread());
+  if (next_media_decoder_) {
+    return;
+  }
+
+  SB_LOG(INFO)
+      << "Pre-allocating next MediaCodec on dummy surface in background for warm swap.";
+
+  // Pass a null surface to CreateForVideo so MediaCodecBridge Java creates a dummy Surface.
+  jni_zero::ScopedJavaLocalRef<jobject> j_dummy_surface;
+
+  std::optional<Size> max_frame_size =
+      ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size);
+
+  bool new_is_hdr = !IsIdentity(video_stream_info.color_metadata);
+  std::optional<SbMediaColorMetadata> next_color_metadata =
+      new_is_hdr ? std::make_optional(video_stream_info.color_metadata)
+                 : std::nullopt;
+
+  auto result = MediaCodecDecoder::CreateForVideo(
+      *media_codec_factory_, job_queue(), /*host=*/this,
+      video_stream_info.codec, video_stream_info.frame_size, max_frame_size,
+      video_fps_, j_dummy_surface, drm_system_,
+      next_color_metadata ? &*next_color_metadata : nullptr,
+      require_software_codec_,
+      std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
+      std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
+      tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
+      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
+      skip_video_frames_over_60_fps_,
+      ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_,
+      enable_trivial_optimizations_);
+
+  if (result) {
+    next_media_decoder_ = std::move(result.value());
+    if (error_cb_) {
+      next_media_decoder_->Initialize(
+          std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
+    }
+    next_media_decoder_->SetPlaybackRate(playback_rate_);
+    SB_LOG(INFO)
+        << "Successfully pre-allocated next_media_decoder_ on dummy surface for warm swap.";
+  } else {
+    SB_LOG(WARNING) << "Failed to pre-allocate next_media_decoder_: "
+                    << result.error()
+                    << ". Will fallback to single-decoder swap.";
+  }
+}
+
 void MediaCodecVideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
   if (owns_video_surface_) {
@@ -901,6 +982,7 @@ void MediaCodecVideoDecoder::TeardownCodec() {
     owns_video_surface_ = false;
   }
   media_decoder_.reset();
+  next_media_decoder_.reset();
   color_metadata_ = std::nullopt;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
@@ -989,6 +1071,20 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
 
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
+
+  if (is_end_of_stream &&
+      codec_transition_state_ == CodecTransitionState::kDraining) {
+    SB_LOG(INFO) << "EOS received during codec transition draining. Scheduling "
+                    "codec transition.";
+    codec_transition_state_ = CodecTransitionState::kTransitionScheduled;
+    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
+    Schedule(std::bind(&MediaCodecVideoDecoder::PerformCodecTransition, this));
+    if (decoder_status_cb_) {
+      decoder_status_cb_(kNeedMoreInput, NULL);
+    }
+    return;
+  }
+
   if (!is_end_of_stream) {
     ++decoded_output_frames_;
     if (output_format_) {
@@ -1236,11 +1332,94 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
+  pending_codec_transition_buffers_.clear();
+  codec_transition_state_ = CodecTransitionState::kNone;
+  pending_codec_transition_stream_info_ = VideoStreamInfo();
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+void MediaCodecVideoDecoder::PerformCodecTransition() {
+  SB_CHECK(BelongsToCurrentThread());
+  if (codec_transition_state_ != CodecTransitionState::kTransitionScheduled) {
+    return;
+  }
+
+  SB_LOG(INFO) << "Performing warm swap transition for mid-stream codec transition.";
+
+  if (next_media_decoder_) {
+    SB_LOG(INFO) << "Warm swap: attaching next_media_decoder_ to main display surface (<2ms).";
+    std::unique_ptr<MediaCodecDecoder> next_decoder =
+        std::move(next_media_decoder_);
+    TeardownCodec();
+
+    JNIEnv* env = AttachCurrentThread();
+    jni_zero::ScopedJavaLocalRef<jobject> j_output_surface;
+    switch (output_mode_) {
+      case kSbPlayerOutputModePunchOut: {
+        if (surface_view_) {
+          j_output_surface = surface_view_.AsLocalRef(env);
+        } else {
+          j_output_surface = AcquireVideoSurface();
+        }
+        if (j_output_surface) {
+          owns_video_surface_ = true;
+        }
+      } break;
+      case kSbPlayerOutputModeDecodeToTexture: {
+        std::lock_guard lock(decode_target_mutex_);
+        if (decode_target_) {
+          j_output_surface =
+              jni_zero::ScopedJavaLocalRef<jobject>(env, decode_target_->surface());
+        }
+      } break;
+      default:
+        break;
+    }
+
+    if (j_output_surface && next_decoder->SetOutputSurface(j_output_surface)) {
+      media_decoder_ = std::move(next_decoder);
+      SB_LOG(INFO) << "Warm swap handover to main display surface succeeded (<2ms)!";
+    } else {
+      SB_LOG(WARNING) << "Failed to attach next_media_decoder_ to main surface. Fallback to re-creation.";
+      next_decoder.reset();
+      auto result = InitializeCodec(pending_codec_transition_stream_info_);
+      if (!result) {
+        ReportError(kSbPlayerErrorDecode, "Failed fallback codec reinitialization.");
+      }
+    }
+  } else {
+    SB_LOG(WARNING) << "next_media_decoder_ not available. Falling back to single-decoder re-creation.";
+    TeardownCodec();
+  }
+
+  const auto& color_metadata =
+      pending_codec_transition_stream_info_.color_metadata;
+  color_metadata_ = !IsIdentity(color_metadata)
+                        ? std::make_optional(color_metadata)
+                        : std::nullopt;
+
+  first_buffer_timestamp_ = 0;
+  input_buffer_written_ = 0;
+  video_fps_ = 0;
+  end_of_stream_written_ = false;
+
+  codec_transition_state_ = CodecTransitionState::kNone;
+  VideoStreamInfo stream_info = pending_codec_transition_stream_info_;
+  pending_codec_transition_stream_info_ = VideoStreamInfo();
+
+  if (decoder_status_cb_) {
+    decoder_status_cb_(kReleaseAllFrames, NULL);
+  }
+
+  if (!pending_codec_transition_buffers_.empty()) {
+    InputBuffers buffers_to_write;
+    buffers_to_write.swap(pending_codec_transition_buffers_);
+    WriteInputBuffers(buffers_to_write);
+  }
 }
 
 }  // namespace starboard

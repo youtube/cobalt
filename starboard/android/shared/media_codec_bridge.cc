@@ -260,6 +260,16 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
 }
 
+bool MediaCodecBridge::SetOutputSurface(
+    const jni_zero::JavaRef<jobject>& j_surface) {
+  if (!j_media_codec_bridge_) {
+    return false;
+  }
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_setOutputSurface(env, j_media_codec_bridge_,
+                                                 j_surface);
+}
+
 Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
