@@ -1072,13 +1072,6 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Prepare Test Filters
-        id: prepare-test-filters
-        uses: ./.github/actions/prepare_test_filters
-        with:
-          test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_test_results
-          platform: ${{ matrix.platform }}
-          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       - name: Download Test Results
         uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         continue-on-error: true
@@ -1091,7 +1084,6 @@ jobs:
           PLATFORM_INPUT: ${{ inputs.platform }}
           PLATFORM_NAME: ${{ matrix.name }}
           PLATFORM: ${{ matrix.platform }}
-          FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -1099,50 +1091,33 @@ jobs:
           NEEDS_JSON: ${{ toJSON(needs) }}
           EXPECTED_TESTS: ${{ needs.initialize.outputs.expected_tests_json || '[]' }}
           BROWSER_TESTS: ${{ needs.initialize.outputs.run_browser_tests == 'true' && needs.initialize.outputs.browser_test_targets || '[]' }}
-          NUM_GTEST_SHARDS: ${{ needs.initialize.outputs.num_gtest_shards || 1 }}
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
 
-          filter_dir="${FILTER_DIR:-${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}}"
-          if [[ -d results ]]; then
-            find results -type d -name "retry_filters" -exec cp -r {}/. "${filter_dir}/" \; 2>/dev/null || true
-          fi
+          xml_files=()
+          missing_required=0
 
-          required_test_targets=$(jq -nr \
+          for target in $(jq -nr \
             --argjson expected "${EXPECTED_TESTS}" \
             --argjson browser "${BROWSER_TESTS}" \
-            '($expected + $browser)[] | select(.target != null and .required != false) |
-             [.target, (.runs_on // "host"), (.test_type // "")] | @tsv')
-
-          missing_required=0
-          xml_files=()
-
-          while IFS=$'\t' read -r target runs_on test_type; do
-            [[ -z "${target}" ]] && continue
-            target_name="${target##*:}"
-
-            test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
-              --filter-dir "${filter_dir}" \
-              --target "${target_name}")
-
-            if [[ "${test_filter}" == "-*" ]]; then
-              echo "Target ${target} was skipped due to test filter."
+            '($expected + $browser)[]
+             | select(.target != null and .required != false)
+             | .target
+             | split(":")[-1]'); do
+            filter="cobalt/testing/filters/${PLATFORM}/${target}_filter.json"
+            if [[ -f "${filter}" ]] && grep -F -q '"*"' "${filter}"; then
               continue
             fi
 
-            expected_shards=1
-            if [[ "${runs_on}" == "host" && "${test_type}" == "gtest" && "${test_filter}" == "*" ]]; then
-              expected_shards="${NUM_GTEST_SHARDS}"
+            files=(results/**/"${target}"*.xml)
+            if [[ ${#files[@]} -eq 0 ]]; then
+              echo "::error::Missing required test results for target: ${target}"
+              (( missing_required += 1 ))
+            else
+              xml_files+=("${files[@]}")
             fi
-
-            files=(results/**/"${target_name}"*.xml)
-            if [[ ${#files[@]} -lt "${expected_shards}" ]]; then
-              echo "::error::Missing required test results for target: ${target}. Found ${#files[@]}, expected ${expected_shards}."
-              (( ++missing_required ))
-            fi
-            xml_files+=("${files[@]}")
-          done <<< "${required_test_targets}"
+          done
 
           test_failures='{}'
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
