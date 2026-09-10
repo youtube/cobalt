@@ -14,7 +14,11 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
+#include <algorithm>
+#include <cctype>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -39,6 +43,46 @@
 const char* ROBOTO_SCRIPT = "latn";
 
 namespace {
+enum GenericFontType { kSansSerif, kSerif, kMonospace };
+
+// Case-insensitively maps common last-resort family names (both standard W3C
+// generic font keywords like "sans-serif" and legacy platform-specific desktop
+// fallbacks like "Arial" or "Courier New" that are hardcoded inside Blink's
+// GetLastResortFallbackFont) to their broad structural style categories. Uses
+// modern C++17 std::optional to safely signal mapping failure without raw
+// output pointers, and uses stack-allocated std::string_view to eliminate all
+// heap allocation overhead.
+std::optional<GenericFontType> MapToGenericType(const char* name) {
+  if (name == nullptr) {
+    return std::nullopt;
+  }
+  SkAutoAsciiToLC name_lc(name);
+  std::string_view n(name_lc.lc(), name_lc.length());
+
+  // Substring mapping matches standard CSS/W3C generic keywords as well as
+  // common legacy platform desktop aliases (like Arial, Times, Courier) that
+  // Blink uses for last-resort fallbacks. Using substring search ensures robust
+  // matching for style variations (e.g., "Arial Bold" or "TimesNewRoman").
+  if (n.find("sans-serif") != std::string_view::npos ||
+      n.find("sans") != std::string_view::npos ||
+      n.find("arial") != std::string_view::npos ||
+      n.find("helvetica") != std::string_view::npos) {
+    return kSansSerif;
+  }
+  if (n.find("serif") != std::string_view::npos ||
+      n.find("times") != std::string_view::npos ||
+      n.find("georgia") != std::string_view::npos ||
+      n.find("roman") != std::string_view::npos) {
+    return kSerif;
+  }
+  if (n.find("monospace") != std::string_view::npos ||
+      n.find("courier") != std::string_view::npos ||
+      n.find("mono") != std::string_view::npos) {
+    return kMonospace;
+  }
+  return std::nullopt;
+}
+
 std::string GetSystemLanguageScript() {
   char buffer[ULOC_LANG_CAPACITY];
   UErrorCode icu_result = U_ZERO_ERROR;
@@ -130,6 +174,76 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);
   initial_families_ = default_families_;
+  PopulateSafeSystemFonts();
+}
+
+void SkFontMgr_Cobalt::PopulateSafeSystemFonts() {
+  for (auto* family : fallback_families_) {
+    sk_sp<SkTypeface> tf(family->matchStyle(SkFontStyle()));
+    // Verify basic Latin support for 'a'-'z' and 'A'-'Z' to ensure correct
+    // Latin character metrics.
+    if (!tf || tf->unicharToGlyph('a') == 0 || tf->unicharToGlyph('z') == 0 ||
+        tf->unicharToGlyph('A') == 0 || tf->unicharToGlyph('Z') == 0) {
+      continue;
+    }
+
+    // Set the first Latin-supporting font as our ultimate generic backup
+    // fallback.
+    if (!safe_system_fonts_.generic_fallback) {
+      safe_system_fonts_.generic_fallback = sk_ref_sp(family);
+    }
+
+    auto family_name = family->get_family_name();
+    if (family_name.isEmpty()) {
+      continue;
+    }
+
+    SkAutoAsciiToLC name_lc(family_name.c_str());
+    std::string_view name(name_lc.lc(), name_lc.length());
+
+    // Monospace is resolved natively and robustly using Skia's isFixedPitch()
+    // API. Serif styling relies on best-effort substring checks on the family
+    // name as a safe layout guard.
+    bool is_mono = tf->isFixedPitch();
+    bool is_serif = (name.find("serif") != std::string_view::npos &&
+                     name.find("sans") == std::string_view::npos) ||
+                    name.find("times") != std::string_view::npos ||
+                    name.find("georgia") != std::string_view::npos ||
+                    name.find("roman") != std::string_view::npos ||
+                    name.find("garamond") != std::string_view::npos ||
+                    name.find("cambria") != std::string_view::npos ||
+                    name.find("baskerville") != std::string_view::npos ||
+                    name.find("palatino") != std::string_view::npos ||
+                    name.find("bodoni") != std::string_view::npos;
+
+    if (is_mono && !safe_system_fonts_.mono) {
+      safe_system_fonts_.mono = sk_ref_sp(family);
+    } else if (is_serif && !safe_system_fonts_.serif) {
+      safe_system_fonts_.serif = sk_ref_sp(family);
+    } else if (!is_mono && !is_serif && !safe_system_fonts_.sans) {
+      safe_system_fonts_.sans = sk_ref_sp(family);
+    }
+  }
+
+  // If the fallback list failed to supply any Latin-supporting font,
+  // defensively back up to the primary default family to prevent all safe
+  // system pointers from remaining null.
+  if (!safe_system_fonts_.generic_fallback && !default_families_.empty()) {
+    safe_system_fonts_.generic_fallback = sk_ref_sp(default_families_[0]);
+  }
+
+  // Visual trade-off fallbacks: if the TV system is missing a specific style
+  // (e.g. no monospace), we safely route it to the general Latin-supporting
+  // system default to prevent page crashes.
+  if (!safe_system_fonts_.sans) {
+    safe_system_fonts_.sans = safe_system_fonts_.generic_fallback;
+  }
+  if (!safe_system_fonts_.serif) {
+    safe_system_fonts_.serif = safe_system_fonts_.generic_fallback;
+  }
+  if (!safe_system_fonts_.mono) {
+    safe_system_fonts_.mono = safe_system_fonts_.generic_fallback;
+  }
 }
 
 void SkFontMgr_Cobalt::PurgeCaches() {
@@ -233,10 +347,37 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyle(
 
   if (family_name != NULL) {
     sk_sp<SkFontStyleSet> family(matchFamily(family_name));
-    typeface = family->matchStyle(style);
+    if (family) {
+      typeface = family->matchStyle(style);
+    }
   }
 
-  if (typeface == NULL && family_name == NULL) {
+  if (!typeface) {
+    if (auto type = MapToGenericType(family_name)) {
+      // If the local font map is empty (e.g., standard developer builds on
+      // smart TVs), last-resort lookups (like "sans-serif" or "monospace") fail
+      // to resolve primary fonts. We retrieve our safe system font that honors
+      // the generic style category (Sans vs Serif vs Mono) to preserve visual
+      // design intent, prevent layout crashes, and avoid bad script fallbacks
+      // in O(1).
+      sk_sp<SkFontStyleSet_Cobalt> safe_family = nullptr;
+      if (*type == kMonospace) {
+        safe_family = safe_system_fonts_.mono;
+      } else if (*type == kSerif) {
+        safe_family = safe_system_fonts_.serif;
+      } else {
+        safe_family = safe_system_fonts_.sans;
+      }
+
+      if (safe_family) {
+        typeface = safe_family->matchStyle(style);
+      }
+    }
+  }
+
+  if (typeface == NULL) {
+    // Fall back to the default system family as required by the SkFontMgr API
+    // contract.
     typeface = default_families_[0]->matchStyle(style);
   }
 
@@ -372,13 +513,20 @@ void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(
     const char* font_files_directory,
     PriorityStyleSetArrayMap* priority_fallback_families) {
   SkTDArray<FontFamilyInfo*> config_font_families;
-  {
-    SkFontConfigParser::GetFontFamilies(font_config_directory,
-                                        &config_font_families);
-  }
+  SkFontConfigParser::GetFontFamilies(font_config_directory,
+                                      &config_font_families);
+
   BuildNameToFamilyMap(font_files_directory, &config_font_families,
                        priority_fallback_families);
-  config_font_families.clear();
+
+  // The SkFontConfigParser SAX handler heap-allocates the FontFamilyInfo
+  // structs and transfers raw pointer ownership to config_font_families. We
+  // must manually delete them here to prevent startup heap memory leaks.
+  for (int i = 0; i < config_font_families.size(); i++) {
+    if (config_font_families[i] != nullptr) {
+      delete config_font_families[i];
+    }
+  }
 }
 
 void SkFontMgr_Cobalt::BuildNameToFamilyMap(
