@@ -348,40 +348,16 @@ void StarboardRendererWrapper::OnGpuChannelTokenReady(
 void StarboardRendererWrapper::GetCurrentVideoFrame(
     GetCurrentVideoFrameCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  {
-    base::WaitableEvent done_event(
-        base::WaitableEvent::ResetPolicy::MANUAL,
-        base::WaitableEvent::InitialState::NOT_SIGNALED);
-    GetGpuFactory()
-        ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
-        .WithArgs(
-            base::BindOnce(&StarboardRendererWrapper::GetCurrentDecodeTarget,
-                           base::Unretained(this)),
-            &done_event);
-    // This call blocks because the underlying Starboard API
-    // (SbPlayerGetCurrentFrame) is synchronous and needs to be executed on the
-    // GPU thread.
-    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
-    done_event.Wait();
-  }
+  PostGpuTaskWithGlesContextAndWait(
+      base::BindOnce(&StarboardRendererWrapper::GetCurrentDecodeTarget,
+                     base::Unretained(this)));
   if (SbDecodeTargetIsValid(decode_target_)) {
     auto info = std::make_unique<SbDecodeTargetInfo>();
     *info = {};
     if (!SbDecodeTargetGetInfo(decode_target_, info.get())) {
       LOG(ERROR) << "SbDecodeTargetGetInfo failed";
-      GetGpuFactory()
-          ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
-          .WithArgs(base::BindOnce(
-                        [](void* target) {
-                          SbDecodeTarget decode_target =
-                              reinterpret_cast<SbDecodeTarget>(target);
-                          if (SbDecodeTargetIsValid(decode_target)) {
-                            SbDecodeTargetRelease(decode_target);
-                          }
-                        },
-                        reinterpret_cast<void*>(decode_target_)),
-                    /*done_event=*/nullptr);
-      decode_target_ = kSbDecodeTargetInvalid;
+      ReleaseDecodeTargetOnGpu(
+          std::exchange(decode_target_, kSbDecodeTargetInvalid));
       std::move(callback).Run(nullptr);
       return;
     }
@@ -419,19 +395,8 @@ void StarboardRendererWrapper::GetCurrentVideoFrame(
     } else {
       LOG(ERROR) << "Unsupported SbDecodeTargetFormat: "
                  << static_cast<int>(info.get()->format);
-      GetGpuFactory()
-          ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
-          .WithArgs(base::BindOnce(
-                        [](void* target) {
-                          SbDecodeTarget decode_target =
-                              reinterpret_cast<SbDecodeTarget>(target);
-                          if (SbDecodeTargetIsValid(decode_target)) {
-                            SbDecodeTargetRelease(decode_target);
-                          }
-                        },
-                        reinterpret_cast<void*>(decode_target_)),
-                    /*done_event=*/nullptr);
-      decode_target_ = kSbDecodeTargetInvalid;
+      ReleaseDecodeTargetOnGpu(
+          std::exchange(decode_target_, kSbDecodeTargetInvalid));
       std::move(callback).Run(nullptr);
       return;
     }
@@ -447,19 +412,8 @@ void StarboardRendererWrapper::GetCurrentVideoFrame(
     if (current_shared_image_ &&
         texture_service_ids == last_texture_service_ids_) {
       shared_image = current_shared_image_;
-      GetGpuFactory()
-          ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
-          .WithArgs(base::BindOnce(
-                        [](void* target) {
-                          SbDecodeTarget decode_target =
-                              reinterpret_cast<SbDecodeTarget>(target);
-                          if (SbDecodeTargetIsValid(decode_target)) {
-                            SbDecodeTargetRelease(decode_target);
-                          }
-                        },
-                        reinterpret_cast<void*>(decode_target_)),
-                    /*done_event=*/nullptr);
-      decode_target_ = kSbDecodeTargetInvalid;
+      ReleaseDecodeTargetOnGpu(
+          std::exchange(decode_target_, kSbDecodeTargetInvalid));
     } else {
       base::WaitableEvent done_event(
           base::WaitableEvent::ResetPolicy::MANUAL,
@@ -735,18 +689,46 @@ void StarboardRendererWrapper::GraphicsContextRunner(
     return;
   }
   if (provider->gpu_factory_) {
-    base::WaitableEvent done_event(
-        base::WaitableEvent::ResetPolicy::MANUAL,
-        base::WaitableEvent::InitialState::NOT_SIGNALED);
-    provider->gpu_factory_.AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
-        .WithArgs(base::BindOnce(&CallTargetFunction, target_function,
-                                 target_function_context),
-                  &done_event);
-    // Blocking is okay here to allow SbPlayer to post |target_function|
-    // on gpu thread, and StarboardRenderer waits for the execution.
-    base::ScopedAllowBaseSyncPrimitives allow_wait;
-    done_event.Wait();
+    provider->PostGpuTaskWithGlesContextAndWait(base::BindOnce(
+        &CallTargetFunction, target_function, target_function_context));
   }
+}
+
+void StarboardRendererWrapper::PostGpuTaskWithGlesContext(
+    base::OnceClosure task) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  GetGpuFactory()
+      ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
+      .WithArgs(std::move(task), /*done_event=*/nullptr);
+}
+
+void StarboardRendererWrapper::PostGpuTaskWithGlesContextAndWait(
+    base::OnceClosure task) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  base::WaitableEvent done_event(
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED);
+  GetGpuFactory()
+      ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
+      .WithArgs(std::move(task), &done_event);
+  base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+  done_event.Wait();
+}
+
+void StarboardRendererWrapper::ReleaseDecodeTargetOnGpu(
+    SbDecodeTarget decode_target) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!SbDecodeTargetIsValid(decode_target)) {
+    return;
+  }
+  PostGpuTaskWithGlesContext(base::BindOnce(
+      [](uintptr_t target) {
+        SbDecodeTarget decode_target = reinterpret_cast<SbDecodeTarget>(target);
+        if (SbDecodeTargetIsValid(decode_target)) {
+          SbDecodeTargetRelease(decode_target);
+        }
+      },
+      reinterpret_cast<uintptr_t>(decode_target)));
 }
 
 }  // namespace media

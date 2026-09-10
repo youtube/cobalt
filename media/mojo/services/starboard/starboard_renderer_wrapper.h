@@ -153,6 +153,10 @@ class StarboardRendererWrapper
 #if BUILDFLAG(IS_ANDROID)
   void OnRequestOverlayInfoByStarboard(bool restart_for_transitions);
 #endif  // BUILDFLAG(IS_ANDROID)
+  void PostGpuTaskWithGlesContext(base::OnceClosure task);
+  void PostGpuTaskWithGlesContextAndWait(base::OnceClosure task);
+  void ReleaseDecodeTargetOnGpu(SbDecodeTarget decode_target);
+
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider();
   void GetCurrentDecodeTarget();
