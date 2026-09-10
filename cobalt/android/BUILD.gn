@@ -1,8 +1,20 @@
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//cobalt/build/configs/cobalt.gni")
 import("//third_party/icu/config.gni")
 import("//third_party/jni_zero/jni_zero.gni")
+
+java_cpp_template("cobalt_build_info_srcjar") {
+  sources = [ "apk/app/src/main/java/dev/cobalt/coat/CobaltBuildInfo.tmpl" ]
+  defines = []
+  if (is_official_build) {
+    defines += [ "OFFICIAL_BUILD" ]
+  }
+  if (cobalt_is_release_build) {
+    defines += [ "COBALT_IS_RELEASE_BUILD" ]
+  }
+}
 
 jinja_template("cobalt_manifest") {
   input = "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2"
@@ -39,6 +51,7 @@ java_cpp_enum("cobalt_crash_streak_thresholds_java") {
 
 generate_jni("jni_headers") {
   sources = [
+    "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
@@ -59,6 +72,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
+    "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
   ]
 
   if (!use_evergreen) {
@@ -76,6 +90,16 @@ generate_jni("jni_headers") {
 generate_jni("browser_jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+  ]
+}
+
+source_set("app_event_bridge") {
+  sources = [ "app_event_bridge.cc" ]
+  deps = [
+    ":jni_headers",
+    "//base",
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
   ]
 }
 
@@ -114,6 +138,7 @@ android_library("cobalt_main_java") {
   }
 
   srcjar_deps = [
+    ":cobalt_build_info_srcjar",
     ":cobalt_crash_streak_thresholds_java",
     ":cobalt_experiment_names_java",
     ":cobalt_pref_names_java",
@@ -124,6 +149,7 @@ android_library("cobalt_main_java") {
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
+    "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseCobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
@@ -158,7 +184,6 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
-    "apk/app/src/main/java/dev/cobalt/media/VideoDecoderCache.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
@@ -269,6 +294,8 @@ android_assets("coat_assets") {
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
   deps = [
+    ":app_event_bridge",
+    "//cobalt:cobalt_app",
     "//cobalt:common",
     "//cobalt/browser",
     "//cobalt/browser:cobalt_crash_annotations",
@@ -337,6 +364,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
     "apk/app/src/test/java/dev/cobalt/coat/ArtworkDownloaderDefaultTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/ArtworkLoaderTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/BaseStarboardBridgeTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltPictureInPictureActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltServiceTest.java",
@@ -350,6 +378,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
   ]
   deps = [
     ":cobalt_apk_java",
+    ":cobalt_browser_java",
     ":cobalt_main_java",
     ":cobalt_pip_java",
     "//base:base_java",

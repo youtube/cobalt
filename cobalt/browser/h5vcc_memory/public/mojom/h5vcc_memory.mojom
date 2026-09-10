@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/audio_sink.h"
+module h5vcc_memory.mojom;
 
-bool SbAudioSinkIsAudioFrameStorageTypeSupported(
-    SbMediaAudioFrameStorageType audio_frame_storage_type) {
-  return audio_frame_storage_type == kSbMediaAudioFrameStorageTypeInterleaved;
-}
+interface LowMemoryListener {
+  OnLowMemory();
+};
+
+// The browser process must provide an implementation of this interface so that
+// the renderer process can implement the H5vccMemory Blink API.
+interface H5vccMemory {
+  // Register the remote LowMemoryListener.
+  AddLowMemoryListener(pending_remote<LowMemoryListener> listener);
+};
