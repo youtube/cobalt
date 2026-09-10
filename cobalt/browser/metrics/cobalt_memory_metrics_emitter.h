@@ -68,6 +68,17 @@ class CobaltMemoryMetricsEmitter
     const MetricRange range;
   };
 
+  struct VirtualAddressSpaceMetrics {
+    uint64_t largest_free_gap_mb = 0;
+    uint64_t total_unmapped_va_mb = 0;
+    int fragmentation_ratio_pct = 0;
+    size_t vma_count = 0;
+  };
+
+  static std::optional<VirtualAddressSpaceMetrics>
+  CalculateVirtualAddressSpaceMetricsForTesting(
+      const std::string& maps_content);
+
   CobaltMemoryMetricsEmitter();
 
   CobaltMemoryMetricsEmitter(const CobaltMemoryMetricsEmitter&) = delete;

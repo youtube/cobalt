@@ -35,6 +35,16 @@
 #include "base/android/meminfo_dump_provider.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#include <inttypes.h>
+
+#include <algorithm>
+#include <cmath>
+#include <sstream>
+
+#include "base/files/scoped_file.h"
+#endif
+
 using base::trace_event::MemoryAllocatorDump;
 using memory_instrumentation::GetPrivateFootprintHistogramName;
 using memory_instrumentation::GlobalMemoryDump;
@@ -321,6 +331,93 @@ static const char* MetricSizeToVersionSuffix(
   }
 }
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+template <typename LineReader>
+std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
+CalculateVirtualAddressSpaceMetricsInternal(LineReader&& get_line) {
+  char line[512];
+  uintptr_t prev_vm_end = 0;
+  uintptr_t largest_free_gap = 0;
+  uint64_t total_unmapped_va = 0;
+  size_t vma_count = 0;
+  bool first_vma = true;
+
+  while (get_line(line, sizeof(line))) {
+    uintptr_t vm_start = 0;
+    uintptr_t vm_end = 0;
+    if (sscanf(line, "%" SCNxPTR "-%" SCNxPTR, &vm_start, &vm_end) != 2) {
+      continue;
+    }
+
+    vma_count++;
+    if (!first_vma) {
+      if (vm_start > prev_vm_end) {
+        uintptr_t gap = vm_start - prev_vm_end;
+        if (gap > largest_free_gap) {
+          largest_free_gap = gap;
+        }
+        total_unmapped_va += gap;
+      }
+    } else {
+      first_vma = false;
+    }
+    prev_vm_end = vm_end;
+  }
+
+  if (vma_count == 0) {
+    return std::nullopt;
+  }
+
+  CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics metrics;
+  metrics.vma_count = vma_count;
+  metrics.largest_free_gap_mb = largest_free_gap / kMiB;
+  metrics.total_unmapped_va_mb = total_unmapped_va / kMiB;
+
+  if (total_unmapped_va > 0) {
+    double ratio = 1.0 - (static_cast<double>(largest_free_gap) /
+                          static_cast<double>(total_unmapped_va));
+    metrics.fragmentation_ratio_pct =
+        std::clamp(static_cast<int>(std::round(ratio * 100.0)), 0, 100);
+  } else {
+    metrics.fragmentation_ratio_pct = 100;
+  }
+
+  return metrics;
+}
+
+void EmitVirtualAddressSpaceMetrics() {
+  base::ScopedFILE fp(fopen("/proc/self/maps", "r"));
+  if (!fp) {
+    DPLOG(WARNING) << "Failed to open /proc/self/maps for VA metrics";
+    return;
+  }
+
+  auto metrics = CalculateVirtualAddressSpaceMetricsInternal(
+      [&fp](char* buf, size_t size) {
+        return fgets(buf, static_cast<int>(size), fp.get()) != nullptr;
+      });
+
+  if (!metrics) {
+    return;
+  }
+
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Experimental.VirtualAddress.LargestFreeGapMb",
+      static_cast<int>(metrics->largest_free_gap_mb));
+
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb",
+      static_cast<int>(metrics->total_unmapped_va_mb));
+
+  base::UmaHistogramPercentage(
+      "Memory.Experimental.VirtualAddress.FragmentationRatio",
+      metrics->fragmentation_ratio_pct);
+
+  base::UmaHistogramCounts100000("Memory.Experimental.VirtualAddress.VmaCount",
+                                 static_cast<int>(metrics->vma_count));
+}
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+
 }  // namespace
 
 CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() {
@@ -584,6 +681,9 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
   base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
                                   static_cast<int>(vm_size_total_kb / kKiB));
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  EmitVirtualAddressSpaceMetrics();
+#endif
   // UMA metrics for media buffer memory usage
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   uint64_t encoded_memory_bytes =
@@ -597,6 +697,22 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   if (callback_for_testing_) {
     std::move(callback_for_testing_).Run();
   }
+}
+
+// static
+std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
+CobaltMemoryMetricsEmitter::CalculateVirtualAddressSpaceMetricsForTesting(
+    const std::string& maps_content) {
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  std::istringstream stream(maps_content);
+  return CalculateVirtualAddressSpaceMetricsInternal(
+      [&stream](char* buf, size_t size) {
+        return static_cast<bool>(
+            stream.getline(buf, static_cast<std::streamsize>(size)));
+      });
+#else
+  return std::nullopt;
+#endif
 }
 
 }  // namespace cobalt

@@ -817,6 +817,54 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.VirtualAddress.FragmentationRatio"
+    units="%" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    The fragmentation ratio of the virtual address (VA) space, defined as
+    1.0 - (LargestFreeGap / TotalUnmappedVa). A value close to 100% indicates
+    that free virtual memory is fragmented into small, unusable slivers.
+    Recorded at regular intervals when memory metrics are emitted on Android and
+    Linux.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.LargestFreeGapMb"
+    units="MB" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    The size in MB of the single largest contiguous unmapped virtual address
+    gap. Lower values (&lt; 64 MB) indicate severe virtual address fragmentation
+    and imminent allocator abort on 32-bit platforms. Recorded at regular
+    intervals when memory metrics are emitted on Android and Linux.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"
+    units="MB" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    The total unallocated virtual address capacity between lowest and highest
+    mapped regions in the process address space. Recorded at regular intervals
+    when memory metrics are emitted on Android and Linux.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.VmaCount" units="count"
+    expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Total count of Virtual Memory Areas (VMAs) parsed from /proc/self/maps.
+    Guards against reaching the kernel vm.max_map_count limit and tracks
+    virtual address space fragmentation. Recorded at regular intervals when
+    memory metrics are emitted on Android and Linux.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>
