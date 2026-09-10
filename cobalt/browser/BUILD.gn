@@ -103,6 +103,7 @@ source_set("browser") {
     "//cobalt/memory",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/embedder_support:user_agent",
+    "//components/memory_pressure",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",

@@ -20,6 +20,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
+#include "base/memory/memory_pressure_monitor.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/no_destructor.h"
@@ -40,9 +41,11 @@
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
@@ -413,6 +416,20 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                << ". Aborting storage migration.";
     return result;
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Register the Cobalt system memory pressure evaluator with Chromium's
+  // MultiSourceMemoryPressureMonitor.
+  auto* monitor =
+      static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+          base::MemoryPressureMonitor::Get());
+  if (monitor) {
+    monitor->SetSystemEvaluator(
+        std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
+            monitor->CreateVoter()));
+    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+  }
+#endif
 
   StartStorageMigration();
 
