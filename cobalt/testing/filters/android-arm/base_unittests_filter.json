@@ -16,11 +16,8 @@
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/1",
     "BaseThreadLocalStorageDeathTest.VerifyDeathIfAllocationFails",
     "CancelableEventTest.BothCancelFailureAndSucceedOccurUnderContention",
-<<<<<<< HEAD
     "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
-=======
     "FileErrorOrDeathTest.ConstValue",
->>>>>>> 9dde123444 (cobalt/gardener: Update flaky test filters from CSV (#12513))
     "FilePathWatcherTest.*",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/0",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",

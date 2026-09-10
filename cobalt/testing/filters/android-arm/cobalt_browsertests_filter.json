@@ -1,15 +1,7 @@
 {
   "failing_tests": [
-<<<<<<< HEAD
     "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/*",
-=======
-    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/1",
-    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/2",
-    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/3",
-    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/4",
-    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/5",
     "All/CobaltMemoryThresholdBrowserTest.BlankPageMemoryFootprint/*",
->>>>>>> 9dde123444 (cobalt/gardener: Update flaky test filters from CSV (#12513))
     "All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/0",
     "All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/1",
     "All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/2",
@@ -28,11 +20,8 @@
     "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.RecordUma/UnloadNoneNavigateSubFrame",
     "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.RecordUma/UnloadSubFrameNavigateMainFrame",
     "CobaltMetricsBrowserTest.*",
-<<<<<<< HEAD
-    "DeferSpeculativeRFHCreationReuseRFHTest.ReuseSameRFHNotDeferred",
-=======
     "CommitNavigationRaceBrowserTest.*",
->>>>>>> 9dde123444 (cobalt/gardener: Update flaky test filters from CSV (#12513))
+    "DeferSpeculativeRFHCreationReuseRFHTest.ReuseSameRFHNotDeferred",
     "DeferSpeculativeRFHCreationTest.NavigateWithPendingCommit",
     "DeferSpeculativeRFHCreationTest.NavigationFromCrashedFrameNotDeferred",
     "DocumentPolicyBrowserTest.FragmentAnchorEnabledByDocumentPolicy",
