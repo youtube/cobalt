@@ -8165,8 +8165,8 @@ class RequestDelayingSitePerProcessBrowserTest
   // Then we release the barrier and finish all delayed requests.
   std::unique_ptr<net::test_server::HttpResponse> HandleMockResource(
       const net::test_server::HttpRequest& request) {
-    auto it =
-        num_remaining_requests_to_delay_for_path_.find(request.GetURL().path());
+    auto it = num_remaining_requests_to_delay_for_path_.find(
+        request.GetURL().GetPath());
     if (it == num_remaining_requests_to_delay_for_path_.end()) {
       return nullptr;
     }
