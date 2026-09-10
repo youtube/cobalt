@@ -19,6 +19,7 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "build/build_config.h"
 #include "starboard/common/gettid.h"
 #include "starboard/common/log.h"
 #include "starboard/egl_and_gles/buildflags.h"
@@ -170,7 +171,9 @@ void FakeGraphicsContextProvider::InitializeWindow() {
   SbWindowSetDefaultOptions(&window_options);
 
   window_ = SbWindowCreate(&window_options);
+#if BUILDFLAG(IS_STARBOARD)
   SB_CHECK(SbWindowIsValid(window_));
+#endif
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
