@@ -29,7 +29,7 @@ def find_failing_tests(
   """Parses a list of JUnit XML files to find failing test cases.
 
   Args:
-    junit_xml_files (list): A list of paths to JUnit XML files.
+    junit_xml_files: A list of paths to JUnit XML files.
 
   Returns:
     A map of test target -> list of dicts containing failing test name
@@ -57,18 +57,47 @@ def find_failing_tests(
   return failing_tests
 
 
-def main(xml_files: list[str]) -> int:
+def main(argv: list[str]) -> int:
   """Main entry point.
 
   Args:
-    xml_files (list): A list of paths to JUnit XML files.
+    argv: A list of command-line arguments (flags and XML files).
 
   Returns:
     1 if failing tests are found, 0 otherwise.
   """
+  output_format = 'json'
+  xml_files = []
+  i = 0
+  while i < len(argv):
+    arg = argv[i]
+    if arg == '--format' and i + 1 < len(argv):
+      output_format = argv[i + 1]
+      i += 2
+    elif arg.startswith('--format='):
+      output_format = arg.split('=', 1)[1]
+      i += 1
+    else:
+      xml_files.append(arg)
+      i += 1
+
   failing_tests = find_failing_tests(xml_files)
-  output = {'failing_tests': failing_tests}
-  print(json.dumps(output, indent=2))
+  if output_format == 'filter':
+    unique_failures = sorted({
+        test['name']
+        for tests in failing_tests.values()
+        for test in tests
+        if test.get('name')
+    })
+    if unique_failures:
+      for test in unique_failures:
+        print(test)
+    else:
+      print('-*')
+  else:
+    output = {'failing_tests': failing_tests}
+    print(json.dumps(output, indent=2))
+
   return 1 if failing_tests else 0
 
 

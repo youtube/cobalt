@@ -147,6 +147,29 @@ Suite.Test1
         get_gtest_filter(self.temp_dir, 'starboard/nplb:my_target'),
         'Suite.TargetTest')
 
+  def test_empty_or_none_target_name(self):
+    self.assertEqual(get_gtest_filter(self.temp_dir, ''), '*')
+    self.assertEqual(get_gtest_filter(self.temp_dir, None), '*')
+
+  def test_directory_named_as_filter_ignored(self):
+    dir_path = os.path.join(self.temp_dir, 'dir_target.filter')
+    os.makedirs(dir_path, exist_ok=True)
+    self.assertEqual(get_gtest_filter(self.temp_dir, 'dir_target'), '*')
+
+  def test_unrecognized_lines_silently_ignored(self):
+    content = """
+# Valid comment
+Suite.ValidTest1
+-Suite.ValidTest2
+@InvalidPrefix.Test
+!AnotherInvalidLine
+Suite.ValidTest3
+"""
+    self._write_filter_text('my_target.filter', content)
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target'),
+        'Suite.ValidTest1:Suite.ValidTest3-Suite.ValidTest2')
+
 
 class TestCli(unittest.TestCase):
   """Tests for CLI entry point in main()."""

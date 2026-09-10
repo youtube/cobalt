@@ -124,10 +124,8 @@ def parse_args():
   return parser.parse_args()
 
 
-def is_target_skipped(src_root, target, discovery_platform):
+def is_target_skipped(filter_dir, target):
   """Check if a target should be skipped based on its filter file."""
-  filter_dir = os.path.join(src_root, 'cobalt', 'testing', 'filters',
-                            discovery_platform)
   filter_val = get_gtest_filter(filter_dir, target)
   return filter_val == '-*'
 
@@ -221,9 +219,10 @@ def main():
   # suitable for coverage.
   # TODO(b/475289841): Remove blink_unittest and
   # possibly blink_perftest filters.
+  filter_dir = os.path.join(src_root, 'cobalt', 'testing', 'filters',
+                            discovery_platform)
   targets = [
-      t for t in targets
-      if not is_target_skipped(src_root, t, discovery_platform) and
+      t for t in targets if not is_target_skipped(filter_dir, t) and
       'blink_unittests' not in t and 'perftests' not in t
   ]
 

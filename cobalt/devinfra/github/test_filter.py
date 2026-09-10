@@ -12,12 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Utilities for reading and evaluating Cobalt test filters."""
+"""Utilities for reading and converting Cobalt test filters.
+
+Converts buildbot .filter files into a standard gtest filter string.
+"""
 
 import argparse
 import os
+import re
 import sys
 from typing import List, Optional, Sequence, Tuple, Union
+
+_ALLOWED_TEST_CHARS = re.compile(r'^[a-zA-Z0-9_*.?/:<>-]+$')
+_ALLOWED_START_CHARS = re.compile(r'^[a-zA-Z0-9_*?]')
 
 
 def parse_filter_file(filter_file: str) -> Tuple[List[str], List[str]]:
@@ -26,8 +33,10 @@ def parse_filter_file(filter_file: str) -> Tuple[List[str], List[str]]:
   In .filter files:
   - Empty lines and lines starting with '#' are ignored.
   - Lines starting with '//' raise a ValueError.
+  - Lines starting with '+' or bare test names with allowed characters are
+    treated as positive filters.
   - Lines starting with '-' are treated as negative (failing/excluded) filters.
-  - Lines starting with '+' or bare test names are treated as positive filters.
+  - All other unrecognized lines are silently ignored.
 
   Args:
     filter_file: Path to the filter file.
@@ -35,7 +44,7 @@ def parse_filter_file(filter_file: str) -> Tuple[List[str], List[str]]:
   Returns:
     A tuple of (positive_filters, negative_filters).
   """
-  if not os.path.exists(filter_file):
+  if not os.path.isfile(filter_file):
     return [], []
 
   positive: List[str] = []
@@ -47,25 +56,55 @@ def parse_filter_file(filter_file: str) -> Tuple[List[str], List[str]]:
       if hash_pos != -1:
         line = line[:hash_pos]
       trimmed = line.strip()
+
       if trimmed.startswith('//'):
         raise ValueError(
             f'Line {line_num} in {filter_file} starts with //, use # for'
             ' comments.')
+
+      # Case 1: Comment or empty line
       if not trimmed:
         continue
-      if trimmed.startswith('-'):
-        negative.append(trimmed[1:].strip())
+
+      # Case 2: Positive filter (+ or allowed test start characters)
       elif trimmed.startswith('+'):
-        positive.append(trimmed[1:].strip())
-      else:
+        pattern = trimmed[1:].strip()
+        if _ALLOWED_TEST_CHARS.match(pattern):
+          positive.append(pattern)
+      elif _ALLOWED_START_CHARS.match(trimmed) and _ALLOWED_TEST_CHARS.match(
+          trimmed):
         positive.append(trimmed)
+
+      # Case 3: Negative filter (-)
+      elif trimmed.startswith('-'):
+        pattern = trimmed[1:].strip()
+        if _ALLOWED_TEST_CHARS.match(pattern):
+          negative.append(pattern)
+
+      # Case 4: Everything else (silently ignored)
+      else:
+        continue
 
   return positive, negative
 
 
 def format_gtest_filter(positive: Sequence[str],
                         negative: Sequence[str]) -> str:
-  """Formats positive and negative filter lists into a standard gtest_filter."""
+  """Formats positive and negative filter lists into a gtest filter string.
+
+  Examples:
+    format_gtest_filter(['A', 'B'], []) -> 'A:B'
+    format_gtest_filter([], ['A', 'B']) -> '-A:B'
+    format_gtest_filter(['A'], ['B']) -> 'A-B'
+    format_gtest_filter([], []) -> '*'
+
+  Args:
+    positive: Test patterns to include.
+    negative: Test patterns to exclude.
+
+  Returns:
+    A formatted gtest filter string.
+  """
   pos_str = ':'.join(filter(None, positive))
   neg_str = ':'.join(filter(None, negative))
 
@@ -84,16 +123,17 @@ def find_filter_file(
     shard_index: Optional[Union[int, str]] = None,
 ) -> Optional[str]:
   """Locates the .filter file for a target and optional shard."""
-  if target_name:
-    target_name = target_name.split(':')[-1]
+  if not target_name:
+    return None
+  target_name = target_name.split(':')[-1]
 
   if shard_index is not None and str(shard_index) != '':
     shard_file = os.path.join(filter_dir, f'{target_name}_{shard_index}.filter')
-    if os.path.exists(shard_file):
+    if os.path.isfile(shard_file):
       return shard_file
 
   target_file = os.path.join(filter_dir, f'{target_name}.filter')
-  if os.path.exists(target_file):
+  if os.path.isfile(target_file):
     return target_file
 
   return None
