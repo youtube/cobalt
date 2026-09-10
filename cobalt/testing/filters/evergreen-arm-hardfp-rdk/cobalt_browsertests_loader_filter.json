@@ -14,7 +14,6 @@
     "PrivacySandboxDisabledBrowserTest.VerifyPrivacySandboxApisDisabled",
     "PrivacySandboxDisabledBrowserTest.FetchWithPrivateTokenParamIgnored",
     "PrivacySandboxDisabledBrowserTest.FedCmAndCredentialApisNotExposed",
-    "PrivacySandboxDisabledBrowserTest.NetworkContextTrustTokenMethodsReturnEmpty",
     "H5vccSchemeURLLoaderFactoryBrowserTest.*",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.*",
     "H5vccRuntimeBrowserTest.*",
