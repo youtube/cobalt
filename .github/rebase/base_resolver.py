@@ -28,19 +28,32 @@ class AgentChangeRecord:
   phase: str
   iteration: int
   target_file: str
-  changes: str
+  file_changes: Dict[str, str] = dataclasses.field(default_factory=dict)
   error: Optional[str] = None
   command_output: Optional[str] = None
-  modified_files: List[str] = dataclasses.field(default_factory=list)
   applied_cleanly: bool = True
   timestamp: float = dataclasses.field(default_factory=time.time)
+
+  @property
+  def modified_files(self) -> List[str]:
+    """List of files touched by this modification."""
+    return list(self.file_changes.keys())
+
+  @property
+  def changes(self) -> str:
+    """Formatted representation of all modifications in this record."""
+    if not self.file_changes:
+      return ""
+    if len(self.file_changes) == 1:
+      return next(iter(self.file_changes.values()))
+    return "\n\n".join(f"FILE: {f}\n{c}" for f, c in self.file_changes.items())
 
   def to_dict(self) -> Dict[str, Any]:
     return {
         "phase": self.phase,
         "iteration": self.iteration,
         "target_file": self.target_file,
-        "changes": self.changes,
+        "file_changes": self.file_changes,
         "error": self.error,
         "command_output": self.command_output,
         "modified_files": self.modified_files,
@@ -58,7 +71,9 @@ class AgentChangeRecord:
         f"- Patch Applied Cleanly: {self.applied_cleanly}",
         f"- Outcome Status: {status_label}",
     ]
-    if self.changes:
+    if self.modified_files:
+      lines.append(f"- Modified Files ({len(self.modified_files)}): " +
+                   ", ".join(f"`{f}`" for f in self.modified_files))
       lines.append("Patch Attempted:")
       lines.append("```diff")
       lines.append(self.changes.strip())
@@ -482,6 +497,17 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
     return []
 
 
+# Matches optional file directive headers produced by LLMs
+# preceding patch blocks: e.g., "FILE: foo.cc", "**FILE**: 'baz.gn'"
+_FILE_HEADER_PREFIX = (
+    r"(?:(?:#{1,6}\s*)?"  # Optional markdown header (### )
+    r"\*{0,2}(?:FILE|TARGET FILE)\*{0,2}"  # Optional bold (**)
+    r":\s*"  # Colon
+    r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*"  # Captured relative path (Group 1)
+    r"\s*[\r\n]+)?"  # Trailing newline (entire header is optional)
+)
+
+
 def apply_patch_or_replacement(
     patch_text: str,
     repo_path: str,
@@ -496,10 +522,7 @@ def apply_patch_or_replacement(
   # 1. Explicit DELETE block: <<<<<<< DELETE ... >>>>>>> DELETE
   if "<<<<<<< DELETE" in clean_text and ">>>>>>> DELETE" in clean_text:
     del_pattern = re.compile(
-        r"(?:(?:#{1,6}\s*)?(?:FILE|File|TARGET FILE|Target File|"
-        r"\*\*FILE\*\*|\*\*Target File\*\*|\*\*File\*\*):\s*"
-        r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*\s*[\r\n]+)?"
-        r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
+        _FILE_HEADER_PREFIX + r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
         r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE"
         r"(?:\s*```)?",
         re.DOTALL | re.IGNORECASE,
@@ -527,10 +550,7 @@ def apply_patch_or_replacement(
   # 2. SEARCH / REPLACE format: <<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE
   if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
     sr_pattern = re.compile(
-        r"(?:(?:#{1,6}\s*)?(?:FILE|File|TARGET FILE|Target File|"
-        r"\*\*FILE\*\*|\*\*Target File\*\*|\*\*File\*\*):\s*"
-        r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*\s*[\r\n]+)?"
-        r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
+        _FILE_HEADER_PREFIX + r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
         r"<<<<<<<\s*SEARCH\r?\n(.*?)\r?\n"
         r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE"
         r"(?:\s*```)?",
@@ -575,6 +595,96 @@ def apply_patch_or_replacement(
         return modified_files
 
   return apply_unified_diff(clean_text, repo_path)
+
+
+def extract_file_changes_from_patch(
+    patch_text: str,
+    repo_path: str,
+    default_file: Optional[str] = None,
+) -> Dict[str, str]:
+  """Extracts per-file patch/diff blocks from AI patch text."""
+  clean_text = patch_text.strip()
+  clean_text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", clean_text)
+  clean_text = re.sub(r"\n```$", "", clean_text)
+  file_changes: Dict[str, str] = {}
+
+  # 1. Explicit DELETE block: <<<<<<< DELETE ... >>>>>>> DELETE
+  if "<<<<<<< DELETE" in clean_text and ">>>>>>> DELETE" in clean_text:
+    del_pattern = re.compile(
+        _FILE_HEADER_PREFIX + r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
+        r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE"
+        r"(?:\s*```)?",
+        re.DOTALL | re.IGNORECASE,
+    )
+    for rel_file, delete_b in del_pattern.findall(clean_text):
+      target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
+          default_file or "")
+      if target_rel:
+        try:
+          rel_norm = os.path.relpath(
+              resolve_repo_file_path(target_rel, repo_path), repo_path)
+        except ValueError:
+          rel_norm = target_rel
+        block = f"<<<<<<< DELETE\n{delete_b}\n>>>>>>> DELETE"
+        if rel_norm in file_changes:
+          file_changes[rel_norm] += "\n\n" + block
+        else:
+          file_changes[rel_norm] = block
+    if file_changes:
+      return file_changes
+
+  # 2. SEARCH / REPLACE format: <<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE
+  if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
+    sr_pattern = re.compile(
+        _FILE_HEADER_PREFIX + r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
+        r"<<<<<<<\s*SEARCH\r?\n(.*?)\r?\n"
+        r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE"
+        r"(?:\s*```)?",
+        re.DOTALL | re.IGNORECASE,
+    )
+    for rel_file, search_b, replace_b in sr_pattern.findall(clean_text):
+      target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
+          default_file or "")
+      if target_rel:
+        clean_replace = re.sub(r"\n```\s*$", "", replace_b)
+        try:
+          rel_norm = os.path.relpath(
+              resolve_repo_file_path(target_rel, repo_path), repo_path)
+        except ValueError:
+          rel_norm = target_rel
+        block = (f"<<<<<<< SEARCH\n{search_b}\n=======\n"
+                 f"{clean_replace}\n>>>>>>> REPLACE")
+        if rel_norm in file_changes:
+          file_changes[rel_norm] += "\n\n" + block
+        else:
+          file_changes[rel_norm] = block
+    if file_changes:
+      return file_changes
+
+  # 3. Unified diff format: detect target file from diff header
+  diff_match = re.search(r"^(?:--- [ab]/(.+)|diff --git a/.* b/(.+))$",
+                         clean_text, re.MULTILINE)
+  if diff_match:
+    target_rel = (diff_match.group(1) or diff_match.group(2) or "").strip()
+    if target_rel:
+      try:
+        rel_norm = os.path.relpath(
+            resolve_repo_file_path(target_rel, repo_path), repo_path)
+      except ValueError:
+        rel_norm = target_rel
+      file_changes[rel_norm] = clean_text
+      return file_changes
+
+  # Fallback to default_file if available
+  if default_file:
+    try:
+      rel_norm = os.path.relpath(
+          resolve_repo_file_path(default_file, repo_path), repo_path)
+    except ValueError:
+      rel_norm = default_file
+    file_changes[rel_norm] = patch_text
+
+  return file_changes
 
 
 def sanitize_filepath_token(raw_target: str) -> str:
@@ -1374,11 +1484,13 @@ class BaseResolver(abc.ABC):
                   phase=self.name,
                   iteration=iteration,
                   target_file=rel_target_file,
-                  changes=(
-                      f"# Reverted {rel_target_file} to clean baseline HEAD"),
+                  file_changes={
+                      rel_target_file: (
+                          f"# Reverted {rel_target_file} to clean baseline HEAD"
+                      )
+                  },
                   error=(f"Repeated failure ({error_summary}); reverted to "
                          "baseline"),
-                  modified_files=[target_f],
                   applied_cleanly=True,
               ))
         except (OSError, subprocess.SubprocessError) as rev_err:
@@ -1570,14 +1682,15 @@ class BaseResolver(abc.ABC):
               "patch": patch,
               "file": rel_target,
           }
+        file_changes = extract_file_changes_from_patch(
+            patch, self.repo_path, default_file=rel_target)
         new_record = AgentChangeRecord(
             phase=self.name,
             iteration=iteration,
             target_file=rel_target,
-            changes=patch,
+            file_changes=file_changes,
             error=None,
             command_output=None,
-            modified_files=list(modified_files),
             applied_cleanly=True,
         )
         self.session_changes.append(new_record)
@@ -1599,10 +1712,9 @@ class BaseResolver(abc.ABC):
             phase=self.name,
             iteration=iteration,
             target_file=rel_target,
-            changes=patch,
+            file_changes={rel_target: patch},
             error=f"Patch failed to apply to {rel_target}",
             command_output=None,
-            modified_files=[],
             applied_cleanly=False,
         )
         self.session_changes.append(fail_record)

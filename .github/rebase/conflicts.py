@@ -338,12 +338,12 @@ def resolve_file_conflicts(
                 phase="resolve_conflicts",
                 iteration=block.index,
                 target_file=rel_path,
-                changes=(
-                    f"Unmodified third_party resolved with upstream (theirs):\n"
-                    f"{block.theirs_content}"),
+                file_changes={
+                    rel_path: ("Unmodified third_party resolved with upstream "
+                               f"(theirs):\n{block.theirs_content}")
+                },
                 error=None,
                 applied_cleanly=True,
-                modified_files=[rel_path],
             ))
     with open(file_path, "w", encoding="utf-8") as f:
       f.write(content)
@@ -504,10 +504,9 @@ def resolve_file_conflicts(
                 phase="resolve_conflicts",
                 iteration=block.index,
                 target_file=rel_path,
-                changes=block.raw_block,
+                file_changes={rel_path: block.raw_block},
                 error=f"Unresolved conflict markers in block #{block.index}",
                 applied_cleanly=False,
-                modified_files=[rel_path],
             ))
       if escalations is not None:
         escalations.append(
@@ -522,11 +521,13 @@ def resolve_file_conflicts(
               phase="resolve_conflicts",
               iteration=block.index,
               target_file=rel_path,
-              changes=(f"Conflict Block #{block.index}:\n{block.raw_block}\n\n"
-                       f"Resolved Code:\n{resolved_code}"),
+              file_changes={
+                  rel_path:
+                      (f"Conflict Block #{block.index}:\n{block.raw_block}\n\n"
+                       f"Resolved Code:\n{resolved_code}")
+              },
               error=None,
               applied_cleanly=True,
-              modified_files=[rel_path],
           ))
     print(f"    [OK] Resolved Block #{block.index}", file=sys.stderr)
 
@@ -542,10 +543,9 @@ def resolve_file_conflicts(
                 phase="resolve_conflicts",
                 iteration=0,
                 target_file=rel_path,
-                changes="DEPS AST Validation",
+                file_changes={rel_path: "DEPS AST Validation"},
                 error=f"DEPS AST Syntax Error: {e}",
                 applied_cleanly=False,
-                modified_files=[rel_path],
             ))
       if escalations is not None:
         escalations.append(

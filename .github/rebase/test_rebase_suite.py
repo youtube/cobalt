@@ -1616,11 +1616,13 @@ target("foo") {{}}
         phase="autoninja",
         iteration=3,
         target_file="cobalt/browser/features.cc",
-        changes="<<<<<<< SEARCH\nfoo();\n=======\nbar();\n>>>>>>> REPLACE",
+        file_changes={
+            "cobalt/browser/features.cc":
+                ("<<<<<<< SEARCH\nfoo();\n=======\nbar();\n>>>>>>> REPLACE")
+        },
         error="features.cc:42: error: undefined symbol bar",
         command_output=("FAILED: obj/cobalt/browser/features.o\n"
                         "features.cc:42: error: undefined symbol bar"),
-        modified_files=["cobalt/browser/features.cc"],
         applied_cleanly=True,
     )
     d = record.to_dict()
@@ -1639,6 +1641,39 @@ target("foo") {{}}
     self.assertIn("FAILED: features.cc:42: error: undefined symbol bar", p_str)
     self.assertIn("bar();", p_str)
     self.assertIn("features.cc:42: error: undefined symbol bar", p_str)
+
+  def test_agent_change_record_multi_file_changes(self):
+    """Verifies AgentChangeRecord with multi-file dictionary changes."""
+    record = AgentChangeRecord(
+        phase="autoninja",
+        iteration=2,
+        target_file="foo.py",
+        file_changes={
+            "goo.cc": ("<<<<<<< SEARCH\nvoid Old();\n=======\n"
+                       "void New();\n>>>>>>> REPLACE"),
+            "hoo.java": ("<<<<<<< SEARCH\nint a = 1;\n=======\n"
+                         "int a = 2;\n>>>>>>> REPLACE"),
+        },
+        error="hoo.java:10: error: incompatible types",
+        applied_cleanly=True,
+    )
+    self.assertEqual(record.modified_files, ["goo.cc", "hoo.java"])
+    self.assertEqual(
+        record.file_changes["goo.cc"],
+        "<<<<<<< SEARCH\nvoid Old();\n=======\nvoid New();\n>>>>>>> REPLACE",
+    )
+    self.assertEqual(
+        record.file_changes["hoo.java"],
+        "<<<<<<< SEARCH\nint a = 1;\n=======\nint a = 2;\n>>>>>>> REPLACE",
+    )
+    d = record.to_dict()
+    self.assertEqual(d["modified_files"], ["goo.cc", "hoo.java"])
+    self.assertIn("goo.cc", d["file_changes"])
+    self.assertIn("hoo.java", d["file_changes"])
+    self.assertIn("FILE: goo.cc", record.changes)
+    self.assertIn("FILE: hoo.java", record.changes)
+    p_str = record.to_prompt_str()
+    self.assertIn("Modified Files (2): `goo.cc`, `hoo.java`", p_str)
 
   def test_expert_agent_omniscience_and_model_defaults(self):
     """Verifies workhorse and expert defaults and omniscience guidance."""
@@ -1769,7 +1804,7 @@ target("foo") {{}}
             phase="Phase4",
             iteration=i,
             target_file=f"file_{i}.cc",
-            changes=f"// change {i}",
+            file_changes={f"file_{i}.cc": f"// change {i}"},
             error=f"error in {i}" if i % 2 == 0 else None,
         ) for i in range(1, 26)  # 25 records
     ]
