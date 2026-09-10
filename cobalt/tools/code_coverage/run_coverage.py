@@ -19,21 +19,14 @@ This script orchestrates the code coverage process by:
 """
 
 import argparse
+from dataclasses import dataclass
 import json
 import logging
 import os
 import subprocess
 import sys
-from dataclasses import dataclass
 
-try:
-  from cobalt.devinfra.github.test_filter import get_gtest_filter
-except ImportError:
-  _REPO_ROOT = os.path.abspath(
-      os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-  if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-  from cobalt.devinfra.github.test_filter import get_gtest_filter
+from cobalt.devinfra.github.test_filter import get_gtest_filter
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
