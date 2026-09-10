@@ -20,10 +20,20 @@ COPY base/clean-after-apt.sh /opt/clean-after-apt.sh
 
 ENV PYTHONUNBUFFERED 1
 
-# === Install common dependencies
-RUN apt update -qqy \
-    && apt -qqy upgrade \
+# === Ignore expired metadata and point to complete Bullseye snapshot ===
+RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until \
+    && rm -rf /etc/apt/sources.list.d/* \
+    && printf '%s\n' \
+        'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20250201T000000Z/ bullseye main contrib non-free' \
+        'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20250201T000000Z/ bullseye-security main contrib non-free' \
+        'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20250201T000000Z/ bullseye-updates main contrib non-free' \
+        > /etc/apt/sources.list
+
+# === Install common dependencies ===
+RUN apt update -qqy -o Acquire::Check-Valid-Until=false \
+    && apt -qqy upgrade -o Acquire::Check-Valid-Until=false \
     && apt install -qqy --no-install-recommends \
+        ca-certificates \
         python3-dev \
         python3-pip \
         python3-requests \
