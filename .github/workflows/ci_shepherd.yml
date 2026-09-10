@@ -138,33 +138,19 @@ jobs:
             -f description="${desc}" \
             -f context="CI / ${WORKFLOW_NAME}"
 
-          # Query latest commit statuses and update overall CI commit status (CI / All Pass) for rulesets.
+          # Query commit statuses and update overall CI commit status (CI / All Pass) for rulesets.
           status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
-          IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r \
-            --arg current_workflow "${WORKFLOW_NAME}" \
-            --arg current_state "${state}" '
-            ["CI / android", "CI / aosp", "CI / evergreen", "CI / linux", "CI / tvos"] as $required |
-            reduce ([{"context": ("CI / " + $current_workflow), "state": $current_state}] + (.statuses // []))[] as $status_entry ({};
-              if (($status_entry.context // "") | startswith("CI /")) and $status_entry.context != "CI / All Pass" and (.[$status_entry.context] | not) then
-                .[$status_entry.context] = $status_entry.state
-              else . end
-            ) as $by_ctx |
-            if any($by_ctx[]; . == "failure" or . == "error") then
-              "failure\tSome checks failed"
-            elif all($required[]; $by_ctx[.] == "success") and all($by_ctx[]; . == "success") then
-              "success\tAll checks passed"
-            else
-              "pending\tChecks are running"
-            end
+          IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r '
+            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")] |
+            if any(.state == "failure" or .state == "error") then "failure\tSome checks failed"
+            elif length > 0 and all(.state == "success") then "success\tAll checks passed"
+            else "pending\tChecks are running" end
           ') || true
-          overall_state="${overall_state:-pending}"
-          overall_desc="${overall_desc:-Checks are running}"
-          all_pass_url="${GITHUB_SERVER_URL}/${REPO}/actions/runs/${GITHUB_RUN_ID}"
 
           gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
-            -f state="${overall_state}" \
-            -f target_url="${all_pass_url}" \
-            -f description="${overall_desc}" \
+            -f state="${overall_state:-pending}" \
+            -f target_url="${GITHUB_SERVER_URL}/${REPO}/actions/runs/${GITHUB_RUN_ID}" \
+            -f description="${overall_desc:-Checks are running}" \
             -f context="CI / All Pass"
 
           pr_number=$(gh pr list --repo "${REPO}" --search "${HEAD_SHA}" --json number --jq '.[0].number // ""')
