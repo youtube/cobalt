@@ -73,7 +73,7 @@ media::VideoDecoderConfig ToClearMediaVideoDecoderConfig(
 bool ToCdmVideoFrame(const VideoFrame& video_frame,
                      CdmHostProxy* cdm_host_proxy,
                      CdmVideoDecoder::CdmVideoFrame* cdm_video_frame) {
-  DCHECK(cdm_video_frame);
+  CHECK(cdm_video_frame);
 
   if (!video_frame.IsMappable()) {
     DVLOG(1) << "VideoFrame is not mappable";
@@ -181,7 +181,7 @@ class VideoDecoderAdapter final : public CdmVideoDecoder {
                       std::unique_ptr<VideoDecoder> video_decoder)
       : cdm_host_proxy_(cdm_host_proxy),
         video_decoder_(std::move(video_decoder)) {
-    DCHECK(cdm_host_proxy_);
+    CHECK(cdm_host_proxy_);
   }
 
   VideoDecoderAdapter(const VideoDecoderAdapter&) = delete;
@@ -193,7 +193,7 @@ class VideoDecoderAdapter final : public CdmVideoDecoder {
   DecoderStatus Initialize(const cdm::VideoDecoderConfig_3& config) final {
     auto clear_config = ToClearMediaVideoDecoderConfig(config);
     DVLOG(1) << __func__ << ": " << clear_config.AsHumanReadableString();
-    DCHECK(!last_init_result_.has_value());
+    CHECK(!last_init_result_.has_value());
 
     // Initialize |video_decoder_| and wait for completion.
     base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
@@ -233,7 +233,7 @@ class VideoDecoderAdapter final : public CdmVideoDecoder {
   cdm::Status Decode(scoped_refptr<DecoderBuffer> buffer,
                      CdmVideoFrame* decoded_frame) final {
     DVLOG(3) << __func__;
-    DCHECK(!last_decode_status_.has_value());
+    CHECK(!last_decode_status_.has_value());
 
     // Call |video_decoder_| Decode() and wait for completion.
     base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
@@ -267,7 +267,7 @@ class VideoDecoderAdapter final : public CdmVideoDecoder {
  private:
   void OnInitialized(base::OnceClosure quit_closure, DecoderStatus status) {
     DVLOG(1) << __func__ << " success = " << status.is_ok();
-    DCHECK(!last_init_result_.has_value());
+    CHECK(!last_init_result_.has_value());
     last_init_result_ = std::move(status);
     std::move(quit_closure).Run();
   }
@@ -287,7 +287,7 @@ class VideoDecoderAdapter final : public CdmVideoDecoder {
   }
 
   void OnDecoded(base::OnceClosure quit_closure, DecoderStatus decode_status) {
-    DCHECK(!last_decode_status_.has_value());
+    CHECK(!last_decode_status_.has_value());
     last_decode_status_ = std::move(decode_status);
     std::move(quit_closure).Run();
   }

@@ -5,7 +5,7 @@
 #ifndef CHROME_BROWSER_GLIC_WIDGET_GLIC_INACTIVE_FLOATING_UI_H_
 #define CHROME_BROWSER_GLIC_WIDGET_GLIC_INACTIVE_FLOATING_UI_H_
 
-#include "chrome/browser/glic/host/glic_ui_embedder.h"
+#include "chrome/browser/glic/service/glic_ui_embedder.h"
 
 namespace glic {
 
@@ -21,13 +21,14 @@ class GlicInactiveFloatingUi : public GlicUiEmbedder {
   ~GlicInactiveFloatingUi() override;
 
   // GlicUiEmbedder:
-  Host::Delegate* GetHostDelegate() override;
+  Host::EmbedderDelegate* GetHostEmbedderDelegate() override;
   void Show() override;
+  bool IsShowing() const override;
   void Close() override;
-  std::unique_ptr<views::View> CreateView() override;
   std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
 
  private:
+  std::unique_ptr<views::View> CreateView();
   GlicInactiveFloatingUi();
 };
 

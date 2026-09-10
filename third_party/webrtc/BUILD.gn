@@ -836,6 +836,9 @@ group("poison_environment_construction") {
 group("poison_software_video_codecs") {
 }
 
+group("poison_default_neural_residual_echo_estimator") {
+}
+
 if (!build_with_chromium) {
   # Write debug logs to gn_logs.txt.
   # This is also required for Siso builds.

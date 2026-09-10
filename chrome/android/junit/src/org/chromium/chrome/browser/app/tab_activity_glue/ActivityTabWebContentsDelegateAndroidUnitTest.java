@@ -48,6 +48,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.chrome.browser.util.WindowFeatures;
 import org.chromium.content_public.browser.BrowserContextHandle;
@@ -257,15 +258,14 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
                 Map.of(mWebContents, mock(Tab.class), newWebContents, mock(Tab.class));
         mTabWebContentsDelegateAndroid.setTabMap(tabMap);
 
-        mTabWebContentsDelegateAndroid.webContentsCreated(
-                mWebContents, 0, 0, "testFrame", new GURL("https://foo.com"), newWebContents);
         mTabWebContentsDelegateAndroid.addNewContents(
                 mWebContents,
                 newWebContents,
+                new GURL("https://foo.com"),
                 WindowOpenDisposition.NEW_FOREGROUND_TAB,
                 new WindowFeatures(),
                 false);
-        verify(mTabGroupModelFilter, never()).mergeListOfTabsToGroup(any(), any(), anyBoolean());
+        verify(mTabGroupModelFilter, never()).mergeListOfTabsToGroup(any(), any(), anyInt());
     }
 
     @Test
@@ -284,16 +284,16 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
         Map<WebContents, Tab> tabMap = Map.of(mWebContents, parentTab, newWebContents, newTab);
         mTabWebContentsDelegateAndroid.setTabMap(tabMap);
 
-        mTabWebContentsDelegateAndroid.webContentsCreated(
-                mWebContents, 0, 0, "testFrame", new GURL("https://foo.com"), newWebContents);
         mTabWebContentsDelegateAndroid.addNewContents(
                 mWebContents,
                 newWebContents,
+                new GURL("https://foo.com"),
                 WindowOpenDisposition.NEW_FOREGROUND_TAB,
                 new WindowFeatures(),
                 false);
         verify(mTabGroupModelFilter)
-                .mergeListOfTabsToGroup(Arrays.asList(newTab), parentTab, false);
+                .mergeListOfTabsToGroup(
+                        Arrays.asList(newTab), parentTab, MergeNotificationType.DONT_NOTIFY);
     }
 
     @Test
@@ -307,11 +307,10 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
                 .createTabWithWebContents(
                         any(), anyBoolean(), any(), anyInt(), any(), anyBoolean());
 
-        mTabWebContentsDelegateAndroid.webContentsCreated(
-                mWebContents, 0, 0, "testFrame", new GURL("https://foo.com"), newWebContents);
         mTabWebContentsDelegateAndroid.addNewContents(
                 mWebContents,
                 newWebContents,
+                new GURL("https://foo.com"),
                 WindowOpenDisposition.NEW_POPUP,
                 new WindowFeatures(),
                 true);

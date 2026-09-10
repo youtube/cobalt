@@ -28,7 +28,6 @@
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_ack_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
@@ -324,16 +323,6 @@ class TieBreaker<LoggedGenericPacketReceived> {
       static_cast<int>(TypeOrder::GenericPacketIn);
   static std::optional<uint16_t> transport_seq_num_accessor(
       const LoggedGenericPacketReceived&) {
-    return std::optional<uint16_t>();
-  }
-};
-
-template <>
-class TieBreaker<LoggedGenericAckReceived> {
- public:
-  static constexpr int type_order = static_cast<int>(TypeOrder::GenericAckIn);
-  static std::optional<uint16_t> transport_seq_num_accessor(
-      const LoggedGenericAckReceived&) {
     return std::optional<uint16_t>();
   }
 };

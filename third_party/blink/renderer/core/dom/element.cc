@@ -2604,8 +2604,8 @@ void Element::setScrollLeft(double new_left) {
     }
     scrollable_area->SetScrollOffset(end_offset,
                                      mojom::blink::ScrollType::kProgrammatic,
-                                     mojom::blink::ScrollBehavior::kAuto,
-                                     cc::ScrollSourceType::kAbsoluteScroll);
+                                     cc::ScrollSourceType::kAbsoluteScroll,
+                                     mojom::blink::ScrollBehavior::kAuto);
   }
 }
 
@@ -2663,8 +2663,8 @@ void Element::setScrollTop(double new_top) {
 
     scrollable_area->SetScrollOffset(end_offset,
                                      mojom::blink::ScrollType::kProgrammatic,
-                                     mojom::blink::ScrollBehavior::kAuto,
-                                     cc::ScrollSourceType::kAbsoluteScroll);
+                                     cc::ScrollSourceType::kAbsoluteScroll,
+                                     mojom::blink::ScrollBehavior::kAuto);
   }
 }
 
@@ -2919,8 +2919,8 @@ bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
   }
 
   return scrollable_area->SetScrollOffset(
-      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
-      cc::ScrollSourceType::kAbsoluteScroll);
+      new_offset, mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
 }
 
 bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
@@ -2958,8 +2958,8 @@ bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   return viewport->SetScrollOffset(
       viewport->ScrollPositionToOffset(new_position),
-      mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
-      cc::ScrollSourceType::kRelativeScroll);
+      mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kRelativeScroll, scroll_behavior);
 }
 
 bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
@@ -2998,8 +2998,8 @@ bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   new_offset = viewport->ScrollPositionToOffset(new_position);
   return viewport->SetScrollOffset(
-      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
-      cc::ScrollSourceType::kAbsoluteScroll);
+      new_offset, mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
 }
 
 gfx::Rect Element::BoundsInWidget() const {
@@ -9819,10 +9819,6 @@ bool Element::PseudoElementStylesAffectCounters() const {
     return true;
   }
 
-  if (!style->HasAnyPseudoElementStyles()) {
-    return false;
-  }
-
   for (PseudoElement* pseudo_element : rare_data->GetPseudoElements()) {
     if (pseudo_element->GetComputedStyle()->GetCounterDirectives()) {
       return true;
@@ -11504,6 +11500,28 @@ void Element::ScheduleInterestLostTask() {
       base::Seconds(hide_delay_seconds)));
 }
 
+Element* Element::InterestForElement() const {
+  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
+          GetDocument().GetExecutionContext())) {
+    return nullptr;
+  }
+  Element* target =
+      GetElementAttributeResolvingReferenceTarget(html_names::kInterestforAttr);
+  if (!target) {
+    return nullptr;
+  }
+  // An interest invoker relationship isn't valid if the source or target
+  // element aren't in a TreeScope.
+  if (!IsInTreeScope() || !target->IsInTreeScope()) {
+    return nullptr;
+  }
+  // Check element-specific preconditions.
+  if (!IsValidInterestInvoker(*target)) {
+    return nullptr;
+  }
+  return target;
+}
+
 Element* Element::SourceInterestInvoker() const {
   if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
     return nullptr;
@@ -11538,15 +11556,27 @@ Element::InterestState Element::GetInterestState() {
 }
 
 namespace {
-Element* NestedSourceInterestInvoker(Element& starting_target) {
+
+void AllSourceInterestInvokersRecursive(
+    Element& target,
+    HeapLinkedHashSet<Member<Element>>& sources) {
   DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
-  for (Element* target = &starting_target; target;
-       target = target->parentElement()) {
-    if (Element* upstream = target->SourceInterestInvoker()) {
-      return upstream;
-    }
+  if (Element* upstream = target.SourceInterestInvoker();
+      upstream && !sources.Contains(upstream)) {
+    DCHECK_NE(&target, upstream);
+    sources.insert(upstream);
+    AllSourceInterestInvokersRecursive(*upstream, sources);
   }
-  return nullptr;
+  if (Element* parent = target.parentElement();
+      parent && !sources.Contains(parent)) {
+    AllSourceInterestInvokersRecursive(*parent, sources);
+  }
+}
+
+HeapLinkedHashSet<Member<Element>> AllSourceInterestInvokers(Element& target) {
+  HeapLinkedHashSet<Member<Element>> sources;
+  AllSourceInterestInvokersRecursive(target, sources);
+  return sources;
 }
 
 }  // namespace
@@ -11596,8 +11626,7 @@ void Element::HandleInterestForHoverOrFocus(InterestSource source,
     if (invoker_data) [[unlikely]] {
       invoker_data->CancelInterestLostTask();
     }
-    for (Element* upstream = upstream_invoker; upstream;
-         upstream = NestedSourceInterestInvoker(*upstream)) {
+    for (Member<Element> upstream : AllSourceInterestInvokers(*this)) {
       upstream->GetInvokerData()->CancelInterestLostTask();
     }
     if (auto* target = InterestForElement();
@@ -11620,8 +11649,7 @@ void Element::HandleInterestForHoverOrFocus(InterestSource source,
         ScheduleInterestLostTask();
       }
     }
-    for (Element* upstream = upstream_invoker; upstream;
-         upstream = NestedSourceInterestInvoker(*upstream)) {
+    for (Member<Element> upstream : AllSourceInterestInvokers(*this)) {
       // This is the target of an interest invoker, which was just de-hovered or
       // blurred. There are two possibilities:
       // 1. The upstream invoker is either not an ancestor of this target

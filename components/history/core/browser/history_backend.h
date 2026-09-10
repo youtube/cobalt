@@ -368,20 +368,24 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // {1-day, 7-day, 28-day} metrics whose spanning periods all end on that
   // midnight. This subset of metrics to compute is specified by a bitmask
   // `metric_type_bitmask`, which takes a bitwise combination of
-  // kEnableLast1DayMetric, kEnableLast7DayMetric and kEnableLast28DayMetric.
+  // `kEnableLast1DayMetric`, `kEnableLast7DayMetric` and
+  // `kEnableLast28DayMetric`. Callers specify whether they want calculations to
+  // consider visits that had an HTTP response code of 404 by setting
+  // `policy_for_404_visits`.
   //
-  // All computed metrics are stored in DomainDiversityResults, which represents
-  // a collection of DomainMetricSet's. Each DomainMetricSet contains up to 3
-  // metrics ending at one unique midnight in the time range of
+  // All computed metrics are stored in `DomainDiversityResults`, which
+  // represents a collection of `DomainMetricSet`s. Each `DomainMetricSet`
+  // contains up to 3 metrics ending at one unique midnight in the time range of
   // `number_of_days_to_report` days before `report_time`. The collection of
-  // DomainMetricSet is sorted reverse chronologically by the ending midnight.
+  // `DomainMetricSet`s is sorted reverse chronologically by the ending
+  // midnight.
   //
   // For example, when `report_time` = 2019/11/01 00:01am, `number_of_days` = 3,
-  // `metric_type_bitmask` = kEnableLast28DayMetric | kEnableLast1DayMetric,
-  // DomainDiversityResults will hold 3 DomainMetricSets, each containing 2
+  // `metric_type_bitmask` = `kEnableLast28DayMetric | kEnableLast1DayMetric`,
+  // DomainDiversityResults will hold 3 `DomainMetricSet`s, each containing 2
   // metrics measuring domain visit counts spanning the following date ranges
   // (all dates are inclusive):
-  // {{10/30, 10/3~10/30}, {10/29, 10/2~10/29}, {10/28, 10/1~10/28}}
+  // {{10/30, 10/3–10/30}, {10/29, 10/2–10/29}, {10/28, 10/1–10/28}}
   //
   // The return value is a pair of results, where the first member counts only
   // local visits, and the second counts both local and foreign (synced) visits.
@@ -390,13 +394,17 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   std::pair<DomainDiversityResults, DomainDiversityResults> GetDomainDiversity(
       base::Time report_time,
       int number_of_days_to_report,
-      DomainMetricBitmaskType metric_type_bitmask);
+      DomainMetricBitmaskType metric_type_bitmask,
+      VisitQuery404sPolicy policy_for_404_visits);
 
   // Gets unique domains (eTLD+1) visited within the time range
   // [`begin_time`, `end_time`) for local and synced visits sorted in
-  // reverse-chronological order.
-  DomainsVisitedResult GetUniqueDomainsVisited(base::Time begin_time,
-                                               base::Time end_time);
+  // reverse-chronological order. Visits with an HTTP response code of 404 will
+  // be factored in or ignored according to `policy_for_404_visits`.
+  DomainsVisitedResult GetUniqueDomainsVisited(
+      base::Time begin_time,
+      base::Time end_time,
+      VisitQuery404sPolicy policy_for_404_visits);
 
   // Gets all the app IDs used in the database entries.
   GetAllAppIdsResult GetAllAppIds();
@@ -410,15 +418,20 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
                                             base::Time end_time);
 
   // Same as the above, but for the given origin instead of host.
-  HistoryLastVisitResult GetLastVisitToOrigin(const url::Origin& origin,
-                                              base::Time begin_time,
-                                              base::Time end_time);
+  HistoryLastVisitResult GetLastVisitToOrigin(
+      const url::Origin& origin,
+      base::Time begin_time,
+      base::Time end_time,
+      VisitQuery404sPolicy policy_for_404_visits);
 
-  // Gets counts for total visits and days visited for pages matching `host`'s
-  // scheme, port, and host. Counts only user-visible visits.
-  DailyVisitsResult GetDailyVisitsToHost(const GURL& host,
-                                         base::Time begin_time,
-                                         base::Time end_time);
+  // Gets counts for total visits and days visited for pages matching `origin`.
+  // Counts only user-visible visits. Counts or ignores visits with an HTTP
+  // response code of 404 based on `policy_for_404_visits`.
+  DailyVisitsResult GetDailyVisitsToOrigin(
+      const url::Origin& origin,
+      base::Time begin_time,
+      base::Time end_time,
+      VisitQuery404sPolicy policy_for_404_visits);
 
   // Favicon -------------------------------------------------------------------
 
@@ -854,15 +867,16 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // be 0 on failure.
   //
   // If the caller wants to add this visit to the VisitedLinkDatabase, it needs
-  // to provide values for the `top_level_url`, `frame_url`, `is_ephemeral`
-  // parameters. `top_level_url` is a GURL representing the top-level frame that
-  // this navigation originated from. `frame_url` is GURL representing the
-  // immediate frame that this navigation originated from. For example, if a
-  // link to `c.com` is clicked in an iframe `b.com` that is embedded in
-  // `a.com`, the `top_level_url` is `a.com` and the `frame_url` is `b.com` (and
-  // the `url` is `c.com`). `is_ephemeral` represents whether our navigation
-  // came from a credentialless iframe (which is an ephemeral context). When
-  // true, we want to avoid adding the visit into the VisitedLinkDatabase.
+  // to provide values for the `top_level_url`, `frame_url`,
+  // `visit_context_ephemerality` parameters. `top_level_url` is a GURL
+  // representing the top-level frame that this navigation originated from.
+  // `frame_url` is GURL representing the immediate frame that this navigation
+  // originated from. For example, if a link to `c.com` is clicked in an iframe
+  // `b.com` that is embedded in `a.com`, the `top_level_url` is `a.com` and the
+  // `frame_url` is `b.com` (and the `url` is `c.com`).
+  // `visit_context_ephemerality` represents whether our navigation came from a
+  // credentialless iframe (which is an ephemeral context). When `kEphemeral`,
+  // we want to avoid adding the visit into the VisitedLinkDatabase.
   //
   // This does not schedule database commits, it is intended to be used as a
   // subroutine for AddPage only. It also assumes the database is valid.
@@ -879,7 +893,8 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
       bool should_increment_typed_count,
       VisitID opener_visit,
       bool consider_for_ntp_most_visited,
-      bool is_ephemeral = false,
+      VisitContextEphemerality visit_context_ephemerality =
+          VisitContextEphemerality::kNotEphemeral,
       std::optional<int64_t> local_navigation_id = std::nullopt,
       std::optional<std::u16string> title = std::nullopt,
       std::optional<GURL> top_level_url = std::nullopt,

@@ -2742,7 +2742,8 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   auto* mdl_manager = network_service_->masked_domain_list_manager();
   auto* prt_registry = network_service_->probabilistic_reveal_token_registry();
   requires_ipp_proxy_delegate =
-      mdl_manager && mdl_manager->IsEnabled() &&
+      (mdl_manager->IsEnabled() ||
+       !net::features::kIpPrivacyUnconditionalProxyDomainList.Get().empty()) &&
       (params_->ip_protection_core_host ||
        net::features::kIpPrivacyAlwaysCreateCore.Get());
   if (requires_ipp_proxy_delegate) {

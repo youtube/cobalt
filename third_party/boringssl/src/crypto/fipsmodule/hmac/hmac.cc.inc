@@ -168,7 +168,6 @@ int HMAC_Final(HMAC_CTX *ctx, uint8_t *out, unsigned int *out_len) {
       !EVP_MD_CTX_copy_ex(&ctx->md_ctx, &ctx->o_ctx) ||
       !EVP_DigestUpdate(&ctx->md_ctx, buf, i) ||
       !EVP_DigestFinal_ex(&ctx->md_ctx, out, out_len)) {
-    *out_len = 0;
     goto out;
   }
 
@@ -178,6 +177,8 @@ out:
   FIPS_service_indicator_unlock_state();
   if (ret) {
     HMAC_verify_service_indicator(ctx->md);
+  } else if (out_len) {
+    *out_len = 0;
   }
   return ret;
 }

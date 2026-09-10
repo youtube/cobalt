@@ -1064,7 +1064,8 @@ fake_server::FakeServer* SyncTest::GetFakeServer() const {
 
 void SyncTest::TriggerSyncForDataTypes(int index,
                                        syncer::DataTypeSet data_types) {
-  GetSyncService(index)->TriggerRefresh(data_types);
+  GetSyncService(index)->TriggerRefresh(
+      syncer::SyncService::TriggerRefreshSource::kUnknown, data_types);
 }
 
 arc::SyncArcPackageHelper* SyncTest::sync_arc_helper() {
@@ -1146,7 +1147,7 @@ void SyncTest::ExcludeDataTypesFromCheckForDataTypeFailures(
 // enabled by default, e.g. HISTORY requires a dedicated opt-in via
 // SyncUserSettings::SetSelectedTypes().
 syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
-  static_assert(56 == syncer::GetNumDataTypes(),
+  static_assert(58 == syncer::GetNumDataTypes(),
                 "Add new types below if they can run in transport mode");
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1227,11 +1228,8 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
     }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-    if (base::FeatureList::IsEnabled(
-            switches::kEnableExtensionsExplicitBrowserSignin)) {
-      allowed_types.Put(syncer::EXTENSIONS);
-      allowed_types.Put(syncer::EXTENSION_SETTINGS);
-    }
+    allowed_types.Put(syncer::EXTENSIONS);
+    allowed_types.Put(syncer::EXTENSION_SETTINGS);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   }
   if (base::FeatureList::IsEnabled(syncer::kSyncAutofillLoyaltyCard)) {
@@ -1240,6 +1238,14 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
 
   if (base::FeatureList::IsEnabled(syncer::kSyncAccountSettings)) {
     allowed_types.Put(syncer::ACCOUNT_SETTING);
+  }
+
+  if (base::FeatureList::IsEnabled(syncer::kSyncAIThread)) {
+    allowed_types.Put(syncer::AI_THREAD);
+  }
+
+  if (base::FeatureList::IsEnabled(syncer::kSyncContextualTask)) {
+    allowed_types.Put(syncer::CONTEXTUAL_TASK);
   }
 
 #if BUILDFLAG(IS_ANDROID)

@@ -171,8 +171,13 @@ BASE_FEATURE(kMostVisitedTilesHorizontalRenderGroup,
 // accommodate the autocompletions.
 BASE_FEATURE(kRichAutocompletion, "OmniboxRichAutocompletion", ENABLED);
 
-// If enabled, shows the omnibox suggestions popup in WebUI.
+// If enabled, shows the omnibox suggestions in the popup in WebUI.
 BASE_FEATURE(kWebUIOmniboxPopup, DISABLED);
+// Enables the WebUI for omnibox suggestions without modifying the popup UI.
+BASE_FEATURE(kWebUIOmniboxPopupDebug, DISABLED);
+// Enables side-by-side comparison omnibox suggestions in WebUI and Views.
+const base::FeatureParam<bool> kWebUIOmniboxPopupDebugSxSParam{
+    &kWebUIOmniboxPopupDebug, "SxS", false};
 
 // When enabled, use Assistant for omnibox voice query recognition instead of
 // Android's built-in voice recognition service. Only works on Android.
@@ -283,7 +288,7 @@ BASE_FEATURE(kOmniboxMobileParityUpdate, ENABLED);
 
 // Updates various NTP/Omnibox assets and descriptions for visual alignment on
 // Android and iOS, V2.
-BASE_FEATURE(kOmniboxMobileParityUpdateV2, enable_if(IS_IOS));
+BASE_FEATURE(kOmniboxMobileParityUpdateV2, ENABLED);
 
 #if BUILDFLAG(IS_IOS)
 // Updates the search engine logo on NTP. iOS only.
@@ -320,6 +325,8 @@ BASE_FEATURE(kNumSrpZpsRelatedSearches,
 // in the TemplateURLService, so that they can be accessed from the Omnibox and
 // the Settings page.
 BASE_FEATURE(kEnableSearchAggregatorPolicy, ENABLED);
+
+BASE_FEATURE(kUseAgentspace25Logo, DISABLED);
 
 // If enabled, site search engines, defined by the `SiteSearchSettings` policy,
 // can be marked as user-overridable by administrators using an

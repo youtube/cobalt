@@ -106,6 +106,7 @@ rtc_library("builtin_audio_processing_builder") {
     "builtin_audio_processing_builder.h",
   ]
   deps = [
+    ":aec3_config",
     ":audio_processing",
     ":echo_control",
     ":neural_residual_echo_estimator_api",
@@ -152,6 +153,7 @@ rtc_library("aec3_factory") {
   deps = [
     ":aec3_config",
     ":echo_control",
+    ":neural_residual_echo_estimator_api",
     "../../modules/audio_processing/aec3",
     "../../rtc_base/system:rtc_export",
     "../environment",
@@ -163,6 +165,7 @@ rtc_source_set("echo_control") {
   visibility = [ "*" ]
   sources = [ "echo_control.h" ]
   deps = [
+    ":neural_residual_echo_estimator_api",
     "../../rtc_base:checks",
     "../environment",
     "//third_party/abseil-cpp/absl/base:nullability",

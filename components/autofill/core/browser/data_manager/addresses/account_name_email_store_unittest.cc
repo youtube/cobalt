@@ -78,6 +78,33 @@ class AccountNameEmailStoreTest : public testing::Test {
     signin::UpdateAccountInfoForAccount(identity_manager_.get(), info);
   }
 
+  void SimulateProfileRemoval(
+      const AutofillProfile* profile,
+      bool non_permanent_account_profile_removal = false) {
+    CHECK(profile);
+    // `TestAddressDataManager` does not send `AutofillProfileChange`
+    // notifications, so it has to be simulated.
+    AutofillProfileChange change(non_permanent_account_profile_removal
+                                     ? AutofillProfileChange::HIDE_IN_AUTOFILL
+                                     : AutofillProfileChange::REMOVE,
+                                 profile->guid(), *profile);
+    address_data_manager().RemoveProfile(profile->guid());
+    account_name_email_store().ApplyChange(change);
+  }
+
+  void SetAutofillSyncToggleStatus(bool syncing) {
+    syncer::UserSelectableTypeSet selected_sync_types =
+        sync_service().GetUserSettings()->GetSelectedTypes();
+    if (syncing) {
+      selected_sync_types.Put(syncer::UserSelectableType::kAutofill);
+    } else {
+      selected_sync_types.Remove(syncer::UserSelectableType::kAutofill);
+    }
+    sync_service().GetUserSettings()->SetSelectedTypes(
+        /*sync_everything=*/false, selected_sync_types);
+    sync_service().FireStateChanged();
+  }
+
   AccountNameEmailStore& account_name_email_store() { return store_; }
   AddressDataManager& address_data_manager() { return test_adm_; }
   signin::IdentityManager& identity_manager() { return *identity_manager_; }
@@ -85,6 +112,7 @@ class AccountNameEmailStoreTest : public testing::Test {
   signin::IdentityTestEnvironment& identity_test_env() {
     return identity_test_env_;
   }
+  syncer::TestSyncService& sync_service() { return sync_service_; }
 
  private:
   base::test::ScopedFeatureList feature_{
@@ -109,85 +137,83 @@ MATCHER_P2(IsCorrectAccountNameEmail, name_full, email, "") {
 }
 
 // Tests that a new `kAccountNameEmail` profile isn't created when an empty
-// `AccountInfo` is passed into the `UpdateOrCreateAccountNameEmail` method.
+// `AccountInfo` is passed into the `MaybeUpdateOrCreateAccountNameEmail`
+// method.
 TEST_F(AccountNameEmailStoreTest, EmptyAccountInfoCreation) {
-  account_name_email_store().UpdateOrCreateAccountNameEmail({});
+  account_name_email_store().MaybeUpdateOrCreateAccountNameEmail();
   EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
 }
 
-// Tests that a new `kAccountNameEmail` profile isn't created when the
-// `full_name` field of passed in `AccountInfo` is empty.
+// Tests that a new kAccountNameEmail profile isn't created when the account
+// info misses the full_name.
 TEST_F(AccountNameEmailStoreTest, EmptyAccountNameCreation) {
-  AccountInfo info;
-  info.email = kTestEmailAddress1;
-  account_name_email_store().UpdateOrCreateAccountNameEmail(info);
+  CreatePrimaryAccount(std::string(), kTestEmailAddress1);
   EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
 }
 
-// Tests that the `UpdateOrCreateAccountNameEmail` method creates / updates
-// `kAccountNameEmail` with the correct info.
+// Tests that a new kAccountNameEmail profile isn't created when autofill is not
+// synced.
+TEST_F(AccountNameEmailStoreTest, AutofillNotSynced) {
+  sync_service().SetSignedOut();
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+}
+
+// Tests that a new kAccountNameEmail profile is removed if user disabled
+// autofill sync toggle.
+TEST_F(AccountNameEmailStoreTest, ProfileRemovedAfterSyncOff) {
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+
+  ASSERT_THAT(address_data_manager().GetProfiles(),
+              ElementsAre(IsCorrectAccountNameEmail(
+                  base::UTF8ToUTF16(kTestName1),
+                  base::UTF8ToUTF16(kTestEmailAddress1))));
+
+  SetAutofillSyncToggleStatus(false);
+
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+}
+
+TEST_F(AccountNameEmailStoreTest, ProfileNotCreatedBeforeDataLoaded) {
+  sync_service().SetDownloadStatusFor(
+      {syncer::DataType::PRIORITY_PREFERENCES},
+      syncer::SyncService::DataTypeDownloadStatus::kWaitingForUpdates);
+
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+}
+
+// Tests that the created profile holds the correct data.
 TEST_F(AccountNameEmailStoreTest, SpecificInfoCreationUpdate) {
-  AccountInfo info;
-  info.full_name = kTestName1;
-  info.email = kTestEmailAddress1;
-
-  account_name_email_store().UpdateOrCreateAccountNameEmail(info);
-
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
   EXPECT_THAT(address_data_manager().GetProfiles(),
               ElementsAre(IsCorrectAccountNameEmail(
                   base::UTF8ToUTF16(kTestName1),
                   base::UTF8ToUTF16(kTestEmailAddress1))));
 }
 
-// Tests that the `UpdateOrCreateAccountNameEmail` correctly updates the
+// Tests that the creating the profile correctly updates the
 // `kAutofillNameAndEmailProfileSignature` pref.
 TEST_F(AccountNameEmailStoreTest, HashPrefSaving) {
-  AccountInfo info;
-  info.full_name = kTestName1;
-  info.email = kTestEmailAddress1;
-  account_name_email_store().UpdateOrCreateAccountNameEmail(info);
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
 
   EXPECT_EQ(
       pref_service().GetString(prefs::kAutofillNameAndEmailProfileSignature),
-      test_api(&account_name_email_store()).HashAccountInfo(info));
+      test_api(&account_name_email_store())
+          .HashAccountInfo(identity_manager().FindExtendedAccountInfo(
+              identity_manager().GetPrimaryAccountInfo(
+                  signin::ConsentLevel::kSignin))));
 }
 
-// Tests that the `UpdateOrCreateAccountNameEmail` returns early (does nothing)
-// when account info with the same hash as the stored one in pref was passed in.
-TEST_F(AccountNameEmailStoreTest, EarlyReturnWhenHashesAreEqual) {
-  AccountInfo info;
-  info.full_name = kTestName1;
-  info.email = kTestEmailAddress1;
-
-  const std::string hash =
-      test_api(&account_name_email_store()).HashAccountInfo(info);
-
-  pref_service().SetString(prefs::kAutofillNameAndEmailProfileSignature, hash);
-  account_name_email_store().UpdateOrCreateAccountNameEmail(info);
-
-  EXPECT_EQ(hash, pref_service().GetString(
-                      prefs::kAutofillNameAndEmailProfileSignature));
-}
-
-// Tests that the `UpdateOrCreateAccountNameEmail` removes the Account Name
-// Email profile when updating.
+// Tests that old profile is removed when new primary account is used.
 TEST_F(AccountNameEmailStoreTest, RemovingProfile) {
-  AccountInfo info1;
-  info1.full_name = kTestName1;
-  info1.email = kTestEmailAddress1;
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  CreatePrimaryAccount(kTestName2, kTestEmailAddress2);
 
-  AccountInfo info2;
-  info2.full_name = kTestName2;
-  info2.email = kTestEmailAddress2;
-
-  account_name_email_store().UpdateOrCreateAccountNameEmail(info1);
-  account_name_email_store().UpdateOrCreateAccountNameEmail(info2);
-
-  EXPECT_THAT(
-      address_data_manager().GetProfiles(),
-      Contains(IsCorrectAccountNameEmail(base::UTF8ToUTF16(kTestName1),
-                                         base::UTF8ToUTF16(kTestEmailAddress1)))
-          .Times(0));
+  EXPECT_THAT(address_data_manager().GetProfiles(),
+              ElementsAre(IsCorrectAccountNameEmail(
+                  base::UTF8ToUTF16(kTestName2),
+                  base::UTF8ToUTF16(kTestEmailAddress2))));
 }
 
 // Tests that the `OnExtendedAccountInfoUpdated` method will create the
@@ -243,28 +269,41 @@ TEST_F(AccountNameEmailStoreTest, OnExtendedAccountInfoUpdated_WrongGaiaId) {
               ContainerEq(address_data_manager().GetProfiles()));
 }
 
-// Tests that the `OnAddressDataChanged` method will set
-// `kAutofillNameAndEmailProfileNotSelectedCounter` pref to a value greater than
-// `kAutofillNameAndEmailProfileNotSelectedThreshold` if the user is logged in
-// but `kAccountNameEmail` profile was deleted.
-TEST_F(AccountNameEmailStoreTest, OnAddressDataChanged_ProfileDeleted) {
+// Tests that the `kAutofillNameAndEmailProfileNotSelectedCounter` pref is set
+// to a value greater than `kAutofillNameAndEmailProfileNotSelectedThreshold` if
+// there was a hard removal.
+TEST_F(AccountNameEmailStoreTest, AccountNameEmailProfileRemoved) {
   CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
   ASSERT_EQ(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
             0);
 
-  address_data_manager().RemoveProfile(
-      address_data_manager().GetProfiles()[0]->guid());
+  SimulateProfileRemoval(address_data_manager().GetProfiles()[0]);
 
   EXPECT_GT(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
             features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
 }
 
-// Tests that the `OnAddressDataChanged` method will not change the value of the
-// `kAutofillNameAndEmailProfileNotSelectedCounter` pref if a profile other than
-// the `kAccountNameEmail` was deleted.
-TEST_F(AccountNameEmailStoreTest, OnAddressDataChanged_PrefNotChanged) {
+// Tests that the `kAutofillNameAndEmailProfileNotSelectedCounter` pref is not
+// set, if the removal was soft.
+TEST_F(AccountNameEmailStoreTest, AccountNameEmailProfileHidden) {
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  ASSERT_EQ(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            0);
+
+  SimulateProfileRemoval(address_data_manager().GetProfiles()[0],
+                         /*non_permanent_account_profile_removal=*/true);
+
+  EXPECT_EQ(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            0);
+}
+
+// Tests that removals of profiles other than kAccountNameEmail do not set the
+// pref.
+TEST_F(AccountNameEmailStoreTest, NotAccountNameEmailProfileRemoved) {
   CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
 
   AutofillProfile profile{
@@ -276,27 +315,20 @@ TEST_F(AccountNameEmailStoreTest, OnAddressDataChanged_PrefNotChanged) {
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
             0);
 
-  address_data_manager().RemoveProfile(
-      address_data_manager()
-          .GetProfilesByRecordType(AutofillProfile::RecordType::kAccount)[0]
-          ->guid());
+  SimulateProfileRemoval(&profile);
 
   EXPECT_EQ(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
             0);
 }
 
-// Tests that if `kAccountNameEmail` profile was removed and pref set to a
-// number greater than the threshold, after the name change there will be new
-// `kAccountNameEmail` profile and pref will be set to 0.
+// Tests that if kAccountNameEmail profile was hard removed (thus pref
+// set to a number greater than the threshold), after the name change there will
+// be a new kAccountNameEmail profile and the
+// `kAutofillNameAndEmailProfileNotSelectedCounter` pref will be set to 0.
 TEST_F(AccountNameEmailStoreTest, ProfileReappearsAfterNameChange) {
   CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
-
-  address_data_manager().RemoveProfile(
-      address_data_manager()
-          .GetProfilesByRecordType(
-              AutofillProfile::RecordType::kAccountNameEmail)[0]
-          ->guid());
+  SimulateProfileRemoval(address_data_manager().GetProfiles()[0]);
 
   ASSERT_THAT(address_data_manager().GetProfiles(), IsEmpty());
   ASSERT_GT(pref_service().GetInteger(
@@ -317,56 +349,215 @@ TEST_F(AccountNameEmailStoreTest, ProfileReappearsAfterNameChange) {
             0);
 }
 
+TEST_F(AccountNameEmailStoreTest, OnCounterPrefUpdated) {
+  ASSERT_EQ(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            0);
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  ASSERT_THAT(address_data_manager().GetProfiles(),
+              ElementsAre(IsCorrectAccountNameEmail(
+                  base::UTF8ToUTF16(kTestName1),
+                  base::UTF8ToUTF16(kTestEmailAddress1))));
+
+  // Setting the pref to a value smaller or equal to
+  // `kAutofillNameAndEmailProfileNotSelectedThreshold`, shouldn't remove the
+  // profile.
+  pref_service().SetInteger(
+      prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
+      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+  EXPECT_THAT(address_data_manager().GetProfiles(),
+              ElementsAre(IsCorrectAccountNameEmail(
+                  base::UTF8ToUTF16(kTestName1),
+                  base::UTF8ToUTF16(kTestEmailAddress1))));
+
+  // Setting the pref to a value greater than
+  // `kAutofillNameAndEmailProfileNotSelectedThreshold`, should remove the
+  // kAccountNameEmail profile.
+  pref_service().SetInteger(
+      prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
+      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get() + 1);
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+}
+
 // ChromeOS does not support signing out
 #if !BUILDFLAG(IS_CHROMEOS)
-// Tests that the `OnExtendedAccountInfoRemoved` method will remove
-// `kAccountNameEmail` profile
-TEST_F(AccountNameEmailStoreTest, OnExtendedAccountInfoRemoved) {
+
+// Tests that the user's gets their `kAutofillNameAndEmailProfileSignature` pref
+// cleared on signout and the kAccountNameEmail profile is removed.
+TEST_F(AccountNameEmailStoreTest, SignOut) {
   CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
   ASSERT_THAT(
       address_data_manager().GetProfiles(),
       ElementsAre(Property(&AutofillProfile::record_type,
                            AutofillProfile::RecordType::kAccountNameEmail)));
 
+  pref_service().SetInteger(
+      prefs::kAutofillNameAndEmailProfileNotSelectedCounter, 5);
+  pref_service().SetBoolean(prefs::kAutofillWasNameAndEmailProfileUsed, true);
+
   identity_test_env().EnableRemovalOfExtendedAccountInfo();
   identity_test_env().ClearPrimaryAccount();
+  sync_service().SetSignedOut();
+  sync_service().FireStateChanged();
 
   EXPECT_THAT(address_data_manager().GetProfiles(), testing::IsEmpty());
+  EXPECT_THAT(
+      pref_service().GetString(prefs::kAutofillNameAndEmailProfileSignature),
+      IsEmpty());
+  EXPECT_EQ(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            0);
+  EXPECT_FALSE(
+      pref_service().GetBoolean(prefs::kAutofillWasNameAndEmailProfileUsed));
 }
 
-// Tests that the `OnExtendedAccountInfoRemoved` method will not remove
-// `kAccountNameEmail` profile if it is called with info of a wrong profile.
-TEST_F(AccountNameEmailStoreTest, OnExtendedAccountInfoRemoved_WrongInfo) {
+// Tests that the kAccountNameEmail profile will be recreated on sign in after
+// it has been deleted on sign out.
+TEST_F(AccountNameEmailStoreTest, SignOutAndSignIn) {
   CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
-
-  const AccountInfo info2 = identity_test_env().MakeAccountAvailable(
-      kTestEmailAddress2, {std::nullopt, false, kFakeGaiaId});
-
   ASSERT_THAT(address_data_manager().GetProfiles(),
               ElementsAre(IsCorrectAccountNameEmail(
                   base::UTF8ToUTF16(kTestName1),
                   base::UTF8ToUTF16(kTestEmailAddress1))));
+  // Sign out.
+  identity_test_env().EnableRemovalOfExtendedAccountInfo();
+  identity_test_env().ClearPrimaryAccount();
+  sync_service().SetSignedOut();
+  sync_service().FireStateChanged();
+  ASSERT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+
+  // Sign in.
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  sync_service().SetSignedIn(signin::ConsentLevel::kSync);
+  sync_service().FireStateChanged();
+
+  EXPECT_EQ(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            0);
+  EXPECT_THAT(
+      address_data_manager().GetProfiles(),
+      ElementsAre(Property(&AutofillProfile::record_type,
+                           AutofillProfile::RecordType::kAccountNameEmail)));
+}
+
+// Tests that the kAccountNameEmail profile will not be recreated if the
+// `kAutofillNameAndEmailProfileNotSelectedCounter` pref exceedes the threshold.
+TEST_F(AccountNameEmailStoreTest, SignInAfterHardRemove) {
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  ASSERT_THAT(
+      address_data_manager().GetProfiles(),
+      ElementsAre(Property(&AutofillProfile::record_type,
+                           AutofillProfile::RecordType::kAccountNameEmail)));
+
+  SimulateProfileRemoval(address_data_manager().GetProfiles()[0]);
 
   identity_test_env().EnableRemovalOfExtendedAccountInfo();
-// On mobile platforms, accounts are stored outside of Chrome, thus
-// `AccountsMutator` of an `IdentityManager` is uninitialized.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-  CHECK(!identity_manager().GetAccountsMutator());
-  identity_test_env().RemoveRefreshTokenForAccount(info2.account_id);
-#else
-  CHECK(identity_manager().GetAccountsMutator());
-  identity_manager().GetAccountsMutator()->RemoveAccount(
-      info2.account_id,
-      signin_metrics::SourceForRefreshTokenOperation::kUnknown);
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  identity_test_env().ClearPrimaryAccount();
+  sync_service().SetSignedOut();
+  sync_service().FireStateChanged();
 
-  EXPECT_THAT(address_data_manager().GetProfiles(),
-              ElementsAre(IsCorrectAccountNameEmail(
-                  base::UTF8ToUTF16(kTestName1),
-                  base::UTF8ToUTF16(kTestEmailAddress1))));
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  sync_service().SetSignedIn(signin::ConsentLevel::kSync);
+  sync_service().SetDownloadStatusFor(
+      {syncer::DataType::PRIORITY_PREFERENCES},
+      syncer::SyncService::DataTypeDownloadStatus::kWaitingForUpdates);
+  sync_service().FireStateChanged();
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+
+  // The `TestSyncService` uses a mock server, so manually simulate the prefs
+  // being set to correct (i.e. stored on the server) values.
+  pref_service().SetString(
+      prefs::kAutofillNameAndEmailProfileSignature,
+      test_api(&account_name_email_store())
+          .HashAccountInfo(identity_manager().FindExtendedAccountInfo(
+              identity_manager().GetPrimaryAccountInfo(
+                  signin::ConsentLevel::kSignin))));
+  pref_service().SetInteger(
+      prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
+      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get() + 1);
+  sync_service().SetDownloadStatusFor(
+      {syncer::DataType::PRIORITY_PREFERENCES},
+      syncer::SyncService::DataTypeDownloadStatus::kUpToDate);
+  sync_service().FireStateChanged();
+
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+  EXPECT_GT(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
 }
 
 #endif  // !BUILDFLAG(CHROME_OS)
+
+// Tests that the kAccountNameEmail profile will be recreated after enabling
+// autofill sync toggle.
+TEST_F(AccountNameEmailStoreTest, AutofillSyncToggleOffAndOn) {
+  // Sign in and disable autofill sync toggle.
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  ASSERT_THAT(address_data_manager().GetProfiles(),
+              ElementsAre(IsCorrectAccountNameEmail(
+                  base::UTF8ToUTF16(kTestName1),
+                  base::UTF8ToUTF16(kTestEmailAddress1))));
+  SetAutofillSyncToggleStatus(false);
+  ASSERT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+
+  // Enable the autofill sync toggle.
+  SetAutofillSyncToggleStatus(true);
+  EXPECT_EQ(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            0);
+  EXPECT_THAT(
+      address_data_manager().GetProfiles(),
+      ElementsAre(Property(&AutofillProfile::record_type,
+                           AutofillProfile::RecordType::kAccountNameEmail)));
+}
+
+// Tests that recreating the kAccountNameEmail profile will not alter the
+// counter pref.
+TEST_F(AccountNameEmailStoreTest,
+       SwitchingAutofillSyncToggleDoesntAlterCounter) {
+  const int test_counter_value = 5;
+
+  // Sign in and disable autofill sync toggle.
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  pref_service().SetInteger(
+      prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
+      test_counter_value);
+  SetAutofillSyncToggleStatus(false);
+  ASSERT_EQ(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            test_counter_value);
+
+  // Enable the autofill sync toggle again, verify that the counter did not
+  // change.
+  SetAutofillSyncToggleStatus(true);
+  EXPECT_EQ(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            test_counter_value);
+}
+
+// Tests that the kAccountNameEmail profile will not be recreated if the
+// `kAutofillNameAndEmailProfileNotSelectedCounter` pref exceedes the threshold.
+TEST_F(AccountNameEmailStoreTest, AutofillSyncToggleOnAfterHardRemove) {
+  // Sign in, explicitly remove the kAccountNameEmail profile and turn off
+  // autofill sync toggle.
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  ASSERT_THAT(
+      address_data_manager().GetProfiles(),
+      ElementsAre(Property(&AutofillProfile::record_type,
+                           AutofillProfile::RecordType::kAccountNameEmail)));
+  SimulateProfileRemoval(address_data_manager().GetProfiles()[0]);
+  SetAutofillSyncToggleStatus(false);
+  ASSERT_GT(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+
+  // Enabling the sync toggle again does not reset the pref.
+  SetAutofillSyncToggleStatus(true);
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+  EXPECT_GT(pref_service().GetInteger(
+                prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
+            features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+}
 
 }  // namespace
 

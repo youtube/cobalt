@@ -138,6 +138,7 @@ if (rtc_include_tests) {
         "../../../../api/units:time_delta",
         "../../../../modules/rtp_rtcp:rtp_rtcp_format",
         "../../../../test:fileutils",
+        "../../../../test:test_support",
         "../../../../test:video_test_support",
         "../../svc:scalability_mode_util",
         "../../svc:scalability_structures",

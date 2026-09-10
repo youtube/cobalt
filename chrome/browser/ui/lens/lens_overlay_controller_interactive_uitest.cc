@@ -86,7 +86,7 @@ class LensOverlayControllerCUJTest : public InteractiveFeaturePromoTest {
                               {lens::features::kLensOverlayContextualSearchbox,
                                {{"use-pdfs-as-context", "true"},
                                 {"auto-focus-searchbox", "false"}}}},
-        /*disabled_features=*/{});
+        /*disabled_features=*/{lens::features::kLensSearchZeroStateCsb});
   }
 
   void WaitForTemplateURLServiceToLoad() {
@@ -863,8 +863,8 @@ class LensOverlayControllerTranslatePromoTest
 //  (1) User opens the Lens Overlay.
 //  (2) Promo shows. After, user clicks the translate button.
 //  (3) Promo hides.
-// TODO(crbug.com/392907122): Re-enable this test once the translate button is in a
-// launchable state.
+// TODO(crbug.com/392907122): Re-enable this test once the translate button is
+// in a launchable state.
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerTranslatePromoTest,
                        DISABLED_ShowsTranslatePromo) {
   WaitForTemplateURLServiceToLoad();
@@ -945,7 +945,6 @@ IN_PROC_BROWSER_TEST_F(LensPreselectionBubbleInteractiveUiTest,
                   WaitForHide(LensOverlayController::kOverlayId));
 }
 
-
 using LensOverlayControllerReturnToPageCUJTest = LensOverlayControllerCUJTest;
 
 // This tests the following CUJ:
@@ -1005,8 +1004,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerReturnToPageCUJTest,
                    NavigateWebContents(kActiveTab, second_url)),
 
       // Ensure overlay is not visible but side panel is.
-      WaitForHide(kOverlayId),
-      EnsureNotPresent(kOverlayId),
+      WaitForHide(kOverlayId), EnsureNotPresent(kOverlayId),
       EnsurePresent(LensOverlayController::kOverlaySidePanelWebViewId));
 }
 
@@ -1294,8 +1292,10 @@ class LensOverlayControllerEduActionChipTest
         {base::test::FeatureRefAndParams(
             lens::features::kLensOverlayEduActionChip,
             {{"url-allow-filters", "[\"*\"]"},
-             {"url-path-match-allow-filters", "[\"select\"]"}})},
-        {lens::features::kLensOverlayStraightToSrp});
+             {"url-path-match-allow-filters", "[\"select\"]"},
+             {"max-shown-count", "5"}})},
+        {lens::features::kLensOverlayStraightToSrp,
+         lens::features::kLensSearchZeroStateCsb});
   }
 };
 
@@ -1368,5 +1368,61 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerEduActionChipTest,
       // Ensure homework chip is visible again.
       EnsurePresent(kLensOverlayHomeworkPageActionIconElementId));
 }
+
+class LensOverlayControllerZeroStateCsbTest
+    : public LensOverlayControllerCUJTest {
+ public:
+  LensOverlayControllerZeroStateCsbTest() = default;
+  ~LensOverlayControllerZeroStateCsbTest() override = default;
+  LensOverlayControllerZeroStateCsbTest(
+      const LensOverlayControllerStraightToSrpTest&) = delete;
+  void operator=(const LensOverlayControllerZeroStateCsbTest&) = delete;
+
+  void SetUpFeatureList() override {
+    feature_list_.InitWithFeaturesAndParameters(
+        {base::test::FeatureRefAndParams(
+            lens::features::kLensSearchZeroStateCsb,
+            {{"zero-state-csb-query", "csb zero state query"}})},
+        {});
+  }
+};
+
+// This tests the following CUJ:
+//  (1) User navigates to a website.
+//  (2) User opens lens overlay and the side panel opens with CSB results.
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerZeroStateCsbTest,
+                       OpenLensOverlayOpensCsbResults) {
+  WaitForTemplateURLServiceToLoad();
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kOverlaySidePanelWebViewId);
+
+  const DeepQuery kPathToSidePanelSearchboxInput{
+      "lens-side-panel-app",
+      "cr-searchbox",
+      "input",
+  };
+
+  // Helper function to check for specific text in an element.
+  auto CheckSearchboxValue = [](ui::ElementIdentifier web_contents_id,
+                                const DeepQuery& query,
+                                const std::string& expected_text) {
+    return CheckJsResultAt(
+        web_contents_id, query,
+        base::StringPrintf("el => el.value === '%s'", expected_text.c_str()));
+  };
+
+  RunTestSequence(
+      OpenLensOverlay(),
+      // Side panel should open.
+      InAnyContext(InstrumentNonTabWebView(
+                       kOverlaySidePanelWebViewId,
+                       LensOverlayController::kOverlaySidePanelWebViewId),
+                   WaitForWebContentsReady(kOverlaySidePanelWebViewId)),
+
+      // The CSB query in the side panel should say "csb zero state query"
+      InSameContext(CheckSearchboxValue(kOverlaySidePanelWebViewId,
+                                        kPathToSidePanelSearchboxInput,
+                                        "csb zero state query")));
+}
+
 
 }  // namespace

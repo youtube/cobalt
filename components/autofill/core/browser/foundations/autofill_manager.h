@@ -43,6 +43,7 @@
 
 namespace autofill {
 
+struct AutofillServerPrediction;
 class AutofillField;
 class AutofillProfile;
 class CreditCard;
@@ -50,6 +51,7 @@ class FormData;
 class FormFieldData;
 class FormStructure;
 class LogManager;
+struct Suggestion;
 
 namespace autofill_metrics {
 class FormInteractionsUkmLogger;
@@ -162,10 +164,10 @@ class AutofillManager
     virtual void OnAfterSelectFieldOptionsDidChange(AutofillManager& manager,
                                                     FormGlobalId form) {}
 
-    virtual void OnBeforeDidFillAutofillFormData(AutofillManager& manager,
-                                                 FormGlobalId form) {}
-    virtual void OnAfterDidFillAutofillFormData(AutofillManager& manager,
-                                                FormGlobalId form) {}
+    virtual void OnBeforeDidAutofillForm(AutofillManager& manager,
+                                         FormGlobalId form) {}
+    virtual void OnAfterDidAutofillForm(AutofillManager& manager,
+                                        FormGlobalId form) {}
 
     virtual void OnBeforeJavaScriptChangedAutofilledValue(
         AutofillManager& manager,
@@ -192,7 +194,8 @@ class AutofillManager
                                         FieldTypeSource source) {}
 
     // Fired when the suggestions are *actually* shown or hidden.
-    virtual void OnSuggestionsShown(AutofillManager& manager) {}
+    virtual void OnSuggestionsShown(AutofillManager& manager,
+                                    base::span<const Suggestion> suggestions) {}
     virtual void OnSuggestionsHidden(AutofillManager& manager) {}
 
     // Fired when a form is filled or previewed with a AutofillProfile or
@@ -202,7 +205,7 @@ class AutofillManager
     // value; the corresponding `AutofillField` contains the field type
     // information. The field values come from `filling_payload`.
     // TODO(crbug.com/40280003): Consider removing the event in favor of
-    // OnAfterDidFillAutofillFormData(), which is fired by the renderer.
+    // OnAfterDidAutofillForm(), which is fired by the renderer.
     // TODO(crbug.com/40227071): Consider removing `action_persistence` as the
     // preview signal is only used for testing.
     virtual void OnFillOrPreviewForm(
@@ -268,8 +271,8 @@ class AutofillManager
   virtual void OnCaretMovedInFormField(const FormData& form,
                                        const FieldGlobalId& field_id,
                                        const gfx::Rect& caret_bounds);
-  virtual void OnDidFillAutofillFormData(const FormData& form,
-                                         const base::TimeTicks timestamp);
+  virtual void OnDidAutofillForm(const FormData& form,
+                                 const base::TimeTicks timestamp);
   virtual void OnJavaScriptChangedAutofilledValue(
       const FormData& form,
       const FieldGlobalId& field_id,
@@ -324,7 +327,7 @@ class AutofillManager
   // identified by `form_id`. If the manager has no data about the form with
   // `form_id`, returns an empty map. If the form does not contain data about
   // fields with `field_ids`, NO_SERVER_DATA type is returned for them.
-  base::flat_map<FieldGlobalId, AutofillType::ServerPrediction>
+  base::flat_map<FieldGlobalId, AutofillServerPrediction>
   GetServerPredictionsForForm(
       FormGlobalId form_id,
       const std::vector<FieldGlobalId>& field_ids) const;
@@ -404,9 +407,8 @@ class AutofillManager
       const gfx::Rect& caret_bounds,
       AutofillSuggestionTriggerSource trigger_source,
       std::optional<PasswordSuggestionRequest> password_request) = 0;
-  virtual void OnDidFillAutofillFormDataImpl(
-      const FormData& form,
-      const base::TimeTicks timestamp) = 0;
+  virtual void OnDidAutofillFormImpl(const FormData& form,
+                                     const base::TimeTicks timestamp) = 0;
   virtual void OnHidePopupImpl() = 0;
   virtual void OnJavaScriptChangedAutofilledValueImpl(
       const FormData& form,

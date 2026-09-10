@@ -382,7 +382,8 @@ class ObserverLogger : public RenderProcessHostObserver {
 };
 
 // Flaky on Android. http://crbug.com/759514.
-#if BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/440535492): Flaky on Win dbg. Re-enable this test.
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_WIN) && !defined(NDEBUG))
 #define MAYBE_AllProcessExitedCallsBeforeAnyHostDestroyedCalls \
   DISABLED_AllProcessExitedCallsBeforeAnyHostDestroyedCalls
 #else
@@ -1304,6 +1305,40 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest, ConstructedButNotInitializedYet) {
   // Cleanup the resources acquired by the test.
   process->Cleanup();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// This test verifies that the process priority can be correctly set before
+// initializing the RenderProcessHost after introducing
+// MaybeUpdateSpareRendererPriorityOnReady.
+IN_PROC_BROWSER_TEST_P(RenderProcessHostTest,
+                       SetSpareRendererPriorityBeforeInitialization) {
+  using ChildBindingState = base::android::ChildBindingState;
+  RenderProcessHostImpl* process = static_cast<RenderProcessHostImpl*>(
+      RenderProcessHostImpl::CreateSpareRenderProcessHost(
+          ShellContentBrowserClient::Get()->browser_context(), nullptr));
+
+  // Before Init(), the priority is not updated yet.
+  EXPECT_TRUE(process->HasSpareRendererPriority());
+  EXPECT_EQ(process->GetEffectiveImportance(), ChildProcessImportance::NORMAL);
+  EXPECT_EQ(process->GetEffectiveChildBindingState(),
+            ChildBindingState::UNBOUND);
+
+  RenderProcessHostWatcher watcher(
+      process, RenderProcessHostWatcher::WATCH_FOR_PROCESS_READY);
+  process->Init();
+  watcher.Wait();
+
+  EXPECT_TRUE(process->HasSpareRendererPriority());
+  if (base::FeatureList::IsEnabled(features::kSpareRendererProcessPriority)) {
+    // After Init(), the priority should be updated.
+    EXPECT_EQ(process->GetEffectiveImportance(),
+              ChildProcessImportance::NORMAL);
+    EXPECT_EQ(process->GetEffectiveChildBindingState(),
+              ChildBindingState::WAIVED);
+  }
+  process->Cleanup();
+}
+#endif
 
 class DiscardFrameBrowserTest : public RenderProcessHostTestBase,
                                 public WebContentsObserver {

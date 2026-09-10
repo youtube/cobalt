@@ -72,6 +72,7 @@
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_dialogs.h"
@@ -86,6 +87,8 @@
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
+#include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
 #include "chrome/browser/ui/qrcode_generator/qrcode_generator_bubble_controller.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
@@ -181,6 +184,7 @@
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
 #include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_coordinator.h"
@@ -216,8 +220,6 @@
 #include "components/javascript_dialogs/app_modal_dialog_controller.h"
 #include "components/javascript_dialogs/app_modal_dialog_queue.h"
 #include "components/javascript_dialogs/app_modal_dialog_view.h"
-#include "components/omnibox/browser/omnibox_popup_view.h"
-#include "components/omnibox/browser/omnibox_view.h"
 #include "components/performance_manager/public/features.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/prefs/pref_service.h"
@@ -794,13 +796,14 @@ BrowserView::BrowserView(Browser* browser)
   tab_strip_region_view_ =
       top_container_->AddChildView(std::make_unique<TabStripRegionView>(this));
 
-  if (tabs::AreVerticalTabsEnabled()) {
+  if (tabs::IsVerticalTabsFeatureEnabled()) {
     auto vertical_tab_strip_container =
         std::make_unique<VerticalTabStripRegionView>(
             browser_->GetFeatures()
                 .tab_strip_service_feature()
                 ->GetTabStripService(),
-            browser_->GetFeatures().vertical_tab_strip_state_controller());
+            browser_->GetFeatures().vertical_tab_strip_state_controller(),
+            browser_->GetActions()->root_action_item());
     vertical_tab_strip_container_ =
         AddChildView(std::move(vertical_tab_strip_container));
   }
@@ -845,33 +848,37 @@ BrowserView::BrowserView(Browser* browser)
   top_container_separator_->SetProperty(views::kElementIdentifierKey,
                                         kContentsSeparatorTopEdgeElementId);
 
-  contents_container_ = AddChildView(std::move(contents_container));
+  main_container_ = AddChildView(std::make_unique<views::View>());
+  contents_container_ =
+      main_container_->AddChildView(std::move(contents_container));
   set_contents_view(contents_container_);
 
   const bool is_right_aligned = GetProfile()->GetPrefs()->GetBoolean(
       prefs::kSidePanelHorizontalAlignment);
-  unified_side_panel_ = AddChildView(std::make_unique<SidePanel>(
-      this, is_right_aligned ? SidePanel::HorizontalAlignment::kRight
-                             : SidePanel::HorizontalAlignment::kLeft));
+  contents_height_side_panel_ =
+      main_container_->AddChildView(std::make_unique<SidePanel>(
+          this, is_right_aligned ? SidePanel::HorizontalAlignment::kRight
+                                 : SidePanel::HorizontalAlignment::kLeft));
 
   // `MultiContentsView` owns separators when `SideBySide` is enabled.
   if (!multi_contents_view_) {
-    right_aligned_side_panel_separator_ =
-        AddChildView(ContentsSeparator::CreateContentsSeparator());
+    right_aligned_side_panel_separator_ = main_container_->AddChildView(
+        ContentsSeparator::CreateContentsSeparator());
     right_aligned_side_panel_separator_->SetProperty(
         views::kElementIdentifierKey,
         kRightAlignedSidePanelSeparatorViewElementId);
 
-    left_aligned_side_panel_separator_ =
-        AddChildView(ContentsSeparator::CreateContentsSeparator());
+    left_aligned_side_panel_separator_ = main_container_->AddChildView(
+        ContentsSeparator::CreateContentsSeparator());
     left_aligned_side_panel_separator_->SetProperty(
         views::kElementIdentifierKey,
         kLeftAlignedSidePanelSeparatorViewElementId);
     side_panel_rounded_corner_ =
-        AddChildView(std::make_unique<ContentsRoundedCorner>(
+        main_container_->AddChildView(std::make_unique<ContentsRoundedCorner>(
             this, views::ShapeContextTokens::kContentSeparatorRadius,
-            base::BindRepeating(&SidePanel::IsRightAligned,
-                                base::Unretained(unified_side_panel_))));
+            base::BindRepeating(
+                &SidePanel::IsRightAligned,
+                base::Unretained(contents_height_side_panel_))));
     side_panel_rounded_corner_->SetProperty(
         views::kElementIdentifierKey, kSidePanelRoundedCornerViewElementId);
   }
@@ -918,7 +925,7 @@ BrowserView::BrowserView(Browser* browser)
     focus_manager_observation_.Observe(GetFocusManager());
   }
 
-  if (tabs::AreVerticalTabsEnabled()) {
+  if (tabs::IsVerticalTabsFeatureEnabled()) {
     vertical_tab_subscription_ =
         browser_->browser_window_features()
             ->vertical_tab_strip_state_controller()
@@ -967,12 +974,13 @@ BrowserView::~BrowserView() {
   find_bar_host_view_ = nullptr;
   infobar_container_ = nullptr;
   multi_contents_view_ = nullptr;
+  main_container_ = nullptr;
   contents_container_view_ = nullptr;
   lens_overlay_view_ = nullptr;
   window_scrim_view_ = nullptr;
   contents_container_ = nullptr;
   vertical_tab_strip_container_ = nullptr;
-  unified_side_panel_ = nullptr;
+  contents_height_side_panel_ = nullptr;
   right_aligned_side_panel_separator_ = nullptr;
   left_aligned_side_panel_separator_ = nullptr;
   side_panel_rounded_corner_ = nullptr;
@@ -1294,8 +1302,8 @@ void BrowserView::Show() {
   // example, new window in Mac fullscreen with toolbar showing) where we need
   // restore it.
   if (browser_widget_->IsFullscreen() &&
-      !browser_widget_->GetFrameView()->ShouldHideTopUIForFullscreen() &&
-      GetFocusManager() && !GetFocusManager()->GetFocusedView()) {
+      !GetFrameView()->ShouldHideTopUIForFullscreen() && GetFocusManager() &&
+      !GetFocusManager()->GetFocusedView()) {
     SetFocusToLocationBar(false);
   }
 
@@ -1314,7 +1322,7 @@ void BrowserView::ShowInactive() {
 }
 
 void BrowserView::Hide() {
-  // Not implemented.
+  browser_widget_->Hide();
 }
 
 bool BrowserView::IsVisible() const {
@@ -1330,8 +1338,8 @@ void BrowserView::SetBounds(const gfx::Rect& bounds) {
 
   // If the BrowserFrameView has been created, give it a chance to handle the
   // BrowserWidget's bounds change.
-  if (browser_widget_->GetFrameView()) {
-    browser_widget_->GetFrameView()->SetFrameBounds(bounds);
+  if (auto* const frame_view = GetFrameView()) {
+    frame_view->SetFrameBounds(bounds);
   } else {
     browser_widget_->SetBounds(bounds);
   }
@@ -2045,7 +2053,7 @@ bool BrowserView::ShouldHideUIForFullscreen() const {
     return false;
   }
 
-  return browser_widget_->GetFrameView()->ShouldHideTopUIForFullscreen();
+  return GetFrameView()->ShouldHideTopUIForFullscreen();
 }
 
 bool BrowserView::IsFullscreen() const {
@@ -2087,7 +2095,7 @@ void BrowserView::FullscreenStateChanging() {
 void BrowserView::FullscreenStateChanged() {
 #if BUILDFLAG(IS_CHROMEOS)
   const auto* frame_view =
-      static_cast<BrowserFrameViewChromeOS*>(browser_widget_->GetFrameView());
+      static_cast<BrowserFrameViewChromeOS*>(GetFrameView());
   immersive_mode_controller()->SetEnabled(
       frame_view->ShouldEnableImmersiveModeController());
 #endif
@@ -2115,7 +2123,7 @@ void BrowserView::FullscreenStateChanged() {
 
   if (base::FeatureList::IsEnabled(features::kAsyncFullscreenWindowState)) {
     ToolbarSizeChanged(false);
-    browser_widget_->GetFrameView()->OnFullscreenStateChanged();
+    GetFrameView()->OnFullscreenStateChanged();
 
     // Reshow the split view after completing the toolbar sizing.
     if (!IsFullscreen() && browser_->tab_strip_model()->IsActiveTabSplit()) {
@@ -2353,7 +2361,7 @@ void BrowserView::OnLockedForOnTaskUpdated() {
 
 bool BrowserView::IsTrustedPinned() const {
   const auto* frame_view =
-      static_cast<BrowserFrameViewChromeOS*>(browser_widget_->GetFrameView());
+      static_cast<const BrowserFrameViewChromeOS*>(GetFrameView());
   return frame_view->IsTrustedPinned();
 }
 
@@ -2411,8 +2419,10 @@ void BrowserView::UpdateWindowControlsOverlayEnabled() {
     web_app_frame_toolbar()->OnWindowControlsOverlayEnabledChanged();
   }
 
-  if (browser_widget_ && browser_widget_->GetFrameView()) {
-    browser_widget_->GetFrameView()->WindowControlsOverlayEnabledChanged();
+  if (browser_widget_) {
+    if (auto* const frame_view = GetFrameView()) {
+      frame_view->WindowControlsOverlayEnabledChanged();
+    }
   }
 
   // When Window Controls Overlay is enabled or disabled, the browser window
@@ -2626,7 +2636,7 @@ bool BrowserView::AreDraggableRegionsEnabled() const {
 void BrowserView::UpdateSidePanelHorizontalAlignment() {
   const bool is_right_aligned = GetProfile()->GetPrefs()->GetBoolean(
       prefs::kSidePanelHorizontalAlignment);
-  unified_side_panel_->SetHorizontalAlignment(
+  contents_height_side_panel_->SetHorizontalAlignment(
       is_right_aligned ? SidePanel::HorizontalAlignment::kRight
                        : SidePanel::HorizontalAlignment::kLeft);
   GetBrowserViewLayout()->Layout(this);
@@ -3111,9 +3121,8 @@ views::Button* BrowserView::GetSharingHubIconButton() {
       PageActionIconType::kSharingHub);
 }
 
-void BrowserView::ToggleMultitaskMenu() const {
-  auto* frame_view =
-      static_cast<BrowserFrameViewChromeOS*>(browser_widget_->GetFrameView());
+void BrowserView::ToggleMultitaskMenu() {
+  auto* frame_view = static_cast<BrowserFrameViewChromeOS*>(GetFrameView());
   if (!frame_view) {
     return;
   }
@@ -3577,7 +3586,7 @@ void BrowserView::OnSplitTabChanged(const SplitTabChange& change) {
 
   // TabDialogManager handles updates based on web contents resizing.
   if (change.type != SplitTabChange::Type::kVisualsChanged) {
-    UpdateTabModalDialogBounds();
+    UpdateTabModalDialogHost();
   }
 }
 
@@ -3620,6 +3629,10 @@ void BrowserView::OnTabStripModelChanged(
 
   if (change.type() != TabStripModelChange::kInserted) {
     return;
+  }
+
+  if (multi_contents_view_ && multi_contents_view_->IsDragAndDropEnabled()) {
+    multi_contents_view_->drop_target_controller().OnTabInserted();
   }
 
   for ([[maybe_unused]] const auto& contents : change.GetInsert()->contents) {
@@ -4196,8 +4209,7 @@ void BrowserView::SaveWindowPlacement(const gfx::Rect& bounds,
   gfx::Rect saved_bounds = bounds;
   if (chrome::SavedBoundsAreContentBounds(browser_.get())) {
     // Invert the transformation done in GetSavedWindowPlacement().
-    gfx::Size client_size =
-        browser_widget_->GetFrameView()->GetBoundsForClientView().size();
+    gfx::Size client_size = GetFrameView()->GetBoundsForClientView().size();
     if (IsToolbarVisible()) {
       client_size.Enlarge(0, -toolbar_->GetPreferredSize().height());
     }
@@ -4581,6 +4593,13 @@ void BrowserView::UpdateContentsInSplitView(
   multi_contents_view_->GetInactiveContentsView()->SetWebContents(nullptr);
   multi_contents_view_->GetActiveContentsView()->SetWebContents(nullptr);
 
+  // The browser widget must be active when updating the contents to avoid
+  // re-entrency when focusing the currently active WebContents. See
+  // crbug.com/447369458
+  if (!GetWidget()->IsActive()) {
+    multi_contents_view_->RequestFocus();
+  }
+
   // Set web contents in multi_contents_view_ to match new_tabs and update the
   // active multi_contents_view_ index.
   for (std::pair<tabs::TabInterface*, int> split_tab_with_index : new_tabs) {
@@ -4607,7 +4626,7 @@ bool BrowserView::IsTabChangeInSplitView(content::WebContents* old_contents,
              new_contents;
 }
 
-void BrowserView::UpdateTabModalDialogBounds() {
+void BrowserView::UpdateTabModalDialogHost() {
   multi_contents_view_->ExecuteOnEachVisibleContentsView(
       base::BindRepeating([](ContentsWebView* contents_view) {
         if (contents_view->web_contents()) {
@@ -4616,7 +4635,7 @@ void BrowserView::UpdateTabModalDialogBounds() {
                   ->GetTabFeatures();
           // When the browser is closing, TabFeatures may be destroyed.
           if (tab_features) {
-            tab_features->tab_dialog_manager()->UpdateModalDialogBounds();
+            tab_features->tab_dialog_manager()->UpdateModalDialogHost();
           }
         }
       }));
@@ -4718,8 +4737,8 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
   if (infobar_container_) {
     panes->push_back(infobar_container_);
   }
-  if (unified_side_panel_) {
-    panes->push_back(unified_side_panel_);
+  if (contents_height_side_panel_) {
+    panes->push_back(contents_height_side_panel_);
   }
   if (multi_contents_view_) {
     for (views::View* pane : multi_contents_view_->GetAccessiblePanes()) {
@@ -4876,28 +4895,43 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
   // Determine if the TabStrip exists and is capable of being clicked on. We
   // might be a popup window without a TabStrip.
   if (ShouldDrawTabStrip()) {
-    // See if the mouse pointer is within the bounds of the TabStripRegionView.
-    gfx::Point test_point(point);
-    if (ConvertedHitTest(parent(), tab_strip_region_view_, &test_point)) {
-      if (tab_strip_region_view_->IsPositionInWindowCaption(test_point)) {
+    if (tabs::IsVerticalTabsFeatureEnabled() &&
+        browser()
+            ->browser_window_features()
+            ->vertical_tab_strip_state_controller()
+            ->ShouldDisplayVerticalTabs()) {
+      // See if the mouse pointer is within the bounds of the
+      // VerticalTabStripRegionView.
+      if (vertical_tab_strip_container_->IsPositionInWindowCaption(
+              point_in_browser_view_coords)) {
         return HTCAPTION;
       }
       return HTCLIENT;
-    }
+    } else {
+      // See if the mouse pointer is within the bounds of the
+      // TabStripRegionView.
+      gfx::Point test_point(point);
+      if (ConvertedHitTest(parent(), tab_strip_region_view_, &test_point)) {
+        if (tab_strip_region_view_->IsPositionInWindowCaption(test_point)) {
+          return HTCAPTION;
+        }
+        return HTCLIENT;
+      }
 
-    // The top few pixels of the TabStrip are a drop-shadow - as we're pretty
-    // starved of draggable area, let's give it to window dragging (this also
-    // makes sense visually).
-    // TODO(tluk): Investigate the impact removing this has on draggable area
-    // given the tab strip no longer uses shadows.
-    views::Widget* widget = GetWidget();
-    if (!(widget->IsMaximized() || widget->IsFullscreen()) &&
-        (point_in_browser_view_coords.y() <
-         (tab_strip_region_view_->y() + kTabShadowSize))) {
-      // We return HTNOWHERE as this is a signal to our containing
-      // NonClientView that it should figure out what the correct hit-test
-      // code is given the mouse position...
-      return HTNOWHERE;
+      // The top few pixels of the TabStrip are a drop-shadow - as we're pretty
+      // starved of draggable area, let's give it to window dragging (this also
+      // makes sense visually).
+      // TODO(tluk): Investigate the impact removing this has on draggable area
+      // given the tab strip no longer uses shadows.
+      views::Widget* widget = GetWidget();
+      if (!(widget->IsMaximized() || widget->IsFullscreen()) &&
+          (point_in_browser_view_coords.y() <
+           (tab_strip_region_view_->y() + kTabShadowSize))) {
+        // We return HTNOWHERE as this is a signal to our containing
+        // NonClientView that it should figure out what the correct hit-test
+        // code is given the mouse position...
+        return HTNOWHERE;
+      }
     }
   }
 
@@ -4984,7 +5018,7 @@ void BrowserView::Layout(PassKey) {
   // TODO(jamescook): Why was this in the middle of layout code?
   toolbar_->location_bar()->omnibox_view()->SetFocusBehavior(
       IsToolbarVisible() ? FocusBehavior::ALWAYS : FocusBehavior::NEVER);
-  browser_widget()->GetFrameView()->UpdateMinimumSize();
+  GetFrameView()->UpdateMinimumSize();
 
   // Some of the situations when the BrowserView is laid out are:
   // - Enter/exit immersive fullscreen mode.
@@ -5071,7 +5105,7 @@ void BrowserView::AddedToWidget() {
   // to hit web apps. See https://crbug.com/1267781.
   auto* side_panel_coordinator =
       browser_->GetFeatures().side_panel_coordinator();
-  unified_side_panel_->AddObserver(side_panel_coordinator);
+  contents_height_side_panel_->AddObserver(side_panel_coordinator);
 
 #if BUILDFLAG(IS_CHROMEOS)
   // TopControlsSlideController must be initialized here in AddedToWidget()
@@ -5117,8 +5151,8 @@ void BrowserView::AddedToWidget() {
           window_scrim_view_, top_container_, web_app_frame_toolbar_,
           web_app_window_title_, tab_strip_region_view_,
           vertical_tab_strip_container_, toolbar_, infobar_container_,
-          contents_container_, multi_contents_view_,
-          left_aligned_side_panel_separator_, unified_side_panel_,
+          main_container_, contents_container_, multi_contents_view_,
+          left_aligned_side_panel_separator_, contents_height_side_panel_,
           right_aligned_side_panel_separator_, side_panel_rounded_corner_,
           top_container_separator_));
   browser_view_layout->SetUseBrowserContentMinimumSize(
@@ -5136,8 +5170,9 @@ void BrowserView::AddedToWidget() {
   browser_->GetFeatures().download_toolbar_ui_controller()->Init();
 #endif
 
-  browser_widget_->OnBrowserViewInitViewsComplete();
-  browser_widget_->GetFrameView()->UpdateMinimumSize();
+  auto* const frame_view = GetFrameView();
+  frame_view->OnBrowserViewInitViewsComplete();
+  frame_view->UpdateMinimumSize();
   using_native_frame_ = browser_widget_->ShouldUseNativeFrame();
 
   MaybeInitializeWebUITabStrip();
@@ -5331,7 +5366,7 @@ void BrowserView::LoadingAnimationCallback(base::TimeTicks timestamp) {
     // GetActiveWebContents can return null for example under Purify when
     // the animations are running slowly and this function is called on a timer
     // through LoadingAnimationCallback.
-    browser_widget_->UpdateThrobber(web_contents && web_contents->IsLoading());
+    GetFrameView()->UpdateThrobber(web_contents && web_contents->IsLoading());
   }
 }
 
@@ -5352,6 +5387,14 @@ bool BrowserView::ShouldShowAvatarToolbarIPH() {
           ? toolbar_button_provider_->GetAvatarToolbarButton()
           : nullptr;
   return avatar_button != nullptr;
+}
+
+BrowserFrameView* BrowserView::GetFrameView() {
+  return browser_widget_ ? browser_widget_->GetFrameView() : nullptr;
+}
+
+const BrowserFrameView* BrowserView::GetFrameView() const {
+  return browser_widget_ ? browser_widget_->GetFrameView() : nullptr;
 }
 
 BrowserViewLayout* BrowserView::GetBrowserViewLayout() const {
@@ -5563,7 +5606,7 @@ void BrowserView::ProcessFullscreen(bool fullscreen, const int64_t display_id) {
   // Undo our anti-jankiness hacks and force a re-layout.
   in_process_fullscreen_ = false;
   ToolbarSizeChanged(false);
-  browser_widget_->GetFrameView()->OnFullscreenStateChanged();
+  GetFrameView()->OnFullscreenStateChanged();
 
   // Reshow the split view after completing the toolbar sizing.
   if (!fullscreen && browser_->tab_strip_model()->IsActiveTabSplit()) {
@@ -5979,7 +6022,7 @@ Profile* BrowserView::GetProfile() {
 }
 
 void BrowserView::UpdateUIForTabFullscreen() {
-  browser_widget()->GetFrameView()->UpdateFullscreenTopUI();
+  GetFrameView()->UpdateFullscreenTopUI();
 }
 
 WebContents* BrowserView::GetWebContentsForExclusiveAccess() {
@@ -5991,7 +6034,7 @@ bool BrowserView::CanUserEnterFullscreen() const {
 }
 
 bool BrowserView::CanUserExitFullscreen() const {
-  return browser_widget_->GetFrameView()->CanUserExitFullscreen();
+  return GetFrameView()->CanUserExitFullscreen();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -6119,10 +6162,10 @@ void BrowserView::PaintAsActiveChanged() {
 
 void BrowserView::FrameColorsChanged() {
   if (web_app_window_title_) {
-    SkColor frame_color = browser_widget_->GetFrameView()->GetFrameColor(
-        BrowserFrameActiveState::kUseCurrent);
-    SkColor caption_color = browser_widget_->GetFrameView()->GetCaptionColor(
-        BrowserFrameActiveState::kUseCurrent);
+    SkColor frame_color =
+        GetFrameView()->GetFrameColor(BrowserFrameActiveState::kUseCurrent);
+    SkColor caption_color =
+        GetFrameView()->GetCaptionColor(BrowserFrameActiveState::kUseCurrent);
     web_app_window_title_->SetBackgroundColor(frame_color);
     web_app_window_title_->SetEnabledColor(caption_color);
   }

@@ -84,13 +84,13 @@ int AsyncUDPSocket::SendTo(const void* pv,
                              env_.clock().TimeInMilliseconds(),
                              options.info_signaled_after_sent);
   CopySocketInformationToPacketInfo(cb, *this, &sent_packet.info);
-  if (has_set_ect1_options_ != options.ecn_1) {
+  if (has_set_ect1_options_ != options.ect_1) {
     // It is unclear what is most efficient, setting options on every sent
     // packet or when changed. Potentially, can separate send sockets be used?
     // This is the easier implementation.
     if (socket_->SetOption(Socket::Option::OPT_SEND_ECN,
-                           options.ecn_1 ? 1 : 0) == 0) {
-      has_set_ect1_options_ = options.ecn_1;
+                           options.ect_1 ? 1 : 0) == 0) {
+      has_set_ect1_options_ = options.ect_1;
     }
   }
   int ret = socket_->SendTo(pv, cb, addr);

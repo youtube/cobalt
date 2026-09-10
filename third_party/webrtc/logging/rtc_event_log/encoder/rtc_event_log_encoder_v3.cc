@@ -31,7 +31,6 @@
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_ack_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
@@ -93,8 +92,6 @@ RtcEventLogEncoderV3::RtcEventLogEncoderV3() {
   encoders_[RtcEvent::Type::DtlsWritableState] =
       RtcEventDtlsWritableState::Encode;
   encoders_[RtcEvent::Type::FrameDecoded] = RtcEventFrameDecoded::Encode;
-  encoders_[RtcEvent::Type::GenericAckReceived] =
-      RtcEventGenericAckReceived::Encode;
   encoders_[RtcEvent::Type::GenericPacketReceived] =
       RtcEventGenericPacketReceived::Encode;
   encoders_[RtcEvent::Type::GenericPacketSent] =

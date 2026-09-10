@@ -12,13 +12,14 @@ source_set("actor") {
     ":browser_tests",
   ]
   public = [
+    "actor_features.h",
     "actor_keyed_service.h",
     "actor_keyed_service_factory.h",
+    "actor_metrics.h",
     "actor_navigation_throttle.h",
     "actor_switches.h",
     "actor_tab_data.h",
     "actor_task.h",
-    "actor_util.h",
     "aggregated_journal.h",
     "aggregated_journal_file_serializer.h",
     "aggregated_journal_in_memory_serializer.h",
@@ -48,6 +49,7 @@ source_set("actor") {
   public_deps = [
     ":types",
     "//base",
+    "//chrome/browser/actor/resources:browser_resources",
     "//chrome/browser/actor/ui:states",
     "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/password_manager/actor_login:service",
@@ -69,14 +71,13 @@ source_set("actor") {
 source_set("impl") {
   sources = [
     "actor_features.cc",
-    "actor_features.h",
     "actor_keyed_service.cc",
     "actor_keyed_service_factory.cc",
+    "actor_metrics.cc",
     "actor_navigation_throttle.cc",
     "actor_switches.cc",
     "actor_tab_data.cc",
     "actor_task.cc",
-    "actor_util.cc",
     "aggregated_journal.cc",
     "aggregated_journal_file_serializer.cc",
     "aggregated_journal_in_memory_serializer.cc",
@@ -173,7 +174,6 @@ source_set("types") {
   sources = [
     "shared_types.cc",
     "shared_types.h",
-    "task_id.h",
   ]
   public_deps = [
     "//base",
@@ -286,6 +286,7 @@ source_set("browser_tests") {
       "tools/history_tool_browsertest.cc",
       "tools/mouse_move_tool_browsertest.cc",
       "tools/navigate_tool_browsertest.cc",
+      "tools/observation_delay_controller_browsertest.cc",
       "tools/page_stability_browsertest.cc",
       "tools/script_tool_browsertest.cc",
       "tools/scroll_to_tool_browsertest.cc",

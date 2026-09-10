@@ -20,15 +20,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -45,8 +44,6 @@ import java.util.List;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(value = Batch.PER_CLASS)
-// TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
-@DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
 @NullMarked
 public class ChromeAndroidTaskIntegrationTest {
 
@@ -241,6 +238,12 @@ public class ChromeAndroidTaskIntegrationTest {
 
         // Assert
         assertTrue(ntpStation.getActivity().isFinishing());
+        CriteriaHelper.pollUiThread(
+                () -> ntpStation.getActivity().isDestroyed(), "activity to be destroyed");
+        assertEquals(
+                "only one activity should be running",
+                1,
+                ApplicationStatus.getRunningActivities().size());
     }
 
     @Test
@@ -367,8 +370,14 @@ public class ChromeAndroidTaskIntegrationTest {
         var chromeAndroidTask = getChromeAndroidTask(taskId);
         assertNotNull(chromeAndroidTask);
 
-        // Assert: by default, app is maximized in non desktop windowing mode.
-        assertTrue(chromeAndroidTask.isMaximized());
+        // Assert
+        assertEquals(
+                "only one activity should be running",
+                1,
+                ApplicationStatus.getRunningActivities().size());
+        assertTrue(
+                "App should be maximized in non desktop windowing mode",
+                chromeAndroidTask.isMaximized());
     }
 
     @Test

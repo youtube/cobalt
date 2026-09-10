@@ -40,6 +40,7 @@
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_ai_form_rationalization.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/autofill_server_prediction.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/crowdsourcing/server_prediction_overrides.h"
 #include "components/autofill/core/browser/data_quality/autofill_data_util.h"
@@ -268,9 +269,9 @@ FormDataPredictions FormStructure::GetFieldTypePredictions() const {
         it != field_to_attribute_types.end()) {
       annotated_field.attribute_types = AttributeTypesToString(it->second);
     }
-    if (base::optional_ref<const std::u16string> format_string =
+    if (base::optional_ref<const AutofillFormatString> format_string =
             field->format_string()) {
-      annotated_field.format_string = base::UTF16ToUTF8(*format_string);
+      annotated_field.format_string = base::UTF16ToUTF8(format_string->value);
     }
     annotated_field.html_type = FieldTypeToStringView(field->html_type());
     annotated_field.overall_type = [&] {
@@ -436,7 +437,7 @@ void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
     field->set_previously_autofilled(cached_field->previously_autofilled());
     field->set_did_trigger_suggestions(cached_field->did_trigger_suggestions());
     field->set_was_focused(cached_field->was_focused());
-    if (base::optional_ref<const std::u16string> format_string =
+    if (base::optional_ref<const AutofillFormatString> format_string =
             cached_field->format_string()) {
       field->set_format_string_unless_overruled(
           *format_string, cached_field->format_string_source());
@@ -829,25 +830,25 @@ LogBuffer& operator<<(LogBuffer& buffer, const FormStructure& form) {
       buffer << Tr{} << "Autofill AI AttributeTypes:"
              << AttributeTypesToString(it->second);
     }
-    if (base::optional_ref<const std::u16string> format_string =
+    if (base::optional_ref<const AutofillFormatString> format_string =
             field->format_string()) {
       std::string_view source;
       switch (field->format_string_source()) {
-        case AutofillField::FormatStringSource::kUnset:
+        case AutofillFormatStringSource::kUnset:
           source = "unset";
           break;
-        case AutofillField::FormatStringSource::kHeuristics:
+        case AutofillFormatStringSource::kHeuristics:
           source = "heuristic";
           break;
-        case AutofillField::FormatStringSource::kModelResult:
+        case AutofillFormatStringSource::kModelResult:
           source = "model";
           break;
-        case AutofillField::FormatStringSource::kServer:
+        case AutofillFormatStringSource::kServer:
           source = "server";
           break;
       }
       buffer << Tr{} << "Format string:"
-             << base::StrCat({"\"", base::UTF16ToUTF8(*format_string),
+             << base::StrCat({"\"", base::UTF16ToUTF8(format_string->value),
                               "\" from ", source});
     }
     buffer << Tr{} << "Section:" << field->section();
@@ -886,18 +887,17 @@ LogBuffer& operator<<(LogBuffer& buffer, const FormStructure& form) {
   return buffer;
 }
 
-base::flat_map<FieldGlobalId, AutofillType::ServerPrediction>
+base::flat_map<FieldGlobalId, AutofillServerPrediction>
 FormStructure::GetServerPredictions(
     const std::vector<FieldGlobalId>& field_ids) const {
-  auto predictions =
-      base::MakeFlatMap<FieldGlobalId, AutofillType::ServerPrediction>(
-          field_ids, {}, [](const FieldGlobalId& id) {
-            return std::make_pair(id, AutofillType::ServerPrediction());
-          });
+  auto predictions = base::MakeFlatMap<FieldGlobalId, AutofillServerPrediction>(
+      field_ids, {}, [](const FieldGlobalId& id) {
+        return std::make_pair(id, AutofillServerPrediction());
+      });
   for (const std::unique_ptr<AutofillField>& field : fields_) {
     auto field_in_predictions = predictions.find(field->global_id());
     if (field_in_predictions != predictions.end()) {
-      field_in_predictions->second = AutofillType::ServerPrediction(*field);
+      field_in_predictions->second = AutofillServerPrediction(*field);
     }
   }
   return predictions;

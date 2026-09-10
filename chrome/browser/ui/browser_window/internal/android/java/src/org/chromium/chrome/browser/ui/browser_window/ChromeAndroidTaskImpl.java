@@ -257,7 +257,8 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public long getOrCreateNativeBrowserWindowPtr() {
-        assertAlive();
+        assert getState() == State.PENDING || getState() == State.ALIVE
+                : "This Task is not pending or alive.";
         return mAndroidBrowserWindow.getOrCreateNativePtr();
     }
 
@@ -301,12 +302,11 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public boolean isMaximized() {
-        // TODO(crbug.com/438268202): Change the if statement to an assert.
-        // We don't expect ChromeAndroidTask to work for R and below.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             Log.w(TAG, "isMaximized() requires Android R+; returning a false");
             return false;
         }
+
         synchronized (mActivityWindowAndroidLock) {
             var activityWindowAndroid =
                     getActivityWindowAndroidInternalLocked(/* assertAlive= */ true);
@@ -325,8 +325,6 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public boolean isFullscreen() {
-        // TODO(crbug.com/438268202): Change the if statement to an assert.
-        // We don't expect ChromeAndroidTask to work for R and below.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             Log.w(TAG, "isFullscreen() requires Android R+; returning false");
             return false;
@@ -458,12 +456,11 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public void maximize() {
-        // TODO(crbug.com/438268202): Change the if statement to an assert.
-        // We don't expect ChromeAndroidTask to work for R and below.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             Log.w(TAG, "maximize() requires Android R+; does nothing");
             return;
         }
+
         synchronized (mActivityWindowAndroidLock) {
             var activityWindowAndroid =
                     getActivityWindowAndroidInternalLocked(/* assertAlive= */ true);
@@ -471,7 +468,7 @@ final class ChromeAndroidTaskImpl
             Activity activity = activityWindowAndroid.getActivity().get();
             if (activity == null) return;
             // No maximize action in non desktop window mode.
-            if (!isInDesktopWindowing(activity.getWindowManager())) return;
+            if (!activity.isInMultiWindowMode()) return;
             if (isRestoredInternalLocked(activityWindowAndroid)) {
                 mRestoredBounds = getBoundsInternalLocked();
             }
@@ -482,8 +479,6 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public void minimize() {
-        // TODO(crbug.com/438268202): Change the if statement to an assert.
-        // We don't expect ChromeAndroidTask to work for R and below.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             Log.w(TAG, "minimize() requires Android R+; does nothing");
             return;
@@ -676,8 +671,6 @@ final class ChromeAndroidTaskImpl
 
     @GuardedBy("mActivityWindowAndroidLock")
     private Rect getBoundsInternalLocked() {
-        // TODO(crbug.com/438268202): Change the if statement to an assert.
-        // We don't expect ChromeAndroidTask to work for R and below.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             Log.w(TAG, "getBoundsInternal() requires Android R+; returning an empty Rect()");
             return new Rect();
@@ -715,11 +708,13 @@ final class ChromeAndroidTaskImpl
         if (activityWindowAndroid == null) return false;
         var activity = activityWindowAndroid.getActivity().get();
         if (activity == null) return false;
-        var windowManager = activity.getWindowManager();
-        if (isInDesktopWindowing(windowManager)) {
-            return getBoundsInternalLocked().equals(getMaximizedBounds(windowManager));
+        if (activity.isInMultiWindowMode()) {
+            // Desktop windowing mode is also a multi-window mode.
+            return getBoundsInternalLocked()
+                    .equals(getMaximizedBounds(activity.getWindowManager()));
         } else {
-            return !activity.isInMultiWindowMode();
+            // In non-multi-window mode, Chrome is maximized by default.
+            return true;
         }
     }
 
@@ -785,12 +780,10 @@ final class ChromeAndroidTaskImpl
                 0, insets.top, fullscreenBounds.right, fullscreenBounds.bottom - insets.bottom);
     }
 
-    @RequiresApi(api = VERSION_CODES.R)
-    // TODO(crbug.com/437982549): Replace with a more versatile API to improve OEM compatibility.
-    private static boolean isInDesktopWindowing(WindowManager windowManager) {
-        return windowManager
-                .getCurrentWindowMetrics()
-                .getWindowInsets()
-                .isVisible(WindowInsets.Type.captionBar());
+    @VisibleForTesting
+    @Nullable Rect getRestoredBoundsForTesting() {
+        synchronized (mActivityWindowAndroidLock) {
+            return mRestoredBounds;
+        }
     }
 }

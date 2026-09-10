@@ -21,6 +21,7 @@ import types
 from typing import Any, Type
 import unittest
 
+from telemetry.internal.actions import page_action
 from telemetry.internal.browser import browser_options as bo
 from telemetry.internal.platform import gpu_info as telemetry_gpu_info
 from telemetry.internal.platform import system_info as si_module
@@ -230,6 +231,15 @@ class GpuIntegrationTest(
     if cls._finder_options.extra_overlay_config_json:
       overlay_support.ParseOverlayJsonFile(
           cls._finder_options.extra_overlay_config_json)
+    # Tests for web-engine-shell and cast-streaming-shell are running on very
+    # less performant smart display devices and also use DCHECK-enabled
+    # binaries. The combination can cause a significant slowness of the
+    # javascript execution. So the default timeout used by javascript execution
+    # is explicitly doubled to avoid flakiness.
+    if cls._finder_options.browser_type in [
+        'web-engine-shell', 'cast-streaming-shell'
+    ]:
+      page_action.DEFAULT_TIMEOUT = 120
 
   @classmethod
   def AddCommandlineArgs(cls, parser: ct.CmdArgParser) -> None:
@@ -1359,6 +1369,7 @@ class GpuIntegrationTest(
         'qualcomm-adreno-(tm)-740',  # android-sm-s911u1
         'arm-mali-g78',  # android-pixel-6
         'nvidia-nvidia-tegra',  # android-shield-android-tv
+        'imagination-technologies-0x71061212',  # android-pixel-10
         'vmware,',  # VMs
         'vmware,-0x1050',  # ChromeOS VMs
         'mesa/x.org',  # ChromeOS VMs

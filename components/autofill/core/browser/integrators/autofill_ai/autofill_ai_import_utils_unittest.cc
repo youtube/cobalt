@@ -20,6 +20,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
@@ -84,7 +85,7 @@ std::unique_ptr<AutofillField> CreateInput(
     FormControlType form_control_type,
     const std::vector<FieldType>& field_types,
     std::string_view value,
-    std::string_view format_string = "",
+    std::optional<AutofillFormatString> format_string = std::nullopt,
     std::string_view initial_value = "") {
   auto field = std::make_unique<AutofillField>(test::CreateTestFormField(
       /*label=*/"",
@@ -93,10 +94,9 @@ std::unique_ptr<AutofillField> CreateInput(
   // Explicitly set the value here to ensure that it differs from the initial
   // value.
   field->set_value(base::UTF8ToUTF16(value));
-  if (!format_string.empty()) {
+  if (format_string) {
     field->set_format_string_unless_overruled(
-        base::UTF8ToUTF16(format_string),
-        AutofillField::FormatStringSource::kServer);
+        std::move(*format_string), AutofillFormatStringSource::kServer);
   }
   AddPrediction(*field, field_types);
   return field;
@@ -106,10 +106,10 @@ std::unique_ptr<AutofillField> CreateInput(
     FormControlType form_control_type,
     FieldType field_type,
     std::string_view value,
-    std::string_view format_string = "",
+    std::optional<AutofillFormatString> format_string = std::nullopt,
     std::string_view initial_value = "") {
   return CreateInput(form_control_type, std::vector<FieldType>{field_type},
-                     value, format_string, initial_value);
+                     value, std::move(format_string), initial_value);
 }
 
 std::unique_ptr<AutofillField> CreateSelect(
@@ -160,13 +160,16 @@ TEST_F(AutofillAiImportUtilsTest, ImportFromInput) {
   // are ignored during import.
   fields.push_back(CreateInput(FormControlType::kInputText,
                                FieldType::PASSPORT_ISSUING_COUNTRY, "Sweden",
-                               /*format_string=*/"", "Sweden"));
-  fields.push_back(CreateInput(FormControlType::kInputText,
-                               FieldType::PASSPORT_ISSUE_DATE, "24", "DD"));
-  fields.push_back(CreateInput(FormControlType::kInputText,
-                               FieldType::PASSPORT_ISSUE_DATE, "12", "MM"));
-  fields.push_back(CreateInput(FormControlType::kInputText,
-                               FieldType::PASSPORT_ISSUE_DATE, "2025", "YYYY"));
+                               /*format_string=*/std::nullopt, "Sweden"));
+  fields.push_back(
+      CreateInput(FormControlType::kInputText, FieldType::PASSPORT_ISSUE_DATE,
+                  "24", AutofillFormatString(u"DD", FormatString_Type_DATE)));
+  fields.push_back(
+      CreateInput(FormControlType::kInputText, FieldType::PASSPORT_ISSUE_DATE,
+                  "12", AutofillFormatString(u"MM", FormatString_Type_DATE)));
+  fields.push_back(CreateInput(
+      FormControlType::kInputText, FieldType::PASSPORT_ISSUE_DATE, "2025",
+      AutofillFormatString(u"YYYY", FormatString_Type_DATE)));
 
   EXPECT_THAT(GetPossibleEntitiesFromSubmittedForm(fields, "en-US",
                                                    GeoIpCountryCode("US")),
@@ -253,10 +256,13 @@ TEST_F(AutofillAiImportUtilsTest, DoNotImportAffixes) {
                        CreateAttribute(kDriversLicenseName,
                                        "Karlsson on the Roof")))));
 
+  auto from_affix = [](std::u16string fs) {
+    return AutofillFormatString(std::move(fs), FormatString_Type_AFFIX);
+  };
   fields[1]->set_format_string_unless_overruled(
-      u"3", AutofillField::FormatStringSource::kServer);
+      from_affix(u"3"), AutofillFormatStringSource::kServer);
   fields[2]->set_format_string_unless_overruled(
-      u"0", AutofillField::FormatStringSource::kServer);
+      from_affix(u"0"), AutofillFormatStringSource::kServer);
   EXPECT_THAT(
       GetPossibleEntitiesFromSubmittedForm(fields, "en-US",
                                            GeoIpCountryCode("US")),

@@ -22,6 +22,8 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import androidx.annotation.ColorRes;
+import androidx.annotation.StyleRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.recyclerview.widget.RecyclerView;
@@ -43,7 +45,9 @@ import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarUtils.BookmarkBarCli
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.favicon.FaviconUtils;
+import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.bookmarks.BookmarkId;
 import org.chromium.components.bookmarks.BookmarkItem;
 import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
@@ -62,6 +66,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.RectProvider;
 import org.chromium.ui.widget.ViewRectProvider;
+import org.chromium.ui.widget.ViewRectUpdater;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -91,6 +96,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
     private final ObservableSupplier<BookmarkManagerOpener> mBookmarkManagerOpenerSupplier;
     private final RecyclerView mItemsRecyclerView;
     private final BookmarkBar mBookmarkBarView;
+    @StyleRes private int mCurrentTextStyleRes = R.style.TextAppearance_TextMedium_Primary_Baseline;
+    @ColorRes private int mCurrentIconTintRes = R.color.default_icon_color_tint_list;
 
     // The popup window that displays the contents of a bookmark folder. Instantiated in {@code
     // showPopupMenu} when a folder is tapped.
@@ -142,8 +149,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                 LazyOneshotSupplier.fromValue(
                         AppCompatResources.getDrawable(mActivity, R.drawable.star_outline_24dp)));
         mAllBookmarksButtonModel.set(
-                BookmarkBarButtonProperties.ICON_TINT_LIST_ID,
-                R.color.default_icon_color_tint_list);
+                BookmarkBarButtonProperties.TEXT_APPEARANCE_ID,
+                R.style.TextAppearance_TextMedium_Primary_Baseline);
         mAllBookmarksButtonModel.set(
                 BookmarkBarButtonProperties.TITLE,
                 mActivity.getString(R.string.bookmark_bar_all_bookmarks_button_title));
@@ -205,7 +212,14 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             @BookmarkBarItemsProvider.ObservationId int observationId,
             BookmarkItem item,
             int index) {
-        mItemsModel.add(index, createListItemFor(this::onBookmarkItemClick, mImageFetcher, item));
+        mItemsModel.add(
+                index,
+                createListItemFor(
+                        this::onBookmarkItemClick,
+                        mImageFetcher,
+                        item,
+                        mCurrentIconTintRes,
+                        mCurrentTextStyleRes));
     }
 
     @Override
@@ -226,7 +240,13 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             BookmarkItem item,
             int index) {
         mItemsModel.update(
-                index, createListItemFor(this::onBookmarkItemClick, mImageFetcher, item));
+                index,
+                createListItemFor(
+                        this::onBookmarkItemClick,
+                        mImageFetcher,
+                        item,
+                        mCurrentIconTintRes,
+                        mCurrentTextStyleRes));
     }
 
     @Override
@@ -236,7 +256,13 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             int index) {
         final List<ListItem> batch = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
-            batch.add(createListItemFor(this::onBookmarkItemClick, mImageFetcher, items.get(i)));
+            batch.add(
+                    createListItemFor(
+                            this::onBookmarkItemClick,
+                            mImageFetcher,
+                            items.get(i),
+                            mCurrentIconTintRes,
+                            mCurrentTextStyleRes));
         }
         mItemsModel.addAll(batch, index);
     }
@@ -446,7 +472,13 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                         mBookmarkBarView,
                         AppCompatResources.getDrawable(mActivity, R.drawable.default_popup_menu_bg),
                         popupListMenu::getContentView,
-                        new ViewRectProvider(anchorView),
+                        new ViewRectProvider(
+                                anchorView,
+                                (view, rect, onRectChanged) -> {
+                                    var updater = new ViewRectUpdater(view, rect, onRectChanged);
+                                    updater.setIncludePadding(true);
+                                    return updater;
+                                }),
                         mBrowserControlsRectProvider);
 
         mAnchoredPopupWindow.setFocusable(true);
@@ -457,12 +489,6 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                 mActivity
                         .getResources()
                         .getDimensionPixelSize(R.dimen.bookmarks_bar_popup_elevation));
-
-        // Set the margin because anchoredPopupWindow is responsible for calculating the dynamic
-        // height of the popup.
-        int marginPx =
-                mActivity.getResources().getDimensionPixelSize(R.dimen.bookmarks_bar_popup_margin);
-        mAnchoredPopupWindow.setMargin(marginPx);
 
         // Create an observer that will re-run the sizing logic whenever the list content changes.
         // This is triggered when navigating into or out of a submenu. This observer is needed
@@ -571,9 +597,23 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             return;
         }
 
-         // Measure the size of the menu_list, which includes all items plus padding.
-         int[] measuredDimensions = popupListMenu.getMenuDimensions();
-         mAnchoredPopupWindow.setDesiredContentSize(finalWidth, measuredDimensions[1]);
+        // Measure the size of the menu_list, which includes all items plus padding.
+        int[] measuredDimensions = popupListMenu.getMenuDimensions();
+        int desiredHeight = measuredDimensions[1];
+
+        // When there is a non-null rect provider, we can set scroll bars to only be shown when
+        // the desired height for the content is more than the available height.
+        if (mBrowserControlsRectProvider != null
+                && mBrowserControlsRectProvider.getRect() != null) {
+            int availableHeight = mBrowserControlsRectProvider.getRect().height();
+
+            ListView menuList = popupListMenu.getContentView().findViewById(R.id.menu_list);
+            boolean needsScrollbar = desiredHeight > availableHeight;
+            menuList.setVerticalScrollBarEnabled(needsScrollbar);
+            menuList.setScrollbarFadingEnabled(needsScrollbar);
+        }
+
+        mAnchoredPopupWindow.setDesiredContentSize(finalWidth, desiredHeight);
     }
 
     private int getIndexInBookmarksBar(BookmarkItem item) {
@@ -757,6 +797,16 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
         }
     }
 
+    /**
+     * Dismisses the pop up menu if it is open, used for upstream clients/owners communicating state
+     * changes from external components, e.g. screen width change.
+     */
+    public void dismissPopupMenu() {
+        if (mAnchoredPopupWindow != null) {
+            mAnchoredPopupWindow.dismiss();
+        }
+    }
+
     // A {@link RectProvider} that provides the visible area of the screen, accounting for the
     // browser controls. Flow:
     // 1. BrowserControlsStateProvider.Observer in BookmarkBarCoordinator calls
@@ -783,6 +833,15 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             mRect.set(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels);
             mRect.top += topControlsHeight;
             mRect.bottom -= bottomControlsHeight;
+
+            // Add a margin to the bottom of the rect to prevent the popup from getting too close
+            // to the bottom of the screen.
+            int marginPx =
+                    mActivity
+                            .getResources()
+                            .getDimensionPixelSize(R.dimen.bookmarks_bar_popup_margin);
+            mRect.bottom -= marginPx;
+
             // Notify the observer that the rect has changed.
             notifyRectChanged();
         }
@@ -913,12 +972,16 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
      * @param clickCallback The callback to invoke on list item click events.
      * @param imageFetcher The image fetcher to use for rendering favicons.
      * @param item The bookmark item for which to create a renderable list item.
+     * @param iconTintRes The theme-aware color resource ID for the icon tint.
+     * @param textStyleRes The theme-aware style resource ID for the text appearance.
      * @return The created list item to render in the bookmark bar.
      */
     private ListItem createListItemFor(
             BiConsumer<BookmarkItem, Integer> clickCallback,
             @Nullable BookmarkImageFetcher imageFetcher,
-            BookmarkItem item) {
+            BookmarkItem item,
+            @ColorRes int iconTintRes,
+            @StyleRes int textStyleRes) {
 
         View.OnKeyListener keyListener =
                 (v, keyCode, event) -> {
@@ -944,9 +1007,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                         .with(BookmarkBarButtonProperties.KEY_LISTENER, keyListener)
                         .with(
                                 BookmarkBarButtonProperties.ICON_TINT_LIST_ID,
-                                item.isFolder()
-                                        ? R.color.default_icon_color_tint_list
-                                        : Resources.ID_NULL)
+                                item.isFolder() ? iconTintRes : Resources.ID_NULL)
                         .with(
                                 BookmarkBarButtonProperties.FOLDER_CONTENT_DESCRIPTION,
                                 item.isFolder()
@@ -954,7 +1015,9 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                                                 R.string.bookmark_bar_folder_content_description,
                                                 item.getTitle())
                                         : null)
-                        .with(BookmarkBarButtonProperties.TITLE, item.getTitle());
+                        .with(BookmarkBarButtonProperties.TITLE, item.getTitle())
+                        .with(BookmarkBarButtonProperties.BOOKMARK_ITEM, item)
+                        .with(BookmarkBarButtonProperties.TEXT_APPEARANCE_ID, textStyleRes);
         if (imageFetcher != null) {
             modelBuilder.with(
                     BookmarkBarButtonProperties.ICON_SUPPLIER,
@@ -981,5 +1044,48 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
 
     void setAnchoredPopupWindowForTesting(AnchoredPopupWindow anchoredPopupWindow) {
         mAnchoredPopupWindow = anchoredPopupWindow;
+    }
+
+    /**
+     * Called by the Coordinator when the theme changes or when the tabs are switched. This method
+     * is responsible for updating the theme for all bookmark bar components. The flow is:
+     * Mediator#onThemeChanged -> Mediator#onProfileChange ->
+     * BookmarkBarItemsProvider#onBookmarkItemAdded -> Mediator#onBookmarkItemAdded
+     *
+     * @param isIncognito Whether the current theme is incognito.
+     * @param brandedColorScheme The brandedColorScheme, which accounts for incognito.
+     */
+    public void onThemeChanged(boolean isIncognito, @BrandedColorScheme int brandedColorScheme) {
+
+        mCurrentIconTintRes =
+                ThemeUtils.getThemedToolbarIconTintResForActivityState(
+                        brandedColorScheme, /* isActivityFocused= */ true);
+        mCurrentTextStyleRes =
+                isIncognito
+                        ? R.style.TextAppearance_TextMediumThick_Secondary_Baseline_Light
+                        : R.style.TextAppearance_TextMediumThick_Secondary;
+
+        // Update the "All Bookmarks" star icon based on the correct theme.
+        mAllBookmarksButtonModel.set(
+                BookmarkBarButtonProperties.ICON_TINT_LIST_ID, mCurrentIconTintRes);
+
+        // Update the "All Bookmarks" text based on the correct theme.
+        mAllBookmarksButtonModel.set(
+                BookmarkBarButtonProperties.TEXT_APPEARANCE_ID, mCurrentTextStyleRes);
+
+        // Update all of the item models in the RecyclerView.
+        for (ListItem listItem : mItemsModel) {
+            PropertyModel model = listItem.model;
+
+            model.set(BookmarkBarButtonProperties.TEXT_APPEARANCE_ID, mCurrentTextStyleRes);
+
+            BookmarkItem item = model.get(BookmarkBarButtonProperties.BOOKMARK_ITEM);
+            if (item.isFolder()) {
+                // Only update the folder icon. The bookmark favicon is not theme-dependent.
+                model.set(BookmarkBarButtonProperties.ICON_TINT_LIST_ID, mCurrentIconTintRes);
+            } else {
+                model.set(BookmarkBarButtonProperties.ICON_TINT_LIST_ID, Resources.ID_NULL);
+            }
+        }
     }
 }

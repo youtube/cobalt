@@ -45,7 +45,6 @@
 #include "api/stats/rtc_stats_collector_callback.h"
 #include "api/transport/bandwidth_estimation_settings.h"
 #include "api/transport/bitrate_settings.h"
-#include "api/transport/network_control.h"
 #include "call/call.h"
 #include "call/payload_type_picker.h"
 #include "p2p/base/port.h"
@@ -378,10 +377,6 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
   MOCK_METHOD(void,
               OnSctpDataChannelStateChanged,
               (int channel_id, DataChannelInterface::DataState),
-              (override));
-  MOCK_METHOD(NetworkControllerInterface*,
-              GetNetworkController,
-              (),
               (override));
   MOCK_METHOD(PayloadTypePicker&, payload_type_picker, (), (override));
 };

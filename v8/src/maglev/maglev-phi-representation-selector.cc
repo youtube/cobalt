@@ -541,20 +541,20 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
           case Opcode::kChangeInt32ToFloat64: {
             new_input =
                 GetReplacementForPhiInputConversion<ChangeInt32ToFloat64>(
-                    input, phi, input_index);
+                    bypassed_input, phi, input_index);
             break;
           }
           case Opcode::kChangeUint32ToFloat64: {
             new_input =
                 GetReplacementForPhiInputConversion<ChangeUint32ToFloat64>(
-                    input, phi, input_index);
+                    bypassed_input, phi, input_index);
             break;
           }
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
           case Opcode::kFloat64ToHoleyFloat64: {
             new_input =
                 GetReplacementForPhiInputConversion<Float64ToHoleyFloat64>(
-                    input, phi, input_index);
+                    bypassed_input, phi, input_index);
             break;
           }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
@@ -724,11 +724,12 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
 template <class NodeT>
 ValueNode* MaglevPhiRepresentationSelector::GetReplacementForPhiInputConversion(
     ValueNode* input, Phi* phi, uint32_t input_index) {
+  DCHECK(!input->Is<Identity>());
   TRACE_UNTAGGING(TRACE_INPUT_LABEL
                   << ": Replacing old conversion with a "
                   << OpcodeToString(NodeBase::opcode_of<NodeT>));
   return AddNewNodeNoInputConversionAtBlockEnd<NodeT>(
-      phi->predecessor_at(input_index), {input->input(0).node()});
+      phi->predecessor_at(input_index), {input});
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
@@ -858,7 +859,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kRemove;
     case ValueRepresentation::kHoleyFloat64:
       // We need to check that the phi is not the hole nan.
-      node->OverwriteWith<CheckHoleyFloat64NotHole>();
+      node->OverwriteWith<CheckHoleyFloat64NotHoleOrUndefined>();
       return ProcessResult::kContinue;
     case ValueRepresentation::kTagged:
       // {phi} wasn't untagged, so we don't need to do anything.
@@ -904,6 +905,12 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
                   StoreTaggedFieldWithWriteBarrier::kValueIndex);
     node->OverwriteWith<StoreTaggedFieldWithWriteBarrier>();
+    // This store could be storing a Smi, since Int32 phis will be tagged to Smi
+    // if they fit in a Smi, and even Float64 phis will be tagged to Smis if
+    // this doesn't lose precision.
+    static constexpr bool kRetaggedPhiCouldBeSmi = true;
+    node->Cast<StoreTaggedFieldWithWriteBarrier>()->set_can_be_smi(
+        kRetaggedPhiCouldBeSmi);
   }
 
   return ProcessResult::kContinue;

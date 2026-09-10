@@ -71,6 +71,11 @@ using base::Time;
 
 namespace history {
 
+void EmitVisitedLinksAdditionCausedBy404Uma(bool was_addition_caused_by_404) {
+  UMA_HISTOGRAM_BOOLEAN("History.VisitedLinks.AdditionCausedBy404",
+                        was_addition_caused_by_404);
+}
+
 // These values are logged to UMA. Entries should not be renumbered and
 // numeric values should never be reused. Please keep in sync with
 // "PageTransitionForVisitedLinks" in tools/metrics/histograms/enums.xml.
@@ -573,7 +578,8 @@ void HistoryService::AddPage(const GURL& url,
       /*referrer=*/GURL(), RedirectList(), ui::PAGE_TRANSITION_LINK,
       /*hidden=*/false, visit_source, VisitResponseCodeCategory::kNot404,
       /*did_replace_entry=*/false, /*consider_for_ntp_most_visited=*/true,
-      /*is_ephemeral=*/false, /*title=*/std::nullopt,
+      VisitContextEphemerality::kNotEphemeral,
+      /*title=*/std::nullopt,
       /*top_level_url=*/url, /*frame_url=*/url));
 }
 
@@ -628,7 +634,7 @@ void HistoryService::AddPartitionedVisitedLinks(
 
   // When links are partitioned and the navigation comes from an ephemeral
   // context we want to avoid adding it to the hashtable.
-  if (args.is_ephemeral) {
+  if (args.visit_context_ephemerality == VisitContextEphemerality::kEphemeral) {
     return;
   }
 
@@ -650,16 +656,28 @@ void HistoryService::AddPartitionedVisitedLinks(
     // and thus add_page_args.url should be the last element in the array
     // add_page_args.redirects.
     DCHECK_EQ(args.url, args.redirects.back());
-    for (const GURL& redirect : args.redirects) {
+    for (unsigned long i = 0u; i < args.redirects.size(); i++) {
+      const GURL& redirect = args.redirects.at(i);
       // All redirects originate from the same top-level site and frame origin.
       VisitedLink link = {redirect, net::SchemefulSite(*args.top_level_url),
                           url::Origin::Create(*args.frame_url)};
       visit_delegate_->AddVisitedLink(link);
+      // Redirects for chains ending in a 404 are only saved to History if
+      // `history::kVisitedLinksOn404` is enabled, because the final visit is
+      // only saved to History if the flag is enabled. Therefore, VisitedLink
+      // hashtable entries for redirects in chains ending in a 404 are caused by
+      // the 404 visit.
+      EmitVisitedLinksAdditionCausedBy404Uma(
+          /*was_addition_caused_by_404=*/args.response_code_category ==
+          VisitResponseCodeCategory::k404);
     }
   } else {
     VisitedLink link = {args.url, net::SchemefulSite(*args.top_level_url),
                         url::Origin::Create(*args.frame_url)};
     visit_delegate_->AddVisitedLink(link);
+    EmitVisitedLinksAdditionCausedBy404Uma(
+        /*was_addition_caused_by_404=*/args.response_code_category ==
+        VisitResponseCodeCategory::k404);
   }
 }
 
@@ -1148,6 +1166,7 @@ void HistoryService::GetDomainDiversity(
     base::Time report_time,
     int number_of_days_to_report,
     DomainMetricBitmaskType metric_type_bitmask,
+    VisitQuery404sPolicy policy_for_404_visits,
     DomainDiversityCallback callback,
     base::CancelableTaskTracker* tracker) {
   DCHECK(backend_task_runner_) << "History service being called after cleanup";
@@ -1156,14 +1175,15 @@ void HistoryService::GetDomainDiversity(
   tracker->PostTaskAndReplyWithResult(
       backend_task_runner_.get(), FROM_HERE,
       base::BindOnce(&HistoryBackend::GetDomainDiversity, history_backend_,
-                     report_time, number_of_days_to_report,
-                     metric_type_bitmask),
+                     report_time, number_of_days_to_report, metric_type_bitmask,
+                     policy_for_404_visits),
       std::move(callback));
 }
 
 void HistoryService::GetUniqueDomainsVisited(
     const base::Time begin_time,
     const base::Time end_time,
+    VisitQuery404sPolicy policy_for_404_visits,
     GetUniqueDomainsVisitedCallback callback,
     base::CancelableTaskTracker* tracker) {
   DCHECK(backend_task_runner_) << "History service being called after cleanup";
@@ -1172,7 +1192,7 @@ void HistoryService::GetUniqueDomainsVisited(
   tracker->PostTaskAndReplyWithResult(
       backend_task_runner_.get(), FROM_HERE,
       base::BindOnce(&HistoryBackend::GetUniqueDomainsVisited, history_backend_,
-                     begin_time, end_time),
+                     begin_time, end_time, policy_for_404_visits),
       std::move(callback));
 }
 
@@ -1207,6 +1227,7 @@ base::CancelableTaskTracker::TaskId HistoryService::GetLastVisitToOrigin(
     const url::Origin& origin,
     base::Time begin_time,
     base::Time end_time,
+    VisitQuery404sPolicy policy_for_404_visits,
     GetLastVisitCallback callback,
     base::CancelableTaskTracker* tracker) {
   DCHECK(backend_task_runner_) << "History service being called after cleanup";
@@ -1215,7 +1236,7 @@ base::CancelableTaskTracker::TaskId HistoryService::GetLastVisitToOrigin(
   return tracker->PostTaskAndReplyWithResult(
       backend_task_runner_.get(), FROM_HERE,
       base::BindOnce(&HistoryBackend::GetLastVisitToOrigin, history_backend_,
-                     origin, begin_time, end_time),
+                     origin, begin_time, end_time, policy_for_404_visits),
       std::move(callback));
 }
 
@@ -1223,6 +1244,7 @@ base::CancelableTaskTracker::TaskId HistoryService::GetDailyVisitsToOrigin(
     const url::Origin& origin,
     base::Time begin_time,
     base::Time end_time,
+    VisitQuery404sPolicy policy_for_404_visits,
     GetDailyVisitsToOriginCallback callback,
     base::CancelableTaskTracker* tracker) {
   DCHECK(backend_task_runner_) << "History service being called after cleanup";
@@ -1230,8 +1252,8 @@ base::CancelableTaskTracker::TaskId HistoryService::GetDailyVisitsToOrigin(
 
   return tracker->PostTaskAndReplyWithResult(
       backend_task_runner_.get(), FROM_HERE,
-      base::BindOnce(&HistoryBackend::GetDailyVisitsToHost, history_backend_,
-                     origin.GetURL(), begin_time, end_time),
+      base::BindOnce(&HistoryBackend::GetDailyVisitsToOrigin, history_backend_,
+                     origin, begin_time, end_time, policy_for_404_visits),
       std::move(callback));
 }
 

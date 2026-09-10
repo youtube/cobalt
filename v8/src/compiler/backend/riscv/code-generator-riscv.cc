@@ -116,6 +116,7 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
       case Constant::kInt64:
         return Operand(constant.ToInt64());
       case Constant::kFloat32:
+        // TODO(floitsch): don't use ToFloat32, but ToFloat32Safe.
         return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
@@ -1128,6 +1129,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.verify_write_barriers) {
         auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
             this, object, value, kScratchReg);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
         __ JumpIfNotSmi(value, ool->entry());
         __ bind(ool->exit());
       }
@@ -1138,7 +1140,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchAtomicStoreWithWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
-      MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
+      MacroAssembler::BlockPoolsScope block_pools(masm());
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
@@ -1174,6 +1176,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.verify_write_barriers) {
         auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
             this, object, value, kScratchReg);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
         __ JumpIfNotSmi(value, ool->entry());
         __ bind(ool->exit());
       }
@@ -5480,6 +5483,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         case Constant::kFloat32:
+          // TODO(floitsch): use ToFloat32Safe instead of ToFloat32.
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat32()));
           break;
         case Constant::kInt64:
@@ -5525,23 +5529,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
+        if (src.ToFloat32Safe().get_bits() == 0) {
           __ Sw(zero_reg, dst);
         } else {
-          __ li(kScratchReg, Operand(base::bit_cast<int32_t>(src.ToFloat32())));
+          __ li(kScratchReg, Operand(src.ToFloat32Safe().get_bits()));
           __ Sw(kScratchReg, dst);
         }
       } else {
         DCHECK(destination->IsFPRegister());
         FloatRegister dst = g.ToSingleRegister(destination);
-        __ LoadFPRImmediate(dst, src.ToFloat32());
+        __ LoadFPRImmediate(dst, src.ToFloat32Safe());
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      __ LoadFPRImmediate(dst, src.ToFloat64().value());
+      __ LoadFPRImmediate(dst, src.ToFloat64().AsUint64());
       if (destination->IsFPStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination));
       }

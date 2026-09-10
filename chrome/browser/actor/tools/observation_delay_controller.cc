@@ -4,15 +4,27 @@
 
 #include "chrome/browser/actor/tools/observation_delay_controller.h"
 
+#include <optional>
+
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
+#include "base/notreached.h"
+#include "base/state_transitions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
 #include "chrome/common/actor/journal_details_builder.h"
+#include "chrome/common/actor/task_id.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/common/chrome_render_frame.mojom.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 
 namespace actor {
 
@@ -27,10 +39,30 @@ constexpr base::TimeDelta kCompletionTimeout = base::Seconds(10);
 }  // namespace
 
 ObservationDelayController::ObservationDelayController(
-    content::RenderFrameHost& target_frame)
+    content::RenderFrameHost& target_frame,
+    TaskId task_id,
+    std::optional<PageStabilityConfig> page_stability_config)
     : content::WebContentsObserver(
           WebContents::FromRenderFrameHost(&target_frame)) {
   CHECK(web_contents());
+
+  if (page_stability_config.has_value()) {
+    CHECK_NE(features::kActorGeneralPageStabilityMode.Get(),
+             features::ActorGeneralPageStabilityMode::kDisabled);
+
+    mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>
+        chrome_render_frame;
+    target_frame.GetRemoteAssociatedInterfaces()->GetInterface(
+        &chrome_render_frame);
+
+    chrome_render_frame->CreatePageStabilityMonitor(
+        page_stability_monitor_remote_.BindNewPipeAndPassReceiver(), task_id,
+        page_stability_config->supports_paint_stability);
+    page_stability_monitor_remote_.set_disconnect_handler(
+        base::BindOnce(&ObservationDelayController::OnMonitorDisconnected,
+                       base::Unretained(this)));
+    page_stability_start_delay_ = page_stability_config->start_delay;
+  }
 }
 
 ObservationDelayController::~ObservationDelayController() = default;
@@ -40,48 +72,123 @@ void ObservationDelayController::Wait(
     ReadyCallback callback) {
   journal_entry_ = parent_journal_entry.GetJournal().CreatePendingAsyncEntry(
       GURL::EmptyGURL(), parent_journal_entry.GetTaskId(),
+      mojom::JournalTrack::kActor, "ObservationDelay", {});
+
+  ready_callback_ = std::move(callback);
+
+  if (page_stability_monitor_remote_.is_bound()) {
+    MoveToState(State::kWaitForPageStability);
+  } else {
+    MoveToState(State::kWaitForLoadCompletion);
+  }
+}
+
+void ObservationDelayController::OnMonitorDisconnected() {
+  if (!page_stability_monitor_remote_.is_bound()) {
+    return;
+  }
+
+  page_stability_monitor_remote_.reset();
+
+  if (!ready_callback_) {
+    return;
+  }
+
+  journal_entry_->GetJournal().Log(
+      GURL::EmptyGURL(), journal_entry_->GetTaskId(),
       mojom::JournalTrack::kActor, "ObservationDelay",
       JournalDetailsBuilder()
-          .Add("begin_state", StateToString(state_))
+          .Add("state", "Page stability monitor disconnected")
           .Build());
 
+  MoveToState(State::kWaitForLoadCompletion);
+}
+
+void ObservationDelayController::MoveToState(State new_state) {
+  DCheckStateTransition(state_, new_state);
+
+  CHECK(journal_entry_);
+  journal_entry_->GetJournal().Log(
+      GURL::EmptyGURL(), journal_entry_->GetTaskId(),
+      mojom::JournalTrack::kActor, "ObservationDelayState",
+      JournalDetailsBuilder()
+          .Add("old_state", StateToString(state_))
+          .Add("new_state", StateToString(new_state))
+          .Build());
+
+  state_ = new_state;
   switch (state_) {
-    case State::kWaitingForLoadStart:
-    case State::kWaitingForLoadStop:
-    case State::kWaitingForVisualUpdate: {
-      ready_callback_ = std::move(callback);
+    case State::kInitial: {
+      NOTREACHED();
+    }
+    case State::kWaitForPageStability: {
+      // Unretained since `this` owns the pipe.
+      page_stability_monitor_remote_->NotifyWhenStable(
+          page_stability_start_delay_,
+          MoveToStateClosure(State::kWaitForLoadCompletion));
+      break;
+    }
+    case State::kWaitForLoadCompletion: {
+      page_stability_monitor_remote_.reset();
+
+      if (load_state_ == LoadState::kDone) {
+        MoveToState(State::kDone);
+        break;
+      }
+
       PostFinishedTask(base::BindOnce(&ObservationDelayController::Timeout,
                                       weak_ptr_factory_.GetWeakPtr()),
                        kCompletionTimeout);
 
       // If no navigating load was started, simply force and wait for a new
       // frame to be presented.
-      if (state_ == State::kWaitingForLoadStart) {
+      if (load_state_ == LoadState::kWaitingForLoadStart) {
         WaitForVisualStateUpdate();
       }
       break;
     }
     case State::kDone: {
-      PostFinishedTask(std::move(callback));
-      journal_entry_->EndEntry(
-          JournalDetailsBuilder().Add("end_state", "Done").Build());
+      CHECK(ready_callback_);
+      PostFinishedTask(std::move(ready_callback_));
       break;
     }
   }
+}
 
-  CHECK(callback.is_null());
+std::ostream& operator<<(std::ostream& o,
+                         const ObservationDelayController::State& state) {
+  return o << base::to_underlying(state);
+}
+
+void ObservationDelayController::DCheckStateTransition(State old_state,
+                                                       State new_state) {
+#if DCHECK_IS_ON()
+  static const base::NoDestructor<base::StateTransitions<State>> transitions(
+      base::StateTransitions<State>({
+          // clang-format off
+          {State::kInitial,
+              {State::kWaitForPageStability,
+               State::kWaitForLoadCompletion}},
+          {State::kWaitForPageStability,
+              {State::kWaitForLoadCompletion}},
+          {State::kWaitForLoadCompletion,
+              {State::kDone}}
+          // clang-format on
+      }));
+  DCHECK_STATE_TRANSITION(transitions, old_state, new_state);
+#endif  // DCHECK_IS_ON()
 }
 
 void ObservationDelayController::DidStartLoading() {
-  if (state_ != State::kWaitingForLoadStart) {
+  if (load_state_ != LoadState::kWaitingForLoadStart) {
     return;
   }
 
-  state_ = State::kWaitingForLoadStop;
+  load_state_ = LoadState::kWaitingForLoadStop;
 }
 
 void ObservationDelayController::DidStopLoading() {
-  if (state_ != State::kWaitingForLoadStop) {
+  if (load_state_ != LoadState::kWaitingForLoadStop) {
     return;
   }
 
@@ -97,7 +204,7 @@ void ObservationDelayController::DidStopLoading() {
 }
 
 void ObservationDelayController::WaitForVisualStateUpdate() {
-  state_ = State::kWaitingForVisualUpdate;
+  load_state_ = LoadState::kWaitingForVisualUpdate;
 
   // TODO(crbug.com/414662842): This should probably ensure an update from
   // all/selected OOPIFS?
@@ -107,42 +214,49 @@ void ObservationDelayController::WaitForVisualStateUpdate() {
 }
 
 void ObservationDelayController::VisualStateUpdated(bool /*success*/) {
-  if (state_ != State::kWaitingForVisualUpdate) {
+  if (load_state_ != LoadState::kWaitingForVisualUpdate) {
     return;
   }
 
-  state_ = State::kDone;
+  load_state_ = LoadState::kDone;
 
   // It's possible the ready state has been reached before Wait has been
-  // called. In that case, the callback will be posted when Wait is called.
-  if (ready_callback_) {
-    PostFinishedTask(std::move(ready_callback_));
+  // called or before page stabilized. In that case, the callback will be posted
+  // when Wait is called and the page is stabilized.
+  if (ready_callback_ && !page_stability_monitor_remote_.is_bound()) {
     journal_entry_->EndEntry(
         JournalDetailsBuilder().Add("end_state", "Visual Update").Build());
+    MoveToState(State::kDone);
   }
 }
 
 void ObservationDelayController::Timeout() {
   state_ = State::kDone;
   if (ready_callback_) {
-    PostFinishedTask(std::move(ready_callback_));
     journal_entry_->EndEntry(
         JournalDetailsBuilder().Add("end_state", "Timeout").Build());
+    MoveToState(State::kDone);
   }
 }
 
 std::string_view ObservationDelayController::StateToString(State state) {
   switch (state) {
-    case State::kWaitingForLoadStart:
-      return "WaitLoadStart";
-    case State::kWaitingForLoadStop:
-      return "WaitLoadStop";
-    case State::kWaitingForVisualUpdate:
-      return "WaitVisualUpdate";
+    case State::kInitial:
+      return "Initial";
+    case State::kWaitForPageStability:
+      return "WaitForPageStability";
+    case State::kWaitForLoadCompletion:
+      return "WaitForLoadCompletion";
     case State::kDone:
       return "Done";
   }
   NOTREACHED();
+}
+
+base::OnceClosure ObservationDelayController::MoveToStateClosure(
+    State new_state) {
+  return base::BindOnce(&ObservationDelayController::MoveToState,
+                        weak_ptr_factory_.GetWeakPtr(), new_state);
 }
 
 }  // namespace actor

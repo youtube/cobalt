@@ -60,7 +60,7 @@ export class TestPdfViewerPrivateProxy extends TestBrowserProxy implements
   sendSessionTimeoutError(): void {
     this.sendSaveToDriveProgress({
       status: SaveToDriveStatus.UPLOAD_IN_PROGRESS,
-      errorType: SaveToDriveErrorType.OFFLINE,
+      errorType: SaveToDriveErrorType.OAUTH_ERROR,
     });
   }
 
@@ -101,6 +101,18 @@ function assertBubbleAndProgressBar(
   chrome.test.assertEq(max, progressBar.max);
 }
 
+function assertBubbleDescription(
+    bubble: ViewerSaveToDriveBubbleElement, description: string): void {
+  const descriptionElement = getRequiredElement(bubble, '#description');
+  chrome.test.assertTrue(!!descriptionElement.textContent);
+  chrome.test.assertEq(description, descriptionElement.textContent.trim());
+}
+
+function closeBubble(bubble: ViewerSaveToDriveBubbleElement): void {
+  bubble.$.dialog.close();
+  chrome.test.assertFalse(bubble.$.dialog.open);
+}
+
 function setUpTestPrivateProxy(): TestPdfViewerPrivateProxy {
   const privateProxy = new TestPdfViewerPrivateProxy();
   privateProxy.setStreamUrl(viewer.getStreamUrlForTesting());
@@ -134,9 +146,9 @@ const tests = [
 
     const bubble = getRequiredElement(viewer, 'viewer-save-to-drive-bubble');
     chrome.test.assertTrue(bubble.$.dialog.open);
-    bubble.$.dialog.close();
-    await microtasksFinished();
-    chrome.test.assertFalse(bubble.$.dialog.open);
+
+    // Reset the bubble open state for the next test.
+    closeBubble(bubble);
 
     chrome.test.succeed();
   },
@@ -177,15 +189,6 @@ const tests = [
     await microtasksFinished();
     assertBubbleAndProgressBar(bubble, 88, 226);
 
-    // Save to drive uploading with no bytes uploaded nor file size bytes.
-    // Progress bar should not change.
-    privateProxy.sendSaveToDriveProgress({
-      status: SaveToDriveStatus.UPLOAD_IN_PROGRESS,
-      errorType: SaveToDriveErrorType.NO_ERROR,
-    });
-    await microtasksFinished();
-    assertBubbleAndProgressBar(bubble, 88, 226);
-
     // Save to drive uploading 226/226 bytes.
     privateProxy.sendUploadInProgress(226, 226);
     await microtasksFinished();
@@ -195,15 +198,14 @@ const tests = [
     // hide the progress bar.
     privateProxy.sendSessionTimeoutError();
     await microtasksFinished();
+    assertBubbleDescription(bubble, 'Session timed out');
     chrome.test.assertFalse(!!bubble.shadowRoot.querySelector('cr-progress'));
     chrome.test.assertTrue(!!bubble.shadowRoot.querySelector('#retry-button'));
 
     chrome.test.assertEq(1, privateProxy.getCallCount('saveToDrive'));
 
     // Reset the bubble open state for the next test.
-    bubble.$.dialog.close();
-    await microtasksFinished();
-    chrome.test.assertFalse(bubble.$.dialog.open);
+    closeBubble(bubble);
 
     chrome.test.succeed();
   },
@@ -312,10 +314,7 @@ const tests = [
     controls.$.save.click();
     await microtasksFinished();
 
-    const description = getRequiredElement(bubble, '#description');
-    chrome.test.assertTrue(!!description.textContent);
-    chrome.test.assertEq(
-        'Your Google Drive storage is full', description.textContent.trim());
+    assertBubbleDescription(bubble, 'Your Google Drive storage is full');
 
     // Click the manage storage button in the bubble and verify the bubble is
     // closed.
@@ -349,11 +348,8 @@ const tests = [
     controls.$.save.click();
     await microtasksFinished();
 
-    const description = getRequiredElement(bubble, '#description');
-    chrome.test.assertTrue(!!description.textContent);
-    chrome.test.assertEq(
-        'Saved to your test-parent-folder-name folder',
-        description.textContent.trim());
+    assertBubbleDescription(
+        bubble, 'Saved to your test-parent-folder-name folder');
     const filename = getRequiredElement(bubble, '#filename');
     chrome.test.assertTrue(!!filename.textContent);
     chrome.test.assertEq('save_to_drive_test.pdf', filename.textContent.trim());
@@ -385,6 +381,7 @@ const tests = [
 
     // Click on the save button to initiate an upload.
     privateProxy.sendUninitializedState();
+    await microtasksFinished();
     const controls =
         getRequiredElement(viewer.$.toolbar, 'viewer-save-to-drive-controls');
     controls.$.save.click();
@@ -407,6 +404,9 @@ const tests = [
     chrome.test.assertEq('ORIGINAL', args[0]);
     chrome.test.assertEq('ORIGINAL', args[1]);
 
+    // Reset the bubble open state for the next test.
+    closeBubble(bubble);
+
     chrome.test.succeed();
   },
 
@@ -416,6 +416,7 @@ const tests = [
 
     // Click on the save button to initiate an edited upload.
     privateProxy.sendUninitializedState();
+    await microtasksFinished();
     const controls =
         getRequiredElement(viewer.$.toolbar, 'viewer-save-to-drive-controls');
     controls.hasEdits = true;
@@ -424,7 +425,6 @@ const tests = [
     const buttons = controls.shadowRoot.querySelectorAll('button');
     buttons[0]!.click();
     await privateProxy.whenCalled('saveToDrive');
-    controls.hasEdits = false;
 
     // Set the save to Drive state to session timeout error state and open the
     // bubble.
@@ -442,6 +442,10 @@ const tests = [
     chrome.test.assertEq(2, args.length);
     chrome.test.assertEq('EDITED', args[0]);
     chrome.test.assertEq('EDITED', args[1]);
+
+    // Reset the bubble open state for the next test.
+    closeBubble(bubble);
+    controls.hasEdits = false;
 
     chrome.test.succeed();
   },
@@ -505,9 +509,80 @@ const tests = [
 
     mockTimer.uninstall();
 
-    bubble.$.dialog.close();
+    // Reset the bubble open state for the next test.
+    closeBubble(bubble);
+
+    chrome.test.succeed();
+  },
+
+  async function testStateResetsAfterAccountChooserCanceled() {
+    const privateProxy = setUpTestPrivateProxy();
+    const bubble = getRequiredElement(viewer, 'viewer-save-to-drive-bubble');
+
+    privateProxy.sendUploadInProgress(0, 100);
+    await microtasksFinished();
+    privateProxy.sendSaveToDriveProgress({
+      status: SaveToDriveStatus.UPLOAD_FAILED,
+      errorType: SaveToDriveErrorType.ACCOUNT_CHOOSER_CANCELED,
+    });
     await microtasksFinished();
     chrome.test.assertFalse(bubble.$.dialog.open);
+
+    // Click on the save button again and make sure it initiates a new upload
+    // and the bubble is not open.
+    const controls =
+        getRequiredElement(viewer.$.toolbar, 'viewer-save-to-drive-controls');
+    controls.$.save.click();
+    await privateProxy.whenCalled('saveToDrive');
+    chrome.test.assertFalse(bubble.$.dialog.open);
+    chrome.test.assertEq(1, privateProxy.getCallCount('saveToDrive'));
+
+    chrome.test.succeed();
+  },
+
+  async function testSaveToDriveBubbleUploadInitialized() {
+    const privateProxy = setUpTestPrivateProxy();
+    const bubble = getRequiredElement(viewer, 'viewer-save-to-drive-bubble');
+    const controls =
+        getRequiredElement(viewer.$.toolbar, 'viewer-save-to-drive-controls');
+
+    privateProxy.sendSaveToDriveProgress({
+      status: SaveToDriveStatus.INITIATED,
+      errorType: SaveToDriveErrorType.NO_ERROR,
+    });
+    await microtasksFinished();
+    controls.$.save.click();
+    await microtasksFinished();
+    const progress = getRequiredElement(controls, 'circular-progress-ring');
+    chrome.test.assertEq(0, progress.value);
+    chrome.test.assertEq(
+        '566px', progress.$.innerProgress.getAttribute('stroke-dashoffset'));
+    assertBubbleAndProgressBar(bubble, 0, 0);
+
+    // Reset the bubble open state for the next test.
+    closeBubble(bubble);
+
+    chrome.test.succeed();
+  },
+
+  async function testSaveToDriveBubbleConnectionError() {
+    const privateProxy = setUpTestPrivateProxy();
+    const bubble = getRequiredElement(viewer, 'viewer-save-to-drive-bubble');
+    const controls =
+        getRequiredElement(viewer.$.toolbar, 'viewer-save-to-drive-controls');
+
+    privateProxy.sendSaveToDriveProgress({
+      status: SaveToDriveStatus.UPLOAD_FAILED,
+      errorType: SaveToDriveErrorType.OFFLINE,
+    });
+    await microtasksFinished();
+    controls.$.save.click();
+    await microtasksFinished();
+
+    assertBubbleDescription(bubble, 'Check your internet connection');
+
+    // Reset the bubble open state for the next test.
+    closeBubble(bubble);
 
     chrome.test.succeed();
   },

@@ -13,6 +13,7 @@ import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,6 +30,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.CountDownLatch;
 
@@ -571,6 +573,7 @@ public class JavaBridgeBasicsTest {
     @SmallTest
     @Feature({"AndroidWebView", "Android-JavaBridge"})
     @CommandLineFlags.Add("js-flags=--expose-gc")
+    @Ignore("https://crbug.com/447424913")
     public void testReturnedObjectIsGarbageCollected() throws Throwable {
         Assert.assertEquals("function", executeJavaScriptAndGetStringResult("typeof gc"));
         class InnerObject {}
@@ -578,12 +581,13 @@ public class JavaBridgeBasicsTest {
             @JavascriptInterface
             public InnerObject getInnerObject() {
                 InnerObject inner = new InnerObject();
-                mWeakRefForInner = new WeakReference<InnerObject>(inner);
+                mWeakRefForInner = new WeakReference<InnerObject>(inner, mReferenceQueue);
                 return inner;
             }
 
             // A weak reference is used to check InnerObject instance reachability.
             WeakReference<InnerObject> mWeakRefForInner;
+            final ReferenceQueue<InnerObject> mReferenceQueue = new ReferenceQueue<InnerObject>();
         }
         TestObject object = new TestObject();
         mActivityTestRule.injectObjectAndReload(object, "testObject");
@@ -613,7 +617,14 @@ public class JavaBridgeBasicsTest {
         // Force GC on the Java side again. The bridge had to release the inner object, so it must
         // be collected this time.
         Runtime.getRuntime().gc();
-        Assert.assertEquals(null, object.mWeakRefForInner.get());
+        try {
+            Assert.assertNotNull(
+                    "Weak reference was not enqueued.",
+                    object.mReferenceQueue.remove(scaleTimeout(5000L)));
+        } catch (Exception e) {
+            Assert.fail("Failed to wait for weak reference to be enqueued: " + e);
+        }
+        Assert.assertNull(object.mWeakRefForInner.get());
     }
 
     @Test

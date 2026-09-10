@@ -60,7 +60,7 @@ class GlicInstanceCoordinatorImpl
   void OnInstanceOrphaned(GlicInstance* instance) override;
   void SwitchConversation(
       tabs::TabInterface* tab,
-      const std::string& conversation_id,
+      glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
 
   // GlicWindowController implementation
@@ -118,14 +118,19 @@ class GlicInstanceCoordinatorImpl
       tabs::TabInterface& tab) override;
   void SidePanelShown(BrowserWindowInterface* browser) override;
 
-  base::CallbackListSubscription RegisterFloatyStateChange(
-      FloatyStateChangeCallback callback) override;
+  base::CallbackListSubscription RegisterStateChange(
+      StateChangeCallback callback) override;
+
+  void FindInstanceFromGlicContentsAndBindToTab(
+      content::WebContents* source_glic_web_contents,
+      tabs::TabInterface* tab_to_bind) override;
 
  private:
   GlicInstanceImpl* GetOrCreateGlicInstanceImplForTab(tabs::TabInterface* tab);
   GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id);
   GlicInstanceImpl* GetInstanceImplForTab(tabs::TabInterface* tab);
   GlicInstanceImpl* CreateGlicInstance();
+  void CreateWarmedInstance();
 
   void ToggleFloaty();
   void ToggleSidePanel(BrowserWindowInterface* browser);
@@ -135,9 +140,6 @@ class GlicInstanceCoordinatorImpl
 
   // List of callbacks to be notified when window activation has changed.
   base::RepeatingCallbackList<void(bool)> window_activation_callback_list_;
-  using FloatyStateChangeCallbackList =
-      base::RepeatingCallbackList<void(State, mojom::CurrentView view)>;
-  FloatyStateChangeCallbackList floaty_state_change_callback_list_;
 
   mojom::PanelState panel_state_;
   const raw_ptr<Profile> profile_;
@@ -146,6 +148,8 @@ class GlicInstanceCoordinatorImpl
 
   // The instance ID of the one instance that is currently floating.
   std::optional<InstanceId> floating_instance_key_;
+
+  std::unique_ptr<GlicInstanceImpl> warmed_instance_;
 
   std::unique_ptr<HostManager> host_manager_;
 

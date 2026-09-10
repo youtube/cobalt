@@ -107,6 +107,7 @@ public class TabStateStore {
                 tab.getRootId(),
                 tab.getTimestampMillis(),
                 state == null ? null : state.buffer(),
+                state == null ? 0 : state.version(),
                 assumeNonNull(TabAssociatedApp.getAppId(tab)),
                 tab.getThemeColor(),
                 tab.getTabLaunchTypeAtCreation(),
@@ -171,7 +172,6 @@ public class TabStateStore {
             }
 
             WebContentsState contentsState = tabState.contentsState;
-            contentsState.setVersion(WebContentsState.CONTENTS_STATE_CURRENT_VERSION);
             Log.i(
                     TAG,
                     " Tab %d: url: %s, title: %s, state size: %d",

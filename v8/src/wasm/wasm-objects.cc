@@ -510,6 +510,7 @@ void WasmTableObject::Fill(Isolate* isolate,
 bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
                              wasm::CanonicalValueType table_type) {
   DCHECK(table_type.is_object_reference());
+  DCHECK(!table_type.is_shared());  // This code will need updating.
   // When in-sandbox data is corrupted, we can't trust the statically
   // checked types; to prevent sandbox escapes, we have to verify actual
   // types before installing the dispatch table entry. There are three
@@ -521,11 +522,11 @@ bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
   }
   // (2) Most function types are expected to be final, so they can be compared
   //     cheaply by canonicalized index equality.
-  wasm::CanonicalTypeIndex canonical_table_type = table_type.ref_index();
-  if (V8_LIKELY(sig_id == canonical_table_type)) return true;
+  wasm::CanonicalTypeIndex canonical_index = table_type.ref_index();
+  if (V8_LIKELY(sig_id == canonical_index)) return true;
   // (3) In the remaining cases, perform the full subtype check.
   return wasm::GetWasmEngine()->type_canonicalizer()->IsCanonicalSubtype(
-      sig_id, canonical_table_type);
+      sig_id, table_type);
 }
 
 // static
@@ -2726,6 +2727,14 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
       instance->set_dispatch_table0(*new_table);
     }
   }
+
+  // Clear old table to avoid dangling uses via in-sandbox corruption.
+  for (uint32_t i = 0; i < old_length; ++i) {
+    // Note: We pass `kNewEntry` here since the offheap data was already moved
+    // to the new table and we do not want to update anything there.
+    old_table->Clear(i, WasmDispatchTable::kNewEntry);
+  }
+
   return new_table;
 }
 
@@ -3052,12 +3061,6 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   return Cast<WasmExportedFunction>(js_function);
 }
 
-bool WasmExportedFunctionData::MatchesSignature(
-    wasm::CanonicalTypeIndex other_canonical_type_index) {
-  return wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
-      sig()->index(), other_canonical_type_index);
-}
-
 // static
 std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
     const wasm::CanonicalSig* sig) {
@@ -3307,7 +3310,7 @@ bool WasmJSFunctionData::MatchesSignature(
 #if DEBUG
   // TODO(14034): Change this if indexed types are allowed.
   const wasm::CanonicalSig* sig = GetSignature();
-  for (wasm::CanonicalValueType type : sig->all()) CHECK(!type.has_index());
+  for (wasm::CanonicalValueType type : sig->all()) DCHECK(!type.has_index());
 #endif
   // TODO(14034): Check for subtyping instead if WebAssembly.Function can define
   // signature supertype.
@@ -3589,7 +3592,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
         CanonicalTypeIndex real_type_index =
             function->shared()->wasm_exported_function_data()->sig()->index();
         if (!type_canonicalizer->IsCanonicalSubtype(real_type_index,
-                                                    canonical_index)) {
+                                                    expected)) {
           *error_message =
               "assigned exported function has to be a subtype of the "
               "expected type";
@@ -3623,8 +3626,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
         DirectHandle<WasmObject> wasm_obj = Cast<WasmObject>(value);
         Tagged<WasmTypeInfo> type_info = wasm_obj->map()->wasm_type_info();
         CanonicalTypeIndex actual_type = type_info->type_index();
-        if (!type_canonicalizer->IsCanonicalSubtype(actual_type,
-                                                    canonical_index)) {
+        if (!type_canonicalizer->IsCanonicalSubtype(actual_type, expected)) {
           *error_message = "object is not a subtype of expected type";
           return {};
         }

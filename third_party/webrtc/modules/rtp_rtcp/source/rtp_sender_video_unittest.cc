@@ -166,12 +166,14 @@ class TestRtpSenderVideo : public RTPSenderVideo {
  public:
   TestRtpSenderVideo(Clock* clock,
                      RTPSender* rtp_sender,
-                     const FieldTrialsView& field_trials)
+                     const FieldTrialsView& field_trials,
+                     bool raw_packetization)
       : RTPSenderVideo([&] {
           Config config;
           config.clock = clock;
           config.rtp_sender = rtp_sender;
           config.field_trials = &field_trials;
+          config.raw_packetization = raw_packetization;
           return config;
         }()) {}
   ~TestRtpSenderVideo() override {}
@@ -187,7 +189,7 @@ class TestRtpSenderVideo : public RTPSenderVideo {
 
 class RtpSenderVideoTest : public ::testing::Test {
  public:
-  RtpSenderVideoTest()
+  explicit RtpSenderVideoTest(bool raw_packetization = false)
       : fake_clock_(kStartTime),
         env_(CreateEnvironment(&fake_clock_)),
         retransmission_rate_limiter_(&fake_clock_, 1000),
@@ -201,7 +203,8 @@ class RtpSenderVideoTest : public ::testing::Test {
         rtp_sender_video_(
             std::make_unique<TestRtpSenderVideo>(&fake_clock_,
                                                  rtp_module_.RtpSender(),
-                                                 env_.field_trials())) {
+                                                 env_.field_trials(),
+                                                 raw_packetization)) {
     rtp_module_.SetSequenceNumber(kSeqNum);
     rtp_module_.SetStartTimestamp(0);
   }
@@ -1356,7 +1359,8 @@ TEST_F(RtpSenderVideoTest,
 
 TEST_F(RtpSenderVideoTest, AbsoluteCaptureTime) {
   rtp_sender_video_ = std::make_unique<TestRtpSenderVideo>(
-      &fake_clock_, rtp_module_.RtpSender(), env_.field_trials());
+      &fake_clock_, rtp_module_.RtpSender(), env_.field_trials(),
+      /*raw_packetization=*/false);
 
   constexpr Timestamp kAbsoluteCaptureTimestamp = Timestamp::Millis(12345678);
   uint8_t kFrame[kMaxPacketLength];
@@ -1522,7 +1526,12 @@ TEST_F(RtpSenderVideoTest, SendGenericVideo) {
   EXPECT_THAT(sent_payload.subview(1), ElementsAreArray(kDeltaPayload));
 }
 
-TEST_F(RtpSenderVideoTest, SendRawVideo) {
+class RtpSenderVideoRawPacketizationTest : public RtpSenderVideoTest {
+ public:
+  RtpSenderVideoRawPacketizationTest() : RtpSenderVideoTest(true) {}
+};
+
+TEST_F(RtpSenderVideoRawPacketizationTest, SendRawVideo) {
   const uint8_t kPayloadTypeRaw = 111;
   const uint8_t kPayload[] = {11, 22, 33, 44, 55};
 
@@ -1536,6 +1545,23 @@ TEST_F(RtpSenderVideoTest, SendRawVideo) {
   ArrayView<const uint8_t> sent_payload =
       transport_.last_sent_packet().payload();
   EXPECT_THAT(sent_payload, ElementsAreArray(kPayload));
+}
+
+TEST_F(RtpSenderVideoRawPacketizationTest, SendVideoWithSetCodecTypeStillRaw) {
+  const uint8_t kPayloadTypeRaw = 111;
+  const uint8_t kPayload[] = {11, 22, 33, 44, 55};
+
+  // Send a frame with codectype "generic"
+  RTPVideoHeader video_header;
+  video_header.frame_type = VideoFrameType::kVideoFrameKey;
+  ASSERT_TRUE(rtp_sender_video_->SendVideo(
+      kPayloadTypeRaw, VideoCodecType::kVideoCodecGeneric, 1234,
+      fake_clock_.CurrentTime(), kPayload, sizeof(kPayload), video_header,
+      TimeDelta::PlusInfinity(), {}));
+
+  // Should still be packetized as raw.
+  EXPECT_THAT(transport_.last_sent_packet().payload(),
+              ElementsAreArray(kPayload));
 }
 
 class RtpSenderVideoWithFrameTransformerTest : public ::testing::Test {

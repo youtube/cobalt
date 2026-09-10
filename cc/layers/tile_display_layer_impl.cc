@@ -13,6 +13,7 @@
 #include "base/check.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "cc/base/math_util.h"
 #include "cc/layers/append_quads_data.h"
 #include "cc/tiles/tiling_set_coverage_iterator.h"
 #include "cc/trees/layer_tree_impl.h"
@@ -382,6 +383,10 @@ gfx::Rect TileDisplayLayerImpl::GetDamageRect() const {
 void TileDisplayLayerImpl::ResetChangeTracking() {
   LayerImpl::ResetChangeTracking();
   damage_rect_.SetRect(0, 0, 0, 0);
+}
+
+gfx::ContentColorUsage TileDisplayLayerImpl::GetContentColorUsage() const {
+  return content_color_usage_;
 }
 
 void TileDisplayLayerImpl::RecordDamage(const gfx::Rect& damage_rect) {

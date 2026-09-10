@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_context.h"
 #include "chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo.mojom.h"
+#include "chrome/browser/user_education/ntp_promo_identifiers.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/common/pref_names.h"
@@ -74,9 +75,16 @@ const InteractiveBrowserTestApi::DeepQuery kPathToSetupListFirstItem =
 constexpr char kActionIconId[] = "#actionIcon";
 constexpr char kPromoTextId[] = "#bodyText";
 constexpr char kPromoIconId[] = "#bodyIcon";
-constexpr char kIconName[] = "account_circle";
-constexpr int kLongSampleTextIds = IDS_NTP_SIGN_IN_PROMO;
-constexpr int kShortSampleTextIds = IDS_NTP_SIGN_IN_PROMO_ACTION_BUTTON;
+constexpr char kSignInIconName[] = "account_circle";
+constexpr char kExtensionsIconName[] = "my_extensions";
+constexpr char kCustomizationIconName[] = "palette";
+constexpr int kLongSampleTextIds = IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS;
+// This can be any short string; it tests that the promo doesn't shrink if the
+// text doesn't fill the promo.
+constexpr int kShortSampleTextIds =
+    IDS_PASSWORD_MANAGER_ACCOUNT_CHOOSER_SIGN_IN;
+
+constexpr std::string_view kNtpURL = chrome::kChromeUINewTabURL;
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNtpElementId);
 DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kTestPromoShownEvent);
@@ -113,6 +121,13 @@ struct NtpPromoUiTestParams {
     return oss.str();
   }
 };
+
+using ObserverType =
+    views::test::PollingViewPropertyObserver<std::u16string, OmniboxViewViews>;
+DEFINE_LOCAL_TYPED_IDENTIFIER_VALUE(ObserverType, kLocationBarTextValue);
+MATCHER_P(OptionalStringContains, text, "Optional string contains") {
+  return arg.has_value() && arg.value().find(text) != std::u16string::npos;
+}
 
 }  // namespace
 
@@ -162,6 +177,21 @@ class NtpPromoUiTest
     service->ntp_promo_registry()->ClearPromosForTesting();
   }
 
+  // Removes all promos except the specified ID. This is an easy way to test
+  // individual promo functionality, as opposed to trying to target a specific
+  // promo on-screen (which may not even be shown due to promo-count limits).
+  void ClearRegisteredPromosExcept(
+      const user_education::NtpPromoIdentifier& keep_id) {
+    UserEducationService* const service =
+        UserEducationServiceFactory::GetForBrowserContext(browser()->profile());
+    auto ids = service->ntp_promo_registry()->GetNtpPromoIdentifiers();
+    for (const auto& id : ids) {
+      if (id != keep_id) {
+        service->ntp_promo_registry()->ClearPromoForTesting(id);
+      }
+    }
+  }
+
   void RegisterTestPromo(const user_education::NtpPromoIdentifier& id,
                          Eligibility eligibility,
                          int text_id) {
@@ -169,9 +199,7 @@ class NtpPromoUiTest
         UserEducationServiceFactory::GetForBrowserContext(browser()->profile());
     user_education::NtpPromoRegistry* registry = service->ntp_promo_registry();
     user_education::NtpPromoSpecification spec(
-        id,
-        user_education::NtpPromoContent(kIconName, text_id,
-                                        IDS_NTP_SIGN_IN_PROMO_ACTION_BUTTON),
+        id, user_education::NtpPromoContent(kSignInIconName, text_id, text_id),
         base::BindLambdaForTesting(
             [=](const user_education::UserEducationContextPtr& context) {
               return eligibility;
@@ -198,7 +226,8 @@ class NtpPromoUiTest
 
   void InstallTestPromo(Eligibility eligibility) {
     ClearRegisteredPromos();
-    RegisterTestPromo(kTestPromoName, eligibility, IDS_NTP_SIGN_IN_PROMO);
+    RegisterTestPromo(kTestPromoName, eligibility,
+                      IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS);
   }
 
   auto GetFirstPromoPath() const {
@@ -241,11 +270,13 @@ class NtpPromoUiTest
     return steps;
   }
 
-  auto WaitForPromoVisible(Eligibility eligibility) {
+  auto WaitForPromoVisible(Eligibility eligibility,
+                           std::string_view expected_icon) {
     MultiStep steps;
     switch (eligibility) {
       case Eligibility::kEligible:
-        steps += WaitForPromoIcon(std::string("ntp-promo:") + kIconName);
+        steps += WaitForPromoIcon(std::string("ntp-promo:") +
+                                  std::string(expected_icon));
         steps += WaitForElementVisible(kNtpElementId, GetActionButtonPath());
         break;
       case Eligibility::kCompleted:
@@ -264,9 +295,10 @@ class NtpPromoUiTest
   }
 
   auto VerifyTestPromoText() {
-    return CheckJsResultAt(kNtpElementId, GetFirstPromoPath() + kPromoTextId,
-                           "el => el.innerText",
-                           l10n_util::GetStringUTF8(IDS_NTP_SIGN_IN_PROMO))
+    return CheckJsResultAt(
+               kNtpElementId, GetFirstPromoPath() + kPromoTextId,
+               "el => el.innerText",
+               l10n_util::GetStringUTF8(IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS))
         .AddDescriptionPrefix(__func__);
   }
 
@@ -299,6 +331,13 @@ class NtpPromoUiTest
         }));
     AddDescriptionPrefix(steps, __func__);
     return steps;
+  }
+
+  // Ensures that a single tab is open, ie. no second tab has spawned.
+  auto CheckOneTabOpen() {
+    return Check([this]() -> bool {
+      return browser()->tab_strip_model()->count() == 1;
+    });
   }
 
  private:
@@ -344,13 +383,14 @@ IN_PROC_BROWSER_TEST_P(NtpPromoUiTest, TestPromoEligible) {
       InstrumentTab(kNtpElementId),
       // Because the "promo was shown" event is fired asynchronously as the page
       // is loading, watch for it in parallel with navigating to the NTP.
-      InParallel(RunSubsequence(NavigateWebContents(
-                     kNtpElementId, GURL(chrome::kChromeUINewTabPageURL))),
-                 RunSubsequence(WaitForEvent(kBrowserViewElementId,
-                                             kTestPromoShownEvent))),
+      InParallel(
+          RunSubsequence(NavigateWebContents(kNtpElementId, GURL(kNtpURL))),
+          RunSubsequence(
+              WaitForEvent(kBrowserViewElementId, kTestPromoShownEvent))),
       // Should already be visible at this point, but confirm it is and that it
       // is in the correct state.
-      WaitForPromoVisible(Eligibility::kEligible), VerifyTestPromoText(),
+      WaitForPromoVisible(Eligibility::kEligible, kSignInIconName),
+      VerifyTestPromoText(),
       // As before, because the click and the event are sent asynchronously,
       // run these in parallel.
       InParallel(RunSubsequence(PressActionButton()),
@@ -364,12 +404,12 @@ IN_PROC_BROWSER_TEST_P(NtpPromoUiTest, TestPromoCompleted) {
   InstallTestPromo(Eligibility::kCompleted);
   RunTestSequence(
       InstrumentTab(kNtpElementId),
-      NavigateWebContents(kNtpElementId, GURL(chrome::kChromeUINewTabPageURL)),
+      NavigateWebContents(kNtpElementId, GURL(kNtpURL)),
       If(
           []() {
             return GetParam().promo_type == NtpBrowserPromoType::kSetupList;
           },
-          Then(WaitForPromoVisible(Eligibility::kCompleted),
+          Then(WaitForPromoVisible(Eligibility::kCompleted, kSignInIconName),
                VerifyTestPromoText(),
                CheckShowMetrics(ShowNtpPromosResult::kShown)),
           Else(EnsureNotVisible(kNtpElementId, GetFirstPromoPath()),
@@ -404,12 +444,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 IN_PROC_BROWSER_TEST_P(NtpPromoWithModuleUiTest, ModuleEnabled) {
   InstallTestPromo(Eligibility::kEligible);
-  RunTestSequence(
-      InstrumentTab(kNtpElementId),
-      NavigateWebContents(kNtpElementId, GURL(chrome::kChromeUINewTabPageURL)),
-      WaitForElementVisible(kNtpElementId, kPathToModules),
-      EnsureNotVisible(kNtpElementId, GetFirstPromoPath()),
-      CheckShowMetrics(ShowNtpPromosResult::kNotShownDueToPolicy));
+  RunTestSequence(InstrumentTab(kNtpElementId),
+                  NavigateWebContents(kNtpElementId, GURL(kNtpURL)),
+                  WaitForElementVisible(kNtpElementId, kPathToModules),
+                  EnsureNotVisible(kNtpElementId, GetFirstPromoPath()),
+                  CheckShowMetrics(ShowNtpPromosResult::kNotShownDueToPolicy));
 }
 
 IN_PROC_BROWSER_TEST_P(NtpPromoWithModuleUiTest, ModuleDisabled) {
@@ -422,12 +461,11 @@ IN_PROC_BROWSER_TEST_P(NtpPromoWithModuleUiTest, ModuleDisabled) {
     list.Append(std::move(module_id_value));
   }
   InstallTestPromo(Eligibility::kEligible);
-  RunTestSequence(
-      InstrumentTab(kNtpElementId),
-      NavigateWebContents(kNtpElementId, GURL(chrome::kChromeUINewTabPageURL)),
-      WaitForElementVisible(kNtpElementId, GetFirstPromoPath()),
-      EnsureNotVisible(kNtpElementId, kPathToModules),
-      CheckShowMetrics(ShowNtpPromosResult::kShown));
+  RunTestSequence(InstrumentTab(kNtpElementId),
+                  NavigateWebContents(kNtpElementId, GURL(kNtpURL)),
+                  WaitForElementVisible(kNtpElementId, GetFirstPromoPath()),
+                  EnsureNotVisible(kNtpElementId, kPathToModules),
+                  CheckShowMetrics(ShowNtpPromosResult::kShown));
 }
 
 // Tests in this block rely on the fact that the top priority promotion is
@@ -435,22 +473,12 @@ IN_PROC_BROWSER_TEST_P(NtpPromoWithModuleUiTest, ModuleDisabled) {
 // or run these tests on ChromeOS.
 #if !BUILDFLAG(IS_CHROMEOS)
 
-namespace {
-
-using ObserverType =
-    views::test::PollingViewPropertyObserver<std::u16string, OmniboxViewViews>;
-DEFINE_LOCAL_TYPED_IDENTIFIER_VALUE(ObserverType, kLocationBarTextValue);
-MATCHER_P(OptionalStringContains, text, "Optional string contains") {
-  return arg.has_value() && arg.value().find(text) != std::u16string::npos;
-}
-
-}  // namespace
-
 IN_PROC_BROWSER_TEST_P(NtpPromoUiTest, SigninPromoAppearsAndIsClickable) {
+  ClearRegisteredPromosExcept(kNtpSignInPromoId);
   RunTestSequence(
       InstrumentTab(kNtpElementId),
-      NavigateWebContents(kNtpElementId, GURL(chrome::kChromeUINewTabPageURL)),
-      WaitForPromoVisible(Eligibility::kEligible),
+      NavigateWebContents(kNtpElementId, GURL(kNtpURL)),
+      WaitForPromoVisible(Eligibility::kEligible, kSignInIconName),
 
       // Since bots cannot navigate to actual pages, we can't use
       // WaitForWebContentsNavigation() or the like. Instead, verify that the
@@ -460,12 +488,48 @@ IN_PROC_BROWSER_TEST_P(NtpPromoUiTest, SigninPromoAppearsAndIsClickable) {
       // Click the promo button; this should navigate the current page.
       PressActionButton(),
       WaitForState(kLocationBarTextValue,
-                   OptionalStringContains(u"accounts.google.com")));
+                   OptionalStringContains(u"accounts.google.com")),
+      // The NTP tab should navigate, rather than opening a new tab.
+      CheckOneTabOpen());
 
   // TODD(https://crbug.com/433607240): Check model, histograms.
 }
 
-#endif
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+
+IN_PROC_BROWSER_TEST_P(NtpPromoUiTest, ExtensionsPromoAppearsAndIsClickable) {
+  ClearRegisteredPromosExcept(kNtpExtensionsPromoId);
+  RunTestSequence(
+      InstrumentTab(kNtpElementId),
+      NavigateWebContents(kNtpElementId, GURL(kNtpURL)),
+      WaitForPromoVisible(Eligibility::kEligible, kExtensionsIconName),
+
+      // Since bots cannot navigate to actual pages, we can't use
+      // WaitForWebContentsNavigation() or the like. Instead, verify that the
+      // browser *tries* to navigate to the account login page.
+      PollViewProperty(kLocationBarTextValue, kOmniboxElementId,
+                       &OmniboxViewViews::GetText),
+      // Click the promo button; this should navigate the current page.
+      PressActionButton(),
+      // Note that the URL here may not match what users see, due to redirects.
+      WaitForState(kLocationBarTextValue, OptionalStringContains(u"webstore")),
+      // The NTP tab should navigate, rather than opening a new tab.
+      CheckOneTabOpen());
+
+  // TODD(https://crbug.com/433607240): Check model, histograms.
+}
+
+IN_PROC_BROWSER_TEST_P(NtpPromoUiTest,
+                       CustomizationPromoAppearsAndIsClickable) {
+  ClearRegisteredPromosExcept(kNtpCustomizationPromoId);
+  RunTestSequence(
+      InstrumentTab(kNtpElementId),
+      NavigateWebContents(kNtpElementId, GURL(kNtpURL)),
+      WaitForPromoVisible(Eligibility::kEligible, kCustomizationIconName),
+      PressActionButton(), WaitForShow(kSidePanelElementId));
+
+  // TODD(https://crbug.com/433607240): Check model, histograms.
+}
 
 class NtpPromoVisualUiTest : public NtpPromoUiTest {
  protected:
@@ -544,11 +608,10 @@ IN_PROC_BROWSER_TEST_P(NtpPromoVisualUiTest, Screenshots) {
 
   RunTestSequence(
       InstrumentTab(kNtpElementId),
-      NavigateWebContents(kNtpElementId, GURL(chrome::kChromeUINewTabPageURL)),
+      NavigateWebContents(kNtpElementId, GURL(kNtpURL)),
       WaitForElementVisible(kNtpElementId, GetFirstPromoPath()),
       ScrollIntoView(kNtpElementId, GetPromosPath()),
-      SetOnIncompatibleAction(
-        OnIncompatibleAction::kSkipTest,
+      SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
                               "Screenshots not captured on this platform."),
       ScreenshotWebUi(kNtpElementId, GetPromosPath(),
                       /*screenshot_name=*/std::string(),

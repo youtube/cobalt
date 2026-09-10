@@ -73,6 +73,7 @@
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #include "chrome/browser/enterprise/connectors/reporting/browser_crash_event_router.h"
 #include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_url_lookup_service.h"
 #include "chrome/browser/enterprise/identifiers/profile_id_service_factory.h"
 #include "chrome/browser/enterprise/remote_commands/user_remote_commands_service_factory.h"
 #include "chrome/browser/enterprise/reporting/cloud_profile_reporting_service_factory.h"
@@ -358,6 +359,7 @@
 #include "chrome/browser/ui/browser_manager_service_factory.h"
 #include "chrome/browser/ui/global_error/global_error_service_factory.h"
 #include "chrome/browser/ui/global_media_controls/media_notification_service_factory.h"
+#include "chrome/browser/ui/lens/lens_keyed_service_factory.h"
 #include "chrome/browser/ui/media_router/media_router_ui_service_factory.h"
 #include "chrome/browser/ui/performance_controls/performance_controls_hats_service_factory.h"
 #include "chrome/browser/ui/safety_hub/password_status_check_service_factory.h"
@@ -436,7 +438,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !defined(OFFICIAL_BUILD)
+#if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/password_manager/startup_passwords_import_service_factory.h"  // nogncheck (Desktop only)
 #endif
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
@@ -900,6 +902,10 @@ void ChromeBrowserMainExtraPartsProfiles::
     BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   enterprise_connectors::LocalBinaryUploadServiceFactory::GetInstance();
 #endif
+#if BUILDFLAG(ENTERPRISE_WATERMARK)
+  enterprise_data_protection::DataProtectionUrlLookupServiceFactory::
+      GetInstance();
+#endif
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
     BUILDFLAG(IS_WIN)
   enterprise_idle::IdleServiceFactory::GetInstance();
@@ -1005,6 +1011,9 @@ void ChromeBrowserMainExtraPartsProfiles::
   KAnonymityServiceFactory::GetInstance();
   LanguageDetectionModelServiceFactory::GetInstance();
   LanguageModelManagerFactory::GetInstance();
+#if !BUILDFLAG(IS_ANDROID)
+  LensKeyedServiceFactory::GetInstance();
+#endif
 #if BUILDFLAG(IS_ANDROID)
   LevelDBPersistedTabDataStorageAndroidFactory::GetInstance();
 #endif
@@ -1334,7 +1343,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   SharingServiceFactory::GetInstance();
   ShortcutsBackendFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
-  SigninDetectionServiceFactory::GetInstance();
+  SigninDetectionServiceFactoryEnsureFactoryBuilt();
 #endif
 #if BUILDFLAG(IS_ANDROID)
   SigninManagerAndroidFactory::GetInstance();
@@ -1359,7 +1368,7 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if BUILDFLAG(ENABLE_SPELLCHECK)
   SpellcheckServiceFactory::GetInstance();
 #endif
-#if !BUILDFLAG(IS_ANDROID) && !defined(OFFICIAL_BUILD)
+#if !BUILDFLAG(IS_ANDROID)
   StartupPasswordsImportServiceFactory::GetInstance();
 #endif
   StatefulSSLHostStateDelegateFactory::GetInstance();

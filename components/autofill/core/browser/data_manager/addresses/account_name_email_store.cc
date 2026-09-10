@@ -14,7 +14,9 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 
 namespace autofill {
 
@@ -33,19 +35,17 @@ AccountNameEmailStore::AccountNameEmailStore(
       identity_manager_(identity_manager),
       sync_service_(sync_service),
       pref_service_(pref_service) {
-  address_data_manager_observer_.Observe(&address_data_manager);
   identity_manager_observer_.Observe(&identity_manager);
   sync_service_observer_.Observe(&sync_service);
+
+  pref_registrar_.Init(&pref_service_.get());
+  pref_registrar_.Add(
+      prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
+      base::BindRepeating(&AccountNameEmailStore::OnCounterPrefUpdated,
+                          base::Unretained(this)));
 }
 
 AccountNameEmailStore::~AccountNameEmailStore() = default;
-
-void AccountNameEmailStore::OnExtendedAccountInfoRemoved(
-    const AccountInfo& info) {
-  if (!identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
-    RemoveAccountNameEmail();
-  }
-}
 
 void AccountNameEmailStore::OnExtendedAccountInfoUpdated(
     const AccountInfo& info) {
@@ -55,78 +55,94 @@ void AccountNameEmailStore::OnExtendedAccountInfoUpdated(
       (!primary_info->IsEmpty() && info.gaia != primary_info->gaia)) {
     return;
   }
-  UpdateOrCreateAccountNameEmail(info);
+  MaybeUpdateOrCreateAccountNameEmail();
 }
 
-void AccountNameEmailStore::OnAddressDataChanged() {
-  if (pref_service_->GetInteger(
-          prefs::kAutofillNameAndEmailProfileNotSelectedCounter) >
-      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get()) {
-    // Return the kAccountNameEmail profile is already considered removed.
+void AccountNameEmailStore::OnSyncShutdown(syncer::SyncService*) {
+  // Unreachable, since the service owning this instance is Shutdown() before
+  // the SyncService.
+  NOTREACHED();
+}
+
+void AccountNameEmailStore::OnStateChanged(syncer::SyncService* sync_service) {
+  // Only autofill syncing users are eligible for the kAccountNameEmail
+  // profile. Having all relevant data loaded is crucial for correct execution.
+  // If the user doesn't have the autofill sync toggle enabled, try to remove
+  // the kAccountNameEmail profile.
+  std::optional<ProfileUpdateBlockReason> reason =
+      GetBlockAccountNameEmailUpdateReason();
+  if (!reason.has_value()) {
+    MaybeUpdateOrCreateAccountNameEmail();
+    return;
+  }
+  switch (reason.value()) {
+    case ProfileUpdateBlockReason::kAutofillSyncToggleDisabled:
+      SoftRemoveAccountNameEmail();
+      return;
+    case ProfileUpdateBlockReason::kUserSignedOut:
+      // User signed out and prefs are no longer synced. Clear their local state
+      // to prevent them from leaking into a different account. It is important
+      // that this happens after PRIORITY_PREFERENCES stopped syncing, because
+      // the metadata should be redownloaded during the next sign-in.
+      SoftRemoveAccountNameEmail();
+      pref_service_->ClearPref(prefs::kAutofillNameAndEmailProfileSignature);
+      pref_service_->ClearPref(
+          prefs::kAutofillNameAndEmailProfileNotSelectedCounter);
+      pref_service_->ClearPref(prefs::kAutofillWasNameAndEmailProfileUsed);
+      return;
+    case ProfileUpdateBlockReason::kDataNotLoaded:
+      // Defer call. When data is loaded, `OnStateChanged` will be called again,
+      // reattempting to create the profile.
+      return;
+  }
+}
+
+void AccountNameEmailStore::MaybeUpdateOrCreateAccountNameEmail() {
+  if (GetBlockAccountNameEmailUpdateReason().has_value()) {
     return;
   }
 
-  const std::vector<const AutofillProfile*> account_name_email_profiles =
-      address_data_manager_->GetProfilesByRecordType(
-          AutofillProfile::RecordType::kAccountNameEmail);
-
-  if (identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin) &&
-      account_name_email_profiles.empty()) {
-    // The `kAccountNameEmail` is available to all signed in users. If it isn't,
-    // that means that the user just removed it. Track this removal in prefs to
-    // ensure that the profile isn't recreated. Independently of how the profile
-    // was removed, the removal is tracked as if the user rejected a
-    // `kAccountNameEmail` suggestion too many times.
-    pref_service_->SetInteger(
-        prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
-        features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get() + 1);
-  }
-}
-
-void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(
-    const AccountInfo& info) {
-  // During signin the `OnExtendedAccountInfoUpdated` method might call this
-  // method with an empty `info.full_name` since not all data arrives all at
-  // once and `AccountiInfo` is updated multiple times. The `kAccountNameEmail`
-  // profile and hash signature require non-empty `full_name` value.
-  if (info.IsEmpty() || info.full_name.empty()) {
-    return;
-  }
-  CHECK(!info.email.empty());
-
-  // Calculate hash and see if it's different than one cached in pref.
-  const std::string new_hash = HashAccountInfo(info);
-  if (pref_service_->GetString(prefs::kAutofillNameAndEmailProfileSignature) ==
-      new_hash) {
-    // Name exists and has not changed - nothing to do.
-    // This also (additionally) prevents recreation of Account Name Email
-    // profile after its explicit or silent deletion.
+  const std::optional<CoreAccountInfo>& core_info =
+      identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+  if (!core_info.has_value()) {
     return;
   }
 
-  // If the current `info` doesn't match the stored kAccountNameAndEmail
-  // profile, the existing profile should be deleted and a new created.
-  const std::vector<const AutofillProfile*> account_name_email_profiles =
-      address_data_manager_->GetProfilesByRecordType(
-          AutofillProfile::RecordType::kAccountNameEmail);
-  if (!account_name_email_profiles.empty()) {
-    CHECK_EQ(1u, account_name_email_profiles.size());
-    address_data_manager_->RemoveProfile(
-        account_name_email_profiles[0]->guid());
+  const std::optional<AccountInfo>& extended_info =
+      identity_manager_->FindExtendedAccountInfo(core_info.value());
+  if (!extended_info.has_value()) {
+    return;
   }
 
-  // If Account Name Email profile doesn't exist, create and add it.
-  address_data_manager_->AddProfile(AutofillProfile{info});
-
-  pref_service_->SetString(prefs::kAutofillNameAndEmailProfileSignature,
-                           new_hash);
-  // Reset `kAutofillNameAndEmailProfileNotSelectedCounter` after the user
-  // changed their full name.
-  pref_service_->SetInteger(
-      prefs::kAutofillNameAndEmailProfileNotSelectedCounter, 0);
+  UpdateOrCreateAccountNameEmail(extended_info.value());
 }
 
-void AccountNameEmailStore::RemoveAccountNameEmail() {
+void AccountNameEmailStore::ApplyChange(const AutofillProfileChange& change) {
+  if (change.data_model().record_type() !=
+      AutofillProfile::RecordType::kAccountNameEmail) {
+    return;
+  }
+  switch (change.type()) {
+    case AutofillProfileChange::REMOVE:
+      // REMOVE indicates a hard removal, thus the pref needs to be set.
+      pref_service_->SetInteger(
+          prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
+          features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get() + 1);
+      return;
+    case AutofillProfileChange::ADD:
+      return;
+    case AutofillProfileChange::HIDE_IN_AUTOFILL:
+      // The HIDE_IN_AUTOFILL indicates that the kAccountNameEmail profile was
+      // soft removed, since `AddressDataManager` already removed it, there is
+      // nothing left to do.
+      return;
+    case AutofillProfileChange::UPDATE:
+      // kAccountNameEmail profile is read only.
+      NOTREACHED();
+  }
+}
+
+void AccountNameEmailStore::SoftRemoveAccountNameEmail() {
   const std::vector<const AutofillProfile*> account_name_email_profiles =
       address_data_manager_->GetProfilesByRecordType(
           AutofillProfile::RecordType::kAccountNameEmail);
@@ -135,13 +151,108 @@ void AccountNameEmailStore::RemoveAccountNameEmail() {
   }
   CHECK_EQ(1u, account_name_email_profiles.size());
 
-  address_data_manager_->RemoveProfile(account_name_email_profiles[0]->guid());
+  address_data_manager_->RemoveProfile(
+      account_name_email_profiles[0]->guid(),
+      /*non_permanent_account_profile_removal=*/true);
+}
+
+void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(
+    const AccountInfo& info) {
+  // During signin the `OnExtendedAccountInfoUpdated` method might call this
+  // method with an empty `info.full_name` since not all data arrives all at
+  // once and `AccountInfo` is updated multiple times. The kAccountNameEmail
+  // profile and hash signature require non-empty full_name value.
+  if (info.IsEmpty() || info.full_name.empty()) {
+    return;
+  }
+  CHECK(!info.email.empty());
+
+  const std::string new_hash = HashAccountInfo(info);
+  const bool hashes_different =
+      new_hash !=
+      pref_service_->GetString(prefs::kAutofillNameAndEmailProfileSignature);
+  const bool was_hard_removed =
+      pref_service_->GetInteger(
+          prefs::kAutofillNameAndEmailProfileNotSelectedCounter) >
+      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get();
+
+  if (!hashes_different && was_hard_removed) {
+    // User signed out and then signed in, but previously a hard remove had
+    // happened, thus no recreation should happen.
+    return;
+  }
+
+  const std::vector<const AutofillProfile*> account_name_email_profiles =
+      address_data_manager_->GetProfilesByRecordType(
+          AutofillProfile::RecordType::kAccountNameEmail);
+  const bool account_name_email_exists = !account_name_email_profiles.empty();
+  if (!hashes_different && account_name_email_exists) {
+    // Hashes are the same and the kAccountNameEmail profile exists.
+    // This function was called as a side effect of the other, unrelated flow.
+    return;
+  }
+
+  if (account_name_email_exists) {
+    SoftRemoveAccountNameEmail();
+  }
+  address_data_manager_->AddProfile(AutofillProfile{info});
+  if (hashes_different) {
+    pref_service_->SetString(prefs::kAutofillNameAndEmailProfileSignature,
+                             new_hash);
+    pref_service_->SetInteger(
+        prefs::kAutofillNameAndEmailProfileNotSelectedCounter, 0);
+  }
 }
 
 std::string AccountNameEmailStore::HashAccountInfo(
     const AccountInfo& info) const {
   return base::NumberToString(base::PersistentHash(
       base::StrCat({info.full_name, kSeparator, info.email})));
+}
+
+std::optional<AccountNameEmailStore::ProfileUpdateBlockReason>
+AccountNameEmailStore::GetBlockAccountNameEmailUpdateReason() {
+  if (sync_service_->GetTransportState() ==
+      syncer::SyncService::TransportState::DISABLED) {
+    return ProfileUpdateBlockReason::kUserSignedOut;
+  }
+
+  if (!sync_service_->GetUserSettings()->GetSelectedTypes().Has(
+          syncer::UserSelectableType::kAutofill)) {
+    return ProfileUpdateBlockReason::kAutofillSyncToggleDisabled;
+  }
+
+  if (address_data_manager_->IsAwaitingPendingAddressChanges()) {
+    return ProfileUpdateBlockReason::kDataNotLoaded;
+  }
+
+  switch (sync_service_->GetDownloadStatusFor(
+      syncer::DataType::PRIORITY_PREFERENCES)) {
+    case syncer::SyncService::DataTypeDownloadStatus::kWaitingForUpdates:
+      return ProfileUpdateBlockReason::kDataNotLoaded;
+    case syncer::SyncService::DataTypeDownloadStatus::kUpToDate:
+    // If the download status is kError, it will likely not become
+    // available anytime soon.
+    case syncer::SyncService::DataTypeDownloadStatus::kError:
+      return std::nullopt;
+  }
+}
+
+void AccountNameEmailStore::OnCounterPrefUpdated() {
+  if (pref_service_->GetInteger(
+          prefs::kAutofillNameAndEmailProfileNotSelectedCounter) <=
+      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get()) {
+    return;
+  }
+
+  const std::vector<const AutofillProfile*> account_name_email_profiles =
+      address_data_manager_->GetProfilesByRecordType(
+          AutofillProfile::RecordType::kAccountNameEmail);
+  if (account_name_email_profiles.empty()) {
+    return;
+  }
+  CHECK_EQ(1u, account_name_email_profiles.size());
+  address_data_manager_->RemoveProfile(account_name_email_profiles[0]->guid());
 }
 
 }  // namespace autofill

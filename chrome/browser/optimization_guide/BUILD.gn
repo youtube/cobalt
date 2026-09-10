@@ -36,6 +36,7 @@ source_set("optimization_guide") {
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//services/on_device_model/public/cpp",
+    "//services/on_device_model/public/cpp:buildflags",
     "//ui/base",
     "//ui/webui",
   ]

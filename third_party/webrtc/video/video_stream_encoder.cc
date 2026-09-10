@@ -39,6 +39,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/corruption_detection/frame_instrumentation_data.h"
+#include "api/video/corruption_detection/frame_instrumentation_generator.h"
 #include "api/video/encoded_image.h"
 #include "api/video/render_resolution.h"
 #include "api/video/video_adaptation_counters.h"
@@ -88,7 +89,6 @@
 #include "video/alignment_adjuster.h"
 #include "video/config/encoder_stream_factory.h"
 #include "video/config/video_encoder_config.h"
-#include "video/corruption_detection/frame_instrumentation_generator.h"
 #include "video/encoder_bitrate_adjuster.h"
 #include "video/frame_cadence_adapter.h"
 #include "video/frame_dumping_encoder.h"
@@ -1400,8 +1400,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
           VideoFrameType::kVideoFrameKey);
       if (settings_.enable_frame_instrumentation_generator) {
         frame_instrumentation_generator_ =
-            std::make_unique<FrameInstrumentationGenerator>(
-                encoder_config_.codec_type);
+            FrameInstrumentationGenerator::Create(encoder_config_.codec_type);
       }
     }
 

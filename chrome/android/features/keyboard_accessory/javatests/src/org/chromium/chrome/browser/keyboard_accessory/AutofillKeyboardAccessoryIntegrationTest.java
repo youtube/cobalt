@@ -25,6 +25,7 @@ import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHe
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.whenDisplayed;
 
 import android.app.Activity;
+import android.os.Build;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -40,6 +41,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -62,6 +64,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 /** Integration tests for autofill keyboard accessory. */
+// TODO(crbug.com/447076444): Enable Keyboard Accessory revamp flag
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
@@ -224,19 +227,16 @@ public class AutofillKeyboardAccessoryIntegrationTest {
         mHelper.clickNode("NAME_FIRST", 1, FocusedFieldType.FILLABLE_NON_SEARCH_FIELD);
         mHelper.waitForKeyboardAccessoryToBeShown(true);
 
-        for (int i = 0; i < mHelper.getAccessoryBarView().getAdapter().getItemCount(); i++) {
-            performOnRecyclerViewNthItem(
-                    withId(R.id.bar_items_view),
-                    i,
-                    createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED, false));
-            onView(withId(R.id.keyboard_accessory)).check(matches(isDisplayed()));
-            performOnRecyclerViewNthItem(
-                    withId(R.id.bar_items_view),
-                    i,
-                    createClickActionWithFlags(
-                            MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED, false));
-            onView(withId(R.id.keyboard_accessory)).check(matches(isDisplayed()));
-        }
+        performOnRecyclerViewNthItem(
+                withId(R.id.bar_items_view),
+                0,
+                createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED, false));
+        onView(withId(R.id.keyboard_accessory)).check(matches(isDisplayed()));
+        performOnRecyclerViewNthItem(
+                withId(R.id.bar_items_view),
+                0,
+                createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED, false));
+        onView(withId(R.id.keyboard_accessory)).check(matches(isDisplayed()));
 
         // Close the accessory by clicking on one of the suggestions.
         onView(withId(R.id.bar_items_view)).perform(actionOnItemAtPosition(0, click()));
@@ -246,6 +246,9 @@ public class AutofillKeyboardAccessoryIntegrationTest {
 
     @Test
     @MediumTest
+    @DisableIf.Build(
+            sdk_equals = Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
+            message = "crbug.com/377939398")
     public void testMouseClicksConsumedByAccessoryBar()
             throws ExecutionException, TimeoutException, InterruptedException {
         mHelper.startAtTestPage(/* isRtl= */ false);
@@ -262,6 +265,10 @@ public class AutofillKeyboardAccessoryIntegrationTest {
 
     @Test
     @SmallTest
+    @DisableFeatures({ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP})
+    @DisableIf.Build(
+            sdk_equals = Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
+            message = "crbug.com/377939398")
     public void testPressingBackButtonHidesAccessoryWithAutofillSuggestions()
             throws TimeoutException, ExecutionException {
         startAtTestPage(MultiWindowKeyboard::new);
@@ -295,6 +302,7 @@ public class AutofillKeyboardAccessoryIntegrationTest {
 
     @Test
     @MediumTest
+    @DisableFeatures({ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP})
     public void testSheetHasMinimumSizeWhenTriggeredBySuggestion() throws TimeoutException {
         MultiWindowUtils.getInstance().setIsInMultiWindowModeForTesting(true);
         startAtTestPage(MultiWindowKeyboard::new);

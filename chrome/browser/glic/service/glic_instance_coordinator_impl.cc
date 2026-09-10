@@ -20,7 +20,6 @@
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/fre/glic_fre_dialog_view.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
-#include "chrome/browser/glic/host/glic_ui_embedder.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -28,6 +27,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
+#include "chrome/browser/glic/service/glic_ui_embedder.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/glic/widget/glic_side_panel_ui.h"
 #include "chrome/browser/glic/widget/glic_view.h"
@@ -79,7 +79,9 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplForTab(
   }
 
   auto* helper = GlicInstanceHelper::From(tab);
-  CHECK(helper);
+  if (!helper) {
+    return nullptr;
+  }
 
   auto instance_id = helper->GetInstanceId();
   if (instance_id.has_value()) {
@@ -101,6 +103,9 @@ void GlicInstanceCoordinatorImpl::OnInstanceOrphaned(GlicInstance* instance) {
 
 std::vector<GlicInstance*> GlicInstanceCoordinatorImpl::GetInstances() {
   std::vector<GlicInstance*> instances;
+  if (warmed_instance_) {
+    instances.push_back(warmed_instance_.get());
+  }
   for (auto& entry : instances_) {
     instances.push_back(entry.second.get());
   }
@@ -110,6 +115,18 @@ std::vector<GlicInstance*> GlicInstanceCoordinatorImpl::GetInstances() {
 GlicInstance* GlicInstanceCoordinatorImpl::GetInstanceForTab(
     tabs::TabInterface* tab) {
   return GetInstanceImplForTab(tab);
+}
+
+void GlicInstanceCoordinatorImpl::FindInstanceFromGlicContentsAndBindToTab(
+    content::WebContents* source_glic_web_contents,
+    tabs::TabInterface* tab_to_bind) {
+  // Find the instance for the given web contents
+  for (auto const& [instance_id, instance] : instances_) {
+    if (instance->host().webui_contents() == source_glic_web_contents) {
+      // Show the instance in the new tab
+      instance->Show(GlicInstanceImpl::EmbedderType::kSidePanel, tab_to_bind);
+    }
+  }
 }
 
 void GlicInstanceCoordinatorImpl::Toggle(BrowserWindowInterface* browser,
@@ -234,8 +251,7 @@ GlicInstanceCoordinatorImpl::AddWindowActivationChangedCallback(
 }
 
 void GlicInstanceCoordinatorImpl::Preload() {
-  // Method should only be called on individual panels not the coordinator.
-  NOTIMPLEMENTED();
+  CreateWarmedInstance();
 }
 
 void GlicInstanceCoordinatorImpl::Reload() {
@@ -320,9 +336,10 @@ void GlicInstanceCoordinatorImpl::SetPreviousPositionForTesting(
 
 std::unique_ptr<views::View>
 GlicInstanceCoordinatorImpl::CreateViewForSidePanel(tabs::TabInterface& tab) {
-  GlicInstanceImpl* instance = GetOrCreateGlicInstanceImplForTab(&tab);
-  CHECK(instance);
-  return instance->CreateViewForSidePanel(&tab);
+  // This method is only used by single instance (when the GlicMultiTab feature
+  // is disabled). This implementation is never called.
+  NOTIMPLEMENTED();
+  return std::make_unique<views::View>();
 }
 
 void GlicInstanceCoordinatorImpl::SidePanelShown(
@@ -331,12 +348,11 @@ void GlicInstanceCoordinatorImpl::SidePanelShown(
   NOTIMPLEMENTED();
 }
 
-base::CallbackListSubscription
-GlicInstanceCoordinatorImpl::RegisterFloatyStateChange(
-    FloatyStateChangeCallback callback) {
+base::CallbackListSubscription GlicInstanceCoordinatorImpl::RegisterStateChange(
+    StateChangeCallback callback) {
   // Method should only be called on individual panels not the coordinator.
   NOTIMPLEMENTED();
-  return floaty_state_change_callback_list_.Add(std::move(callback));
+  return base::CallbackListSubscription();
 }
 
 void GlicInstanceCoordinatorImpl::AttachInstance(GlicInstance* instance) {
@@ -376,14 +392,21 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplFor(
 }
 
 GlicInstanceImpl* GlicInstanceCoordinatorImpl::CreateGlicInstance() {
+  if (!warmed_instance_) {
+    CreateWarmedInstance();
+  }
+  auto* instance_ptr = warmed_instance_.get();
+  instances_[instance_ptr->id()] = std::move(warmed_instance_);
+  CreateWarmedInstance();
+  return instance_ptr;
+}
+
+void GlicInstanceCoordinatorImpl::CreateWarmedInstance() {
   // TODO: Sync this id with the web client.
   InstanceId instance_id = base::Uuid::GenerateRandomV4();
-  auto new_instance = std::make_unique<GlicInstanceImpl>(
+  warmed_instance_ = std::make_unique<GlicInstanceImpl>(
       profile_, instance_id, weak_ptr_factory_.GetWeakPtr(),
       GlicKeyedServiceFactory::GetGlicKeyedService(profile_)->metrics());
-  auto* instance_ptr = new_instance.get();
-  instances_[instance_id] = std::move(new_instance);
-  return instance_ptr;
 }
 
 void GlicInstanceCoordinatorImpl::ToggleFloaty() {
@@ -417,26 +440,29 @@ bool GlicInstanceCoordinatorImpl::HasAttachedInstance(GlicInstance* instance) {
 
 void GlicInstanceCoordinatorImpl::SwitchConversation(
     tabs::TabInterface* tab,
-    const std::string& conversation_id,
+    glic::mojom::ConversationInfoPtr info,
     mojom::WebClientHandler::SwitchConversationCallback callback) {
   GlicInstanceImpl* current_instance = GetInstanceImplForTab(tab);
 
   GlicInstanceImpl* target_instance = nullptr;
-  if (conversation_id.empty()) {
+  if (!info) {
     target_instance = CreateGlicInstance();
   } else {
     for (const auto& [id, instance] : instances_) {
       if (instance->conversation_id().has_value() &&
-          instance->conversation_id().value() == conversation_id) {
+          instance->conversation_id().value() == info->conversation_id) {
         target_instance = instance.get();
         break;
       }
     }
     if (!target_instance) {
-      // If no instance is found for the conversation, create a new one.
-      // The web client is expected to call RegisterConversation on this new
-      // instance.
-      target_instance = CreateGlicInstance();
+      // No instance exists for this conversation. If the current instance
+      // already has a conversation, create a new instance. Otherwise, reuse
+      // the current instance.
+      target_instance = current_instance->conversation_id()
+                            ? CreateGlicInstance()
+                            : current_instance;
+      target_instance->RegisterConversation(std::move(info), base::DoNothing());
     }
   }
 
@@ -449,7 +475,7 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
   CHECK(helper);
   helper->SetInstanceId(target_instance->id());
 
-  target_instance->Toggle(GlicInstanceImpl::EmbedderType::kSidePanel, tab);
+  target_instance->Show(GlicInstanceImpl::EmbedderType::kSidePanel, tab);
 
   std::move(callback).Run(std::nullopt);
 }

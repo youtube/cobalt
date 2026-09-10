@@ -737,6 +737,11 @@ rtc_library("weak_ptr") {
   ]
 }
 
+rtc_library("windowed_min_filter") {
+  sources = [ "numerics/windowed_min_filter.h" ]
+  deps = [ ":checks" ]
+}
+
 rtc_library("rtc_numerics") {
   sources = [
     "numerics/event_based_exponential_moving_average.cc",
@@ -2220,13 +2225,17 @@ if (rtc_include_tests) {
         "numerics/running_statistics_unittest.cc",
         "numerics/sequence_number_unwrapper_unittest.cc",
         "numerics/sequence_number_util_unittest.cc",
+        "numerics/windowed_min_filter_unittest.cc",
       ]
       deps = [
         ":mod_ops",
         ":rtc_numerics",
         ":timeutils",
+        ":windowed_min_filter",
+        "../api/units:time_delta",
         "../test:test_main",
         "../test:test_support",
+        "//testing/gtest",
         "//third_party/abseil-cpp/absl/algorithm:container",
       ]
     }

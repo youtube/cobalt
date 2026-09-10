@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "api/adaptation/resource.h"
-#include "api/candidate.h"
 #include "api/data_channel_event_observer_interface.h"
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
@@ -40,7 +39,6 @@
 #include "api/stats/rtc_stats_collector_callback.h"
 #include "api/transport/bandwidth_estimation_settings.h"
 #include "api/transport/bitrate_settings.h"
-#include "api/transport/network_control.h"
 #include "pc/proxy.h"
 #include "rtc_base/thread.h"
 
@@ -192,7 +190,7 @@ PROXY_METHOD1(void,
               SetDataChannelEventObserver,
               std::unique_ptr<DataChannelEventObserverInterface>)
 PROXY_METHOD0(void, Close)
-PROXY_METHOD0(NetworkControllerInterface*, GetNetworkController)
+
 BYPASS_PROXY_CONSTMETHOD0(Thread*, signaling_thread)
 END_PROXY_MAP(PeerConnection)
 

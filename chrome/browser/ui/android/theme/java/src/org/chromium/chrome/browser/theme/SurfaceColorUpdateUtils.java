@@ -48,21 +48,6 @@ public class SurfaceColorUpdateUtils {
     }
 
     /**
-     * Returns the background color for the Omnibox based on the enabled flag.
-     *
-     * @param context {@link Context} used to retrieve colors.
-     * @return The background color.
-     */
-    public static @ColorInt int getOmniboxBackgroundColor(Context context, boolean isIncognito) {
-        if (isIncognito) {
-            return ContextCompat.getColor(context, R.color.toolbar_text_box_background_incognito);
-        }
-        return useNewToolbarSurfaceColor()
-                ? SemanticColorUtils.getColorSurface(context)
-                : ContextCompat.getColor(context, R.color.toolbar_text_box_bg_color);
-    }
-
-    /**
      * Returns the background color for the toolbar based on the enabled flag and other parameters.
      *
      * @param context {@link Context} used to retrieve colors.
@@ -73,27 +58,6 @@ public class SurfaceColorUpdateUtils {
             return SemanticColorUtils.getColorSurfaceContainerHigh(context);
         }
         return ChromeColors.getDefaultThemeColor(context, isIncognito);
-    }
-
-    /**
-     * Returns the background color for the grid tab switcher based on the enabled flag and
-     * incognito.
-     *
-     * @param context {@link Context} used to retrieve colors.
-     * @return The background color.
-     */
-    public static @ColorInt int getGridTabSwitcherBackgroundColor(
-            Context context, boolean isIncognito) {
-        // TODO(crbug.com/414404094): Add semantic color for incognito.
-        if (useNewGtsSurfaceColor()) {
-            return isIncognito
-                    ? ContextCompat.getColor(
-                            context, R.color.gm3_baseline_surface_container_high_dark)
-                    : SemanticColorUtils.getColorSurfaceContainerHigh(context);
-        }
-        return isIncognito
-                ? ContextCompat.getColor(context, R.color.default_bg_color_dark)
-                : SemanticColorUtils.getDefaultBgColor(context);
     }
 
     /**
@@ -109,12 +73,6 @@ public class SurfaceColorUpdateUtils {
             Context context, boolean isIncognito, @Nullable @TabGroupColorId Integer colorId) {
         if (useNewGm3GtsTabGroupColors() && colorId != null) {
             return TabGroupColorPickerUtils.getTabGroupCardColor(context, colorId, isIncognito);
-        }
-        if (useNewGtsSurfaceColor()) {
-            // TODO(crbug.com/414404094): Add semantic color for incognito tab card view.
-            return isIncognito
-                    ? ContextCompat.getColor(context, R.color.gm3_baseline_surface_dim_dark)
-                    : SemanticColorUtils.getColorSurfaceDim(context);
         }
         return isIncognito
                 ? ContextCompat.getColor(

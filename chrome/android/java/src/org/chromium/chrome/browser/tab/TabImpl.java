@@ -53,6 +53,7 @@ import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
 import org.chromium.chrome.browser.content.ContentUtils;
 import org.chromium.chrome.browser.content.WebContentsFactory;
 import org.chromium.chrome.browser.flags.ActivityType;
@@ -73,6 +74,8 @@ import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.ui.native_page.FrozenNativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePage.SmoothTransitionDelegate;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.components.autofill.AndroidAutofillFeatures;
 import org.chromium.components.autofill.AutofillManagerWrapper;
 import org.chromium.components.autofill.AutofillProvider;
@@ -830,10 +833,10 @@ class TabImpl implements Tab {
         assert isHidden() : "Should only freeze and apprend a navigation to a tab that is hidden.";
         freeze();
         Referrer referrer = params.getReferrer();
+        assumeNonNull(mWebContentsState);
         mWebContentsState =
-                WebContentsStateBridge.appendPendingNavigation(
+                mWebContentsState.appendPendingNavigation(
                         mProfile,
-                        assumeNonNull(mWebContentsState),
                         title,
                         params.getUrl(),
                         referrer != null ? referrer.getUrl() : null,
@@ -2205,10 +2208,11 @@ class TabImpl implements Tab {
             assert mWebContentsState != null;
 
             WebContents webContents =
-                    WebContentsStateBridge.restoreContentsFromByteBuffer(
-                            mWebContentsState, getProfile(), isHidden());
+                    mWebContentsState.restoreWebContents(getProfile(), isHidden());
 
-            String failedRestoreUrl = UrlConstants.NTP_URL;
+            UrlConstantResolver urlConstantResolver =
+                    UrlConstantResolverFactory.getForProfile(mProfile);
+            String failedRestoreUrl = urlConstantResolver.getNtpUrl();
             if (webContents == null) {
                 // State restore failed, just create a new empty web contents as that is the best
                 // that can be done at this point.
@@ -2466,14 +2470,14 @@ class TabImpl implements Tab {
 
     /**
      * Delete navigation entries from frozen state matching the predicate.
-     * @param predicate Handle for a deletion predicate interpreted by native code.
-     *                  Only valid during this call frame.
+     *
+     * @param predicate Handle for a deletion predicate interpreted by native code. Only valid
+     *     during this call frame.
      */
     @CalledByNative
     private void deleteNavigationEntriesFromFrozenState(long predicate) {
         if (mWebContentsState == null) return;
-        WebContentsState newState =
-                WebContentsStateBridge.deleteNavigationEntries(mWebContentsState, predicate);
+        WebContentsState newState = mWebContentsState.deleteNavigationEntries(predicate);
         if (newState != null) {
             mWebContentsState = newState;
             notifyNavigationEntriesDeleted();
@@ -2660,6 +2664,13 @@ class TabImpl implements Tab {
     @Override
     @CalledByNative
     public void setIsPinned(boolean isPinned) {
+        boolean isPinnedTabFeatureEnabled =
+                StripLayoutUtils.isTabPinningFromStripEnabled()
+                        || ChromeFeatureList.sAndroidPinnedTabs.isEnabled();
+
+        // Remove the tab pinned state if the feature is disabled.
+        isPinned = isPinnedTabFeatureEnabled && isPinned;
+
         if (mIsPinned == isPinned || isDestroyed()) return;
         mIsPinned = isPinned;
         for (TabObserver observer : mObservers) {

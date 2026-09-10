@@ -5,8 +5,12 @@
 #ifndef CHROME_BROWSER_GLIC_WIDGET_GLIC_INACTIVE_SIDE_PANEL_UI_H_
 #define CHROME_BROWSER_GLIC_WIDGET_GLIC_INACTIVE_SIDE_PANEL_UI_H_
 
-#include "chrome/browser/glic/host/glic_ui_embedder.h"
-#include "chrome/browser/glic/host/host.h"
+#include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
+#include "chrome/browser/glic/service/glic_ui_embedder.h"
+#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
+#include "ui/gfx/image/image_skia.h"
+#include "ui/views/view_tracker.h"
 
 namespace glic {
 
@@ -14,23 +18,42 @@ class GlicSidePanelUi;
 
 // A GlicUiEmbedder for inactive Glic instances. This will show a
 // blurred screenshot of the previously active UI.
-class GlicInactiveSidePanelUi : public GlicUiEmbedder {
+class GlicInactiveSidePanelUi : public GlicUiEmbedder,
+                                public GlicSidePanelCoordinator::StateObserver {
  public:
   static std::unique_ptr<GlicInactiveSidePanelUi> From(
-      const GlicSidePanelUi& active_ui);
+      const GlicSidePanelUi& active_ui,
+      base::WeakPtr<tabs::TabInterface> tab);
 
   ~GlicInactiveSidePanelUi() override;
 
   // GlicUiEmbedder:
-  Host::Delegate* GetHostDelegate() override;
+  Host::EmbedderDelegate* GetHostEmbedderDelegate() override;
   void Show() override;
+  bool IsShowing() const override;
   void Close() override;
-  std::unique_ptr<views::View> CreateView() override;
   std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
 
+  // GlicSidePanelCoordinator::StateObserver:
+  void VisibilityChanged(bool visible) override;
+
+  void OnScreenshotCaptured(gfx::Image screenshot);
+
  private:
-  GlicInactiveSidePanelUi();
-  std::unique_ptr<DummyHostDelegate> dummy_host_delegate_;
+  explicit GlicInactiveSidePanelUi(base::WeakPtr<tabs::TabInterface> tab);
+  std::unique_ptr<views::View> CreateView(
+      base::WeakPtr<tabs::TabInterface> tab);
+  void UpdateImageView();
+  void OnImageBlurred(gfx::ImageSkia blurred_image);
+
+  base::ScopedObservation<GlicSidePanelCoordinator,
+                          GlicSidePanelCoordinator::StateObserver>
+      coordinator_observation_{this};
+  base::WeakPtr<tabs::TabInterface> tab_;
+  bool is_showing_ = false;
+  gfx::ImageSkia screenshot_;
+  views::ViewTracker image_view_tracker_;
+  base::WeakPtrFactory<GlicInactiveSidePanelUi> weak_ptr_factory_{this};
 };
 
 }  // namespace glic

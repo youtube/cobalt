@@ -324,7 +324,7 @@ IMPLEMENT_D2I_BIO(PKCS8_PRIV_KEY_INFO, d2i_PKCS8_PRIV_KEY_INFO_bio,
 IMPLEMENT_I2D_BIO(PKCS8_PRIV_KEY_INFO, i2d_PKCS8_PRIV_KEY_INFO_bio,
                   i2d_PKCS8_PRIV_KEY_INFO)
 
-int i2d_PKCS8PrivateKeyInfo_bio(BIO *bp, EVP_PKEY *key) {
+int i2d_PKCS8PrivateKeyInfo_bio(BIO *bp, const EVP_PKEY *key) {
   PKCS8_PRIV_KEY_INFO *p8inf;
   int ret;
   p8inf = EVP_PKEY2PKCS8(key);

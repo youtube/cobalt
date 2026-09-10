@@ -1140,6 +1140,16 @@ decrepit_test_sources = [
   "decrepit/xts/xts_test.cc",
 ]
 
+entropy_modulewrapper_sources = [
+  "util/fipstools/acvp/entropy_modulewrapper/main.cc",
+  "util/fipstools/acvp/entropy_modulewrapper/modulewrapper.cc",
+  "util/fipstools/acvp/modulewrapper/proto.cc",
+]
+
+entropy_modulewrapper_internal_headers = [
+  "util/fipstools/acvp/modulewrapper/modulewrapper.h",
+]
+
 fuzz_sources = [
   "fuzz/arm_cpuinfo.cc",
   "fuzz/bn_div.cc",
@@ -1180,6 +1190,7 @@ fuzz_sources = [
 modulewrapper_sources = [
   "util/fipstools/acvp/modulewrapper/main.cc",
   "util/fipstools/acvp/modulewrapper/modulewrapper.cc",
+  "util/fipstools/acvp/modulewrapper/proto.cc",
 ]
 
 modulewrapper_internal_headers = [

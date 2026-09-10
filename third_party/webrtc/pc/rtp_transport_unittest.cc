@@ -328,7 +328,7 @@ TEST(RtpTransportTest, ReceivedPacketEcnMarkingPropagatedToDemuxedPacket) {
   transport.RegisterRtpDemuxerSink(demuxer_criteria, &observer);
 
   AsyncSocketPacketOptions options;
-  options.ecn_1 = true;
+  options.ect_1 = true;
   const int flags = 0;
   Buffer rtp_data(kRtpData, kRtpLen);
   fake_rtp.SendPacket(rtp_data.data<char>(), kRtpLen, options, flags);

@@ -154,9 +154,14 @@ class SaveAndFillManagerImplTest : public testing::Test {
               result, u"context_token",
               create_valid_legal_message
                   ? std::make_unique<base::Value::Dict>(
-                        base::JSONReader::ReadDict(kLegalMessageLines).value())
+                        base::JSONReader::ReadDict(
+                            kLegalMessageLines,
+                            base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+                            .value())
                   : std::make_unique<base::Value::Dict>(
-                        base::JSONReader::ReadDict(kInvalidLegalMessageLines)
+                        base::JSONReader::ReadDict(
+                            kInvalidLegalMessageLines,
+                            base::JSON_PARSE_CHROMIUM_EXTENSIONS)
                             .value()),
               supported_card_bin_ranges);
           return RequestId("11223344");
@@ -759,6 +764,10 @@ TEST_F(SaveAndFillManagerImplTest,
   save_and_fill_manager_impl_->OnSuggestionOffered();
   save_and_fill_manager_impl_->MaybeAddStrikeForSaveAndFill();
 
+  EXPECT_EQ(1, save_and_fill_strike_database.GetStrikes());
+
+  // Verifies that calling it again won't log another strike.
+  save_and_fill_manager_impl_->MaybeAddStrikeForSaveAndFill();
   EXPECT_EQ(1, save_and_fill_strike_database.GetStrikes());
 }
 

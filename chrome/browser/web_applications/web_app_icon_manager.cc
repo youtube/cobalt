@@ -28,6 +28,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/functional/concurrent_callbacks.h"
 #include "base/hash/hash.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -54,6 +55,7 @@
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/common/content_features.h"
 #include "skia/ext/image_operations.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -86,6 +88,14 @@ constexpr base::FilePath::CharType kPendingTrustedIconFolderName[] =
     FILE_PATH_LITERAL("Pending Trusted Icons");
 constexpr base::FilePath::CharType kPendingManifestIconFolderName[] =
     FILE_PATH_LITERAL("Pending Manifest Icons");
+
+// Used to identify the folder from which to read the icons from.
+enum class ReadConfiguration {
+  kManifestIcons = 0,
+  kTrustedIcons = 1,
+  kPendingTrustedIcons = 2,
+  kMaxValue = kPendingTrustedIcons,
+};
 
 // Records the result of reading trusted icons from disk to UMA.
 void RecordTrustedIconsReadResult(bool trusted_icon_used) {
@@ -201,13 +211,16 @@ bool DeleteDataBlocking(scoped_refptr<FileUtilsWrapper> utils,
 }
 
 // `web_apps_directory` is the path to the directory where all web app data is
-// stored for the relevant profile.
-base::FilePath GetTrustedIconsFileName(const base::FilePath& web_apps_directory,
-                                       const IconId& icon_id) {
+// stored for the relevant profile. Appends `child_directory` to the top level
+// directory where web app icons are stored, and returns the icon files stored
+// in that directory corresponding to `icon_id`.
+base::FilePath GetIconsFileNameForChildDirectory(
+    const base::FilePath& web_apps_directory,
+    const base::FilePath& child_directory,
+    const IconId& icon_id) {
   base::FilePath app_dir =
       GetManifestResourcesDirectoryForApp(web_apps_directory, icon_id.app_id);
-  base::FilePath trusted_dir(kTrustedIconFolderName);
-  return app_dir.Append(trusted_dir)
+  return app_dir.Append(child_directory)
       .Append(GetRelativeDirectoryForPurpose(icon_id.purpose))
       .AppendASCII(base::StringPrintf("%i.png", icon_id.size));
 }
@@ -390,6 +403,18 @@ TypedResult<bool> OverwriteAppIconsFromPendingIconsBlocking(
   return {.value = true};
 }
 
+// Performs blocking I/O. May be called on another thread.
+// Deletes a directory path and returns a result indicating success or failure
+// with the path included in the error log on failure.
+TypedResult<bool> DeleteDirectoryAndGetResultBlocking(
+    base::FilePath file_path) {
+  if (!base::DeletePathRecursively(file_path)) {
+    return {.error_log = {CreateError(
+                {"Failed to delete directory: ", file_path.AsUTF8Unsafe()})}};
+  }
+  return {.value = true};
+}
+
 // `web_apps_directory` is the path to the directory where all web app data is
 // stored for the relevant profile.
 base::FilePath GetManifestResourcesShortcutsMenuIconFileName(
@@ -409,21 +434,37 @@ base::FilePath GetManifestResourcesShortcutsMenuIconFileName(
       base::NumberToString(icon_size_px) + ".png");
 }
 
+base::FilePath GetIconFilePathFromReadConfiguration(
+    const base::FilePath& web_apps_directory,
+    const IconId& icon_id,
+    ReadConfiguration read_configuration) {
+  switch (read_configuration) {
+    case ReadConfiguration::kManifestIcons:
+      return GetIconFileName(web_apps_directory, icon_id);
+    case ReadConfiguration::kTrustedIcons:
+      return GetIconsFileNameForChildDirectory(
+          web_apps_directory, base::FilePath(kTrustedIconFolderName), icon_id);
+    case ReadConfiguration::kPendingTrustedIcons:
+      return GetIconsFileNameForChildDirectory(
+          web_apps_directory, base::FilePath(kPendingTrustedIconFolderName),
+          icon_id);
+  }
+}
+
 // Performs blocking I/O. May be called on another thread.
 // Returns empty SkBitmap if any errors occurred.
 TypedResult<SkBitmap> ReadIconBlocking(scoped_refptr<FileUtilsWrapper> utils,
                                        const base::FilePath& web_apps_directory,
                                        const IconId& icon_id,
-                                       bool read_trusted_icons) {
+                                       ReadConfiguration read_configuration) {
   TRACE_EVENT0("ui", "web_app_icon_manager::ReadIconBlocking");
-  base::FilePath icon_file =
-      read_trusted_icons ? GetTrustedIconsFileName(web_apps_directory, icon_id)
-                         : GetIconFileName(web_apps_directory, icon_id);
+  base::FilePath icon_file = GetIconFilePathFromReadConfiguration(
+      web_apps_directory, icon_id, read_configuration);
   auto icon_data = base::MakeRefCounted<base::RefCountedString>();
   if (!utils->ReadFileToString(icon_file, &icon_data->as_string())) {
     return {.error_log = {CreateError(
                 {"Could not read icon file: ", icon_file.AsUTF8Unsafe()},
-                read_trusted_icons)}};
+                read_configuration == ReadConfiguration::kTrustedIcons)}};
   }
 
   TypedResult<SkBitmap> result;
@@ -499,8 +540,10 @@ TypedResult<SizeToBitmap> ReadIconAndResizeBlocking(
   TRACE_EVENT0("ui", "web_app_icon_manager::ReadIconAndResizeBlocking");
   TypedResult<SizeToBitmap> result;
 
-  TypedResult<SkBitmap> read_result = ReadIconBlocking(
-      std::move(utils), web_apps_directory, icon_id, is_trusted);
+  TypedResult<SkBitmap> read_result =
+      ReadIconBlocking(std::move(utils), web_apps_directory, icon_id,
+                       is_trusted ? ReadConfiguration::kTrustedIcons
+                                  : ReadConfiguration::kManifestIcons);
   if (read_result.HasErrors())
     return {.error_log = std::move(read_result.error_log)};
 
@@ -533,13 +576,56 @@ TypedResult<IconMetadataFromDisk> ReadIconsBlocking(
   for (SquareSizePx icon_size_px : icon_sizes) {
     IconId icon_id(app_id, purpose, icon_size_px);
     TypedResult<SkBitmap> read_result = ReadIconBlocking(
-        utils, web_apps_directory, icon_id, read_trusted_icons);
+        utils, web_apps_directory, icon_id,
+        read_trusted_icons ? ReadConfiguration::kTrustedIcons
+                           : ReadConfiguration::kManifestIcons);
     base::Extend(result.error_log, std::move(read_result.error_log));
     if (!read_result.value.empty()) {
       result.value.icons_map[icon_size_px] = std::move(read_result.value);
       result.value.purpose = purpose;
     }
   }
+
+  return result;
+}
+
+// Performs blocking I/O. May be called on another thread.
+TypedResult<IconMetadataForUpdate> ReadIconsForUpdateBlocking(
+    scoped_refptr<FileUtilsWrapper> utils,
+    const base::FilePath& web_apps_directory,
+    const webapps::AppId& app_id,
+    std::optional<IconPurpose> purpose_for_pending_info,
+    IconPurpose purpose_for_current_trusted_icon,
+    SquareSizePx icon_size) {
+  TRACE_EVENT0("ui", "web_app_icon_manager::ReadIconsForUpdateBlocking");
+  TypedResult<IconMetadataForUpdate> result;
+
+  // Read the "to" icon for the update dialog if there is one.
+  if (purpose_for_pending_info.has_value()) {
+    IconId icon_id_pending(app_id, *purpose_for_pending_info, icon_size);
+    TypedResult<SkBitmap> pending_read_result =
+        ReadIconBlocking(utils, web_apps_directory, icon_id_pending,
+                         ReadConfiguration::kPendingTrustedIcons);
+    if (pending_read_result.HasErrors()) {
+      return {.error_log = std::move(pending_read_result.error_log)};
+    }
+
+    result.value.to_icon = std::move(pending_read_result.value);
+    result.value.to_icon_purpose = purpose_for_pending_info;
+  }
+
+  // Second, read the trusted icon to be shown on the update dialog (the "from")
+  // icon.
+  IconId icon_id_trusted(app_id, purpose_for_current_trusted_icon, icon_size);
+  TypedResult<SkBitmap> trusted_read_result =
+      ReadIconBlocking(utils, web_apps_directory, icon_id_trusted,
+                       ReadConfiguration::kTrustedIcons);
+  if (trusted_read_result.HasErrors()) {
+    return {.error_log = std::move(trusted_read_result.error_log)};
+  }
+
+  result.value.from_icon = std::move(trusted_read_result.value);
+  result.value.from_icon_purpose = purpose_for_current_trusted_icon;
 
   return result;
 }
@@ -607,7 +693,9 @@ ReadIconsLastUpdateTimeBlocking(scoped_refptr<FileUtilsWrapper> utils,
     IconId icon_id(app_id, purpose, icon_size_px);
     base::FilePath icon_file =
         consider_trusted_icons
-            ? GetTrustedIconsFileName(web_apps_directory, icon_id)
+            ? GetIconsFileNameForChildDirectory(
+                  web_apps_directory, base::FilePath(kTrustedIconFolderName),
+                  icon_id)
             : GetIconFileName(web_apps_directory, icon_id);
     TypedResult<base::Time> read_result =
         ReadIconTimeBlocking(utils, icon_file, consider_trusted_icons);
@@ -740,7 +828,9 @@ TypedResult<std::vector<uint8_t>> ReadCompressedIconBlocking(
     bool is_trusted) {
   TRACE_EVENT0("ui", "web_app_icon_manager::ReadCompressedIconBlocking");
   base::FilePath icon_file =
-      is_trusted ? GetTrustedIconsFileName(web_apps_directory, icon_id)
+      is_trusted ? GetIconsFileNameForChildDirectory(
+                       web_apps_directory,
+                       base::FilePath(kTrustedIconFolderName), icon_id)
                  : GetIconFileName(web_apps_directory, icon_id);
 
   std::string icon_data;
@@ -782,8 +872,9 @@ WebAppIconManager::IconFilesCheck CheckForEmptyOrMissingIconFilesBlocking(
   // Second, parse all the trusted icon files.
   for (const auto& [purpose, square_sizes] : trusted_icon_purpose_to_sizes) {
     for (SquareSizePx size : square_sizes) {
-      base::FilePath icon_path = GetTrustedIconsFileName(
-          web_apps_directory, IconId(app_id, purpose, size));
+      base::FilePath icon_path = GetIconsFileNameForChildDirectory(
+          web_apps_directory, base::FilePath(kTrustedIconFolderName),
+          IconId(app_id, purpose, size));
       base::File::Info file_info;
       if (utils->GetFileInfo(icon_path, &file_info)) {
         if (file_info.size == 0) {
@@ -1185,6 +1276,22 @@ uint64_t AccumulateIconsSizeForApp(std::vector<base::FilePath> icon_paths) {
   return total_size;
 }
 
+base::FilePath GetAppPendingTrustedIconsDir(
+    const base::FilePath& web_apps_directory,
+    const webapps::AppId& app_id) {
+  return web_app::GetManifestResourcesDirectoryForApp(web_apps_directory,
+                                                      app_id)
+      .Append(kPendingTrustedIconFolderName);
+}
+
+base::FilePath GetAppPendingManifestIconsDir(
+    const base::FilePath& web_apps_directory,
+    const webapps::AppId& app_id) {
+  return web_app::GetManifestResourcesDirectoryForApp(web_apps_directory,
+                                                      app_id)
+      .Append(kPendingManifestIconFolderName);
+}
+
 }  // namespace
 
 IconMetadataFromDisk::IconMetadataFromDisk() = default;
@@ -1193,6 +1300,13 @@ IconMetadataFromDisk::IconMetadataFromDisk(
     IconMetadataFromDisk&& icon_metadata) = default;
 IconMetadataFromDisk& IconMetadataFromDisk::operator=(
     IconMetadataFromDisk&& icon_metadata) = default;
+
+IconMetadataForUpdate::IconMetadataForUpdate() = default;
+IconMetadataForUpdate::~IconMetadataForUpdate() = default;
+IconMetadataForUpdate::IconMetadataForUpdate(
+    IconMetadataForUpdate&& icon_metadata) = default;
+IconMetadataForUpdate& IconMetadataForUpdate::operator=(
+    IconMetadataForUpdate&& icon_metadata) = default;
 
 WebAppIconManager::WebAppIconManager(Profile* profile)
     : icon_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
@@ -1401,6 +1515,42 @@ void WebAppIconManager::ReadTrustedIconsWithFallbackToManifestIcons(
                      std::move(callback)));
 }
 
+void WebAppIconManager::ReadIconsForPendingUpdate(
+    const webapps::AppId& app_id,
+    SquareSizePx size,
+    std::optional<IconPurpose> purpose_for_pending_info,
+    ReadIconMetadataForUpdateCallback callback) {
+  TRACE_EVENT0("ui", "WebAppIconManager::ReadIconsForPendingUpdate");
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!base::FeatureList::IsEnabled(features::kWebAppPredictableAppUpdating)) {
+    std::move(callback).Run(IconMetadataForUpdate());
+    return;
+  }
+
+  if (!provider_->registrar_unsafe().GetAppById(app_id)) {
+    std::move(callback).Run(IconMetadataForUpdate());
+    return;
+  }
+
+  // Construct the purpose for the "from_icon" from the web app instead of
+  // relying on an external input for correctness.
+  IconPurpose purpose_for_current_trusted_icon = IconPurpose::ANY;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+  const WebApp* web_app = provider_->registrar_unsafe().GetAppById(app_id);
+  if (!web_app->stored_trusted_icon_sizes(IconPurpose::MASKABLE).empty()) {
+    purpose_for_current_trusted_icon = IconPurpose::MASKABLE;
+  }
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+
+  icon_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(ReadIconsForUpdateBlocking, provider_->file_utils(),
+                     web_apps_directory_, app_id, purpose_for_pending_info,
+                     purpose_for_current_trusted_icon, size),
+      base::BindOnce(&LogErrorsCallCallback<IconMetadataForUpdate>,
+                     GetWeakPtr(), std::move(callback)));
+}
+
 void WebAppIconManager::ReadAllShortcutMenuIconsWithTimestamp(
     const webapps::AppId& app_id,
     ShortcutIconDataCallback callback) {
@@ -1570,8 +1720,9 @@ void WebAppIconManager::GetIconsSizeForApp(
                                    .GetAppById(app_id)
                                    ->stored_trusted_icon_sizes(purpose)) {
         IconId icon_id(app_id, purpose, size);
-        base::FilePath icon_path =
-            GetTrustedIconsFileName(web_apps_directory_, icon_id);
+        base::FilePath icon_path = GetIconsFileNameForChildDirectory(
+            web_apps_directory_, base::FilePath(kTrustedIconFolderName),
+            icon_id);
         icon_paths.push_back(icon_path);
       }
     }
@@ -1602,7 +1753,8 @@ void WebAppIconManager::ReadSmallestIcon(
       FROM_HERE,
       base::BindOnce(ReadIconBlocking, provider_->file_utils(),
                      web_apps_directory_, std::move(icon_id),
-                     best_icon->is_trusted),
+                     best_icon->is_trusted ? ReadConfiguration::kTrustedIcons
+                                           : ReadConfiguration::kManifestIcons),
       base::BindOnce(&LogErrorsCallCallback<SkBitmap>, GetWeakPtr(),
                      std::move(wrapped)));
 }
@@ -1657,6 +1809,55 @@ void WebAppIconManager::OverwriteAppIconsFromPendingIcons(
                      pending_manifest_dir, pending_trusted_dir),
       base::BindOnce(&LogErrorsCallCallback<bool>, GetWeakPtr(),
                      std::move(callback)));
+}
+
+void WebAppIconManager::DeletePendingIconData(
+    const webapps::AppId& app_id,
+    base::PassKey<ApplyPendingManifestUpdateCommand>,
+    DeletePendingIconDataCallback callback) {
+  TRACE_EVENT0("ui", "WebAppIconManager::DeletePendingIconData");
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!provider_->registrar_unsafe().IsInRegistrar(app_id)) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  const base::FilePath pending_manifest_dir =
+      GetAppPendingManifestIconsDir(web_apps_directory_, app_id);
+  const base::FilePath pending_trusted_dir =
+      GetAppPendingTrustedIconsDir(web_apps_directory_, app_id);
+
+  std::vector<base::FilePath> directories_to_delete;
+  directories_to_delete.push_back(pending_manifest_dir);
+  directories_to_delete.push_back(pending_trusted_dir);
+
+  base::ConcurrentCallbacks<TypedResult<bool>> deletion_callbacks;
+
+  for (const auto& directory : directories_to_delete) {
+    icon_task_runner_->PostTaskAndReplyWithResult(
+        FROM_HERE,
+        base::BindOnce(&DeleteDirectoryAndGetResultBlocking, directory),
+        deletion_callbacks.CreateCallback());
+  }
+
+  std::move(deletion_callbacks)
+      .Done(base::BindOnce([](std::vector<TypedResult<bool>> results)
+                               -> web_app::TypedResult<bool> {
+              web_app::TypedResult<bool> final_result;
+              for (const auto& result : results) {
+                if (result.HasErrors()) {
+                  final_result.error_log.push_back(result.error_log[0]);
+                }
+              }
+
+              if (final_result.HasErrors()) {
+                return final_result;
+              }
+
+              return {.value = true};
+            })
+                .Then(base::BindOnce(&LogErrorsCallCallback<bool>, GetWeakPtr(),
+                                     std::move(callback))));
 }
 
 SkBitmap WebAppIconManager::GetFavicon(const webapps::AppId& app_id) const {
@@ -1827,10 +2028,21 @@ base::FilePath WebAppIconManager::GetIconFilePathForTesting(
 
   IconId icon_id(app_id, best_icon->purpose, best_icon->size_px);
   if (best_icon->is_trusted) {
-    return GetTrustedIconsFileName(web_apps_directory_, icon_id);
+    return GetIconsFileNameForChildDirectory(
+        web_apps_directory_, base::FilePath(kTrustedIconFolderName), icon_id);
   }
 
   return GetIconFileName(web_apps_directory_, icon_id);
+}
+
+base::FilePath WebAppIconManager::GetAppPendingTrustedIconDirForTesting(
+    const webapps::AppId& app_id) {
+  return GetAppPendingTrustedIconsDir(web_apps_directory_, app_id);
+}
+
+base::FilePath WebAppIconManager::GetAppPendingManifestIconDirForTesting(
+    const webapps::AppId& app_id) {
+  return GetAppPendingManifestIconsDir(web_apps_directory_, app_id);
 }
 
 base::WeakPtr<const WebAppIconManager> WebAppIconManager::GetWeakPtr() const {

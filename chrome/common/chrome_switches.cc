@@ -382,7 +382,7 @@ const char kHideCrashRestoreBubble[] = "hide-crash-restore-bubble";
 // http://google.com.
 const char kHomePage[] = "homepage";
 
-#if !BUILDFLAG(IS_ANDROID) && !defined(OFFICIAL_BUILD)
+#if !BUILDFLAG(IS_ANDROID)
 // Triggers the import of passwords on startup.
 const char kImportPasswords[] = "import-passwords";
 #endif
@@ -505,6 +505,12 @@ const char kOnTheFlyMhtmlHashComputation[] =
 
 // Launches URL in new browser window.
 const char kOpenInNewWindow[] = "new-window";
+
+// Activates an existing tab or app window by URL or app id before creating
+// anything new. Syntax: comma-ordered selectors. Bare URLs are exact.
+// Add a trailing * for prefix. app:<app-id> targets PWAs.
+// Example: --focus=https://meet.google.com/*,app:abc123
+const char kFocus[] = "focus";
 
 // Packages an extension to a .crx installable file from a given directory.
 const char kPackExtension[] = "pack-extension";
@@ -963,12 +969,17 @@ const char kGlicSkipReloadAfterNavigation[] =
     "glic-skip-reload-after-navigation";
 // Whether additional logging is enabled in the glic api host.
 const char kGlicHostLogging[] = "glic-host-logging";
+
+// List of URL patterns in the glic webview to redirect to an admin blocked
+// panel, as a space-separated list.
+const char kGlicAdminRedirectPatterns[] = "glic-admin-redirect-patterns";
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 // Writes open and installed web apps for each profile to the specified file
-// without launching a new browser window or tab. Pass a absolute file path to
-// specify where to output the information. Can be used together with optional
+// without launching a new browser window or tab. Pass a absolute file path
+// to specify where to output the information. Can be used together with
+// optional
 // --profile-base-name switch to only write information for a given profile.
 const char kListApps[] = "list-apps";
 

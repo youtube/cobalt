@@ -24,6 +24,7 @@
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/geo/alternative_state_name_map_test_utils.h"
 #include "components/autofill/core/browser/proto/api_v1.pb.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_test_helper.h"
@@ -565,7 +566,8 @@ class GetFillValueForEntityTest_Date : public GetFillValueForEntityTest {
 TEST_F(GetFillValueForEntityTest_Date, FillingDateValueIntoTextInput) {
   auto field = CreateInput(FormControlType::kInputText);
   field->set_format_string_unless_overruled(
-      u"DD/MM/YYYY", AutofillField::FormatStringSource::kServer);
+      AutofillFormatString(u"DD/MM/YYYY", FormatString_Type_DATE),
+      AutofillFormatStringSource::kServer);
   EXPECT_EQ(
       GetFillValueForEntity(passport(), field, mojom::ActionPersistence::kFill,
                             /*app_locale=*/"",

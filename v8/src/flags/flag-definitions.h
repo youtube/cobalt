@@ -385,6 +385,9 @@ DEFINE_STRING(icu_datetime_compat_lang, "*",
 DEFINE_BOOL(icu_default_italian_number_grouping_always, false,
             "override the default useGrouping rule for Italian to \"always\" "
             "to match behavior of ICU <76")
+DEFINE_BOOL(icu_british_remove_full_weekday_comma, false,
+            "remove any comma after a full weekday in en-AU, en-GB and en-IN "
+            "to match behavior of ICU<76")
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK
@@ -2568,8 +2571,7 @@ DEFINE_BOOL(late_heap_limit_check, true,
             "skips heap limit check for early GCs on allocation failure.")
 
 #if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-DEFINE_BOOL(reserve_contiguous_compressed_read_only_space,
-            CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL,
+DEFINE_BOOL(reserve_contiguous_compressed_read_only_space, true,
             "reserves a contiguous compressed read-only space in all pointer "
             "compression cages")
 #endif
@@ -2646,6 +2648,7 @@ DEFINE_BOOL(intel_jcc_erratum_mitigation, true,
 DEFINE_BOOL(riscv_trap_to_simulator_debugger, false,
             "enable simulator trap to debugger")
 DEFINE_BOOL(riscv_debug, false, "enable debug prints")
+DEFINE_STRING(riscv_debug_file_path, nullptr, "path to riscv_debug_file")
 
 DEFINE_BOOL(riscv_constant_pool, true, "enable constant pool (RISCV only)")
 
@@ -3082,8 +3085,8 @@ DEFINE_INT(regexp_tier_up_ticks, 1,
 DEFINE_BOOL(regexp_peephole_optimization, REGEXP_PEEPHOLE_OPTIMIZATION_BOOL,
             "enable peephole optimization for regexp bytecode")
 DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
-DEFINE_EXPERIMENTAL_FEATURE(regexp_assemble_from_bytecode,
-                            "assemble regexp JIT-code from bytecode")
+DEFINE_BOOL(regexp_assemble_from_bytecode, false,
+            "assemble regexp JIT-code from bytecode")
 DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
@@ -3346,8 +3349,8 @@ DEFINE_SIZE_T(minor_ms_min_lab_size_kb, 0,
               "override for the minimum lab size in KB to be used for new "
               "space allocations with minor ms. ")
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    handle_weak_ref_weakly_in_minor_gc,
+DEFINE_BOOL(
+    handle_weak_ref_weakly_in_minor_gc, false,
     "Enables weak handling of WeakRef and FinalizationRegistry in minor GCs.")
 DEFINE_NEG_IMPLICATION(minor_ms, handle_weak_ref_weakly_in_minor_gc)
 

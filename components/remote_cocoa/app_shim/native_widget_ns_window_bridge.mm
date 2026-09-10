@@ -988,8 +988,19 @@ void NativeWidgetNSWindowBridge::SetLocalEventMonitorEnabled(bool enabled) {
           ui::EventFromNative(base::apple::OwnedNSEvent(event));
       bool event_handled = false;
       if (ui_event && ui_event->type() != ui::EventType::kUnknown) {
-        weak_ptr->host_->DispatchMonitorEvent(std::move(ui_event),
-                                              &event_handled);
+        // Pass up whether or not the event is for this specific window. This
+        // allows consumers to filter events that are not for this window.
+        bool target_is_this_window_or_descendant = false;
+        for (NSWindow* current = event.window; current;
+             current = current.parentWindow) {
+          if (current == weak_ptr->window_) {
+            target_is_this_window_or_descendant = true;
+            break;
+          }
+        }
+        weak_ptr->host_->DispatchMonitorEvent(
+            std::move(ui_event), target_is_this_window_or_descendant,
+            &event_handled);
       }
 
       return event_handled ? nil : event;

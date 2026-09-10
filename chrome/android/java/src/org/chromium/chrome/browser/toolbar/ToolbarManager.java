@@ -177,6 +177,8 @@ import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarThrottle;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
@@ -186,7 +188,6 @@ import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.Drawing
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler.BackPressResult;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
@@ -394,12 +395,13 @@ public class ToolbarManager
 
     private CustomTabCount mCustomTabCount;
     private int mIncognitoNtpViewIdForA11y = View.NO_ID;
-    private float mNtpSearchBoxScrollPercentage;
     private OverscrollGlowCoordinator mOverscrollGlowCoordinator;
     private final NewTabPageDelegate mNtpDelegate;
     private final ObservableSupplier<Profile> mProfileSupplier;
     private final Callback<Boolean> mOnXrSpaceModeChanged = this::onXrSpaceModeChanged;
     private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
+    private final ObservableSupplierImpl<Float> mNtpSearchBoxTransitionPercentageSupplier =
+            new ObservableSupplierImpl<>(0f);
 
     private static class TabObscuringCallback implements Callback<Boolean> {
         private final TabObscuringHandler mTabObscuringHandler;
@@ -921,7 +923,7 @@ public class ToolbarManager
                         mLocationBarModel::getTab,
                         () -> TrackerFactory.getTrackerForProfile(mProfileSupplier),
                         mBottomControlsCoordinatorSupplier,
-                        ToolbarManager::homepageUrl,
+                        this::homepageUrl,
                         this::updateButtonStatus,
                         mActivityTabProvider,
                         mTabCreatorManager,
@@ -1494,6 +1496,11 @@ public class ToolbarManager
                     public void didBackForwardTransitionAnimationChange(Tab tab) {
                         onBackForwardTransitionAnimationChange();
                     }
+
+                    @Override
+                    public void onContentViewScrollingStateChanged(boolean scrolling) {
+                        mToolbar.onContentViewScrollingStateChanged(scrolling);
+                    }
                 };
 
         mCurrentTabModelObserver =
@@ -1984,9 +1991,9 @@ public class ToolbarManager
         }
     }
 
-    /** Returns the NTP toolbar transition percentage for the search box to cover the toolbar. */
-    public float getNtpTransitionPercentage() {
-        return mNtpSearchBoxScrollPercentage;
+    /** Returns a supplier that provides the NTP search box transition percentage. */
+    public ObservableSupplier<Float> getNtpSearchBoxTransitionPercentageSupplier() {
+        return mNtpSearchBoxTransitionPercentageSupplier;
     }
 
     /** Returns the {@link CustomTabCount} object to overwrite the tab count in the toolbar. */
@@ -2044,13 +2051,13 @@ public class ToolbarManager
             NewTabPage newVisibleNtp = getNewTabPageForCurrentTab();
             if (mVisibleNtp != null) {
                 mVisibleNtp.setSearchBoxScrollListener(null);
-                mNtpSearchBoxScrollPercentage = 0f;
+                mNtpSearchBoxTransitionPercentageSupplier.set(0f);
             }
             mVisibleNtp = newVisibleNtp;
             if (mVisibleNtp != null && shouldUpdateListener()) {
                 mVisibleNtp.setSearchBoxScrollListener(
                         (fraction) -> {
-                            mNtpSearchBoxScrollPercentage = fraction;
+                            mNtpSearchBoxTransitionPercentageSupplier.set(fraction);
                             scrollCallback.onResult(fraction);
                         });
             }
@@ -2639,10 +2646,13 @@ public class ToolbarManager
     }
 
     @VisibleForTesting
-    static String homepageUrl() {
+    String homepageUrl() {
         GURL homepageGurl = HomepageManager.getInstance().getHomepageGurl();
         if (homepageGurl.isEmpty()) {
-            return UrlConstants.NTP_URL;
+            Profile profile = mProfileSupplier.get();
+            UrlConstantResolver urlConstantResolver =
+                    UrlConstantResolverFactory.getForProfile(profile);
+            return urlConstantResolver.getNtpUrl();
         } else {
             return homepageGurl.getSpec();
         }

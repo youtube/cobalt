@@ -11,7 +11,6 @@
 #ifndef P2P_BASE_ICE_CONTROLLER_INTERFACE_H_
 #define P2P_BASE_ICE_CONTROLLER_INTERFACE_H_
 
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -131,16 +130,7 @@ class IceControllerInterface {
   virtual bool HasPingableConnection() const = 0;
 
   // Selects a connection to Ping, or nullptr if none.
-  // TODO: bugs.webrtc.org/42223979 - make pure virtual when implemented by
-  // downstream.
-  virtual PingResult GetConnectionToPing(Timestamp last_ping_sent) {
-    return SelectConnectionToPing(last_ping_sent.ms());
-  }
-  // TODO: bugs.webrtc.org/42223979 - Remove when downstream implementaions are
-  // removed.
-  virtual PingResult SelectConnectionToPing(int64_t last_ping_sent_ms) {
-    return GetConnectionToPing(Timestamp::Millis(last_ping_sent_ms));
-  }
+  virtual PingResult GetConnectionToPing(Timestamp last_ping_sent) = 0;
 
   // Compute the "STUN_ATTR_USE_CANDIDATE" for `conn`.
   virtual bool GetUseCandidateAttr(const Connection* conn,

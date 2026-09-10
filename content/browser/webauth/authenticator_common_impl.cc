@@ -1886,7 +1886,7 @@ void AuthenticatorCommonImpl::GetClientCapabilities(
   // collect the results of the check with the `BarrierCallback`), update this
   // constant to match the number of `barrier_callback.Run()` calls. Otherwise,
   // the `GetClientCapabilities()` call will crash or timeout.
-  const size_t kNumberOfComputedCapabilities = immediate_get_enabled ? 6 : 5;
+  const size_t kNumberOfComputedCapabilities = immediate_get_enabled ? 9 : 8;
   auto barrier_callback =
       base::BarrierCallback<blink::mojom::WebAuthnClientCapabilityPtr>(
           kNumberOfComputedCapabilities, std::move(completion_callback));
@@ -1915,6 +1915,13 @@ void AuthenticatorCommonImpl::GetClientCapabilities(
     barrier_callback.Run(
         MakeCapability(client_capabilities::kImmediateGet, true));
   }
+
+  barrier_callback.Run(
+      MakeCapability(client_capabilities::kSignalAllAcceptedCredentials, true));
+  barrier_callback.Run(
+      MakeCapability(client_capabilities::kSignalCurrentUserDetails, true));
+  barrier_callback.Run(
+      MakeCapability(client_capabilities::kSignalUnknownCredential, true));
 }
 
 void AuthenticatorCommonImpl::IsHybridTransportSupported(
@@ -2358,16 +2365,20 @@ void AuthenticatorCommonImpl::OnRegisterResponse(
       RequestSource(), device::FidoRequestType::kMakeCredential,
       authenticator->GetType());
 
-  std::optional<device::FidoTransportProtocol> transport =
+  base::flat_set<device::FidoTransportProtocol> transports;
+  std::optional<device::FidoTransportProtocol> authenticator_transport =
       authenticator->AuthenticatorTransport();
-  bool is_transport_used_internal = false;
-  bool is_transport_used_cable = false;
-  if (transport) {
-    is_transport_used_internal =
-        *transport == device::FidoTransportProtocol::kInternal;
-    is_transport_used_cable =
-        *transport == device::FidoTransportProtocol::kHybrid;
+  if (authenticator_transport) {
+    transports.emplace(*authenticator_transport);
+  } else if (response_data->transports) {
+    // On platforms where we delegate handling different transports to the OS,
+    // use the list of transports reported by the credential instead.
+    transports = *response_data->transports;
   }
+  bool is_transport_used_internal =
+      base::Contains(transports, device::FidoTransportProtocol::kInternal);
+  bool is_transport_used_cable =
+      base::Contains(transports, device::FidoTransportProtocol::kHybrid);
 
   const auto attestation =
       std::get<device::CtapMakeCredentialRequest>(req_state_->ctap_request)

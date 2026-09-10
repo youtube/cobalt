@@ -189,6 +189,11 @@ struct RTC_EXPORT TransportPacketsFeedback {
   DataSize data_in_flight = DataSize::Zero();
   bool transport_supports_ecn = false;
   std::vector<PacketResult> packet_feedbacks;
+  // Smoothed RTT calculated on the current network route.
+  // Calculated similarly as RFC 6298 using exponentially weighted moving
+  // average with alpha 1/8. Note that it is not calculated for all feedback
+  // types.
+  TimeDelta smoothed_rtt = TimeDelta::PlusInfinity();
 
   // Arrival times for messages without send time information.
   std::vector<Timestamp> sendless_arrival_times;

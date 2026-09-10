@@ -5966,7 +5966,7 @@ enum ssl_compliance_policy_t BORINGSSL_ENUM_INT {
   //   * For TLS 1.3, only AES-GCM
   //   * P-256 or P-384 for key agreement.
   //   * For server signatures, only PKCS#1/PSS with SHA256/384/512, or ECDSA
-  //     with P-256 or P-384.
+  //     with P-256 or P-384 and SHA256/SHA384.
   //
   // Note: this policy can be configured even if BoringSSL has not been built in
   // FIPS mode. Call |FIPS_mode| to check that.

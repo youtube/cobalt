@@ -8,6 +8,7 @@
 
 #include "src/base/logging.h"
 #include "src/common/operation.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -85,6 +86,10 @@ void MaglevGraphOptimizer::PreProcessNode(ControlNode*,
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
 }
 void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {}
+
+compiler::JSHeapBroker* MaglevGraphOptimizer::broker() const {
+  return reducer_.broker();
+}
 
 ValueNode* MaglevGraphOptimizer::GetInputAt(int index) const {
   CHECK_NOT_NULL(current_node_);
@@ -252,6 +257,14 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
   return new_control_node;
 }
 
+ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
+    DeoptimizeReason reason) {
+  reducer_.current_block()->set_deferred(true);
+  reducer_.current_block()->reset_control_node();
+  reducer_.AddNewControlNode<Deopt>({}, reason);
+  return ReduceResult::DoneWithAbort();
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
     AssertInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -327,6 +340,15 @@ ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached(
 ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
     CheckMaps* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  MaybeReduceResult result =
+      reducer_.TryFoldCheckMaps(GetInputAt(0), node->maps());
+  if (result.IsDoneWithAbort()) {
+    reducer_.graph()->set_may_have_unreachable_blocks(true);
+    return ProcessResult::kTruncateBlock;
+  }
+  if (result.IsDone()) {
+    return ProcessResult::kRemove;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -366,8 +388,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckNotHole(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64NotHole(
-    CheckHoleyFloat64NotHole* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64NotHoleOrUndefined(
+    CheckHoleyFloat64NotHoleOrUndefined* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -950,6 +972,15 @@ ProcessResult MaglevGraphOptimizer::VisitInitialValue(
 ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     LoadTaggedField* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  if (node->offset() == HeapObject::kMapOffset) {
+    if (auto constant = reducer_.TryGetConstant(node)) {
+      compiler::MapRef map = constant->map(broker());
+      if (map.is_stable()) {
+        broker()->dependencies()->DependOnStableMap(map);
+        return ReplaceWith(reducer_.GetConstant(map));
+      }
+    }
+  }
   if (node->offset() == JSFunction::kFeedbackCellOffset) {
     if (auto input = GetInputAt(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));

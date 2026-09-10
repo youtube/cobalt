@@ -92,12 +92,12 @@ static inline size_t fast_hash_combine(
 
 template <typename BaseT>
 template <typename NodeT, typename Function, typename... Args>
-NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
+ReduceResult MaglevReducer<BaseT>::AddNewNode(
     size_t input_count, Function&& post_create_input_initializer,
     Args&&... args) {
   NodeT* node =
       NodeBase::New<NodeT>(zone(), input_count, std::forward<Args>(args)...);
-  post_create_input_initializer(node);
+  RETURN_IF_ABORT(post_create_input_initializer(node));
   return AttachExtraInfoAndAddToGraph(node);
 }
 
@@ -639,7 +639,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       if (!IsEmptyNodeType(known_node_aspects().GetType(broker(), value)) &&
           node_info->is_smi()) {
         return alternative.set_int32(
-            AddNewNodeNoAbort<TruncateUint32ToInt32>({value}));
+            AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value}));
       }
       return alternative.set_int32(
           AddNewNodeNoInputConversion<CheckedUint32ToInt32>({value}));
@@ -649,7 +649,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
     // HoleyFloat64 as Float64.
     case ValueRepresentation::kHoleyFloat64: {
       return alternative.set_int32(
-          AddNewNodeNoAbort<CheckedHoleyFloat64ToInt32>({value}));
+          AddNewNodeNoInputConversion<CheckedHoleyFloat64ToInt32>({value}));
     }
 
     case ValueRepresentation::kIntPtr:
@@ -661,6 +661,26 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       UNREACHABLE();
   }
   UNREACHABLE();
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::EmitUnconditionalDeopt(
+    DeoptimizeReason reason) {
+  static_assert(ReducerBaseWithUnconditonalDeopt<BaseT>);
+  return base_->EmitUnconditionalDeopt(reason);
+}
+
+template <typename BaseT>
+compiler::OptionalHeapObjectRef MaglevReducer<BaseT>::TryGetConstant(
+    ValueNode* node, ValueNode** constant_node) {
+  if (auto result = node->TryGetConstant(broker())) {
+    if (constant_node) *constant_node = node;
+    return result;
+  }
+  if (auto c = TryGetConstantAlternative(node)) {
+    return TryGetConstant(*c, constant_node);
+  }
+  return {};
 }
 
 template <typename BaseT>
@@ -702,6 +722,41 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
 }
 
 template <typename BaseT>
+std::optional<uint32_t> MaglevReducer<BaseT>::TryGetUint32Constant(
+    ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kInt32Constant: {
+      int32_t int32_value = value->Cast<Int32Constant>()->value();
+      if (int32_value >= 0) {
+        return static_cast<uint32_t>(int32_value);
+      }
+      return {};
+    }
+    case Opcode::kUint32Constant:
+      return value->Cast<Uint32Constant>()->value();
+    case Opcode::kSmiConstant: {
+      int32_t smi_value = value->Cast<SmiConstant>()->value().value();
+      if (smi_value >= 0) {
+        return static_cast<uint32_t>(smi_value);
+      }
+      return {};
+    }
+    case Opcode::kFloat64Constant: {
+      double double_value =
+          value->Cast<Float64Constant>()->value().get_scalar();
+      if (!IsUint32Double(double_value)) return {};
+      return FastD2UI(value->Cast<Float64Constant>()->value().get_scalar());
+    }
+    default:
+      break;
+  }
+  if (auto c = TryGetConstantAlternative(value)) {
+    return TryGetUint32Constant(*c);
+  }
+  return {};
+}
+
+template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kTruncatedInt32);
@@ -720,7 +775,6 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
       compiler::ObjectRef object = value->Cast<Constant>()->object();
       if (!object.IsHeapNumber()) break;
       int32_t truncated_value = DoubleToInt32(object.AsHeapNumber().value());
-      if (!Smi::IsValid(truncated_value)) break;
       return GetInt32Constant(truncated_value);
     }
     case Opcode::kSmiConstant:
@@ -738,7 +792,6 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     case Opcode::kFloat64Constant: {
       int32_t truncated_value =
           DoubleToInt32(value->Cast<Float64Constant>()->value().get_scalar());
-      if (!Smi::IsValid(truncated_value)) break;
       return GetInt32Constant(truncated_value);
     }
 
@@ -873,10 +926,10 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
     }
     case ValueRepresentation::kInt32:
       return alternative.set_float64(
-          AddNewNodeNoAbort<ChangeInt32ToFloat64>({value}));
+          AddNewNodeNoInputConversion<ChangeInt32ToFloat64>({value}));
     case ValueRepresentation::kUint32:
       return alternative.set_float64(
-          AddNewNodeNoAbort<ChangeUint32ToFloat64>({value}));
+          AddNewNodeNoInputConversion<ChangeUint32ToFloat64>({value}));
     case ValueRepresentation::kHoleyFloat64: {
       switch (allowed_input_type) {
         case NodeType::kSmi:
@@ -888,19 +941,21 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
           // booleans cannot occur here and kNumberOrBoolean can be grouped with
           // kNumber.
           return alternative.set_float64(
-              AddNewNodeNoAbort<CheckedHoleyFloat64ToFloat64>({value}));
+              AddNewNodeNoInputConversion<CheckedHoleyFloat64ToFloat64>(
+                  {value}));
         case NodeType::kNumberOrOddball:
           // NumberOrOddball->Float64 conversions are not exact alternatives,
           // since they lose the information that this is an oddball, so they
           // cannot become the canonical float64_alternative.
-          return AddNewNodeNoAbort<HoleyFloat64ToMaybeNanFloat64>({value});
+          return AddNewNodeNoInputConversion<HoleyFloat64ToMaybeNanFloat64>(
+              {value});
         default:
           UNREACHABLE();
       }
     }
     case ValueRepresentation::kIntPtr:
       return alternative.set_float64(
-          AddNewNodeNoAbort<ChangeIntPtrToFloat64>({value}));
+          AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value}));
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kNone:
       UNREACHABLE();
@@ -1025,6 +1080,39 @@ void MaglevReducer<BaseT>::FlushNodesToBlock() {
 }
 
 template <typename BaseT>
+template <typename MapContainer>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
+    ValueNode* object, const MapContainer& maps) {
+  // For constants with stable maps that match one of the desired maps, we
+  // don't need to emit a map check, and can use the dependency -- we
+  // can't do this for unstable maps because the constant could migrate
+  // during compilation.
+  if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
+    compiler::MapRef constant_map = constant->map(broker());
+    if (std::find(maps.begin(), maps.end(), constant_map) == maps.end()) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+    }
+    // TODO(verwaest): Reduce maps to the constant map.
+    if (constant_map.is_stable()) {
+      broker()->dependencies()->DependOnStableMap(constant_map);
+      return ReduceResult::Done();
+    }
+    return {};
+  }
+
+  if (NodeTypeIs(GetType(object), NodeType::kNumber)) {
+    auto heap_number_map =
+        MakeRef(broker(), local_isolate()->factory()->heap_number_map());
+    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
+      return ReduceResult::Done();
+    }
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+  }
+
+  return {};
+}
+
+template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `node` here. Make sure we don't add unsafe conversion
@@ -1077,7 +1165,7 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckedSmiSizedInt32(ValueNode* input) {
     }
     // TODO(victorgomes): Emit deopt.
   }
-  return AddNewNodeNoAbort<CheckedSmiSizedInt32>({input});
+  return AddNewNode<CheckedSmiSizedInt32>({input});
 }
 
 template <typename BaseT>
@@ -1170,18 +1258,18 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     case Operation::kMultiply:
       // x * 0 = 0
       if (cst_right == 0) {
-        AddNewNodeNoAbort<CheckInt32Condition>(
+        RETURN_IF_ABORT(AddNewNode<CheckInt32Condition>(
             {left, GetInt32Constant(0)}, AssertCondition::kGreaterThanEqual,
-            DeoptimizeReason::kMinusZero);
+            DeoptimizeReason::kMinusZero));
         return GetInt32Constant(0);
       }
       return {};
     case Operation::kDivide:
       // x / -1 = 0 - x
       if (cst_right == -1) {
-        AddNewNodeNoAbort<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                               AssertCondition::kNotEqual,
-                                               DeoptimizeReason::kMinusZero);
+        RETURN_IF_ABORT(AddNewNode<CheckInt32Condition>(
+            {left, GetInt32Constant(0)}, AssertCondition::kNotEqual,
+            DeoptimizeReason::kMinusZero));
         return AddNewNode<Int32SubtractWithOverflow>(
             {GetInt32Constant(0), left});
       }
@@ -1189,33 +1277,41 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
         // x / n = x reciprocal_int_mult(x, n)
         if (cst_right < 0) {
           // Deopt if division would result in -0.
-          AddNewNodeNoAbort<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                                 AssertCondition::kNotEqual,
-                                                 DeoptimizeReason::kMinusZero);
+          RETURN_IF_ABORT(AddNewNode<CheckInt32Condition>(
+              {left, GetInt32Constant(0)}, AssertCondition::kNotEqual,
+              DeoptimizeReason::kMinusZero));
         }
         base::MagicNumbersForDivision<int32_t> magic =
             base::SignedDivisionByConstant(cst_right);
-        ValueNode* quot = AddNewNodeNoAbort<Int32MultiplyOverflownBits>(
-            {left, GetInt32Constant(magic.multiplier)});
+        ValueNode* quot;
+        GET_VALUE_OR_ABORT(quot,
+                           AddNewNode<Int32MultiplyOverflownBits>(
+                               {left, GetInt32Constant(magic.multiplier)}));
         if (cst_right > 0 && magic.multiplier < 0) {
-          quot = AddNewNodeNoAbort<Int32Add>({quot, left});
+          GET_VALUE_OR_ABORT(quot, AddNewNode<Int32Add>({quot, left}));
         } else if (cst_right < 0 && magic.multiplier > 0) {
-          quot = AddNewNodeNoAbort<Int32Subtract>({quot, left});
+          GET_VALUE_OR_ABORT(quot, AddNewNode<Int32Subtract>({quot, left}));
         }
-        ValueNode* sign_bit = AddNewNodeNoAbort<Int32ShiftRightLogical>(
-            {left, GetInt32Constant(31)});
-        ValueNode* shifted_quot = AddNewNodeNoAbort<Int32ShiftRight>(
-            {quot, GetInt32Constant(magic.shift)});
+        ValueNode* sign_bit;
+        GET_VALUE_OR_ABORT(sign_bit, AddNewNode<Int32ShiftRightLogical>(
+                                         {left, GetInt32Constant(31)}));
+        ValueNode* shifted_quot;
+        GET_VALUE_OR_ABORT(
+            shifted_quot,
+            AddNewNode<Int32ShiftRight>({quot, GetInt32Constant(magic.shift)}));
         // TODO(victorgomes): This should actually be NodeType::kInt32, but we
         // don't have it. The idea here is that the value is either 0 or 1, so
         // we can cast Uint32 to Int32 without a check.
         EnsureType(sign_bit, NodeType::kSmi);
-        ValueNode* result =
-            AddNewNodeNoAbort<Int32Add>({shifted_quot, sign_bit});
-        ValueNode* mult = AddNewNodeNoAbort<Int32Multiply>(
-            {result, GetInt32Constant(cst_right)});
-        AddNewNodeNoAbort<CheckInt32Condition>(
-            {left, mult}, AssertCondition::kEqual, DeoptimizeReason::kNotInt32);
+        ValueNode* result;
+        GET_VALUE_OR_ABORT(result,
+                           AddNewNode<Int32Add>({shifted_quot, sign_bit}));
+        ValueNode* mult;
+        GET_VALUE_OR_ABORT(mult, AddNewNode<Int32Multiply>(
+                                     {result, GetInt32Constant(cst_right)}));
+        RETURN_IF_ABORT(AddNewNode<CheckInt32Condition>(
+            {left, mult}, AssertCondition::kEqual,
+            DeoptimizeReason::kNotInt32));
         return result;
       }
       return {};

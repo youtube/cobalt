@@ -377,7 +377,12 @@ enum class PasswordDropdownSelectedOption {
   kWebAuthn = 6,
   // User selected the "Sign in with another device" button.
   kWebAuthnSignInWithAnotherDevice = 7,
-  kMaxValue = kWebAuthnSignInWithAnotherDevice
+  // Backup password saved during the APC flow.
+  kBackupPassword = 8,
+  // "Trouble signing in" disclaimer, displayed when trying to log in with APC
+  // password.
+  kTroubleSigningIn = 9,
+  kMaxValue = kTroubleSigningIn
 };
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -723,8 +728,11 @@ void LogPasswordDropdownShown(
     const std::vector<autofill::Suggestion>& suggestions);
 
 // Log the type of the password dropdown suggestion when chosen.
-void LogPasswordDropdownItemSelected(PasswordDropdownSelectedOption type,
-                                     bool off_the_record);
+void LogPasswordSuggestionSelected(PasswordDropdownSelectedOption type,
+                                   bool off_the_record);
+
+// Logs only PasswordManager.PasswordDropdownItemSelected metric.
+void LogPasswordDropdownItemSelected(PasswordDropdownSelectedOption type);
 
 // Log a password successful submission event.
 void LogPasswordSuccessfulSubmissionIndicatorEvent(

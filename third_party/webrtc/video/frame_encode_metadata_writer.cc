@@ -264,8 +264,10 @@ FrameEncodeMetadataWriter::ExtractEncodeStartTimeAndFillMetadata(
       encoded_image->ntp_time_ms_ = metadata_list->front().ntp_time_ms;
       encoded_image->rotation_ = metadata_list->front().rotation;
       encoded_image->SetColorSpace(metadata_list->front().color_space);
+      // Key frames should never be considered as steady state refresh frames.
       encoded_image->SetIsSteadyStateRefreshFrame(
-          metadata_list->front().is_steady_state_refresh_frame);
+          metadata_list->front().is_steady_state_refresh_frame &&
+          encoded_image->FrameType() != VideoFrameType::kVideoFrameKey);
       encoded_image->SetPacketInfos(metadata_list->front().packet_infos);
       metadata_list->pop_front();
     } else {

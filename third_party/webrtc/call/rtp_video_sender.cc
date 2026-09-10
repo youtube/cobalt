@@ -324,6 +324,8 @@ std::vector<RtpStreamSender> CreateRtpStreamSenders(
     }
     video_config.frame_transformer = frame_transformer;
     video_config.task_queue_factory = &env.task_queue_factory();
+    video_config.raw_packetization = rtp_config.raw_payload;
+
     auto sender_video = std::make_unique<RTPSenderVideo>(video_config);
     rtp_streams.emplace_back(std::move(rtp_rtcp), std::move(sender_video),
                              std::move(fec_generator));

@@ -38,6 +38,42 @@ export declare interface GlicHostRegistry {
   registerWebClient(webClient: GlicWebClient): Promise<void>;
 }
 
+/** Additional context object. */
+export declare interface AdditionalContext {
+  /** User facing name of the context.  Eg. the filename, or full url */
+  name?: string;
+
+  /**
+   * Tab id, if associated with a tab.
+   * Callers may use this to associate context but should not assume this
+   * relationship persists as tab contents change.
+   */
+  tabId?: string;
+
+  /** Origin of the frame where the data came from (if it came from a frame) */
+  origin?: string;
+
+  /** url of the frame where the data came from (if it came from a frame) */
+  frameUrl?: string;
+
+  /** The parts of the context. */
+  parts: AdditionalContextPart[];
+}
+
+/** Part of an additional context object. Only one field will be present. */
+export declare interface AdditionalContextPart {
+  /**
+   * The context data. The MIME type is available from the `type` property.
+   * Callers can use `arrayBuffer()` to get the data as a buffer, or `stream()`
+   * to read it as a stream if the data is large.
+   */
+  data?: Blob;
+  screenshot?: Screenshot;
+  webPageData?: WebPageData;
+  annotatedPageData?: AnnotatedPageData;
+  pdf?: PdfDocumentData;
+}
+
 /**
  * Implemented by the Glic web client, with its methods being called by the
  * browser. Most functions are optional.
@@ -670,7 +706,8 @@ export declare interface GlicBrowserHost {
    *
    * When the tab is destroyed, the observable will complete.
    */
-  getPageMetadata?(tabId: string, names: string[]): ObservableValue<PageMetadata>;
+  getPageMetadata?
+      (tabId: string, names: string[]): ObservableValue<PageMetadata>;
 
   /**
    * Returns an observable that emits when the browser wants the web client to
@@ -706,7 +743,10 @@ export declare interface GlicBrowserHost {
 
   /**
    * Switches to a use a different instance that shows the conversation
-   * represented by the provided id.
+   * represented by the provided id. If `info` is not provided, a new instance
+   * will be created with an empty conversation. When a new conversation is
+   * created, the web client is expected to call `registerConversation` after
+   * the first turn.
    *
    * If there are no other surfaces bound to the existing conversation, that
    * web client will be destroyed.
@@ -715,7 +755,7 @@ export declare interface GlicBrowserHost {
    * on the browser side. The promise will be rejected if the switch fails.
    * The only possible error reason is `UNKNOWN`.
    */
-  switchConversation?(conversationId: string): Promise<void>;
+  switchConversation?(info?: ConversationInfo): Promise<void>;
 
   /**
    * Registers a conversation in the web client.
@@ -727,8 +767,25 @@ export declare interface GlicBrowserHost {
    *    conversation ID.
    *  - `UNKNOWN`: An unknown error occurred.
    */
-  registerConversation?(conversationId: string): Promise<void>;
+  registerConversation?(info: ConversationInfo): Promise<void>;
+
+  /**
+   * Returns an observable that emits when additional context is available.
+   */
+  getAdditionalContext?(): Observable<AdditionalContext>;
 }
+
+/** Information about a conversation. */
+export declare interface ConversationInfo {
+  /** The unique ID of the conversation. This will be stored. */
+  conversationId: string;
+  /**
+   *  The title of the conversation. This will be stored. It is expected that
+   *  titles don't change.
+   */
+  conversationTitle: string;
+}
+
 /** Fields of interest from the system settings page. */
 export type OsPermissionType = 'media'|'geolocation';
 
@@ -1746,6 +1803,8 @@ export declare interface UserConfirmationDialogResponse {
 export interface BackwardsCompatibleTypes {
   actInFocusedTabParams: ActInFocusedTabParams;
   actInFocusedTabResult: ActInFocusedTabResult;
+  additionalContext: AdditionalContext;
+  additionalContextPart: AdditionalContextPart;
   annotatedPageData: AnnotatedPageData;
   browserHost: GlicBrowserHost;
   chromeVersion: ChromeVersion;

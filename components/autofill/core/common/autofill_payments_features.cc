@@ -12,13 +12,10 @@ namespace autofill::features {
 BASE_FEATURE(kAutofillCreditCardScannerIos, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
-    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
 // When enabled, Chrome will extract the checkout amount from the checkout
 // page using server-side AI.
 BASE_FEATURE(kAutofillEnableAiBasedAmountExtraction,
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 // When enabled, card category benefits offered by BMO will be shown in Autofill
 // suggestions on the allowlisted merchant websites.
@@ -70,6 +67,11 @@ BASE_FEATURE(kAutofillEnableBuyNowPayLaterSyncing,
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+// When enabled, the second line string in a BNPL suggestion is updated to
+// include the issuer names for better brand recognition.
+BASE_FEATURE(kAutofillEnableBuyNowPayLaterUpdatedSuggestionSecondLineString,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, card benefits offered by American Express will be shown in
 // Payments Autofill UI.
@@ -235,6 +237,11 @@ BASE_FEATURE(kAutofillLocalSaveCardBottomSheet,
 // corresponding issuer's blocklist instead of allowlist to check for website
 // eligibility.
 BASE_FEATURE(kAutofillPreferBuyNowPayLaterBlocklists,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, this feature prioritizes showing the save card bubble over the
+// mandatory re-auth bubble when both are applicable.
+BASE_FEATURE(kAutofillPrioritizeSaveCardOverMandatoryReauth,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, Chrome will try to fetch payment account image resources again

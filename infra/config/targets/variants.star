@@ -2,6 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+"""Variant declarations
+
+Variants are used to expand tests within a matrix compound suite into multiple
+tests and applying variant-specific modifications to the tests.
+"""
+
 load("@chromium-luci//targets.star", "targets")
 
 targets.variant(
@@ -243,17 +249,17 @@ targets.variant(
 )
 
 targets.variant(
-    name = "SIM_APPLE_TV_4K_3RD_GENERATION_18_5",
-    identifier = "Apple TV 4K (3rd generation) 18.5",
+    name = "SIM_APPLE_TV_4K_3RD_GENERATION_26_0",
+    identifier = "Apple TV 4K (3rd generation) 26.0",
     generate_pyl_entry = False,
     mixins = [
-        "tvos_runtime_cache_18_5",
+        "tvos_runtime_cache_26_0",
     ],
     args = [
         "--platform",
         "Apple TV 4K (3rd generation)",
         "--version",
-        "18.5",
+        "26.0",
     ],
 )
 

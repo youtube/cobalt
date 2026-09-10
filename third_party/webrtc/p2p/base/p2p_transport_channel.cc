@@ -66,12 +66,12 @@
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
+#include "rtc_base/net_helpers.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/network_route.h"
-#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
@@ -1916,7 +1916,7 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
 
 TimeDelta P2PTransportChannel::ComputeEstimatedDisconnectedTime(
     Connection* old_connection) {
-  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
+  Timestamp now = env_.clock().CurrentTime();
   // TODO(jonaso): nicer keeps estimate of how frequently data _should_ be
   // received, this could be used to give better estimate (if needed).
   Timestamp last_data_or_old_ping =
@@ -2113,7 +2113,7 @@ void P2PTransportChannel::PingConnection(Connection* conn) {
   }
   conn->set_nomination(nomination);
   conn->set_use_candidate_attr(use_candidate_attr);
-  last_ping_sent_ = Connection::AlignTime(env_.clock().CurrentTime());
+  last_ping_sent_ = env_.clock().CurrentTime();
   conn->Ping(last_ping_sent_, stun_dict_writer_.CreateDelta());
 }
 

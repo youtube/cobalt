@@ -65,10 +65,6 @@ static constexpr VkDeviceSize kMaxRenderPassCountPerCommandBuffer = 128;
 // RenderPassCommands.
 static constexpr size_t kMaxReservedOutsideRenderPassQueueSerials = 15;
 
-// The number of minimum commands in the command buffer to prefer submit at FBO boundary or
-// immediately submit when the device is idle after calling to flush.
-static constexpr uint32_t kMinCommandCountToSubmit = 32;
-
 // Dumping the command stream is disabled by default.
 static constexpr bool kEnableCommandStreamDiagnostics = false;
 
@@ -1500,7 +1496,7 @@ angle::Result ContextVk::flushImpl(const gl::Context *context)
     uint32_t currentRPCommandCount =
         mRenderPassCommands->getCommandBuffer().getRenderPassWriteCommandCount() +
         mCommandsPendingSubmissionCount;
-    if (currentRPCommandCount >= kMinCommandCountToSubmit)
+    if (currentRPCommandCount >= mRenderer->getMinCommandCountToSubmit())
     {
         if (!mRenderer->isInFlightCommandsEmpty())
         {
@@ -2115,14 +2111,18 @@ angle::Result ContextVk::handleDirtyGraphicsDefaultAttribs(DirtyBits::Iterator *
                                                            DirtyBits dirtyBitMask)
 {
     ASSERT(mDirtyDefaultAttribsMask.any());
-
-    gl::AttributesMask attribsMask =
-        mDirtyDefaultAttribsMask & mState.getProgramExecutable()->getAttributesMask();
     VertexArrayVk *vertexArrayVk = getVertexArray();
+
+    gl::AttributesMask attribsMask = mDirtyDefaultAttribsMask;
+    attribsMask &= ~vertexArrayVk->getCurrentEnabledAttributesMask();
+    attribsMask &= mState.getProgramExecutable()->getAttributesMask();
+
     for (size_t attribIndex : attribsMask)
     {
         ANGLE_TRY(vertexArrayVk->updateDefaultAttrib(this, attribIndex));
     }
+
+    ANGLE_TRY(onVertexArrayChange(attribsMask));
 
     mDirtyDefaultAttribsMask.reset();
     return angle::Result::Continue;
@@ -2680,9 +2680,22 @@ angle::Result ContextVk::handleDirtyGraphicsVertexBuffersVertexInputDynamicState
 
     if (maxAttrib > 0)
     {
+        if (getFeatures().useVertexInputBindingStrideDynamicState.enabled)
+        {
+            const gl::AttribArray<VkDeviceSize> &bufferSizes =
+                vertexArrayVk->getCurrentArrayBufferSizes();
 
-        mRenderPassCommandBuffer->bindVertexBuffers(0, maxAttrib, bufferHandles.data(),
-                                                    bufferOffsets.data());
+            // bindVertexBuffers2EXT() requires extended dynamic state or shader object extension.
+            // Since the strides are already set in setVertexInput(), they need not be set here.
+            ASSERT(getFeatures().supportsExtendedDynamicState.enabled);
+            mRenderPassCommandBuffer->bindVertexBuffers2NoStride(
+                0, maxAttrib, bufferHandles.data(), bufferOffsets.data(), bufferSizes.data());
+        }
+        else
+        {
+            mRenderPassCommandBuffer->bindVertexBuffers(0, maxAttrib, bufferHandles.data(),
+                                                        bufferOffsets.data());
+        }
     }
     // Mark all active vertex buffers as accessed.
     mRenderPassCommands->buffersVertexAttribRead(this, vertexArrayVk->getCurrentArrayBuffers(),
@@ -2771,7 +2784,7 @@ angle::Result ContextVk::handleDirtyGraphicsIndexBuffer(DirtyBits::Iterator *dir
     else
     {
         VkDeviceSize bufferOffset;
-        const vk::Buffer &buffer = elementArrayBuffer->getBufferForVertexArray(
+        const vk::Buffer &buffer = elementArrayBuffer->getIndexBufferForVertexArray(
             this, elementArrayBuffer->getSize(), &bufferOffset);
 
         mRenderPassCommandBuffer->bindIndexBuffer(buffer, bufferOffset + mCurrentIndexBufferOffset,
@@ -3383,6 +3396,13 @@ angle::Result ContextVk::handleDirtyGraphicsDynamicFragmentShadingRateEXT(
 
     const bool shadingRateSupported = mRenderer->isShadingRateSupported(shadingRateEXT);
     ASSERT(shadingRateSupported);
+
+    bool isPerSample = getState().getFetchPerSample();
+    if (isPerSample)
+    {
+        // If FETCH_PER_SAMPLE_ARM is enabled, the fragment shading rate is set to {1,1}
+        shadingRateEXT = gl::ShadingRate::_1x1;
+    }
 
     VkExtent2D fragmentSize = {};
 
@@ -5825,18 +5845,23 @@ angle::Result ContextVk::syncState(const gl::Context *context,
 
                 // To reduce CPU overhead if submission at FBO boundary is preferred, the deferred
                 // flush is triggered after the currently accumulated command count for the render
-                // pass command buffer hits a threshold (kMinCommandCountToSubmit). However,
-                // currently in the case of a clear or invalidate GL command, a deferred flush is
-                // still triggered.
+                // pass command buffer hits a threshold (Renderer::getMinCommandCountToSubmit()).
                 uint32_t currentRPCommandCount =
                     mRenderPassCommands->getCommandBuffer().getRenderPassWriteCommandCount() +
                     mCommandsPendingSubmissionCount;
-                bool allowExceptionForSubmitAtBoundary = command == gl::Command::Clear ||
-                                                         command == gl::Command::Invalidate ||
-                                                         mRenderer->isInFlightCommandsEmpty();
+                bool allowExceptionForSubmitAtBoundary = mRenderer->isInFlightCommandsEmpty();
+
+                // For performance reasons, in the case of a clear or invalidate GL command, a
+                // deferred flush can be triggered if the corresponding feature flag is enabled.
+                if (getFeatures().forceSubmitExceptionsAtFBOBoundary.enabled)
+                {
+                    allowExceptionForSubmitAtBoundary |=
+                        command == gl::Command::Clear || command == gl::Command::Invalidate;
+                }
+
                 bool shouldSubmitAtFBOBoundary =
                     getFeatures().preferSubmitAtFBOBoundary.enabled &&
-                    (currentRPCommandCount >= kMinCommandCountToSubmit ||
+                    (currentRPCommandCount >= mRenderer->getMinCommandCountToSubmit() ||
                      allowExceptionForSubmitAtBoundary);
 
                 if ((shouldSubmitAtFBOBoundary || mState.getDrawFramebuffer()->isDefault()) &&
@@ -6118,6 +6143,7 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                                     DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_QCOM);
                             }
                             break;
+                        case gl::state::EXTENDED_DIRTY_BIT_FETCH_PER_SAMPLE_ENABLED:
                         case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE_EXT:
                             if (getFeatures().supportsFragmentShadingRate.enabled)
                             {
@@ -9302,20 +9328,7 @@ void ContextVk::resetPerFramePerfCounters()
         .resetDescriptorCacheStats();
 }
 
-angle::Result ContextVk::ensureInterfacePipelineCache()
-{
-    if (!mInterfacePipelinesCache.valid())
-    {
-        VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
-        pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-
-        ANGLE_VK_TRY(this, mInterfacePipelinesCache.init(getDevice(), pipelineCacheCreateInfo));
-    }
-
-    return angle::Result::Continue;
-}
-
-angle::Result ContextVk::onVertexArrayChange(const gl::AttributesMask enabledAttribDirtyBits)
+angle::Result ContextVk::onVertexArrayChange(const gl::AttributesMask dirtyAttribBits)
 {
     const VertexArrayVk &vertexArray = *getVertexArray();
 
@@ -9323,7 +9336,7 @@ angle::Result ContextVk::onVertexArrayChange(const gl::AttributesMask enabledAtt
     {
         invalidateCurrentGraphicsPipeline();
 
-        for (size_t attribIndex : enabledAttribDirtyBits)
+        for (size_t attribIndex : dirtyAttribBits)
         {
             const GLuint staticStride =
                 mRenderer->getFeatures().useVertexInputBindingStrideDynamicState.enabled
@@ -9344,7 +9357,7 @@ angle::Result ContextVk::onVertexArrayChange(const gl::AttributesMask enabledAtt
     {
         const gl::AttribArray<vk::BufferHelper *> &buffers = vertexArray.getCurrentArrayBuffers();
         bool breakRenderPass                               = false;
-        for (size_t attribIndex : enabledAttribDirtyBits)
+        for (size_t attribIndex : dirtyAttribBits)
         {
             ASSERT(buffers[attribIndex] != nullptr);
             if (buffers[attribIndex]->writtenByCommandBuffer(mCurrentTransformFeedbackQueueSerial))

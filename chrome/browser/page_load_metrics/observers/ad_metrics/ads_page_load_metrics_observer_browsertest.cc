@@ -6,13 +6,16 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 
 #include "base/byte_count.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -57,6 +60,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "net/test/embedded_test_server/request_handler_util.h"
 #include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source.h"
@@ -256,10 +260,13 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
   ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   auto waiter = CreatePageLoadMetricsTestWaiter();
+  waiter->AddPageExpectation(page_load_metrics::PageLoadMetricsTestWaiter::
+                                 TimingField::kFirstContentfulPaint);
 
   GURL url = embedded_test_server()->GetURL(
       "a.com", "/ads_observer/large_scrollable_page_with_adiframe_writer.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  waiter->Wait();
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -342,6 +349,9 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
+  page_load_metrics::AddTextAndWaitForFirstContentfulPaint(web_contents,
+                                                           waiter.get());
+
   waiter->SetMainFrameAdRectsExpectation();
 
   GURL image_url =
@@ -398,10 +408,8 @@ IN_PROC_BROWSER_TEST_F(
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
-  waiter->AddPageExpectation(page_load_metrics::AdsPageLoadMetricsTestWaiter::
-                                 TimingField::kFirstContentfulPaint);
-  page_load_metrics::AddTextForFirstContentfulPaint(web_contents);
-  waiter->Wait();
+  page_load_metrics::AddTextAndWaitForFirstContentfulPaint(web_contents,
+                                                           waiter.get());
 
   // Open a new tab, which backgrounds the original web_contents.
   ui_test_utils::NavigateToURLWithDisposition(
@@ -477,10 +485,8 @@ IN_PROC_BROWSER_TEST_F(
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
-  waiter->AddPageExpectation(page_load_metrics::AdsPageLoadMetricsTestWaiter::
-                                 TimingField::kFirstContentfulPaint);
-  page_load_metrics::AddTextForFirstContentfulPaint(web_contents);
-  waiter->Wait();
+  page_load_metrics::AddTextAndWaitForFirstContentfulPaint(web_contents,
+                                                           waiter.get());
 
   int original_tab_index = browser()->tab_strip_model()->active_index();
 
@@ -561,10 +567,8 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
-  waiter->AddPageExpectation(page_load_metrics::AdsPageLoadMetricsTestWaiter::
-                                 TimingField::kFirstContentfulPaint);
-  page_load_metrics::AddTextForFirstContentfulPaint(web_contents);
-  waiter->Wait();
+  page_load_metrics::AddTextAndWaitForFirstContentfulPaint(web_contents,
+                                                           waiter.get());
 
   waiter->SetMainFrameAdRectsExpectation();
 
@@ -707,6 +711,9 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
   waiter->Wait();
   web_contents = browser()->tab_strip_model()->GetActiveWebContents();
 
+  page_load_metrics::AddTextAndWaitForFirstContentfulPaint(web_contents,
+                                                           waiter.get());
+
   // Create a frame at 100,100 of size 200,200, with b.com as origin to not get
   // caught by restricted ad tagging.
   gfx::Rect large_rect = gfx::Rect(100, 100, 200, 200);
@@ -715,10 +722,6 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
       web_contents,
       content::JsReplace(
           R"(
-          const p = document.createElement('p');
-          p.textContent = 'Trigger First Contentful Paint';
-          document.body.appendChild(p);
-
           let frame = createAdIframeAtRect(100, 100, 200, 200);
           frame.src = $1;
         )",
@@ -810,6 +813,9 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
   waiter->Wait();
   web_contents = browser()->tab_strip_model()->GetActiveWebContents();
 
+  page_load_metrics::AddTextAndWaitForFirstContentfulPaint(web_contents,
+                                                           waiter.get());
+
   // Create a frame of size 100,100 at 400,400, with b.com as origin to not get
   // caught by restricted ad tagging.
   gfx::Rect rect1 = gfx::Rect(400, 400, 100, 100);
@@ -817,10 +823,6 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
   EXPECT_TRUE(
       ExecJs(web_contents,
              content::JsReplace(R"(
-          const p = document.createElement('p');
-          p.textContent = 'Trigger First Contentful Paint';
-          document.body.appendChild(p);
-
           let frame = createAdIframeAtRect(400, 400, 100, 100);
           frame.src = $1;
         )",
@@ -1749,10 +1751,8 @@ enum class ReduceTransferSizeUpdatedIPCTestCase {
 
 // This test harness does not start the test server and allows
 // ControllableHttpResponses to be declared.
-class AdsPageLoadMetricsObserverResourceBrowserTest
-    : public subresource_filter::SubresourceFilterBrowserTest,
-      public ::testing::WithParamInterface<
-          ReduceTransferSizeUpdatedIPCTestCase> {
+class AdsPageLoadMetricsObserverResourceBrowserTestBase
+    : public subresource_filter::SubresourceFilterBrowserTest {
  public:
   static std::string DescribeParams(
       const testing::TestParamInfo<ReduceTransferSizeUpdatedIPCTestCase>&
@@ -1765,15 +1765,19 @@ class AdsPageLoadMetricsObserverResourceBrowserTest
     }
   }
 
-  AdsPageLoadMetricsObserverResourceBrowserTest() {
+  explicit AdsPageLoadMetricsObserverResourceBrowserTestBase(
+      ReduceTransferSizeUpdatedIPCTestCase reduce) {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{subresource_filter::kAdTagging, {}},
          {subresource_filter::kAdsInterventionsEnforced, {}},
          {heavy_ad_intervention::features::kHeavyAdIntervention, {}},
+         {heavy_ad_intervention::features::
+              kHeavyAdInterventionSendReportToEmbedder,
+          {}},
          {heavy_ad_intervention::features::kHeavyAdPrivacyMitigations,
           {{"host-threshold", "3"}}}},
         {});
-    if (IsReduceTransferSizeUpdatedIPCEnabled()) {
+    if (reduce == ReduceTransferSizeUpdatedIPCTestCase::kEnabled) {
       reduce_ipc_feature_list_.InitAndEnableFeature(
           network::features::kReduceTransferSizeUpdatedIPC);
     } else {
@@ -1782,7 +1786,7 @@ class AdsPageLoadMetricsObserverResourceBrowserTest
     }
   }
 
-  ~AdsPageLoadMetricsObserverResourceBrowserTest() override = default;
+  ~AdsPageLoadMetricsObserverResourceBrowserTestBase() override = default;
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
     embedded_test_server()->ServeFilesFromSourceDirectory(
@@ -1846,12 +1850,17 @@ class AdsPageLoadMetricsObserverResourceBrowserTest
   }
 
  private:
-  bool IsReduceTransferSizeUpdatedIPCEnabled() const {
-    return GetParam() == ReduceTransferSizeUpdatedIPCTestCase::kEnabled;
-  }
-
   base::test::ScopedFeatureList scoped_feature_list_;
   base::test::ScopedFeatureList reduce_ipc_feature_list_;
+};
+
+class AdsPageLoadMetricsObserverResourceBrowserTest
+    : public AdsPageLoadMetricsObserverResourceBrowserTestBase,
+      public ::testing::WithParamInterface<
+          ReduceTransferSizeUpdatedIPCTestCase> {
+ public:
+  AdsPageLoadMetricsObserverResourceBrowserTest()
+      : AdsPageLoadMetricsObserverResourceBrowserTestBase(GetParam()) {}
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -2221,6 +2230,141 @@ IN_PROC_BROWSER_TEST_P(AdsPageLoadMetricsObserverResourceBrowserTest,
   EXPECT_TRUE(got_report);
 }
 
+IN_PROC_BROWSER_TEST_P(
+    AdsPageLoadMetricsObserverResourceBrowserTest,
+    HeavyAdInterventionFired_ReportSentToEmbedderOfSameOriginIframe) {
+  base::HistogramTester histogram_tester;
+  auto incomplete_resource_response =
+      std::make_unique<net::test_server::ControllableHttpResponse>(
+          embedded_test_server(), "/ads_observer/incomplete_resource.js");
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      embedded_test_server()->GetURL(
+          "a.com", "/ads_observer/ad_with_incomplete_resource.html")));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  content::DOMMessageQueue message_queue(web_contents);
+
+  const std::string report_script = R"(
+      function process(report) {
+        if (report.body.id === 'HeavyAdIntervention') {
+          window.domAutomationController.send(report.body.message);
+        }
+      }
+
+      let observer = new ReportingObserver((reports, observer) => {
+        reports.forEach(process);
+      });
+      observer.observe();
+
+      window.addEventListener('pagehide', function(event) {
+        observer.takeRecords().forEach(process);
+        window.domAutomationController.send('END');
+      });
+  )";
+  EXPECT_TRUE(content::ExecJs(web_contents, report_script));
+
+  // Load a resource large enough to trigger the intervention.
+  page_load_metrics::LoadLargeResource(
+      incomplete_resource_response.get(),
+      page_load_metrics::kMaxHeavyAdNetworkSize);
+
+  std::string report_message;
+  EXPECT_TRUE(message_queue.WaitForMessage(&report_message));
+
+  EXPECT_THAT(report_message, testing::HasSubstr("Ad was removed"));
+
+  // The intervention report should identify the subframe using an empty
+  // identifier, as the iframe lacks 'id' and 'src' attributes (e.g., created
+  // via 'srcdoc').
+  EXPECT_THAT(report_message, testing::HasSubstr("(id=;url=)"));
+}
+
+IN_PROC_BROWSER_TEST_P(
+    AdsPageLoadMetricsObserverResourceBrowserTest,
+    HeavyAdInterventionFired_ReportSentToEmbedderOfCrossOriginIframe) {
+  base::HistogramTester histogram_tester;
+  auto incomplete_resource_response =
+      std::make_unique<net::test_server::ControllableHttpResponse>(
+          embedded_test_server(), "/ads_observer/incomplete_resource.js");
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      embedded_test_server()->GetURL(
+          "a.com", "/ads_observer/blank_with_adiframe_writer.html")));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  GURL redirect_to_url = embedded_test_server()->GetURL(
+      "c.com", "/ads_observer/doc_with_incomplete_resource.html");
+
+  base::StringPairs replacement;
+  replacement.emplace_back(std::make_pair(
+      "{{REDIRECT_HEADER}}", "Location: " + redirect_to_url.spec()));
+
+  GURL redirect_from_url_without_fragment = embedded_test_server()->GetURL(
+      "b.com", net::test_server::GetFilePathWithReplacements(
+                   "/ads_observer/redirect_from.html", replacement));
+
+  GURL redirect_from_url =
+      GURL(redirect_from_url_without_fragment.spec() + "#abc");
+
+  content::TestNavigationObserver child_observer(web_contents);
+  EXPECT_TRUE(ExecJs(web_contents, content::JsReplace(R"(
+          createAdIframeWithSrc($1, /*id=*/123);
+      )",
+                                                      redirect_from_url)));
+  child_observer.WaitForNavigationFinished();
+  EXPECT_TRUE(child_observer.last_navigation_succeeded());
+
+  content::DOMMessageQueue message_queue(web_contents);
+
+  const std::string report_script = R"(
+      function process(report) {
+        if (report.body.id === 'HeavyAdIntervention') {
+          window.domAutomationController.send(report.body.message);
+        }
+      }
+
+      let observer = new ReportingObserver((reports, observer) => {
+        reports.forEach(process);
+      });
+      observer.observe();
+
+      window.addEventListener('pagehide', function(event) {
+        observer.takeRecords().forEach(process);
+        window.domAutomationController.send('END');
+      });
+  )";
+  EXPECT_TRUE(content::ExecJs(web_contents, report_script));
+
+  // Load a resource large enough to trigger the intervention.
+  page_load_metrics::LoadLargeResource(
+      incomplete_resource_response.get(),
+      page_load_metrics::kMaxHeavyAdNetworkSize);
+
+  std::string report_message;
+  EXPECT_TRUE(message_queue.WaitForMessage(&report_message));
+
+  EXPECT_THAT(report_message, testing::HasSubstr("Ad was removed"));
+
+  // The intervention report should identify the subframe using the frame
+  // element's `id` and its initial URL (pre-redirect). The URL is sanitized by
+  // removing the fragment.
+  EXPECT_THAT(report_message, testing::HasSubstr("id=123"));
+  EXPECT_THAT(
+      report_message,
+      testing::HasSubstr("url=" + redirect_from_url_without_fragment.spec()));
+  EXPECT_THAT(report_message,
+              testing::Not(testing::HasSubstr(redirect_from_url.spec())));
+}
+
 // Verifies that reports are sent to all children.
 // crbug.com/1189635: flaky on win and linux.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -2282,9 +2426,9 @@ IN_PROC_BROWSER_TEST_P(AdsPageLoadMetricsObserverResourceBrowserTest,
 
   error_observer.WaitForNavigationFinished();
 
-  // Every frame should get a report (ad_with_incomplete_resource.html loads two
-  // frames).
-  EXPECT_EQ(4u, console_observer.messages().size());
+  // The embedder frame and every child frame should get a report
+  // (ad_with_incomplete_resource.html loads two frames).
+  EXPECT_EQ(5u, console_observer.messages().size());
 }
 
 // Verifies that the frame is navigated to the intervention page when a
@@ -3023,3 +3167,147 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverPrerenderingBrowserTest,
       0u,
       histogram_tester.GetTotalCountsForPrefix("PageLoad.Clients.Ads.").size());
 }
+
+struct SurfaceTestCase {
+  const char* name;
+  const char* script;
+};
+
+class AdsPageLoadMetricsObserverSurfaceBrowserTest
+    : public AdsPageLoadMetricsObserverResourceBrowserTestBase,
+      public ::testing::WithParamInterface<std::tuple<SurfaceTestCase, bool>> {
+ public:
+  AdsPageLoadMetricsObserverSurfaceBrowserTest()
+      : AdsPageLoadMetricsObserverResourceBrowserTestBase(
+            ReduceTransferSizeUpdatedIPCTestCase::kDisabled) {}
+};
+
+// The ad script requests an image via various methods. We
+// check to make sure that regardless of method, the image is still tagged as an
+// ad. This is basically ensuring that the top-of-stack frame check works in
+// each scenario.
+IN_PROC_BROWSER_TEST_P(AdsPageLoadMetricsObserverSurfaceBrowserTest,
+                       DetectedAsAd) {
+  SetRulesetWithRules(
+      {subresource_filter::testing::CreateSuffixRule("ad_script.js")});
+
+  auto main_html_response =
+      std::make_unique<net::test_server::ControllableHttpResponse>(
+          embedded_test_server(), "/mock_page.html",
+          /*relative_url_is_prefix=*/true);
+
+  auto ad_script_response =
+      std::make_unique<net::test_server::ControllableHttpResponse>(
+          embedded_test_server(), "/ad_script.js",
+          /*relative_url_is_prefix=*/true);
+
+  auto image_response =
+      std::make_unique<net::test_server::ControllableHttpResponse>(
+          embedded_test_server(), "/image.gif",
+          /*relative_url_is_prefix=*/true);
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  auto waiter = CreateAdsPageLoadMetricsTestWaiter();
+
+  browser()->OpenURL(
+      content::OpenURLParams(embedded_test_server()->GetURL("/mock_page.html"),
+                             content::Referrer(),
+                             WindowOpenDisposition::CURRENT_TAB,
+                             ui::PAGE_TRANSITION_TYPED, false),
+      /*navigation_handle_callback=*/{});
+
+  main_html_response->WaitForRequest();
+  main_html_response->Send(page_load_metrics::kHttpOkResponseHeader);
+  main_html_response->Send(
+      "<html><body></body><script src=\"ad_script.js\"></script></html>");
+  main_html_response->Done();
+
+  const char* script_format = std::get<0>(GetParam()).script;
+  const bool lambda = std::get<1>(GetParam());
+
+  std::string script;
+
+  // Either load the image from an ad-script-defined function
+  // or from an ad-script-created lambda.
+  if (lambda) {
+    script = base::ReplaceStringPlaceholders(
+        script_format,
+        {R"SCRIPT((() => document.createElement("img").src = "image.gif"))SCRIPT"},
+        /*offsets=*/nullptr);
+  } else {
+    script =
+        R"SCRIPT(function loadImg() { document.createElement("img").src = "image.gif"; })SCRIPT";
+
+    script += base::ReplaceStringPlaceholders(script_format, {"top.loadImg"},
+                                              /*offsets=*/nullptr);
+  }
+
+  ad_script_response->WaitForRequest();
+  ad_script_response->Send(page_load_metrics::kHttpOkResponseHeader);
+  ad_script_response->Send(script);
+  ad_script_response->Done();
+
+  image_response->WaitForRequest();
+  image_response->Send(page_load_metrics::kHttpOkResponseHeader);
+  image_response->Done();
+
+  // Two subresources should have been reported as ads.
+  waiter->AddMinimumAdResourceExpectation(2);
+  waiter->Wait();
+}
+
+constexpr SurfaceTestCase kSurfaceTestCases[] = {
+    {"direct_call", "$1();"},
+    {"setTimeout", "setTimeout($1, 1);"},
+    {"event_handler", R"SCRIPT(
+      const i = document.createElement("img");
+      i.onerror = $1;
+      i.src = "http://";
+    )SCRIPT"},
+    {"postMessage", R"SCRIPT(
+      window.onmessage = $1;
+      window.postMessage("", "*");
+    )SCRIPT"},
+    {"eval", "eval('$1();');"},
+    {"promise_constructor", "new Promise($1);"},
+    {"promise_resolve", "Promise.resolve().then($1);"},
+    {"promise_reject", "Promise.reject().catch($1);"},
+    {"queueMicrotask", "queueMicrotask($1);"},
+    {"dynamic_script_tag", R"SCRIPT(
+      const s = document.createElement("script");
+      s.innerText = '$1();';
+      document.body.appendChild(s);
+    )SCRIPT"},
+    {"dynamic_script_tag_data", R"SCRIPT(
+      const s = document.createElement("script");
+      s.src = 'data:text/javascript,$1();';
+      document.body.appendChild(s);
+    )SCRIPT"},
+    {"dynamic_frame", R"SCRIPT(
+      const i = document.createElement("iframe");
+      i.srcdoc = '<script>$1();</script>';
+      document.body.appendChild(i);
+    )SCRIPT"},
+    {"requestIdleCallback", "requestIdleCallback($1);"},
+    {"requestAnimationFrame", "requestAnimationFrame($1);"},
+    {"dynamic_script_tag_blob", R"SCRIPT(
+      const b = new Blob(['$1();'], {
+        type: "text/javascript",
+      });
+      const s = document.createElement("script");
+      s.src = URL.createObjectURL(b);
+      document.body.appendChild(s);
+    )SCRIPT"},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    AdsPageLoadMetricsObserverSurfaceBrowserTest,
+    ::testing::Combine(::testing::ValuesIn(kSurfaceTestCases),
+                       ::testing::Bool()),
+    [](const ::testing::TestParamInfo<std::tuple<SurfaceTestCase, bool>>&
+           info) {
+      return base::StrCat({std::get<0>(info.param).name,
+                           std::get<1>(info.param) ? "_lambda" : "_func"});
+    });

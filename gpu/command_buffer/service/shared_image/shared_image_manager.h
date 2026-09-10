@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/command_buffer/service/shared_image/gpu_memory_buffer_factory.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "gpu/gpu_gles2_export.h"
 #include "gpu/vulkan/buildflags.h"
@@ -27,7 +28,6 @@ class D3DSharedFence;
 
 namespace gpu {
 class DXGISharedHandleManager;
-class GpuMemoryBufferFactory;
 class SharedImageRepresentationFactoryRef;
 
 class GPU_GLES2_EXPORT SharedImageManager
@@ -43,7 +43,8 @@ class GPU_GLES2_EXPORT SharedImageManager
   explicit SharedImageManager(
       bool thread_safe = false,
       bool display_context_on_another_thread = false,
-      GpuMemoryBufferFactory* gpu_memory_buffer_factory = nullptr);
+      viz::VulkanContextProvider* vulkan_context_provider = nullptr,
+      scoped_refptr<base::SingleThreadTaskRunner> io_runner = nullptr);
 
   SharedImageManager(const SharedImageManager&) = delete;
   SharedImageManager& operator=(const SharedImageManager&) = delete;
@@ -157,10 +158,7 @@ class GPU_GLES2_EXPORT SharedImageManager
   }
 
   GpuMemoryBufferFactory* gpu_memory_buffer_factory() {
-    return gpu_memory_buffer_factory_;
-  }
-  void clear_gpu_memory_buffer_factory() {
-    gpu_memory_buffer_factory_ = nullptr;
+    return gpu_memory_buffer_factory_.get();
   }
 
   bool SupportsScanoutImages();
@@ -203,7 +201,7 @@ class GPU_GLES2_EXPORT SharedImageManager
   bool supports_overlays_on_ozone_ = false;
 #endif
 
-  raw_ptr<GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
+  std::unique_ptr<GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
 
   THREAD_CHECKER(thread_checker_);
 };

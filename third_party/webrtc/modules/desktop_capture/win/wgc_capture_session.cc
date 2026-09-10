@@ -270,6 +270,18 @@ HRESULT WgcCaptureSession::StartCapture(const DesktopCaptureOptions& options) {
     session3->put_IsBorderRequired(options.wgc_require_border());
   }
 
+  // Windows 11 24H2 (10.0.26100.0) added
+  // `IGraphicsCaptureSession6::put_IncludeSecondaryWindows()`. See
+  // `wgc_include_secondary_windows()` in
+  // /modules/desktop_capture/desktop_capture_options.h for more details.
+  ComPtr<ABI::Windows::Graphics::Capture::IGraphicsCaptureSession6> session6;
+  if (SUCCEEDED(session_->QueryInterface(
+          ABI::Windows::Graphics::Capture::IID_IGraphicsCaptureSession6,
+          &session6))) {
+    session6->put_IncludeSecondaryWindows(
+        options.wgc_include_secondary_windows());
+  }
+
   allow_zero_hertz_ = options.allow_wgc_zero_hertz();
 
   hr = session_->StartCapture();

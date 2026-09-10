@@ -580,7 +580,6 @@ class WebIdlSchemaTest(unittest.TestCase):
         schema['description'],
     )
 
-
   # TODO(crbug.com/340297705): This will eventually be relaxed when adding
   # support for shared types to the new parser.
   def testMissingBrowserInterfaceError(self):
@@ -932,12 +931,15 @@ class WebIdlSchemaTest(unittest.TestCase):
 
     any_dict = getType(schema, 'AnyDict')
     self.assertEqual('object', any_dict['type'])
-    # Note: we only test a required 'any' here as WebIDL doesn't support
-    # nullable 'any' (i.e. 'any?').
     self.assertEqual({
         'type': 'any',
         'name': 'requiredAny'
     }, any_dict['properties']['requiredAny'])
+    self.assertEqual({
+        'type': 'any',
+        'optional': True,
+        'name': 'optionalAny'
+    }, any_dict['properties']['optionalAny'])
 
   # Tests 'object' and 'any' types used as function parameters.
   def testObjectFunctionParams(self):
@@ -985,6 +987,80 @@ class WebIdlSchemaTest(unittest.TestCase):
             'isInstanceOf': 'Entry'
         }, instance_of_params[0])
 
+  # Tests various Union types on Dictionaries.
+  def testUnionTypes(self):
+    schema = self.idl_basics
+    union_dict = getType(schema, 'UnionTypes')
+
+    self.assertEqual(
+        {
+            'name':
+            'stringLongOrBoolean',
+            'choices': [
+                {
+                    'type': 'string'
+                },
+                {
+                    'type': 'integer'
+                },
+                {
+                    'type': 'boolean'
+                },
+            ],
+        }, union_dict['properties']['stringLongOrBoolean'])
+    self.assertEqual(
+        {
+            'name': 'stringOrEnum',
+            'choices': [
+                {
+                    'type': 'string'
+                },
+                {
+                    '$ref': 'EnumType'
+                },
+            ],
+        }, union_dict['properties']['stringOrEnum'])
+    self.assertEqual(
+        {
+            'name': 'optionalEnumOrString',
+            'optional': True,
+            'choices': [
+                {
+                    '$ref': 'EnumType'
+                },
+                {
+                    'type': 'string'
+                },
+            ],
+        }, union_dict['properties']['optionalEnumOrString'])
+    self.assertEqual(
+        {
+            'name':
+            'optionalStringOrStringSequence',
+            'optional':
+            True,
+            'choices': [
+                {
+                    'type': 'string'
+                },
+                {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string'
+                    }
+                },
+            ],
+        }, union_dict['properties']['optionalStringOrStringSequence'])
+    self.assertEqual(
+        {
+            'name': 'dictTypeOrLong',
+            'choices': [{
+                '$ref': 'ExampleType'
+            }, {
+                'type': 'integer'
+            }]
+        }, union_dict['properties']['dictTypeOrLong'])
+
   # Tests 'ArrayBuffer' types on Dictionaries.
   def testArrayBufferTypes(self):
     idl = web_idl_schema.Load('test/web_idl/array_buffer.idl')
@@ -1028,6 +1104,50 @@ class WebIdlSchemaTest(unittest.TestCase):
             'name': 'optionalArrayBufferParam',
             'isInstanceOf': 'ArrayBuffer'
         }, array_buffer_params[1])
+
+  # Tests Manifest keys defined on a partial 'Manifest' dictionary are
+  # extracted and put into the manifest keys details and not into the Types.
+  def testManifestKeys(self):
+    schema = self.idl_basics
+    # The 'Manifest' dictionary shouldn't get put into the custom types.
+    self.assertFalse(any(obj['id'] == 'Manifest' for obj in schema['types']))
+    manifest_keys = schema['manifest_keys']
+
+    # We should have 3 manifest keys of varying types.
+    self.assertEqual(['string_key', 'custom_type_key', 'union_type_key'],
+                     list(manifest_keys.keys()))
+    self.assertEqual(
+        {
+            'type': 'string',
+            'name': 'string_key',
+            'description': 'Description of a manifest key.'
+        }, manifest_keys['string_key'])
+    self.assertEqual({
+        '$ref': 'ExampleType',
+        'name': 'custom_type_key'
+    }, manifest_keys['custom_type_key'])
+    self.assertEqual(
+        {
+            'choices': [{
+                'type': 'string'
+            }, {
+                'type': 'integer'
+            }],
+            'name': 'union_type_key'
+        }, manifest_keys['union_type_key'])
+
+  # Tests that if 'partial' is left off the 'Manifest' dictionary, we throw an
+  # error.
+  def testNonPartialManifestDictError(self):
+    expected_error_regex = (
+        r'.* Dictionary\(Manifest\): If using a "Manifest" dictionary to define'
+        r' manifest keys, it must be declared "partial"\.')
+    self.assertRaisesRegex(
+        SchemaCompilerError,
+        expected_error_regex,
+        web_idl_schema.Load,
+        'test/web_idl/non_partial_manifest_dict.idl',
+    )
 
 
 if __name__ == '__main__':

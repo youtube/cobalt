@@ -696,9 +696,9 @@ int boringssl_self_test_hmac_sha256(void) {
   uint8_t output[EVP_MAX_MD_SIZE];
 
   unsigned output_len;
-  HMAC(EVP_sha256(), kInput, sizeof(kInput), kInput, sizeof(kInput), output,
-       &output_len);
-  return output_len == sizeof(kPlaintextHMACSHA256) &&
+  return NULL != HMAC(EVP_sha256(), kInput, sizeof(kInput), kInput,
+                      sizeof(kInput), output, &output_len) &&
+         output_len == sizeof(kPlaintextHMACSHA256) &&
          BORINGSSL_check_test(kPlaintextHMACSHA256, output,
                               sizeof(kPlaintextHMACSHA256), "HMAC-SHA-256 KAT");
 }

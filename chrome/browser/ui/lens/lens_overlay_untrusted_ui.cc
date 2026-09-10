@@ -323,7 +323,6 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "forceHideEllipsis",
       lens::features::GetVisualSelectionUpdatesHideCsbEllipsis());
-  html_source->AddBoolean("queryAutocompleteOnEmptyInput", true);
   html_source->AddBoolean(
     "enableThumbnailSizingTweaks",
     lens::features::GetVisualSelectionUpdatesEnableThumbnailSizingTweaks());
@@ -331,7 +330,7 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   // Determine if the cursor tooltip should appear.
   Profile* profile = Profile::FromWebUI(web_ui);
   int lens_overlay_start_count =
-      profile->GetPrefs()->GetInteger(prefs::kLensOverlayStartCount);
+      profile->GetPrefs()->GetInteger(::prefs::kLensOverlayStartCount);
   html_source->AddBoolean(
       "canShowTooltipFromPrefs",
       lens_overlay_start_count <= kNumTimesToShowCursorTooltips);

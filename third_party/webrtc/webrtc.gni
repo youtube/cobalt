@@ -474,6 +474,9 @@ all_poison_types = [
 
   # Software video codecs (VP8 and VP9 through libvpx).
   "software_video_codecs",
+
+  # Residual echo estimator based that runs inferences using the tflite library.
+  "default_neural_residual_echo_estimator",
 ]
 
 absl_include_config = "//third_party/abseil-cpp:absl_include_config"

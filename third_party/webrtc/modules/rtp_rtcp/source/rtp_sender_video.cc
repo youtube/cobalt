@@ -177,6 +177,7 @@ RTPSenderVideo::RTPSenderVideo(const Config& config)
       require_frame_encryption_(config.require_frame_encryption),
       generic_descriptor_auth_experiment_(
           !config.field_trials->IsDisabled("WebRTC-GenericDescriptorAuth")),
+      raw_packetization_(config.raw_packetization),
       absolute_capture_time_sender_(config.clock),
       frame_transformer_delegate_(
           config.frame_transformer
@@ -498,6 +499,9 @@ bool RTPSenderVideo::SendVideo(int payload_type,
                                std::vector<uint32_t> csrcs) {
   RTC_CHECK_RUNS_SERIALIZED(&send_checker_);
 
+  // TODO(b/446768451): Add a check that Codec type can only be absent when
+  // using raw packetization once downstream projects have been updated.
+
   if (video_header.frame_type == VideoFrameType::kEmptyFrame)
     return true;
 
@@ -674,7 +678,8 @@ bool RTPSenderVideo::SendVideo(int payload_type,
   }
 
   std::unique_ptr<RtpPacketizer> packetizer =
-      RtpPacketizer::Create(codec_type, payload, limits, video_header);
+      RtpPacketizer::Create(raw_packetization_ ? std::nullopt : codec_type,
+                            payload, limits, video_header);
 
   const size_t num_packets = packetizer->NumPackets();
 

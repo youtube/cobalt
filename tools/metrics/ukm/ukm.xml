@@ -2617,7 +2617,22 @@ be describing additional metrics about the same event.
   </metric>
   <metric name="OverallType" enum="AutofillFieldType">
     <summary>
-      Field's overall |FieldType|. See: autofill::FieldType
+      Field's first overall `FieldType`. See `AutofillType::GetTypes()`.
+    </summary>
+  </metric>
+  <metric name="OverallType2" enum="AutofillFieldType">
+    <summary>
+      Field's second overall `FieldType`. See `AutofillType::GetTypes()`.
+    </summary>
+  </metric>
+  <metric name="OverallType3" enum="AutofillFieldType">
+    <summary>
+      Field's third overall `FieldType`. See `AutofillType::GetTypes()`.
+    </summary>
+  </metric>
+  <metric name="OverallType4" enum="AutofillFieldType">
+    <summary>
+      Field's fourth overall `FieldType`. See `AutofillType::GetTypes()`.
     </summary>
   </metric>
 </event>
@@ -2760,7 +2775,22 @@ be describing additional metrics about the same event.
   </summary>
   <metric name="FieldOverallType">
     <summary>
-      Field's overall |FieldType|. See |AutofillField.GetStorableType()|.
+      Field's first overall `FieldType`. See `AutofillType::GetTypes()`.
+    </summary>
+  </metric>
+  <metric name="FieldOverallType2">
+    <summary>
+      Field's second overall `FieldType`. See `AutofillType::GetTypes()`.
+    </summary>
+  </metric>
+  <metric name="FieldOverallType3">
+    <summary>
+      Field's third overall `FieldType`. See `AutofillType::GetTypes()`.
+    </summary>
+  </metric>
+  <metric name="FieldOverallType4">
+    <summary>
+      Field's fourth overall `FieldType`. See `AutofillType::GetTypes()`.
     </summary>
   </metric>
   <metric name="FieldSignature">
@@ -2772,7 +2802,22 @@ be describing additional metrics about the same event.
   </metric>
   <metric name="FieldTypeGroup">
     <summary>
-      Field's |FieldTypeGroup|. See |AutofillType.group()|.
+      Field's first `FieldTypeGroup`. See `AutofillType::GetGroups()`.
+    </summary>
+  </metric>
+  <metric name="FieldTypeGroup2">
+    <summary>
+      Field's second `FieldTypeGroup`. See `AutofillType::GetGroups()`.
+    </summary>
+  </metric>
+  <metric name="FieldTypeGroup3">
+    <summary>
+      Field's third `FieldTypeGroup`. See `AutofillType::GetGroups()`.
+    </summary>
+  </metric>
+  <metric name="FieldTypeGroup4">
+    <summary>
+      Field's fourth `FieldTypeGroup`. See `AutofillType::GetGroups()`.
     </summary>
   </metric>
   <metric name="FormSignature">
@@ -3012,7 +3057,22 @@ be describing additional metrics about the same event.
   </metric>
   <metric name="FieldTypeGroup">
     <summary>
-      Field's |FieldTypeGroup|. See |AutofillType.group()|.
+      Field's first `FieldTypeGroup`. See `AutofillType::GetGroups()`.
+    </summary>
+  </metric>
+  <metric name="FieldTypeGroup2">
+    <summary>
+      Field's second `FieldTypeGroup`. See `AutofillType::GetGroups()`.
+    </summary>
+  </metric>
+  <metric name="FieldTypeGroup3">
+    <summary>
+      Field's third `FieldTypeGroup`. See `AutofillType::GetGroups()`.
+    </summary>
+  </metric>
+  <metric name="FieldTypeGroup4">
+    <summary>
+      Field's fourth `FieldTypeGroup`. See `AutofillType::GetGroups()`.
     </summary>
   </metric>
   <metric name="FormSignature">
@@ -3616,7 +3676,26 @@ be describing additional metrics about the same event.
   </summary>
   <metric name="AiFieldType">
     <summary>
-      The server AI type of the field as classified by autofill's ML model.
+      The first server AI type of the field as classified by Autofill's ML
+      model.
+    </summary>
+  </metric>
+  <metric name="AiFieldType2">
+    <summary>
+      The second server AI type of the field as classified by Autofill's ML
+      model.
+    </summary>
+  </metric>
+  <metric name="AiFieldType3">
+    <summary>
+      The third server AI type of the field as classified by Autofill's ML
+      model.
+    </summary>
+  </metric>
+  <metric name="AiFieldType4">
+    <summary>
+      The fourth server AI type of the field as classified by Autofill's ML
+      model.
     </summary>
   </metric>
   <metric name="EntityType">
@@ -3649,7 +3728,26 @@ be describing additional metrics about the same event.
   </metric>
   <metric name="FieldType">
     <summary>
-      The type of the field as classified by autofill.
+      The first `FieldType` as classified by Autofill. See
+      `AutofillType::GetAutofillAiTypes()`.
+    </summary>
+  </metric>
+  <metric name="FieldType2">
+    <summary>
+      The second `FieldType` as classified by Autofill. See
+      `AutofillType::GetAutofillAiTypes()`.
+    </summary>
+  </metric>
+  <metric name="FieldType3">
+    <summary>
+      The third `FieldType` as classified by Autofill. See
+      `AutofillType::GetAutofillAiTypes()`.
+    </summary>
+  </metric>
+  <metric name="FieldType4">
+    <summary>
+      The fourth `FieldType` as classified by Autofill. See
+      `AutofillType::GetAutofillAiTypes()`.
     </summary>
   </metric>
   <metric name="FormatStringSource">
@@ -9076,7 +9174,6 @@ be describing additional metrics about the same event.
 <event name="FacilitatedPayments.Ewallet.FopSelectorResult">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
-  <owner>rouslan@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     An event that is logged when the eWallet FoP selector UI is closed.
@@ -9104,7 +9201,6 @@ be describing additional metrics about the same event.
 <event name="FacilitatedPayments.Ewallet.FopSelectorShown">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
-  <owner>rouslan@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     An event that is logged after the eWallet FoP selector UI is shown.
@@ -9132,7 +9228,6 @@ be describing additional metrics about the same event.
 <event name="FacilitatedPayments.PaymentLinkDetected">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
-  <owner>rouslan@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     An event that is logged after a given payment link in a certain page for an
@@ -9151,7 +9246,6 @@ be describing additional metrics about the same event.
 
 <event name="FacilitatedPayments.Pix.FopSelectorResult">
   <owner>siashah@google.com</owner>
-  <owner>rouslan@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     An event that is logged when the FoP selector UI for Pix is closed.
@@ -9166,7 +9260,6 @@ be describing additional metrics about the same event.
 
 <event name="FacilitatedPayments.Pix.FopSelectorShown">
   <owner>siashah@google.com</owner>
-  <owner>rouslan@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     An event that is logged after the FoP selector UI is shown.
@@ -9181,7 +9274,6 @@ be describing additional metrics about the same event.
 
 <event name="FacilitatedPayments.Pix.InitiatePurchaseActionResult">
   <owner>siashah@google.com</owner>
-  <owner>rouslan@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     An event that is logged after getting response from the
@@ -9203,7 +9295,6 @@ be describing additional metrics about the same event.
 
 <event name="FacilitatedPayments.PixCodeCopied">
   <owner>siashah@google.com</owner>
-  <owner>rouslan@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     An event that is logged after a likely Pix code is copied to the clipboard
@@ -13581,8 +13672,17 @@ be describing additional metrics about the same event.
     picture-in-picture window without responding to the prompt, or when we
     decide to not show the prompt at all. When the prompt is shown, this records
     their selection (or &quot;Ignored&quot; if they did not select an option).
-    When the prompt is not shown, records why it was not shown.
+    When the prompt is not shown, records why it was not shown. Note that
+    although &quot;Not shown because incognito&quot; is part of the
+    MediaAutoPictureInPicturePromptResult enum, UKMs are not collected in
+    incognito.
   </summary>
+  <metric name="BrowserInitiated" enum="MediaAutoPictureInPicturePromptResult">
+    <summary>
+      Prompt result for entering picture in picture automatically due to browser
+      initiated auto picture in picture.
+    </summary>
+  </metric>
   <metric name="MediaPlayback" enum="MediaAutoPictureInPicturePromptResult">
     <summary>
       Prompt result for entering picture in picture automatically due to
@@ -18360,6 +18460,13 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
+  <metric
+      name="PaintTimingBeforeSoftNavigation.NavigationToLargestContentfulPaint2">
+    <summary>
+      Similar to PaintTiming.NavigationToLargestContentfulPaint2, except that it
+      is recorded before the first soft navigation.
+    </summary>
+  </metric>
   <metric name="ParseTiming.NavigationToParseStart">
     <summary>
       Measures the time in milliseconds from navigation timing's navigation
@@ -19288,8 +19395,8 @@ be describing additional metrics about the same event.
 </event>
 
 <event name="PaymentApp.CheckoutEvents">
-  <owner>rouslan@chromium.org</owner>
-  <owner>web-payments-team@google.com</owner>
+  <owner>smcgruer@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
   <summary>
     Records checkout events as well as completion status for the invoked payment
     app when its origin is shown inside the payment handler modal window. This
@@ -19313,8 +19420,8 @@ be describing additional metrics about the same event.
 </event>
 
 <event name="PaymentRequest.CheckoutEvents">
-  <owner>rouslan@chromium.org</owner>
-  <owner>web-payments-team@google.com</owner>
+  <owner>smcgruer@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
   <metric name="CompletionStatus">
     <summary>
       How the Payment Request ended. Values defined in the CompletionStatus enum
@@ -19331,8 +19438,8 @@ be describing additional metrics about the same event.
 </event>
 
 <event name="PaymentRequest.TransactionAmount">
-  <owner>rouslan@chromium.org</owner>
-  <owner>web-payments-team@google.com</owner>
+  <owner>smcgruer@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
   <metric name="Category">
     <summary>
       Tranaction size can be zero, micro, or regular. Values defined in the

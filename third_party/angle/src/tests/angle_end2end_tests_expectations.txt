@@ -145,7 +145,9 @@ b/273271471 WIN INTEL VULKAN : ShaderAlgorithmTest.rgb_to_hsl_vertex_shader/* = 
 410591534 WIN INTEL OPENGL : TextureCubeTestES3.IncompatibleCubeFacesThenSingleFaceCompatibleUploadAndIncompatibleAgain*/* = SKIP
 411157348 WIN D3D11 : ImageTestES31.UseSourceTextureAsStorageImage/* = SKIP
 409821658 WIN INTEL OPENGL : SRGBTextureTestES3.SRGBSkipEncodeAndDecodeInGenerateMipmap/ES3_OpenGL* = SKIP
-444980424 WIN NVIDIA VULKAN : ShadingRateEXTTest.FragmentShadingRatePrimitive/* = SKIP
+444980424 NVIDIA VULKAN : ShadingRateEXTTest.FragmentShadingRatePrimitive/* = SKIP
+447556589 WIN INTEL OPENGL : GeometryShaderTest.ImplicitSizedArrayMatchesExplicitSizedArray/* = SKIP
+447556589 WIN INTEL OPENGL : GeometryShaderTest.ImplicitSizedArrayMatchesExplicitSizedArray2/* = SKIP
 
 // Failures on Intel Comet Lake S UHD Graphics 630 (8086:9bc5-31.0.101.2111)
 40644896 WIN INTEL OPENGL : D3DImageFormatConversionTest.WriteColorFunctionR8G8B8A8/* = SKIP
@@ -208,9 +210,6 @@ b/390710636 LINUX NVIDIA VULKAN : TextureBorderClampTestES32.CustomBorderColorWi
 42267037 WIN NVIDIA VULKAN : Texture2DTestES3.TexStorage2DSimultaneousUseOfMultipleYuvSourcesNoData/* = SKIP
 42267037 WIN NVIDIA GLES : TextureCubeTestES3.SpecifyAndSampleFromBaseLevel1/* = SKIP
 42267037 WIN NVIDIA OPENGL : TextureCubeTestES3.SpecifyAndSampleFromBaseLevel1/* = SKIP
-42267037 WIN NVIDIA VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinary/* = SKIP
-42267037 WIN NVIDIA VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinaryTwice/* = SKIP
-42267037 WIN NVIDIA VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsWarmedUpAtLinkTime/* = SKIP
 
 // Intel/windows does not ignore gl_Layer for non-layered framebuffers
 374790899 WIN INTEL OPENGL : GeometryShaderTest.GLLayerIneffectiveWithoutLayeredFramebuffer/* = SKIP
@@ -239,9 +238,6 @@ b/390710636 LINUX NVIDIA VULKAN : TextureBorderClampTestES32.CustomBorderColorWi
 362545033 LINUX NVIDIA VULKAN : EGLBufferAgeTest.SingleBuffer/* = SKIP
 362545033 LINUX NVIDIA VULKAN : GLSLTest.NestedPowStatements/* = SKIP
 362486580 LINUX NVIDIA VULKAN : SixteenBppTextureTestES3.RGB5A1UploadRGBA8/* = SKIP
-362545033 LINUX NVIDIA VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinary/* = SKIP
-362545033 LINUX NVIDIA VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinaryTwice/* = SKIP
-362545033 LINUX NVIDIA VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsWarmedUpAtLinkTime/* = SKIP
 362545033 LINUX NVIDIA VULKAN : VulkanPerformanceCounterTest_SingleBuffer.SwapBuffersAfterFlushIgnored/* = SKIP
 362545033 LINUX NVIDIA OPENGL : PointSpriteTest.TrianglesNotTreatedAsPointSprites/* = SKIP
 362545033 LINUX NVIDIA OPENGL : TextureCubeTestES3.SpecifyAndSampleFromBaseLevel1/* = SKIP
@@ -320,9 +316,6 @@ b/390710636 LINUX NVIDIA VULKAN : TextureBorderClampTestES32.CustomBorderColorWi
 40644895 WIN INTEL VULKAN : RobustBufferAccessBehaviorTest.DynamicBuffer/* = SKIP
 40644895 WIN INTEL VULKAN : RobustBufferAccessBehaviorTest.InterleavedAttributes/* = SKIP
 40644895 WIN INTEL VULKAN : Texture2DTestES3.NonZeroBaseEmulatedClear/* = SKIP
-40644895 WIN INTEL VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinary/* = SKIP
-40644895 WIN INTEL VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinaryTwice/* = SKIP
-40644895 WIN INTEL VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsWarmedUpAtLinkTime/* = SKIP
 342557702 WIN INTEL VULKAN : StateChangeTestES3.RasterizerDiscard/ES3_Vulkan_NoSupportsExtendedDynamicState2 = SKIP
 433836330 WIN INTEL VULKAN : TransformFeedbackTestES31.ModeMismatchClassMismatch/* = SKIP
 // vk_icdNegotiateLoaderICDInterfaceVersion crashes (possibly Mesa bug?)
@@ -561,6 +554,8 @@ b/390710636 LINUX NVIDIA VULKAN : TextureBorderClampTestES32.CustomBorderColorWi
 42264513 PIXEL4ORXL GLES : CopyTexImageTest.CopyTexSubImageFrom3DTexureOES/* = SKIP
 42264513 PIXEL4ORXL GLES : CubeMapTextureTest.SampleCoordinateTransform/* = SKIP
 42265301 PIXEL4ORXL GLES : GLSLTest_ES31.StructAndArrayEqualOperator/* = SKIP
+42265301 PIXEL4ORXL GLES : GeometryShaderTest.RedeclareGlIn/* = SKIP
+42265301 PIXEL4ORXL GLES : GeometryShaderTest.RedeclareGlInBeforeInputSize/* = SKIP
 42264513 PIXEL4ORXL GLES : ImageTest.Source2DTarget2D_Colorspace/* = SKIP
 42264513 PIXEL4ORXL GLES : ImageTest.Source2DTargetExternal_Colorspace/* = SKIP
 42264513 PIXEL4ORXL GLES : ImageTest.Source2DTargetRenderbuffer_Colorspace/* = SKIP
@@ -865,6 +860,7 @@ b/330697097 PIXEL6 VULKAN : FramebufferTest_ES31.MultisampleResolveBothAttachmen
 40096874 IOS METAL : PixelLocalStorageTest.BlendColorMaskAndClear/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096874 IOS METAL : PixelLocalStorageTest.ClearValues_r32/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096874 IOS METAL : PixelLocalStorageTest.Coherency/ES3_Metal_EmulatePixelLocalStorage* = SKIP
+40096874 IOS METAL : PixelLocalStorageTest.Coherency_noncoherent/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096838 IOS METAL : PixelLocalStorageTest.ColorAttachment0Workaround/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096838 IOS METAL : PixelLocalStorageTest.CopyTexSubImage/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096838 IOS METAL : PixelLocalStorageTest.FlushFinishSync/ES3_Metal_EmulatePixelLocalStorage* = SKIP
@@ -883,7 +879,9 @@ b/330697097 PIXEL6 VULKAN : FramebufferTest_ES31.MultisampleResolveBothAttachmen
 40096874 IOS METAL : PixelLocalStorageTest.PLSWithSamplers/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096874 IOS METAL : PixelLocalStorageTest.ProgramCache/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096874 IOS METAL : PixelLocalStorageTest.R32/ES3_Metal_EmulatePixelLocalStorage* = SKIP
+40096874 IOS METAL : PixelLocalStorageTest.R32_noncoherent/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096874 IOS METAL : PixelLocalStorageTest.RGBA8/ES3_Metal_EmulatePixelLocalStorage* = SKIP
+40096874 IOS METAL : PixelLocalStorageTest.RGBA8_noncoherent/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096838 IOS METAL : PixelLocalStorageTest.RasterizerDiscard/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096838 IOS METAL : PixelLocalStorageTest.TextureCubeFaces/* = SKIP
 40096874 IOS METAL : PixelLocalStorageTest.TextureLevelsAndLayers/* = SKIP
@@ -914,6 +912,7 @@ b/330697097 PIXEL6 VULKAN : FramebufferTest_ES31.MultisampleResolveBothAttachmen
 40096874 IOS METAL : Texture2DDepthTest.DepthTextureES2Compatibility/* = SKIP
 40096874 IOS METAL : Texture2DTest.ManySupersedingTextureUpdates/* = SKIP
 40096874 IOS METAL : Texture2DTest.TextureSizeCase1/* = SKIP
+40096874 IOS METAL : Texture2DTestES3.RGB565RenderAndReadIntoRGB565PBO/* = SKIP
 40096874 IOS METAL : TextureUploadFormatTest.All/* = SKIP
 40096874 IOS METAL : UniformBlockWithOneLargeArrayMemberTest.MemberTypeIsMatrixAndInstanced/* = SKIP
 40096874 IOS METAL : UniformBlockWithOneLargeArrayMemberTest.MemberTypeIsMixStructFloatAndMat4/* = SKIP
@@ -1300,9 +1299,6 @@ b/267953710 GALAXYS22 VULKAN : TextureSampleShadingTest.Basic/* = SKIP
 b/267953710 GALAXYS22 VULKAN : VulkanPerformanceCounterTest.bufferDataWithSizeFollowedByZeroAndThenSizeAgainShouldReuseStorage/* = SKIP
 b/267953710 GALAXYS22 VULKAN : VulkanPerformanceCounterTest.BufferSubDataShouldNotTriggerSyncState_Copy/* = SKIP
 b/267953710 GALAXYS22 VULKAN : VulkanPerformanceCounterTest.BufferSubDataShouldNotTriggerSyncState_SubData/* = SKIP
-b/267953710 GALAXYS22 VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinary/* = SKIP
-b/267953710 GALAXYS22 VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinaryTwice/* = SKIP
-b/267953710 GALAXYS22 VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsWarmedUpAtLinkTime/* = SKIP
 b/267953710 GALAXYS22 VULKAN : VulkanPerformanceCounterTest_ES31.ColorMaskedFramebufferFetchDrawThenClear/* = SKIP
 372059358 GALAXYS22 VULKAN : MultisampleTestES3.CopyTexImage2DFromMsaaDefaultFbo/* = SKIP
 40644776 GALAXYS22 VULKAN : ImageTestES3.SourceAHBTarget2DGenerateMipmap* = SKIP
@@ -1439,7 +1435,9 @@ b/267953710 GALAXYS22 VULKAN : VulkanPerformanceCounterTest_ES31.ColorMaskedFram
 42266622 GALAXYA23 VULKAN : PixelLocalStorageTest.MipMapLevels/* = SKIP
 42266622 GALAXYA23 VULKAN : PixelLocalStorageTest.PLSWithSamplers/* = SKIP
 42266622 GALAXYA23 VULKAN : PixelLocalStorageTest.R32/* = SKIP
+42266622 GALAXYA23 VULKAN : PixelLocalStorageTest.R32_noncoherent/* = SKIP
 42266622 GALAXYA23 VULKAN : PixelLocalStorageTest.RGBA8/* = SKIP
+42266622 GALAXYA23 VULKAN : PixelLocalStorageTest.RGBA8_noncoherent/* = SKIP
 42266622 GALAXYA23 VULKAN : ProgramBinaryES3Test.SaveAndLoadDetachedShaders/* = SKIP
 42266622 GALAXYA23 VULKAN : TransformFeedbackTest.BaseInstance/* = SKIP
 42266622 GALAXYA23 VULKAN : TransformFeedbackTestES32.PrimitivesWrittenAndGenerated/* = SKIP

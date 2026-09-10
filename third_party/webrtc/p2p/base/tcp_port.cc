@@ -95,7 +95,6 @@
 #include "rtc_base/net_helper.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
-#include "rtc_base/rate_tracker.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/weak_ptr.h"
@@ -410,12 +409,12 @@ int TCPConnection::Send(const void* data,
   tcp_port()->CopyPortInformationToPacketInfo(
       &modified_options.info_signaled_after_sent);
   int sent = socket_->Send(data, size, modified_options);
-  Timestamp now = Connection::AlignTime(env().clock().CurrentTime());
+  Timestamp now = env().clock().CurrentTime();
   if (sent < 0) {
     mutable_stats().sent_discarded_packets++;
     error_ = socket_->GetError();
   } else {
-    send_rate_tracker().AddSamplesAtTime(now.ms(), sent);
+    AddSentBytesToStats(sent, now);
   }
   set_last_send_data(now);
   return sent;

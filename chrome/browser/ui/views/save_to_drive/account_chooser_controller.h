@@ -33,11 +33,8 @@ using AccountChosenCallback =
 
 // This class is responsible for showing the flow for selecting an account to
 // save to Drive.
-class AccountChooserController
-    : public signin::IdentityManager::Observer,
-      // ties lifetime to WebContents
-      public content::WebContentsUserData<AccountChooserController>,
-      public AccountChooserViewDelegate {
+class AccountChooserController : public signin::IdentityManager::Observer,
+                                 public AccountChooserViewDelegate {
  public:
   AccountChooserController(content::WebContents* web_contents,
                            signin::IdentityManager* identity_manager);
@@ -48,7 +45,14 @@ class AccountChooserController
   void GetAccount(AccountChosenCallback on_account_chosen_callback);
 
   // IdentityManager::Observer:
+  void OnErrorStateOfRefreshTokenUpdatedForAccount(
+      const CoreAccountInfo& account_info,
+      const GoogleServiceAuthError& error,
+      signin_metrics::SourceForRefreshTokenOperation token_operation_source)
+      override;
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
+  void OnPrimaryAccountChanged(
+      const signin::PrimaryAccountChangeEvent& event) override;
   void OnRefreshTokenRemovedForAccount(
       const CoreAccountId& account_id) override;
 
@@ -67,9 +71,6 @@ class AccountChooserController
 
   // Observes the add account popup window's WebContents.
   class AddAccountPopupObserver;
-
-  friend content::WebContentsUserData<AccountChooserController>;
-  WEB_CONTENTS_USER_DATA_KEY_DECL();
 
   // If no accounts are present, shows the add account dialog. Otherwise,
   // shows the account chooser dialog.
@@ -100,6 +101,8 @@ class AccountChooserController
   // Creates a dialog delegate for the account chooser dialog.
   std::unique_ptr<views::DialogDelegate> CreateDialogDelegate(
       std::unique_ptr<AccountChooserView> account_chooser_view);
+  // Called when the flow is cancelled via widget action (like escape key).
+  void OnWidgetCancelledFlow(views::Widget::ClosedReason reason);
 
   raw_ptr<tabs::TabInterface> tab_;
   raw_ptr<signin::IdentityManager> identity_manager_;

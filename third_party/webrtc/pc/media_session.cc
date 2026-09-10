@@ -45,6 +45,7 @@
 #include "pc/simulcast_description.h"
 #include "pc/used_ids.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/unique_id_generator.h"
 
@@ -680,7 +681,7 @@ bool AcceptOfferWithRfc8888(const FieldTrialsView& field_trials) {
 }  // namespace
 
 MediaSessionDescriptionFactory::MediaSessionDescriptionFactory(
-    MediaEngineInterface* media_engine,
+    const MediaEngineInterface* media_engine,
     bool rtx_enabled,
     UniqueRandomIdGenerator* ssrc_generator,
     const TransportDescriptionFactory* transport_desc_factory,

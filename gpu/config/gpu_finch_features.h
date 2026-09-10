@@ -23,8 +23,6 @@ struct GpuFeatureInfo;
 
 namespace features {
 
-GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kUseGles2ForOopR);
-
 #if BUILDFLAG(IS_COBALT)
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
 #endif  // BUILDFLAG(IS_COBALT)
@@ -72,6 +70,8 @@ GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
     kSkiaGraphiteDawnBackendValidation;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
     kSkiaGraphiteDawnBackendDebugLabels;
+GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
+    kSkiaGraphiteDawnUsePersistentCache;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<int>
     kSkiaGraphiteMaxPendingRecordings;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>

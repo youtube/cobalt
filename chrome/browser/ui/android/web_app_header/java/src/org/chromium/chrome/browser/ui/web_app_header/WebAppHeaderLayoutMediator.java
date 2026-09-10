@@ -24,9 +24,12 @@ import org.chromium.chrome.browser.ui.web_app_header.WebAppHeaderUtils.ReloadTyp
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.util.TokenHolder;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -47,7 +50,7 @@ class WebAppHeaderLayoutMediator
     private final DesktopWindowStateManager mDesktopWindowStateManager;
     private final ObservableSupplier<@Nullable Tab> mTabSupplier;
     private final ScrimManager mScrimManager;
-    private final Supplier<List<Rect>> mNonDraggableAreasSupplier;
+    private final Supplier<List<Rect>> mHeaderControlPositionSupplier;
     private final ObservableSupplierImpl<Integer> mWidthSupplier;
     private final ThemeColorProvider mThemeColorProvider;
     private final int mWebAppMinHeaderHeight;
@@ -56,11 +59,15 @@ class WebAppHeaderLayoutMediator
     private final ObservableSupplierImpl<Integer> mAppHeaderUnoccludedWidthSupplier;
     private final Callback<Boolean> mScrimVisibilityObserver;
     private @Nullable Callback<Integer> mOnButtonBottomInsetChanged;
+    private final Callback<Boolean> mSetHeaderAsOverlayCallback;
+    private boolean mHeaderAsOverlay;
     private int mButtonBottomInset;
     private final @DisplayMode.EnumType int mDisplayMode;
+    private final Callback<@Nullable Tab> mOnTabUpdate;
 
     private int mDisabledControlsToken = TokenHolder.INVALID_TOKEN;
     private boolean mIsFirstAppHeaderStateUpdate = true;
+    private boolean mBrowserControlsVisible;
 
     /**
      * Constructs the instance of {@link WebAppHeaderLayoutMediator}.
@@ -74,25 +81,30 @@ class WebAppHeaderLayoutMediator
      * @param webAppHeaderMinHeightFromResources minimal height from resources in px that web app
      *     header must take
      */
-    public WebAppHeaderLayoutMediator(
+    WebAppHeaderLayoutMediator(
             PropertyModel model,
             WebAppHeaderDelegate headerDelegate,
             DesktopWindowStateManager desktopWindowStateManager,
             ScrimManager scrimManager,
             ObservableSupplier<@Nullable Tab> tabSupplier,
-            Supplier<List<Rect>> nonDraggableAreasSupplier,
+            Supplier<List<Rect>> headerControlPositionSupplier,
             ThemeColorProvider themeColorProvider,
             int webAppHeaderMinHeightFromResources,
             int headerButtonHeight,
-            int displayMode) {
+            int displayMode,
+            Callback<Boolean> setHeaderAsOverlayCallback) {
         mThemeColorProvider = themeColorProvider;
         mWebAppMinHeaderHeight = webAppHeaderMinHeightFromResources;
         mHeaderDelegate = headerDelegate;
         mDesktopWindowStateManager = desktopWindowStateManager;
         mTabSupplier = tabSupplier;
-        mNonDraggableAreasSupplier = nonDraggableAreasSupplier;
+        mHeaderControlPositionSupplier = headerControlPositionSupplier;
         mHeaderButtonHeight = headerButtonHeight;
         mDisplayMode = displayMode;
+        mSetHeaderAsOverlayCallback = setHeaderAsOverlayCallback;
+        mHeaderAsOverlay = mDisplayMode == DisplayMode.WINDOW_CONTROLS_OVERLAY;
+        mOnTabUpdate = this::onTabUpdate;
+        mTabSupplier.addObserver(mOnTabUpdate);
 
         mScrimVisibilityObserver =
                 (isScrimVisible) -> {
@@ -127,6 +139,14 @@ class WebAppHeaderLayoutMediator
         mThemeColorProvider.addThemeColorObserver(this);
     }
 
+    private void updateHeaderAsOverlay() {
+        mHeaderAsOverlay =
+                mDisplayMode == DisplayMode.WINDOW_CONTROLS_OVERLAY && !mBrowserControlsVisible;
+        mSetHeaderAsOverlayCallback.onResult(mHeaderAsOverlay);
+        updateBackgroundBars();
+        updateNonDraggableAreas();
+    }
+
     private void onLayoutWidthUpdated(int width) {
         mWidthSupplier.set(width);
 
@@ -141,6 +161,47 @@ class WebAppHeaderLayoutMediator
         }
     }
 
+    private void onTabUpdate(@Nullable Tab tab) {
+        updateBackgroundBars();
+    }
+
+    private void updateBackgroundBars() {
+        final Tab tab = mTabSupplier.get();
+        if (tab == null) return;
+
+        final WebContents webContents = tab.getWebContents();
+        if (webContents == null) return;
+
+        if (mCurrentHeaderState == null || !mHeaderAsOverlay) {
+            mModel.set(WebAppHeaderLayoutProperties.BACKGROUND_CUTOUTS, null);
+            webContents.updateWindowControlsOverlay(new Rect());
+            return;
+        }
+
+        final int leftPadding = mCurrentHeaderState.getLeftPadding();
+
+        Rect cutoutRect =
+                new Rect(
+                        leftPadding,
+                        mCurrentHeaderState.getCaptionControlsTopOffset(),
+                        leftPadding + mCurrentHeaderState.getUnoccludedRectWidth(),
+                        mCurrentHeaderState.getAppHeaderHeight());
+        mModel.set(WebAppHeaderLayoutProperties.BACKGROUND_CUTOUTS, Arrays.asList(cutoutRect));
+
+        // The area passed to the web contents is different from the cutout specified in the app
+        // header because the app header needs to account for the status bar when making the cutout,
+        // whereas the web contents is not aware that the status bar exists.
+        //
+        // Therefore, the cutout rect should be offset vertically by the caption controls top offset
+        // while the web contents WCO rect should not be offset vertically.
+        webContents.updateWindowControlsOverlay(
+                new Rect(
+                        leftPadding,
+                        0,
+                        leftPadding + mCurrentHeaderState.getUnoccludedRectWidth(),
+                        mCurrentHeaderState.getCaptionControlsHeight()));
+    }
+
     @Override
     public void onThemeColorChanged(int color, boolean shouldAnimate) {
         mDesktopWindowStateManager.updateForegroundColor(color);
@@ -152,6 +213,7 @@ class WebAppHeaderLayoutMediator
         mCurrentHeaderState = newState;
 
         updatePaddings();
+        updateHeaderAsOverlay();
 
         mAppHeaderUnoccludedWidthSupplier.set(mCurrentHeaderState.getUnoccludedRectWidth());
         mModel.set(
@@ -223,7 +285,23 @@ class WebAppHeaderLayoutMediator
             return;
         }
 
-        final var areas = mNonDraggableAreasSupplier.get();
+        List<Rect> areas = new ArrayList<>();
+
+        List<Rect> controlPositions = mHeaderControlPositionSupplier.get();
+        if (controlPositions != null) {
+            areas.addAll(controlPositions);
+        }
+
+        if (mHeaderAsOverlay) {
+            areas.add(
+                    new Rect(
+                            mCurrentHeaderState.getLeftPadding(),
+                            0,
+                            mCurrentHeaderState.getLeftPadding()
+                                    + mCurrentHeaderState.getUnoccludedRectWidth(),
+                            mCurrentHeaderState.getCaptionControlsHeight()));
+        }
+
         mModel.set(
                 WebAppHeaderLayoutProperties.NON_DRAGGABLE_AREAS,
                 areas == null || areas.isEmpty() ? List.of(EMPTY_NON_DRAGGABLE_AREA) : areas);
@@ -295,6 +373,7 @@ class WebAppHeaderLayoutMediator
         mDesktopWindowStateManager.removeObserver(this);
         mThemeColorProvider.removeThemeColorObserver(this);
         mScrimManager.getScrimVisibilitySupplier().removeObserver(mScrimVisibilityObserver);
+        mTabSupplier.removeObserver(mOnTabUpdate);
     }
 
     @VisibleForTesting
@@ -304,5 +383,11 @@ class WebAppHeaderLayoutMediator
 
     int getButtonBottomInsetForTesting() {
         return mButtonBottomInset;
+    }
+
+    /** Called to update the mediator if browser controls (e.g. CCT banner) are visible. */
+    public void setBrowserControlsVisible(boolean visible) {
+        mBrowserControlsVisible = visible;
+        updateHeaderAsOverlay();
     }
 }

@@ -643,16 +643,6 @@ class GraphBuildingNodeProcessor {
       // and in both Turboshaft and Maglev, the backedge is always the last
       // predecessors, so we never need to reorder phi inputs.
       return maglev::BlockProcessResult::kContinue;
-    } else if (maglev_block->is_exception_handler_block()) {
-      // We need to emit the CatchBlockBegin at the begining of this block. Note
-      // that if this block has multiple predecessors (because multiple throwing
-      // operations are caught by the same catch handler), then edge splitting
-      // will have already created CatchBlockBegin operations in the
-      // predecessors, and calling `__ CatchBlockBegin` now will actually only
-      // emit a Phi of the CatchBlockBegin of the predecessors (which is exactly
-      // what we want). See the comment above CatchBlockBegin in
-      // TurboshaftAssemblerOpInterface.
-      catch_block_begin_ = __ CatchBlockBegin();
     }
 
     // Because of edge splitting in Maglev (which happens on Bind rather than on
@@ -1753,14 +1743,19 @@ class GraphBuildingNodeProcessor {
     V<Context> context = Map(node->context());
     V<ScopeInfo> scope_info = __ HeapConstant(node->scope_info().object());
     if (node->scope_type() == FUNCTION_SCOPE) {
-      SetMap(node, __ CallBuiltin_FastNewFunctionContextFunction(
-                       isolate_, frame_state, context, scope_info,
-                       node->slot_count(), ShouldLazyDeoptOnThrow(node)));
+      SetMap(node,
+             __ template CallBuiltin<builtin::FastNewFunctionContextFunction>(
+                 frame_state, context,
+                 {.scope_info = scope_info,
+                  .slots = __ Word32Constant(node->slot_count())},
+                 ShouldLazyDeoptOnThrow(node)));
     } else {
       DCHECK_EQ(node->scope_type(), EVAL_SCOPE);
-      SetMap(node, __ CallBuiltin_FastNewFunctionContextEval(
-                       isolate_, frame_state, context, scope_info,
-                       node->slot_count(), ShouldLazyDeoptOnThrow(node)));
+      SetMap(node, __ template CallBuiltin<builtin::FastNewFunctionContextEval>(
+                       frame_state, context,
+                       {.scope_info = scope_info,
+                        .slots = __ Word32Constant(node->slot_count())},
+                       ShouldLazyDeoptOnThrow(node)));
     }
     return maglev::ProcessResult::kContinue;
   }
@@ -1776,9 +1771,10 @@ class GraphBuildingNodeProcessor {
     V<FeedbackCell> feedback_cell =
         __ HeapConstant(node->feedback_cell().object());
 
-    SetMap(node,
-           __ CallBuiltin_FastNewClosure(isolate_, frame_state, context,
-                                         shared_function_info, feedback_cell));
+    SetMap(node, __ template CallBuiltin<builtin::FastNewClosure>(
+                     frame_state, context,
+                     {.shared_function_info = shared_function_info,
+                      .feedback_cell = feedback_cell}));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -2675,12 +2671,19 @@ class GraphBuildingNodeProcessor {
                     node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CheckHoleyFloat64NotHole* node,
-                                const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(
+      maglev::CheckHoleyFloat64NotHoleOrUndefined* node,
+      const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    __ DeoptimizeIf(__ Float64IsUndefinedOrHole(Map(node->float64_input())),
+                    frame_state, DeoptimizeReason::kHoleOrUndefined,
+                    node->eager_deopt_info()->feedback_to_update());
+#else
     __ DeoptimizeIf(__ Float64IsHole(Map(node->float64_input())), frame_state,
                     DeoptimizeReason::kHole,
                     node->eager_deopt_info()->feedback_to_update());
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckInt32Condition* node,
@@ -3005,9 +3008,9 @@ class GraphBuildingNodeProcessor {
       }
     }
 
-    GOTO(done,
-         __ CallBuiltin_ToString(isolate_, frame_state, Map(node->context()),
-                                 value, ShouldLazyDeoptOnThrow(node)));
+    GOTO(done, __ template CallBuiltin<builtin::ToString>(
+                   frame_state, Map(node->context()), {.o = value},
+                   ShouldLazyDeoptOnThrow(node)));
 
     BIND(done, result);
     SetMap(node, result);
@@ -3017,8 +3020,8 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     NoThrowingScopeRequired no_throws(node);
 
-    SetMap(node,
-           __ CallBuiltin_NumberToString(isolate_, Map(node->value_input())));
+    SetMap(node, __ template CallBuiltin<builtin::NumberToString>(
+                     {.input = Map(node->value_input())}));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -3178,9 +3181,12 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StoreTaggedFieldWithWriteBarrier* node,
                                 const maglev::ProcessingState& state) {
+    WriteBarrierKind write_barrier =
+        node->value_can_be_smi() ? WriteBarrierKind::kFullWriteBarrier
+                                 : WriteBarrierKind::kPointerWriteBarrier;
     __ Store(Map(node->object_input()), Map(node->value_input()),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kFullWriteBarrier, node->offset(),
+             write_barrier, node->offset(),
              node->initializing_or_transitioning());
     return maglev::ProcessResult::kContinue;
   }
@@ -3203,9 +3209,10 @@ class GraphBuildingNodeProcessor {
               value_map,
               __ HeapConstant(local_factory_->context_cell_map())))) {
         GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-        __ CallBuiltin_DetachContextCell(isolate_, frame_state, context,
-                                         new_value,
-                                         __ WordPtrConstant(node->index()));
+        __ CallBuiltin<builtin::DetachContextCell>(
+            frame_state, {.the_context = context,
+                          .new_value = new_value,
+                          .i = __ WordPtrConstant(node->index())});
       } ELSE {
         __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
                  MemoryRepresentation::AnyTagged(),
@@ -4837,9 +4844,9 @@ class GraphBuildingNodeProcessor {
     }
 
     BIND(non_js_receiver);
-    GOTO(done, __ CallBuiltin_ToObject(
-                   isolate_, __ HeapConstant(node->native_context().object()),
-                   V<JSPrimitive>::Cast(receiver)));
+    GOTO(done, __ template CallBuiltin<builtin::ToObject>(
+                   __ HeapConstant(node->native_context().object()),
+                   {.input = V<JSPrimitive>::Cast(receiver)}));
 
     BIND(done, result);
     SetMap(node, result);
@@ -5469,64 +5476,68 @@ class GraphBuildingNodeProcessor {
   void AddVirtualObjectInput(FrameStateData::Builder& builder,
                              const maglev::VirtualObjectList& virtual_objects,
                              const maglev::VirtualObject* vobj) {
-    if (vobj->type() == maglev::VirtualObject::kHeapNumber) {
-      // We need to add HeapNumbers as dematerialized HeapNumbers (rather than
-      // simply NumberConstant), because they could be mutable HeapNumber
-      // fields, in which case we don't want GVN to merge them.
-      builder.AddDematerializedObject(deduplicator_.CreateUnduplicatableId().id,
-                                      vobj->field_count());
-      builder.AddInput(MachineType::AnyTagged(),
-                       __ HeapConstant(local_factory_->heap_number_map()));
-      builder.AddInput(MachineType::Float64(),
-                       __ Float64Constant(vobj->number()));
-      return;
-    }
-
-    Deduplicator::DuplicatedId dup_id = deduplicator_.GetDuplicatedId(vobj);
+    Deduplicator::DuplicatedId dup_id =
+        vobj->object_type() == maglev::vobj::ObjectType::kHeapNumber
+            ? deduplicator_.CreateUnduplicatableId()
+            : deduplicator_.GetDuplicatedId(vobj);
     if (dup_id.duplicated) {
       builder.AddDematerializedObjectReference(dup_id.id);
       return;
     }
 
-    switch (vobj->type()) {
-      case maglev::VirtualObject::kHeapNumber:
-        // Handled above
-        UNREACHABLE();
-      case maglev::VirtualObject::kConsString:
-        // TODO(olivf): Support elided maglev cons strings in turbolev.
-        UNREACHABLE();
-      case maglev::VirtualObject::kFixedDoubleArray: {
-        uint32_t length = vobj->double_elements_length();
-        uint32_t field_count = vobj->field_count();
-        builder.AddDematerializedObject(dup_id.id, field_count);
-        builder.AddInput(
-            MachineType::AnyTagged(),
-            __ HeapConstantNoHole(local_factory_->fixed_double_array_map()));
-        builder.AddInput(MachineType::AnyTagged(),
-                         __ SmiConstant(Smi::FromInt(length)));
-        FixedDoubleArrayRef elements = vobj->double_elements();
-        for (uint32_t i = 0; i < length; i++) {
-          i::Float64 value = elements.GetFromImmutableFixedDoubleArray(i);
-          if (value.is_hole_nan()) {
-            builder.AddInput(
-                MachineType::AnyTagged(),
-                __ HeapConstantHole(local_factory_->the_hole_value()));
-          } else {
-            builder.AddInput(MachineType::AnyTagged(),
-                             __ NumberConstant(value.get_scalar()));
-          }
+    // TODO(olivf): Support elided maglev cons strings in turbolev.
+    DCHECK_NE(vobj->object_type(), maglev::vobj::ObjectType::kConsString);
+
+    if (vobj->object_type() == maglev::vobj::ObjectType::kFixedDoubleArray) {
+      using Shape = maglev::VirtualFixedDoubleArrayShape;
+      static_assert(Shape::header_slot_count == 2);
+      builder.AddDematerializedObject(dup_id.id, vobj->slot_count());
+      AddVirtualObjectNestedValue(builder, virtual_objects,
+                                  vobj->get(HeapObject::kMapOffset));
+      AddVirtualObjectNestedValue(builder, virtual_objects,
+                                  vobj->get(FixedArrayBase::kLengthOffset));
+
+      // TODO(jgruber): It's awkward that we have to do this translation here.
+      // Move it to an earlier pass and handle FixedDoubleArray vobjects on the
+      // default path.
+      ReadOnlyRoots roots{local_isolate_};
+      for (int i = Shape::header_slot_count; i < vobj->slot_count(); i++) {
+        maglev::vobj::Field desc = vobj->FieldForSlot(i);
+        maglev::ValueNode* node = vobj->get(desc.offset);
+        static_assert(Shape::kElementsAreFloat64Constant);
+        i::Float64 value = node->Cast<maglev::Float64Constant>()->value();
+        if (value.is_hole_nan()) {
+          builder.AddInput(
+              MachineType::AnyTagged(),
+              __ HeapConstantHole(local_factory_->the_hole_value()));
+        } else {
+          builder.AddInput(MachineType::AnyTagged(),
+                           __ NumberConstant(value.get_scalar()));
         }
-        return;
       }
-      case maglev::VirtualObject::kDefault:
-        uint32_t field_count = vobj->field_count();
-        builder.AddDematerializedObject(dup_id.id, field_count);
-        vobj->ForEachSlot(
-            [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
-              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
-            });
-        break;
+      return;
     }
+
+    builder.AddDematerializedObject(dup_id.id, vobj->slot_count());
+    vobj->ForEachSlot(
+        [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
+          switch (desc.type) {
+            case maglev::vobj::FieldType::kTagged:
+            case maglev::vobj::FieldType::kTrustedPointer:
+              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
+              break;
+            case maglev::vobj::FieldType::kFloat64:
+              // TODO(jgruber): Support other node types.
+              builder.AddInput(
+                  MachineType::Float64(),
+                  __ Float64Constant(
+                      value_node->Cast<maglev::Float64Constant>()->value()));
+              break;
+            case maglev::vobj::FieldType::kInt32:
+            case maglev::vobj::FieldType::kNone:
+              UNREACHABLE();
+          }
+        });
   }
 
   void AddVirtualObjectNestedValue(

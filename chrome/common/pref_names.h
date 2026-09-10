@@ -152,6 +152,11 @@ inline constexpr char kSessionExitType[] = "profile.exit_type";
 // 5: open the New Tab Page on startup.
 inline constexpr char kRestoreOnStartup[] = "session.restore_on_startup";
 
+// This pref is set to true when the user changes the kRestoreOnStartup pref.
+// This is used to prevent showing the session restore infobar.
+inline constexpr char kSessionRestorePrefChanged[] =
+    "session.restore_pref_changed";
+
 // The URLs to restore on startup or when the home button is pressed. The URLs
 // are only restored on startup if kRestoreOnStartup is 4.
 inline constexpr char kURLsToRestoreOnStartup[] = "session.startup_urls";
@@ -2119,6 +2124,15 @@ inline constexpr char kPinInfoBarTimesShown[] =
 inline constexpr char kSessionRestoreInfoBarTimesShown[] =
     "browser.session_restore_infobar_times_shown";
 
+// How many times the session restore infobar has been shown for restarting.
+inline constexpr char kSessionRestoreTurnOffFromRestartInfoBarTimesShown[] =
+    "browser.session_restore_turn_off_from_restart_infobar_times_shown";
+
+// How many times the session restore infobar has been shown for session turn
+// off.
+inline constexpr char kSessionRestoreTurnOffFromSessionInfoBarTimesShown[] =
+    "browser.session_restore_turn_off_from_session_infobar_times_shown";
+
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 // A collection of position, size, and other data relating to the browser
@@ -2484,6 +2498,14 @@ inline constexpr char kDevToolsAdbKey[] = "devtools.adb_key";
 
 // Defines administrator-set availability of developer tools.
 inline constexpr char kDevToolsAvailability[] = "devtools.availability";
+
+// List of developer tools availability allowlist.
+inline constexpr char kDeveloperToolsAvailabilityAllowlist[] =
+    "devtools.availability_allowlist";
+
+// List of developer tools availability blocklist.
+inline constexpr char kDeveloperToolsAvailabilityBlocklist[] =
+    "devtools.availability_blocklist";
 
 // This is a timestamp, milliseconds after epoch, of when devtools was last
 // opened.
@@ -2853,6 +2875,10 @@ inline constexpr char kDevicePostQuantumKeyAgreementEnabled[] =
 // key exchange in TLS.
 inline constexpr char kPreferSlowKexAlgorithms[] =
     "ssl.compliance.key_exchange";
+
+// String identifying the compliance regime, if any, that must be adhered to for
+// key exchange in TLS.
+inline constexpr char kPreferSlowCiphers[] = "ssl.compliance.cipher";
 
 // Boolean that specifies whether TLS 1.3 Early Data is enabled.
 inline constexpr char kTLS13EarlyDataEnabled[] = "ssl.tls13_early_data_enabled";

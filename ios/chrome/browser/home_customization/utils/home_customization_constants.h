@@ -117,6 +117,9 @@ enum class CustomizationLinkType : NSInteger {
 };
 
 // Represents the background style used for home customization.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(HomeCustomizationBackgroundStyle)
 enum class HomeCustomizationBackgroundStyle : NSInteger {
   // No background (default appearance).
   kDefault,
@@ -129,11 +132,16 @@ enum class HomeCustomizationBackgroundStyle : NSInteger {
 
   // User-uploaded background image.
   kUserUploaded,
+
+  // Must be last.
+  kMaxValue = kUserUploaded,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSHomeCustomizationBackgroundStyle)
 
 // Records the final outcome of the user's background selection flow.
 // This is logged once the user either applies a background or exits
 // the customization UI.
+// LINT.IfChange(BackgroundSelectionOutcome)
 enum class BackgroundSelectionOutcome : NSInteger {
   // User selected and applied a new background.
   kApplied,
@@ -143,10 +151,31 @@ enum class BackgroundSelectionOutcome : NSInteger {
   kCanceled,
 
   // User selected a background, but then canceled instead of applying it.
-  kCanceledAfterSelection,
+  kCanceledAfterSelected,
 
   // Must be last.
-  kMaxValue = kCanceledAfterSelection,
+  kMaxValue = kCanceledAfterSelected,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSBackgroundSelectionOutcome)
+
+// Records errors that can occur during the user uploaded image.
+// LINT.IfChange(UserUploadedImageError)
+enum class UserUploadedImageError : NSInteger {
+  // No error.
+  kNone,
+
+  // Failed to create the directory for storing the image.
+  kFailedToCreateDirectory,
+
+  // Failed to write the image data to a file.
+  kFailedToWriteFile,
+
+  // Failed to convert the image to JPEG.
+  kFailedToConvertToJPEG,
+
+  // Must be last.
+  kMaxValue = kFailedToConvertToJPEG,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSUserUploadedImageError)
 
 #endif  // IOS_CHROME_BROWSER_HOME_CUSTOMIZATION_UTILS_HOME_CUSTOMIZATION_CONSTANTS_H_

@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "components/viz/common/resources/shared_image_format.h"
 #include "gpu/command_buffer/client/gpu_command_buffer_client_export.h"
 #include "gpu/command_buffer/client/internal/mappable_buffer.h"
 
@@ -32,14 +33,14 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT MappableBufferSharedMemory
   static std::unique_ptr<MappableBufferSharedMemory> CreateFromHandleForTesting(
       gfx::GpuMemoryBufferHandle handle,
       const gfx::Size& size,
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage usage) {
-    return CreateFromHandle(std::move(handle), size, format, usage);
+    return CreateFromHandle(std::move(handle), size, format);
   }
 
   static base::OnceClosure AllocateForTesting(
       const gfx::Size& size,
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage usage,
       gfx::GpuMemoryBufferHandle* handle);
 
@@ -62,13 +63,11 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT MappableBufferSharedMemory
   static std::unique_ptr<MappableBufferSharedMemory> CreateFromHandle(
       gfx::GpuMemoryBufferHandle handle,
       const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage);
+      viz::SharedImageFormat format);
 
   MappableBufferSharedMemory(
       const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
+      viz::SharedImageFormat format,
       base::UnsafeSharedMemoryRegion shared_memory_region,
       base::WritableSharedMemoryMapping shared_memory_mapping,
       size_t offset,
@@ -77,7 +76,7 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT MappableBufferSharedMemory
   void AssertMapped();
 
   const gfx::Size size_;
-  const gfx::BufferFormat format_;
+  const viz::SharedImageFormat format_;
   base::UnsafeSharedMemoryRegion shared_memory_region_;
   base::WritableSharedMemoryMapping shared_memory_mapping_;
   size_t offset_;

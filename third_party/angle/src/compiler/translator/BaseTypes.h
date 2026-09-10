@@ -1382,7 +1382,7 @@ struct TLayoutQualifier
 
     // EXT_shader_framebuffer_fetch layout qualifiers.
     int inputAttachmentIndex;
-    bool noncoherent;
+    bool noncoherent;  // Also used by ANGLE_shader_pixel_local_storage.
 
     // KHR_blend_equation_advanced layout qualifiers.
     AdvancedBlendEquations advancedBlendEquations;
@@ -1523,8 +1523,8 @@ inline const char *getQualifierString(TQualifier q)
     case EvqParamConst:                return "const";
     case EvqInstanceID:                return "InstanceID";
     case EvqVertexID:                  return "VertexID";
-    case EvqPosition:                  return "Position";
-    case EvqPointSize:                 return "PointSize";
+    case EvqPosition:                  return "out"; // Per EXT_separate_shader_objects
+    case EvqPointSize:                 return "out"; // Per EXT_separate_shader_objects
     case EvqDrawID:                    return "DrawID";
     case EvqFragCoord:                 return "FragCoord";
     case EvqFrontFacing:               return "FrontFacing";
@@ -1576,7 +1576,7 @@ inline const char *getQualifierString(TQualifier q)
     case EvqVolatile:                  return "volatile";
     case EvqGeometryIn:                return "in";
     case EvqGeometryOut:               return "out";
-    case EvqPerVertexIn:               return "gl_in";
+    case EvqPerVertexIn:               return "in";
     case EvqPrimitiveIDIn:             return "gl_PrimitiveIDIn";
     case EvqInvocationID:              return "gl_InvocationID";
     case EvqPrimitiveID:               return "gl_PrimitiveID";

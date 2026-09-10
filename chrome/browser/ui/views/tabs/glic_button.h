@@ -36,14 +36,17 @@ class GlicButton : public TabStripNudgeButton,
                       PressedCallback close_pressed_callback,
                       base::RepeatingClosure hovered_callback,
                       base::RepeatingClosure mouse_down_callback,
-                      const gfx::VectorIcon& icon,
                       const std::u16string& tooltip);
   GlicButton(const GlicButton&) = delete;
   GlicButton& operator=(const GlicButton&) = delete;
   ~GlicButton() override;
 
+  void SetNudgeLabel(std::string label);
+  void RestoreDefaultLabel();
+
   // TabStripNudgeButton:
   void SetIsShowingNudge(bool is_showing) override;
+  void SetWidthFactor(float factor) override;
 
   void SetDropToAttachIndicator(bool indicate);
 
@@ -70,6 +73,8 @@ class GlicButton : public TabStripNudgeButton,
   // Note that this is an optimization for fetching zero-state suggestions so
   // that we can load the suggestions in the UI as quickly as possible.
   bool OnMousePressed(const ui::MouseEvent& event) override;
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
+  void AddedToWidget() override;
 
   bool IsContextMenuShowingForTest();
 
@@ -80,6 +85,9 @@ class GlicButton : public TabStripNudgeButton,
   void HighlightGlicButton();
 
  private:
+  // views::LabelButton:
+  void SetText(std::u16string_view text) override;
+
   // Creates the model for the context menu.
   std::unique_ptr<ui::SimpleMenuModel> CreateMenuModel();
 
@@ -93,6 +101,10 @@ class GlicButton : public TabStripNudgeButton,
   PrefService* profile_prefs() {
     return tab_strip_controller_->GetProfile()->GetPrefs();
   }
+
+  void UpdateTextAndBackgroundColors();
+  void UpdateIcon();
+  bool IsHighlightVisible() const;
 
 #if BUILDFLAG(ENABLE_GLIC)
   void PanelStateChanged(bool active);
@@ -133,6 +145,15 @@ class GlicButton : public TabStripNudgeButton,
   // Callback which is invoked when there is a mouse down event on the button
   // (i.e., the user is very likely to interact with it soon).
   base::RepeatingClosure mouse_down_callback_;
+
+  // Cached initial width for animating label changes.
+  int initial_width_ = 0;
+
+  // View to be drawn behind the icon and label with a background color.
+  raw_ptr<View> highlight_view_ = nullptr;
+
+  const ui::ImageModel normal_icon_;
+  const ui::ImageModel icon_for_highlight_;
 };
 
 }  // namespace glic

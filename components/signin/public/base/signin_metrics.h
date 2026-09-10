@@ -162,7 +162,7 @@ enum class AccessPoint : int {
   kDevicesPage = 12,
   // kCloudPrint = 13, no longer used.
   // kContentArea = 14, no longer used.
-  kSigninPromo = 15,
+  kFullscreenSigninPromo = 15,
   kRecentTabs = 16,
   // This should never have been used to get signin URL.
   kUnknown = 17,
@@ -281,7 +281,7 @@ enum class AccessPoint : int {
   kCollaborationLeaveOrDeleteTabGroup = 79,
   // Access point triggered when a user attempts to opt-in to history sync from
   // the history sync opt-in expanded pill (expanded on inactivity).
-  kHistorySyncOptinExpansionPillOnInactivity = 80,
+  // kHistorySyncOptinExpansionPillOnInactivity = 80, // no longer used
   // History sync education tip is shown on the NTP to users who have history
   // sync disabled. Android only.
   kHistorySyncEducationalTip = 81,

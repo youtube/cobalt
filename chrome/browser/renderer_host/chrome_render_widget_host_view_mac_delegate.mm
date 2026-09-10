@@ -33,7 +33,6 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/browser/web_ui.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 
@@ -454,12 +453,10 @@
   }
 #endif
 
-  if (content::WebUI* web_ui = webContents->GetWebUI()) {
-    // If the ActorOverlayUI webui controller exists for the WebContents, we
-    // should accept mouse events when any window of the application is active.
-    if (web_ui->GetController()->GetAs<actor::ui::ActorOverlayUI>()) {
-      return AcceptMouseEvents::kWhenInActiveApp;
-    }
+  // If the WebContents are from the ActorOverlayUI WebUIController, we should
+  // accept mouse events when any part of the application is active.
+  if (actor::ui::ActorOverlayUI::IsActorOverlayWebContents(webContents)) {
+    return AcceptMouseEvents::kWhenInActiveApp;
   }
 
   return AcceptMouseEvents::kWhenInActiveWindow;

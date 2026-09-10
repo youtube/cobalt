@@ -65,6 +65,7 @@ void Done(base::OnceCallback<
             if (success) {
               return out_file;
             }
+            DeleteFileAndEmptyParentDirectory(out_file);
 #endif  // BUILDFLAG(IS_STARBOARD)
             return base::unexpected<CategorizedError>(
                 {.category = ErrorCategory::kUnpack,

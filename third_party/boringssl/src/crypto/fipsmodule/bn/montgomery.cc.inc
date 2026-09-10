@@ -203,10 +203,7 @@ static int bn_from_montgomery_in_place(BN_ULONG *r, size_t num_r, BN_ULONG *a,
   BN_ULONG carry = 0;
   for (size_t i = 0; i < num_n; i++) {
     BN_ULONG v = bn_mul_add_words(a + i, n, num_n, a[i] * n0);
-    v += carry + a[i + num_n];
-    carry |= (v != a[i + num_n]);
-    carry &= (v <= a[i + num_n]);
-    a[i + num_n] = v;
+    a[i + num_n] = CRYPTO_addc_w(a[i + num_n], v, carry, &carry);
   }
 
   // Shift |num_n| words to divide by R. We have |a| < 2 * |n|. Note that |a|

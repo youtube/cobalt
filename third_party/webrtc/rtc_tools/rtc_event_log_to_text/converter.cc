@@ -34,7 +34,6 @@
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_ack_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
@@ -506,12 +505,6 @@ bool Convert(std::string inputfile,
             event.payload_length, event.padding_length);
   };
 
-  auto generic_ack_received_handler =
-      [&](const LoggedGenericAckReceived& event) {
-        fprintf(output, "GENERIC_ACK_RECV %" PRId64 " <contents omitted>\n",
-                event.log_time_ms());
-      };
-
   auto decoded_frame_handler = [&](const LoggedFrameDecoded& event) {
     static const std::map<VideoCodecType, std::string> codec_name{
         {VideoCodecType::kVideoCodecGeneric, "GENERIC"},
@@ -701,8 +694,6 @@ bool Convert(std::string inputfile,
                       generic_packet_received_handler);
   processor.AddEvents(parsed_log.generic_packets_sent(),
                       generic_packet_sent_handler);
-  processor.AddEvents(parsed_log.generic_acks_received(),
-                      generic_ack_received_handler);
 
   // Video frames
   for (const auto& kv : parsed_log.decoded_frames()) {

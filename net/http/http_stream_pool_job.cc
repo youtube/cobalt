@@ -44,16 +44,26 @@ NextProtoSet CalculateAllowedAlpns(HttpStreamPool::Job::Delegate* delegate,
   }
 
   NextProtoSet allowed_alpns = expected_protocol == NextProto::kProtoUnknown
-                                   ? NextProtoSet::All()
+                                   ? HttpStreamPool::kAllProtocols
                                    : NextProtoSet({expected_protocol});
 
   allowed_alpns = Intersection(allowed_alpns, delegate->allowed_alpns());
 
-  if (!group->pool()->CanUseQuic(
+  // Remove QUIC from the list if QUIC cannot be used for some reason.
+  //
+  // Note that this does not check RequiresHTTP11(), as despite its name, it
+  // only means H2 is not allowed.
+  //
+  // Inlining this logic instead of calling HttpStreamPool::CanUseQuic() is an
+  // optimization, to avoid the extra ShouldForceQuic() call.
+  if (!group->http_network_session()->IsQuicEnabled() ||
+      !delegate->enable_alternative_services() ||
+      !GURL::SchemeIsCryptographic(
+          group->stream_key().destination().scheme()) ||
+      group->pool()->IsQuicBroken(
           group->stream_key().destination(),
-          group->stream_key().network_anonymization_key(),
-          delegate->enable_alternative_services())) {
-    allowed_alpns.Remove(NextProto::kProtoQUIC);
+          group->stream_key().network_anonymization_key())) {
+    allowed_alpns.RemoveAll(HttpStreamPool::kQuicBasedProtocols);
   }
 
   CHECK(!allowed_alpns.empty());
@@ -197,12 +207,20 @@ void HttpStreamPool::Job::OnStreamReady(
   CHECK(!negotiated_protocol_);
   CHECK(attempt_manager_);
 
-  if (!allowed_alpns_.Has(negotiated_protocol)) {
+  // `allowed_alpns_` never includes kProtoUnknown, which when making a request,
+  // can mean "any protocol", but when receiving a response means "not H2 and
+  // not H3", thus implying H1 (or some other protocol), so when comparing the
+  // protocol of the received stream, replace kProtoUnknown with kProtoHTTP11.
+  NextProto logical_protocol = (negotiated_protocol != NextProto::kProtoUnknown
+                                    ? negotiated_protocol
+                                    : NextProto::kProtoHTTP11);
+  if (!allowed_alpns_.Has(logical_protocol)) {
     OnStreamFailed(ERR_ALPN_NEGOTIATION_FAILED, NetErrorDetails(),
                    ResolveErrorInfo());
     return;
   }
 
+  result_ = OK;
   negotiated_protocol_ = negotiated_protocol;
   attempt_manager_->group()
       ->http_network_session()

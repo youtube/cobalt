@@ -138,7 +138,7 @@ class FakePacketTransport : public PacketTransportInternal {
     if (dest_) {
       dest_->NotifyPacketReceived(ReceivedIpPacket(
           packet, SocketAddress(), Timestamp::Micros(TimeMicros()),
-          options.ecn_1 ? EcnMarking::kEct1 : EcnMarking::kNotEct));
+          options.ect_1 ? EcnMarking::kEct1 : EcnMarking::kNotEct));
     }
   }
 

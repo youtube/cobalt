@@ -71,12 +71,33 @@ class GlicDelegatingSharingManager : public GlicSharingManager {
       mojom::GetPinCandidatesOptionsPtr options,
       mojo::PendingRemote<mojom::PinCandidatesObserver> observer) override;
   GlicFocusedBrowserManagerInterface& focused_browser_manager() override;
+  base::WeakPtr<GlicSharingManager> GetWeakPtr() override;
 
   // Sets the sharing manager delegate. Notifies all subscribers for all
   // callback list subscriptions.
   void SetDelegate(base::WeakPtr<GlicSharingManager> sharing_manager_delegate);
 
  private:
+  // Callbacks for subscribing to delegate (will be forwarded).
+  void OnFocusedTabChangedCallback(const FocusedTabData& focused_tab_data);
+  void OnFocusedTabDataChangedCallback(const mojom::TabData* focused_tab_data);
+  void OnFocusedBrowserChangedCallback(BrowserWindowInterface* browser_window);
+  void OnTabPinningStatusChangedCallback(tabs::TabInterface* tab, bool pinned);
+  void OnPinnedTabsChangedCallback(
+      const std::vector<content::WebContents*>& pinnned_tabs);
+  void OnPinnedTabDataChangedCallback(const TabDataChange& tab_data_change);
+
+  // Refreshes all internal subscriptions to point at current delegate.
+  void RefreshDelegateSubscriptions();
+
+  // Resets all internal subscriptions to empty.
+  void ResetDelegateSubscriptions();
+
+  // Forces notifications where possible.
+  // TODO(b:444463509): split sharing manager interface up so it's clear which
+  // notifications we actually force (i.e. what delegation is possible).
+  void ForceNotify(const std::vector<content::WebContents*>& old_pinned_tabs);
+
   base::WeakPtr<GlicSharingManager> sharing_manager_delegate_;
 
   // Callback lists. Maintains its own callback lists to seamlessly support
@@ -93,6 +114,16 @@ class GlicDelegatingSharingManager : public GlicSharingManager {
       pinned_tabs_changed_callback_list_;
   base::RepeatingCallbackList<void(const TabDataChange&)>
       pinned_tab_data_changed_callback_list_;
+
+  // Callbacks. These are used to forward callback events from the delegate.
+  base::CallbackListSubscription focused_tab_changed_callback_;
+  base::CallbackListSubscription focused_tab_data_changed_callback_;
+  base::CallbackListSubscription focused_browser_changed_callback_;
+  base::CallbackListSubscription tab_pinning_status_changed_callback_;
+  base::CallbackListSubscription pinned_tabs_changed_callback_;
+  base::CallbackListSubscription pinned_tab_data_changed_callback_;
+
+  base::WeakPtrFactory<GlicDelegatingSharingManager> weak_ptr_factory_{this};
 };
 
 }  // namespace glic

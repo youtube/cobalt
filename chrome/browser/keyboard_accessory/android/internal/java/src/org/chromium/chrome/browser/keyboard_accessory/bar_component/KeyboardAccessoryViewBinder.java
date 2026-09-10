@@ -9,6 +9,7 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ANIMATE_SUGGESTIONS_FROM_TOP;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ANIMATION_LISTENER;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BAR_ITEMS;
+import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BAR_ITEMS_FIXED;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DISABLE_ANIMATIONS_FOR_TESTING;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DISMISS_ITEM;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.HAS_STICKY_LAST_ITEM;
@@ -106,6 +107,7 @@ class KeyboardAccessoryViewBinder {
 
     abstract static class BarItemViewHolder<T extends BarItem, V extends View>
             extends RecyclerView.ViewHolder {
+        private static final float LARGE_FONT_THRESHOLD = 1.3f;
 
         BarItemViewHolder(ViewGroup parent, @LayoutRes int layout) {
             this(LayoutInflater.from(parent.getContext()).inflate(layout, parent, false));
@@ -132,10 +134,14 @@ class KeyboardAccessoryViewBinder {
          * The opposite of {@link #bind}. Use this to free expensive resources or reset observers.
          */
         protected void recycle() {}
+
+        protected static boolean useLargeChips(Context context) {
+            return ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_ELEGANT_TEXT_HEIGHT)
+                    && context.getResources().getConfiguration().fontScale >= LARGE_FONT_THRESHOLD;
+        }
     }
 
     static class BarItemChipViewHolder extends BarItemViewHolder<AutofillBarItem, ChipView> {
-        private static final float LARGE_FONT_THRESHOLD = 1.3f;
         private final View mRootViewForIPH;
         private final KeyboardAccessoryView mKeyboardAccessory;
         private final Function<@Nullable AutofillSuggestion, @Nullable Drawable>
@@ -251,24 +257,20 @@ class KeyboardAccessoryViewBinder {
         @StyleRes
         private static int selectStyleForSuggestion(
                 Context context, @BarItem.Type int barItemType) {
-            final boolean useLargeChips =
-                    ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_ELEGANT_TEXT_HEIGHT)
-                            && context.getResources().getConfiguration().fontScale
-                                    >= LARGE_FONT_THRESHOLD;
             if (ChromeFeatureList.isEnabled(
                     ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)) {
                 switch (barItemType) {
                     case BarItem.Type.LOYALTY_CARD_SUGGESTION:
                         // Loyalty cards suggestions have round icons.
-                        return useLargeChips
+                        return useLargeChips(context)
                                 ? R.style.KeyboardAccessoryLoyaltyCardLargeTwoLineChip
                                 : R.style.KeyboardAccessoryLoyaltyCardTwoLineChip;
                     case BarItem.Type.HOME_AND_WORK_SUGGESTION:
-                        return useLargeChips
+                        return useLargeChips(context)
                                 ? R.style.KeyboardAccessoryHomeAndWorkLargeTwoLineChip
                                 : R.style.KeyboardAccessoryHomeAndWorkTwoLineChip;
                     case BarItem.Type.SUGGESTION:
-                        return useLargeChips
+                        return useLargeChips(context)
                                 ? R.style.KeyboardAccessoryLargeTwoLineChip
                                 : R.style.KeyboardAccessoryTwoLineChip;
                     case BarItem.Type.ACTION_CHIP:
@@ -283,15 +285,15 @@ class KeyboardAccessoryViewBinder {
             switch (barItemType) {
                 case BarItem.Type.LOYALTY_CARD_SUGGESTION:
                     // Loyalty cards suggestions have round icons.
-                    return useLargeChips
+                    return useLargeChips(context)
                             ? R.style.KeyboardAccessoryLoyaltyCardLargeChip
                             : R.style.KeyboardAccessoryLoyaltyCardChip;
                 case BarItem.Type.HOME_AND_WORK_SUGGESTION:
-                    return useLargeChips
+                    return useLargeChips(context)
                             ? R.style.KeyboardAccessoryHomeAndWorkLargeChip
                             : R.style.KeyboardAccessoryHomeAndWorkChip;
                 case BarItem.Type.SUGGESTION:
-                    return useLargeChips
+                    return useLargeChips(context)
                             ? R.style.KeyboardAccessoryLargeChip
                             : R.style.KeyboardAccessoryChip;
                 case BarItem.Type.ACTION_CHIP:
@@ -321,7 +323,7 @@ class KeyboardAccessoryViewBinder {
 
     static class BarItemActionChipViewHolder extends BarItemViewHolder<BarItem, ChipView> {
         BarItemActionChipViewHolder(ViewGroup parent) {
-            super(new ChipView(parent.getContext(), null, 0, R.style.KeyboardAccessoryChip));
+            super(new ChipView(parent.getContext(), null, 0, selectStyle(parent.getContext())));
         }
 
         @Override
@@ -331,6 +333,18 @@ class KeyboardAccessoryViewBinder {
             if (action != null) {
                 chipView.setOnClickListener(view -> action.getCallback().onResult(action));
             }
+        }
+
+        private static @StyleRes int selectStyle(Context context) {
+            if (ChromeFeatureList.isEnabled(
+                    ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)) {
+                return useLargeChips(context)
+                        ? R.style.KeyboardAccessoryLargeTwoLineChip
+                        : R.style.KeyboardAccessoryTwoLineChip;
+            }
+            return useLargeChips(context)
+                    ? R.style.KeyboardAccessoryLargeChip
+                    : R.style.KeyboardAccessoryChip;
         }
     }
 
@@ -364,8 +378,8 @@ class KeyboardAccessoryViewBinder {
      * @param propertyKey A {@link PropertyKey}.
      */
     static void bind(PropertyModel model, KeyboardAccessoryView view, PropertyKey propertyKey) {
-        if (propertyKey == BAR_ITEMS) {
-            // Intentionally empty. The adapter will observe changes to BAR_ITEMS.
+        if (propertyKey == BAR_ITEMS || propertyKey == BAR_ITEMS_FIXED) {
+            // Intentionally empty. The adapter will observe changes to bar items.
         } else if (propertyKey == DISABLE_ANIMATIONS_FOR_TESTING) {
             if (model.get(DISABLE_ANIMATIONS_FOR_TESTING)) {
                 view.disableAnimationsForTesting(); // IN-TEST

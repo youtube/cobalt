@@ -69,7 +69,7 @@ void PixManager::OnPixCodeCopiedToClipboard(
   }
   has_payflow_started_ = true;
   client_->SetUiEventListener(base::BindRepeating(
-      &PixManager::OnUiEvent, weak_ptr_factory_.GetWeakPtr()));
+      &PixManager::OnUiScreenEvent, weak_ptr_factory_.GetWeakPtr()));
   pix_code_copied_timestamp_ = base::TimeTicks::Now();
   ukm_source_id_ = ukm_source_id;
   LogPixCodeCopied(ukm_source_id_);
@@ -97,10 +97,10 @@ bool PixManager::IsMerchantAllowlisted(const GURL& url) const {
     // allowlist.
     return true;
   }
-  // Since the optimization guide decider integration corresponding to PIX
+  // Since the optimization guide decider integration corresponding to Pix
   // merchant lists are allowlists for the question "Can this site be
   // optimized?", a match on the allowlist answers the question with "yes".
-  // Therefore, `kTrue` indicates that `url` is allowed for detecting PIX code
+  // Therefore, `kTrue` indicates that `url` is allowed for detecting Pix code
   // on copy events. If the optimization type was not registered in time when we
   // queried it, it will be `kUnknown`.
   return optimization_guide_decider_->CanApplyOptimization(
@@ -126,8 +126,8 @@ void PixManager::OnPixCodeValidated(
     LogPixFlowExitedReason(PixFlowExitedReason::kInvalidCode);
     return;
   }
-  // If a valid PIX code is found, and the user has Google wallet linked PIX
-  // accounts, verify that the payments API is available, and then show the PIX
+  // If a valid Pix code is found, and the user has Google Wallet linked Pix
+  // accounts, verify that the payments API is available, and then show the Pix
   // payment prompt.
   auto* payments_data_manager = client_->GetPaymentsDataManager();
   if (!payments_data_manager) {
@@ -347,7 +347,7 @@ void PixManager::OnPurchaseActionResult(base::TimeTicks start_time,
       result, base::TimeTicks::Now() - pix_code_copied_timestamp_);
 }
 
-void PixManager::OnUiEvent(UiEvent ui_event_type) {
+void PixManager::OnUiScreenEvent(UiEvent ui_event_type) {
   switch (ui_event_type) {
     case UiEvent::kNewScreenShown: {
       CHECK_NE(ui_state_, UiState::kHidden);

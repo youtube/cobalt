@@ -309,8 +309,8 @@ void ModulesInitializer::InitInspectorAgentSession(
     InspectedFrames* inspected_frames,
     Page* page) const {
 #if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-  session->CreateAndAppend<InspectorIndexedDBAgent>(inspected_frames,
-                                                    session->V8Session());
+  session->CreateAndAppend<InspectorIndexedDBAgent>(
+      inspected_frames, /*worker_global_scope=*/nullptr, session->V8Session());
   session->CreateAndAppend<DeviceOrientationInspectorAgent>(inspected_frames);
   session->CreateAndAppend<InspectorDOMStorageAgent>(inspected_frames);
   session->CreateAndAppend<InspectorAccessibilityAgent>(inspected_frames,
@@ -318,6 +318,15 @@ void ModulesInitializer::InitInspectorAgentSession(
   session->CreateAndAppend<InspectorWebAudioAgent>(page);
   session->CreateAndAppend<InspectorCacheStorageAgent>(inspected_frames);
   session->CreateAndAppend<BucketFileSystemAgent>(inspected_frames);
+#endif
+}
+
+void ModulesInitializer::InitWorkerInspectorAgentSession(
+    DevToolsSession* session,
+    WorkerGlobalScope* worker_global_scope) const {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+  session->CreateAndAppend<InspectorIndexedDBAgent>(
+      /*inspected_frames=*/nullptr, worker_global_scope, session->V8Session());
 #endif
 }
 

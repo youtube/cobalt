@@ -268,6 +268,13 @@ int x509_name_copy(X509_NAME *dst, const X509_NAME *src) {
   if (cache == nullptr) {
     return 0;
   }
+  // Callers sometimes try to set a name back to itself. We check this after
+  // |x509_name_get_cache| because, if |src| was so broken that it could not be
+  // serialized, we used to return an error. (It's not clear if this codepath is
+  // even possible.)
+  if (dst == src) {
+    return 1;
+  }
   CBS cbs;
   CBS_init(&cbs, cache->der, cache->der_len);
   if (!x509_parse_name(&cbs, dst)) {
@@ -297,6 +304,10 @@ X509_NAME *d2i_X509_NAME(X509_NAME **out, const uint8_t **inp, long len) {
 }
 
 int i2d_X509_NAME(const X509_NAME *in, uint8_t **outp) {
+  if (in == nullptr) {
+    OPENSSL_PUT_ERROR(X509, ERR_R_PASSED_NULL_PARAMETER);
+    return -1;
+  }
   const X509_NAME_CACHE *cache = x509_name_get_cache(in);
   if (cache == nullptr) {
     return -1;

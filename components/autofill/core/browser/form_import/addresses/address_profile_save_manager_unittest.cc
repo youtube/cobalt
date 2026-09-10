@@ -59,6 +59,10 @@ constexpr char kProfileUpdateNumberOfAffectedTypesHistogram[] =
     "Autofill.ProfileImport.UpdateProfileNumberOfAffectedFields";
 constexpr char kHomeAndWorkProfileUpdateHistogram[] =
     "Autofill.ProfileImport.HomeAndWorkSupersetProfileDecision";
+constexpr char kNameEmailProfileSupersetHistogram[] =
+    "Autofill.ProfileImport.NameEmailSupersetProfileDecision";
+constexpr char kHomeOrWorkAndNameEmailMergeHistogram[] =
+    "Autofill.ProfileImport.HomeOrWorkAndNameEmailMergeDecision";
 
 // Test that two AutofillProfiles have the same `record_type() and `Compare()`
 // equal.
@@ -423,15 +427,22 @@ void AddressProfileSaveManagerTest::VerifyUMAMetricsCollection(
       kProfileMigrationDecisionHistogram, kProfileMigrationEditsHistogram};
   constexpr ImportHistogramNames update_home_and_work_profile_histograms = {
       kHomeAndWorkProfileUpdateHistogram};
-
+  constexpr ImportHistogramNames name_email_profile_superset_histogram = {
+      kNameEmailProfileSupersetHistogram};
+  constexpr ImportHistogramNames home_or_work_name_email_merge_histogram = {
+      kHomeOrWorkAndNameEmailMergeHistogram};
   // If the import was not a new profile, confirmable merge or migration, test
   // that the corresponding histograms are unchanged.
   if (!IsNewProfile(test_scenario) && !IsConfirmableMerge(test_scenario) &&
-      !IsMigration(test_scenario) && !IsHomeAndWorkSuperset(test_scenario)) {
+      !IsMigration(test_scenario) && !IsHomeAndWorkSuperset(test_scenario) &&
+      !IsNameEmailSuperset(test_scenario) &&
+      !IsHomeWorkNameEmailMerge(test_scenario)) {
     new_profile_histograms.ExpectAllEmpty(histogram_tester);
     update_profile_histograms.ExpectAllEmpty(histogram_tester);
     migrate_profile_histograms.ExpectAllEmpty(histogram_tester);
     update_home_and_work_profile_histograms.ExpectAllEmpty(histogram_tester);
+    name_email_profile_superset_histogram.ExpectAllEmpty(histogram_tester);
+    home_or_work_name_email_merge_histogram.ExpectAllEmpty(histogram_tester);
     return;
   }
   // The import can only be one of {new, updated, migrated} profile at once.
@@ -439,7 +450,9 @@ void AddressProfileSaveManagerTest::VerifyUMAMetricsCollection(
       std::ranges::count(
           std::vector<bool>{
               IsNewProfile(test_scenario), IsConfirmableMerge(test_scenario),
-              IsMigration(test_scenario), IsHomeAndWorkSuperset(test_scenario)},
+              IsMigration(test_scenario), IsHomeAndWorkSuperset(test_scenario),
+              IsNameEmailSuperset(test_scenario),
+              IsHomeWorkNameEmailMerge(test_scenario)},
           true),
       1);
 
@@ -448,6 +461,10 @@ void AddressProfileSaveManagerTest::VerifyUMAMetricsCollection(
       : IsConfirmableMerge(test_scenario) ? update_profile_histograms
       : IsHomeAndWorkSuperset(test_scenario)
           ? update_home_and_work_profile_histograms
+      : IsNameEmailSuperset(test_scenario)
+          ? name_email_profile_superset_histogram
+      : IsHomeWorkNameEmailMerge(test_scenario)
+          ? home_or_work_name_email_merge_histogram
           : migrate_profile_histograms;
   // Expect records in the affected histograms.
   histogram_tester.ExpectUniqueSample(affected_histograms.decision,
@@ -463,8 +480,9 @@ void AddressProfileSaveManagerTest::VerifyUMAMetricsCollection(
   // Expect no records in all unaffected histograms.
   for (const ImportHistogramNames* histograms :
        {&new_profile_histograms, &update_profile_histograms,
-        &migrate_profile_histograms,
-        &update_home_and_work_profile_histograms}) {
+        &migrate_profile_histograms, &update_home_and_work_profile_histograms,
+        &name_email_profile_superset_histogram,
+        &home_or_work_name_email_merge_histogram}) {
     if (histograms != &affected_histograms) {
       histograms->ExpectAllEmpty(histogram_tester);
     }
@@ -1035,209 +1053,25 @@ TEST_P(AddressProfileSaveManagerTest, UserConfirmableMerge_Declined) {
 
 // Test a mixed scenario in which a duplicate profile already exists, but a
 // another profile is mergeable with the observed profile.
+// In this case prevent showing an update dialog because the user may have just
+// autofilled the form. Seeing an update prompt for the data that was just
+// filled would be surprising. On the next version update, the mergeable profile
+// will be deduped.
+// Regression test for crbug.com/447295932.
 TEST_P(AddressProfileSaveManagerTest, UserConfirmableMergeAndDuplicate) {
   AutofillProfile observed_profile = test::StandardProfile();
   AutofillProfile existing_duplicate = test::StandardProfile();
   AutofillProfile mergeable_profile = test::SubsetOfStandardProfile();
 
-  AutofillProfile merged_profile = observed_profile;
-  test::CopyGUID(mergeable_profile, &merged_profile);
-
   ImportScenarioTestCase test_scenario{
       .existing_profiles = {existing_duplicate, mergeable_profile},
-      .observed_profile = observed_profile,
-      .is_prompt_expected = true,
-      .user_decision = UserDecision::kAccepted,
-      .expected_import_type = AutofillProfileImportType::kConfirmableMerge,
-      .is_profile_change_expected = true,
-      .merge_candidate = mergeable_profile,
-      .import_candidate = merged_profile,
-      .expected_final_profiles = {existing_duplicate, merged_profile},
-      .expected_affected_types_in_merge_for_metrics = {
-          SettingsVisibleFieldTypeForMetrics::kZip,
-          SettingsVisibleFieldTypeForMetrics::kCity}};
-
-  TestImportScenario(test_scenario);
-}
-
-// Test a mixed scenario in which a duplicate profile already exists, but a
-// another profile is mergeable with the observed profile. The result should not
-// be affected by the fact that the domain is blocked for the import of new
-// profiles.
-TEST_P(AddressProfileSaveManagerTest,
-       UserConfirmableMergeAndDuplicateOnBlockedDomain) {
-  AutofillProfile observed_profile = test::StandardProfile();
-  AutofillProfile existing_duplicate = test::StandardProfile();
-  AutofillProfile mergeable_profile = test::SubsetOfStandardProfile();
-
-  AutofillProfile merged_profile = observed_profile;
-  test::CopyGUID(mergeable_profile, &merged_profile);
-
-  ImportScenarioTestCase test_scenario{
-      .existing_profiles = {existing_duplicate, mergeable_profile},
-      .observed_profile = observed_profile,
-      .is_prompt_expected = true,
-      .user_decision = UserDecision::kAccepted,
-      .expected_import_type = AutofillProfileImportType::kConfirmableMerge,
-      .is_profile_change_expected = true,
-      .merge_candidate = mergeable_profile,
-      .import_candidate = merged_profile,
-      .expected_final_profiles = {existing_duplicate, merged_profile},
-      .expected_affected_types_in_merge_for_metrics =
-          {SettingsVisibleFieldTypeForMetrics::kZip,
-           SettingsVisibleFieldTypeForMetrics::kCity},
-      .new_profiles_suppresssed_for_domain = true};
-
-  TestImportScenario(test_scenario);
-}
-
-// Test a mixed scenario in which a duplicate profile already exists, but a
-// another profile is mergeable with the observed profile and yet another
-// profile can be silently updated.
-TEST_P(AddressProfileSaveManagerTest,
-       UserConfirmableMergeAndUpdateAndDuplicate) {
-  AutofillProfile observed_profile = test::StandardProfile();
-  AutofillProfile existing_duplicate = test::StandardProfile();
-  AutofillProfile updateable_profile = test::UpdateableStandardProfile();
-  AutofillProfile mergeable_profile = test::SubsetOfStandardProfile();
-
-  // Both the mergeable and updateable profile should have the same values as
-  // the observed profile.
-  AutofillProfile merged_profile = observed_profile;
-  AutofillProfile updated_profile = observed_profile;
-  // However, the GUIDs must be maintained.
-  test::CopyGUID(updateable_profile, &updated_profile);
-  test::CopyGUID(mergeable_profile, &merged_profile);
-
-  ImportScenarioTestCase test_scenario{
-      .existing_profiles = {existing_duplicate, mergeable_profile,
-                            updateable_profile},
-      .observed_profile = observed_profile,
-      .is_prompt_expected = true,
-      .user_decision = UserDecision::kAccepted,
-      .expected_import_type =
-          AutofillProfileImportType::kConfirmableMergeAndSilentUpdate,
-      .is_profile_change_expected = true,
-      .merge_candidate = mergeable_profile,
-      .import_candidate = merged_profile,
-      .expected_final_profiles = {existing_duplicate, updated_profile,
-                                  merged_profile},
-      .expected_affected_types_in_merge_for_metrics = {
-          SettingsVisibleFieldTypeForMetrics::kZip,
-          SettingsVisibleFieldTypeForMetrics::kCity}};
-
-  TestImportScenario(test_scenario);
-}
-
-// Same as above, but the merge candidate is blocked for updates.
-TEST_P(AddressProfileSaveManagerTest,
-       UserConfirmableMergeAndUpdateAndDuplicate_Blocked) {
-  AutofillProfile observed_profile = test::StandardProfile();
-  AutofillProfile existing_duplicate = test::StandardProfile();
-  AutofillProfile updateable_profile = test::UpdateableStandardProfile();
-  AutofillProfile mergeable_profile = test::SubsetOfStandardProfile();
-
-  // Both the mergeable and updateable profile should have the same values as
-  // the observed profile.
-  AutofillProfile merged_profile = observed_profile;
-  AutofillProfile updated_profile = observed_profile;
-  // However, the GUIDs must be maintained.
-  test::CopyGUID(updateable_profile, &updated_profile);
-  test::CopyGUID(mergeable_profile, &merged_profile);
-
-  ImportScenarioTestCase test_scenario{
-      .existing_profiles = {existing_duplicate, mergeable_profile,
-                            updateable_profile},
       .observed_profile = observed_profile,
       .is_prompt_expected = false,
       .user_decision = UserDecision::kUserNotAsked,
       .expected_import_type =
-          AutofillProfileImportType::kSuppressedConfirmableMergeAndSilentUpdate,
-      .is_profile_change_expected = true,
-      .expected_final_profiles = {existing_duplicate, mergeable_profile,
-                                  updated_profile},
-      .blocked_guids_for_updates = {mergeable_profile.guid()}};
-
-  TestImportScenario(test_scenario);
-}
-
-// Test a mixed scenario in which a duplicate profile already exists, but a
-// another profile is mergeable with the observed profile and yet another
-// profile can be silently updated. Here, the merge is declined.
-TEST_P(AddressProfileSaveManagerTest,
-       UserConfirmableMergeAndUpdateAndDuplicate_Declined) {
-  AutofillProfile observed_profile = test::StandardProfile();
-  AutofillProfile existing_duplicate = test::StandardProfile();
-  AutofillProfile updateable_profile = test::UpdateableStandardProfile();
-  AutofillProfile mergeable_profile = test::SubsetOfStandardProfile();
-
-  // Both the mergeable and updateable profile should have the same values as
-  // the observed profile.
-  AutofillProfile merged_profile = observed_profile;
-  AutofillProfile updated_profile = observed_profile;
-  // However, the GUIDs must be maintained.
-  test::CopyGUID(updateable_profile, &updated_profile);
-  test::CopyGUID(mergeable_profile, &merged_profile);
-
-  ImportScenarioTestCase test_scenario{
-      .existing_profiles = {existing_duplicate, mergeable_profile,
-                            updateable_profile},
-      .observed_profile = observed_profile,
-      .is_prompt_expected = true,
-      .user_decision = UserDecision::kDeclined,
-      .expected_import_type =
-          AutofillProfileImportType::kConfirmableMergeAndSilentUpdate,
-      .is_profile_change_expected = true,
-      .merge_candidate = mergeable_profile,
-      .import_candidate = merged_profile,
-      .expected_final_profiles = {existing_duplicate, updated_profile,
-                                  mergeable_profile},
-      .expected_affected_types_in_merge_for_metrics = {
-          SettingsVisibleFieldTypeForMetrics::kZip,
-          SettingsVisibleFieldTypeForMetrics::kCity}};
-
-  TestImportScenario(test_scenario);
-}
-
-// Test a mixed scenario in which a duplicate profile already exists, but a
-// another profile is mergeable with the observed profile and yet another
-// profile can be silently updated. Here, the merge is accepted with edits.
-TEST_P(AddressProfileSaveManagerTest,
-       UserConfirmableMergeAndUpdateAndDuplicate_Edited) {
-  AutofillProfile observed_profile = test::StandardProfile();
-  AutofillProfile existing_duplicate = test::StandardProfile();
-  AutofillProfile updateable_profile = test::UpdateableStandardProfile();
-  AutofillProfile mergeable_profile = test::SubsetOfStandardProfile();
-  AutofillProfile edited_profile = test::DifferentFromStandardProfile();
-
-  // Both the mergeable and updateable profile should have the same values as
-  // the observed profile.
-  AutofillProfile merged_profile = observed_profile;
-  AutofillProfile updated_profile = observed_profile;
-  // However, the GUIDs must be maintained.
-  test::CopyGUID(updateable_profile, &updated_profile);
-  test::CopyGUID(mergeable_profile, &merged_profile);
-  test::CopyGUID(mergeable_profile, &edited_profile);
-
-  ImportScenarioTestCase test_scenario{
-      .existing_profiles = {existing_duplicate, mergeable_profile,
-                            updateable_profile},
-      .observed_profile = observed_profile,
-      .is_prompt_expected = true,
-      .user_decision = UserDecision::kEditAccepted,
-      .edited_profile = edited_profile,
-      .expected_import_type =
-          AutofillProfileImportType::kConfirmableMergeAndSilentUpdate,
-      .is_profile_change_expected = true,
-      .merge_candidate = mergeable_profile,
-      .import_candidate = merged_profile,
-      .expected_final_profiles = {existing_duplicate, updated_profile,
-                                  edited_profile},
-      .expected_edited_types_for_metrics = {
-          SettingsVisibleFieldTypeForMetrics::kName,
-          SettingsVisibleFieldTypeForMetrics::kStreetAddress,
-          SettingsVisibleFieldTypeForMetrics::kCity,
-          SettingsVisibleFieldTypeForMetrics::kZip}};
+          AutofillProfileImportType::kSuppressedConfirmableMerge,
+      .is_profile_change_expected = false,
+      .expected_final_profiles = {existing_duplicate, mergeable_profile}};
 
   TestImportScenario(test_scenario);
 }

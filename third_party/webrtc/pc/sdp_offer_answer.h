@@ -25,6 +25,7 @@
 #include "absl/strings/string_view.h"
 #include "api/audio_options.h"
 #include "api/candidate.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
@@ -566,7 +567,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   // ==================================================================
   // Access to pc_ variables
-  MediaEngineInterface* media_engine() const;
+  const MediaEngineInterface* media_engine() const;
   TransceiverList* transceivers();
   const TransceiverList* transceivers() const;
   DataChannelController* data_channel_controller();

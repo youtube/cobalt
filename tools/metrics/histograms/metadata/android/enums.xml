@@ -587,13 +587,17 @@ chromium-metrics-reviews@google.com.
   <int value="66" label="WebMessagePayload.getAsString"/>
   <int value="67" label="WebMessagePayload.getAsArrayBuffer"/>
   <int value="68"
-      label="WebSettingsCompat.setRequestedWithHeaderOriginAllowList"/>
+      label="WebSettingsCompat.setRequestedWithHeaderOriginAllowList
+             (deprecated)"/>
   <int value="69"
-      label="WebViewCompat.WebSettingsCompat.getRequestedWithHeaderOriginAllowList"/>
+      label="WebViewCompat.WebSettingsCompat.getRequestedWithHeaderOriginAllowList
+             (deprecated)"/>
   <int value="70"
-      label="ServiceWorkerWebSettingsCompat.setRequestedWithHeaderOriginAllowList"/>
+      label="ServiceWorkerWebSettingsCompat.setRequestedWithHeaderOriginAllowList
+             (deprecated)"/>
   <int value="71"
-      label="ServiceWorkerWebSettingsCompat.getRequestedWithHeaderOriginAllowList"/>
+      label="ServiceWorkerWebSettingsCompat.getRequestedWithHeaderOriginAllowList
+             (deprecated)"/>
   <int value="72"
       label="WebViewProviderFactory.getDropDataProviderImplementation"/>
   <int value="73"
@@ -684,15 +688,18 @@ chromium-metrics-reviews@google.com.
       label="ServiceWorkerWebSettingsCompat.getIncludeCookiesOnIntercept"/>
   <int value="150" label="Profile.warmUpRendererProcess"/>
   <int value="151" label="Profile.setOriginMatchedHeader"/>
-  <int value="152" label="Profile.hasOriginMatchedHeader"/>
-  <int value="153" label="Profile.clearOriginMatchedHeader"/>
-  <int value="154" label="Profile.clearAllOriginMatchedHeaders"/>
+  <int value="152" label="Profile.hasCustomHeader"/>
+  <int value="153" label="Profile.clearCustomHeader"/>
+  <int value="154" label="Profile.clearAllCustomHeaders"/>
   <int value="155" label="WebSettingsCompat.setBackForwardCacheSettings"/>
   <int value="156" label="WebSettingsCompat.getBackForwardCacheSettings"/>
   <int value="157" label="BackForwardCacheSettings.getTimeoutInSeconds"/>
   <int value="158" label="BackForwardCacheSettings.getMaxPagesInCache"/>
   <int value="159" label="Profile.preconnect"/>
   <int value="160" label="WebSettingsCompat.setHyperlinkContextMenuItems"/>
+  <int value="161" label="Page.isPrerendering"/>
+  <int value="162" label="Profile.addCustomHeader"/>
+  <int value="163" label="Profile.getCustomHeaders"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -902,13 +909,6 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Failure"/>
   <int value="1" label="Allow"/>
   <int value="2" label="Disallow"/>
-</enum>
-
-<enum name="CommittedRequestedWithHeaderMode">
-  <int value="0" label="No header set"/>
-  <int value="1" label="App package name"/>
-  <int value="2" label="Constant string 'WebView'"/>
-  <int value="3" label="Header set by client code"/>
 </enum>
 
 <enum name="ContactsPickerDialogAction">
@@ -1188,6 +1188,9 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="CouldNotFindViewForFrameSinkId"/>
   <int value="2" label="FrameSinkIdCorrespondsToChildView"/>
   <int value="3" label="FrameSinkIdNotAttachedToRootCFS"/>
+  <int value="4" label="DroppedOutOfOrderDownTime"/>
+  <int value="5" label="DroppedTooManyPendingStates"/>
+  <int value="6" label="DroppedUnusedOlderStates"/>
 </enum>
 
 <enum name="LightTheme">
@@ -1883,7 +1886,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="NonFingerToolType"/>
   <int value="3" label="VizInitializationNotComplete"/>
   <int value="4" label="SelectionHandlesActive"/>
-  <int value="5" label="CanTriggerBackGesture"/>
+  <int value="5" label="(Obsolete) CanTriggerBackGesture"/>
   <int value="6" label="ImeIsActive"/>
   <int value="7" label="RequestedByEmbedder"/>
   <int value="8" label="SystemServerDidNotTransfer"/>

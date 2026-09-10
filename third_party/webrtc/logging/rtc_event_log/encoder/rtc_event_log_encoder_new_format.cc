@@ -45,7 +45,6 @@
 #include "logging/rtc_event_log/events/rtc_event_dtls_transport_state.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_ack_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
@@ -903,12 +902,6 @@ std::string RtcEventLogEncoderNewFormat::EncodeBatch(
           generic_packets_sent.push_back(rtc_event);
           break;
         }
-        case RtcEvent::Type::GenericAckReceived: {
-          auto* rtc_event =
-              static_cast<const RtcEventGenericAckReceived* const>(it->get());
-          generic_acks_received.push_back(rtc_event);
-          break;
-        }
         case RtcEvent::Type::FrameDecoded: {
           auto* rtc_event =
               static_cast<const RtcEventFrameDecoded* const>(it->get());
@@ -948,7 +941,6 @@ std::string RtcEventLogEncoderNewFormat::EncodeBatch(
     for (const auto& kv : frames_decoded) {
       EncodeFramesDecoded(kv.second, &event_stream);
     }
-    EncodeGenericAcksReceived(generic_acks_received, &event_stream);
     EncodeGenericPacketsReceived(generic_packets_received, &event_stream);
     EncodeGenericPacketsSent(generic_packets_sent, &event_stream);
     EncodeIceCandidatePairConfig(ice_candidate_configs, &event_stream);
@@ -1791,82 +1783,6 @@ void RtcEventLogEncoderNewFormat::EncodeGenericPacketsReceived(
   encoded_deltas = EncodeDeltas(base_event->packet_length(), values);
   if (!encoded_deltas.empty()) {
     proto_batch->set_packet_length_deltas(encoded_deltas);
-  }
-}
-
-void RtcEventLogEncoderNewFormat::EncodeGenericAcksReceived(
-    ArrayView<const RtcEventGenericAckReceived*> batch,
-    rtclog2::EventStream* event_stream) {
-  if (batch.empty()) {
-    return;
-  }
-  const RtcEventGenericAckReceived* const base_event = batch[0];
-  rtclog2::GenericAckReceived* proto_batch =
-      event_stream->add_generic_acks_received();
-  proto_batch->set_timestamp_ms(base_event->timestamp_ms());
-  proto_batch->set_packet_number(base_event->packet_number());
-  proto_batch->set_acked_packet_number(base_event->acked_packet_number());
-  std::optional<uint64_t> base_receive_timestamp;
-  if (base_event->receive_acked_packet_time_ms()) {
-    int64_t receive_acked_packet_time_ms =
-        base_event->receive_acked_packet_time_ms().value();
-    base_receive_timestamp = ToUnsigned(receive_acked_packet_time_ms);
-    proto_batch->set_receive_acked_packet_time_ms(receive_acked_packet_time_ms);
-  }
-
-  // Delta encoding
-  proto_batch->set_number_of_deltas(batch.size() - 1);
-  std::vector<std::optional<uint64_t>> values(batch.size() - 1);
-  std::string encoded_deltas;
-
-  if (batch.size() == 1) {
-    return;
-  }
-
-  // timestamp_ms
-  for (size_t i = 0; i < values.size(); ++i) {
-    const RtcEventGenericAckReceived* event = batch[i + 1];
-    values[i] = ToUnsigned(event->timestamp_ms());
-  }
-  encoded_deltas = EncodeDeltas(ToUnsigned(base_event->timestamp_ms()), values);
-  if (!encoded_deltas.empty()) {
-    proto_batch->set_timestamp_ms_deltas(encoded_deltas);
-  }
-
-  // packet_number
-  for (size_t i = 0; i < values.size(); ++i) {
-    const RtcEventGenericAckReceived* event = batch[i + 1];
-    values[i] = ToUnsigned(event->packet_number());
-  }
-  encoded_deltas =
-      EncodeDeltas(ToUnsigned(base_event->packet_number()), values);
-  if (!encoded_deltas.empty()) {
-    proto_batch->set_packet_number_deltas(encoded_deltas);
-  }
-
-  // acked packet number
-  for (size_t i = 0; i < values.size(); ++i) {
-    const RtcEventGenericAckReceived* event = batch[i + 1];
-    values[i] = ToUnsigned(event->acked_packet_number());
-  }
-  encoded_deltas =
-      EncodeDeltas(ToUnsigned(base_event->acked_packet_number()), values);
-  if (!encoded_deltas.empty()) {
-    proto_batch->set_acked_packet_number_deltas(encoded_deltas);
-  }
-
-  // receive timestamp
-  for (size_t i = 0; i < values.size(); ++i) {
-    const RtcEventGenericAckReceived* event = batch[i + 1];
-    if (event->receive_acked_packet_time_ms()) {
-      values[i] = ToUnsigned(event->receive_acked_packet_time_ms().value());
-    } else {
-      values[i] = std::nullopt;
-    }
-  }
-  encoded_deltas = EncodeDeltas(base_receive_timestamp, values);
-  if (!encoded_deltas.empty()) {
-    proto_batch->set_receive_acked_packet_time_ms_deltas(encoded_deltas);
   }
 }
 

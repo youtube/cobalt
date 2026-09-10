@@ -110,10 +110,11 @@ std::string HistoryTool::JournalEvent() const {
                                                             : "Forward";
 }
 
-std::unique_ptr<ObservationDelayController> HistoryTool::GetObservationDelayer()
-    const {
+std::unique_ptr<ObservationDelayController> HistoryTool::GetObservationDelayer(
+    std::optional<ObservationDelayController::PageStabilityConfig>
+        page_stability_config) const {
   return std::make_unique<ObservationDelayController>(
-      *web_contents()->GetPrimaryMainFrame());
+      *web_contents()->GetPrimaryMainFrame(), task_id(), page_stability_config);
 }
 
 void HistoryTool::UpdateTaskBeforeInvoke(ActorTask& task,

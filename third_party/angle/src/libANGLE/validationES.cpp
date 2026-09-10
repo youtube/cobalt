@@ -582,6 +582,28 @@ bool IsValidGLES1TextureParameter(GLenum pname)
     }
 }
 
+bool IsBlitSameResource(const FramebufferAttachment *read, const FramebufferAttachment *draw)
+{
+    if (read->getResource() == draw->getResource())
+    {
+        if (read->type() == GL_TEXTURE)
+        {
+            bool sameMipLevel = read->mipLevel() == draw->mipLevel();
+            bool sameLayer    = read->layer() == draw->layer();
+            bool sameFace     = read->cubeMapFace() == draw->cubeMapFace();
+            if (sameMipLevel && sameLayer && sameFace)
+            {
+                return true;
+            }
+        }
+        else
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 unsigned int GetSamplerParameterCount(GLenum pname)
 {
     return pname == GL_TEXTURE_BORDER_COLOR ? 4 : 1;
@@ -1839,6 +1861,12 @@ bool ValidateBlitFramebufferParameters(const Context *context,
                         ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBlitSameImageColor);
                         return false;
                     }
+
+                    if (IsBlitSameResource(readColorBuffer, attachment))
+                    {
+                        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBlitSameResource);
+                        return false;
+                    }
                 }
             }
 
@@ -1885,6 +1913,12 @@ bool ValidateBlitFramebufferParameters(const Context *context,
                 if (context->isWebGL() && *readBuffer == *drawBuffer)
                 {
                     ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBlitSameImageDepthOrStencil);
+                    return false;
+                }
+
+                if (IsBlitSameResource(readBuffer, drawBuffer))
+                {
+                    ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBlitSameResource);
                     return false;
                 }
             }
@@ -2392,7 +2426,7 @@ bool ValidateGenQueriesEXT(const Context *context,
                            GLsizei n,
                            const QueryID *ids)
 {
-    return ValidateGenOrDelete(context, entryPoint, n, ids);
+    return ValidateGenOrDelete(context->getMutableErrorSetForValidation(), entryPoint, n, ids);
 }
 
 bool ValidateDeleteQueriesEXT(const Context *context,
@@ -2400,7 +2434,7 @@ bool ValidateDeleteQueriesEXT(const Context *context,
                               GLsizei n,
                               const QueryID *ids)
 {
-    return ValidateGenOrDelete(context, entryPoint, n, ids);
+    return ValidateGenOrDelete(context->getMutableErrorSetForValidation(), entryPoint, n, ids);
 }
 
 bool ValidateIsQueryEXT(const Context *context, angle::EntryPoint entryPoint, QueryID id)
@@ -5516,20 +5550,17 @@ bool ValidateFlushMappedBufferRangeBase(const Context *context,
     return true;
 }
 
-bool ValidateGenOrDelete(const Context *context,
-                         angle::EntryPoint entryPoint,
-                         GLint n,
-                         const void *ids)
+bool ValidateGenOrDelete(ErrorSet *errors, angle::EntryPoint entryPoint, GLint n, const void *ids)
 {
     if (n < 0)
     {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeCount);
+        errors->validationError(entryPoint, GL_INVALID_VALUE, kNegativeCount);
         return false;
     }
 
     if (n > 0 && ids == nullptr)
     {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kPLSParamsNULL);
+        errors->validationError(entryPoint, GL_INVALID_VALUE, kPLSParamsNULL);
         return false;
     }
 

@@ -4275,7 +4275,7 @@ OPENSSL_EXPORT int i2d_DHparams_bio(BIO *bp, const DH *dh);
 // i2d_PKCS8PrivateKeyInfo_bio encodes |key| as a PKCS#8 PrivateKeyInfo
 // structure (see |EVP_marshal_private_key|) and writes the result to |bp|. It
 // returns one on success and zero on error.
-OPENSSL_EXPORT int i2d_PKCS8PrivateKeyInfo_bio(BIO *bp, EVP_PKEY *key);
+OPENSSL_EXPORT int i2d_PKCS8PrivateKeyInfo_bio(BIO *bp, const EVP_PKEY *key);
 
 // The following functions behave like the corresponding |d2i_*_bio| functions,
 // but read from |fp| instead.

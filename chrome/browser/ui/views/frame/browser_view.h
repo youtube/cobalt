@@ -246,7 +246,11 @@ class BrowserView : public BrowserWindow,
   // Container for the web contents.
   views::View* contents_container() { return contents_container_; }
 
-  SidePanel* unified_side_panel() { return unified_side_panel_; }
+  views::View* main_container() { return main_container_; }
+
+  SidePanel* contents_height_side_panel() {
+    return contents_height_side_panel_;
+  }
 
   MultiContentsView* multi_contents_view() { return multi_contents_view_; }
 
@@ -587,7 +591,7 @@ class BrowserView : public BrowserWindow,
       bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
   views::Button* GetSharingHubIconButton() override;
-  void ToggleMultitaskMenu() const override;
+  void ToggleMultitaskMenu() override;
 #else
   sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
       share::ShareAttempt attempt) override;
@@ -921,7 +925,7 @@ class BrowserView : public BrowserWindow,
   bool IsTabChangeInSplitView(content::WebContents* old_contents,
                               content::WebContents* new_contents);
 
-  void UpdateTabModalDialogBounds();
+  void UpdateTabModalDialogHost();
 
   // Updates stored focus for web contents that is being activated.
   void MaybeUpdateStoredFocusForWebContents(content::WebContents*);
@@ -953,6 +957,10 @@ class BrowserView : public BrowserWindow,
   // Helper method, returns if we should show the IPHs anchored on the avatar
   // toolbar.
   bool ShouldShowAvatarToolbarIPH();
+
+  // Returns the frame view.
+  BrowserFrameView* GetFrameView();
+  const BrowserFrameView* GetFrameView() const;
 
   // Returns the BrowserViewLayout.
   BrowserViewLayout* GetBrowserViewLayout() const;
@@ -1223,6 +1231,12 @@ class BrowserView : public BrowserWindow,
   // The view that contains all visible WebContents.
   raw_ptr<MultiContentsView> multi_contents_view_ = nullptr;
 
+  // The view that contains the main views of the browser not added to top
+  // container (WebContents, SidePanel, DevTools, etc.).
+  // TODO(crbug.com/445446905): Eventually this should include all views other
+  // than the TabStripRegionView such as the Toolbar, BookmarksBar, and InfoBar.
+  raw_ptr<views::View> main_container_ = nullptr;
+
   // The view that contains the Lens overlay. The Lens Overlay is a UI overlay
   // that is shown on top of the web contents. It therefore must always have the
   // same bounds as the contents_web_view_, but also be above the
@@ -1245,7 +1259,7 @@ class BrowserView : public BrowserWindow,
   // depending on the kSidePanelHorizontalAlignment pref's value.
   // Conceptually this member should exist if and only if the
   // side_panel_coordinator is created.
-  raw_ptr<SidePanel> unified_side_panel_ = nullptr;
+  raw_ptr<SidePanel> contents_height_side_panel_ = nullptr;
 
   // These are only non-null when the `SideBySide` feature is disabled.
   // Otherwise, `multi_contents_view_` will create its own separators.

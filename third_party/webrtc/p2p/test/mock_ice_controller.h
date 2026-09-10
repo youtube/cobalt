@@ -11,7 +11,6 @@
 #ifndef P2P_TEST_MOCK_ICE_CONTROLLER_H_
 #define P2P_TEST_MOCK_ICE_CONTROLLER_H_
 
-#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -43,7 +42,6 @@ class MockIceController : public IceControllerInterface {
               (const, override));
   MOCK_METHOD(ArrayView<const Connection*>, connections, (), (const, override));
   MOCK_METHOD(bool, HasPingableConnection, (), (const, override));
-  MOCK_METHOD(PingResult, SelectConnectionToPing, (int64_t), (override));
   MOCK_METHOD(PingResult, GetConnectionToPing, (Timestamp), (override));
   MOCK_METHOD(bool,
               GetUseCandidateAttr,

@@ -829,6 +829,15 @@ webrtc_fuzzer_test("webrtc_base64_encode_fuzzer") {
   ]
 }
 
+webrtc_fuzzer_test("windowed_min_filter_fuzzer") {
+  sources = [ "windowed_min_filter_fuzzer.cc" ]
+  deps = [
+    "../../rtc_base:checks",
+    "../../rtc_base:windowed_min_filter",
+    "//third_party/abseil-cpp/absl/algorithm:container",
+  ]
+}
+
 group("fuzzers") {
   testonly = true
   deps = [
@@ -889,6 +898,7 @@ group("fuzzers") {
     ":vp9_replay_fuzzer",
     ":webrtc_base64_decode_fuzzer",
     ":webrtc_base64_encode_fuzzer",
+    ":windowed_min_filter_fuzzer",
   ]
   if (rtc_use_h265) {
     deps += [

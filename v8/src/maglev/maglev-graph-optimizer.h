@@ -7,6 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/common/scoped-modification.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
@@ -50,6 +51,8 @@ class MaglevGraphOptimizer {
     return &current_node()->eager_deopt_info()->top_frame();
   }
 
+  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason);
+
  private:
   MaglevReducer<MaglevGraphOptimizer> reducer_;
   RecomputeKnownNodeAspectsProcessor& kna_processor_;
@@ -60,6 +63,8 @@ class MaglevGraphOptimizer {
     CHECK_NOT_NULL(current_node_);
     return current_node_;
   }
+
+  compiler::JSHeapBroker* broker() const;
 
   // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
   // ReturnedValue nodes.

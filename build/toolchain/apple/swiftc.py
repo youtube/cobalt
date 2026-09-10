@@ -78,7 +78,7 @@ class FrameworkArgumentForwarder(ArgumentForwarder):
     ArgumentForwarder.__init__(self,
                                arg_name,
                                arg_join=lambda _: len(arg_name) == 1,
-                               to_swift=lambda _: True,
+                               to_swift=lambda _: arg_name != '-iframework',
                                to_clang=lambda _: True)
 
 
@@ -99,6 +99,7 @@ ARGUMENT_FORWARDER_FOR_ATTR = (
     ('system_include_dirs', IncludeArgumentForwarder('-isystem')),
     ('framework_dirs', FrameworkArgumentForwarder('-F')),
     ('system_framework_dirs', FrameworkArgumentForwarder('-Fsystem')),
+    ('iframework_dirs', FrameworkArgumentForwarder('-iframework')),
     ('defines', DefineArgumentForwarder('-D')),
 )
 
@@ -418,6 +419,11 @@ def invoke_swift_compiler(args, extras_args, build_cache_dir, output_file_map):
   for (attr_name, forwarder) in ARGUMENT_FORWARDER_FOR_ATTR:
     forwarder.forward(swiftc_args, getattr(args, attr_name), args.target_triple)
 
+  # Handle optional -Xcc arguments.
+  if args.xcc_args:
+    for xcc_arg in args.xcc_args:
+      swiftc_args.extend(['-Xcc', xcc_arg])
+
   # Handle -whole-module-optimization flag.
   num_threads = max(1, multiprocessing.cpu_count() // 2)
   if args.whole_module_optimization:
@@ -627,6 +633,11 @@ def main(args):
                       dest='system_framework_dirs',
                       help='add directory to system framework search path')
 
+  parser.add_argument('-iframework',
+                      action='append',
+                      dest='iframework_dirs',
+                      help='add directory to system framework search path')
+
   parser.add_argument('-D',
                       action='append',
                       dest='defines',
@@ -644,6 +655,11 @@ def main(args):
   parser.add_argument('sources',
                       nargs='+',
                       help='Swift source files to compile')
+
+  parser.add_argument('-Xcc',
+                      action='append',
+                      dest='xcc_args',
+                      help='add argument to the clang compiler')
 
   parsed, extras = parser.parse_known_args(args)
   compile_module(parsed, extras, build_signature(os.environ, args))

@@ -204,6 +204,9 @@ int ASN1_STRING_copy(ASN1_STRING *dst, const ASN1_STRING *str) {
   if (str == NULL) {
     return 0;
   }
+  if (dst == str) {
+    return 1;
+  }
   if (!ASN1_STRING_set(dst, str->data, str->length)) {
     return 0;
   }

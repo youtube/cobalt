@@ -493,6 +493,7 @@ void PrivateState::initializeForCapture(const Context *context)
 void PrivateState::reset()
 {
     mClipDistancesEnabled.reset();
+    mVertexArrayMap.clear();
 }
 
 void PrivateState::setColorClearValue(float red, float green, float blue, float alpha)
@@ -957,6 +958,16 @@ void PrivateState::setPolygonOffsetFill(bool enabled)
     {
         mRasterizer.polygonOffsetFill = enabled;
         mDirtyBits.set(state::DIRTY_BIT_POLYGON_OFFSET_FILL_ENABLED);
+    }
+}
+
+void PrivateState::setFetchPerSample(bool enabled)
+{
+    if (mFetchPerSample != enabled)
+    {
+        mFetchPerSample = enabled;
+        mDirtyBits.set(state::DIRTY_BIT_EXTENDED);
+        mExtendedDirtyBits.set(state::EXTENDED_DIRTY_BIT_FETCH_PER_SAMPLE_ENABLED);
     }
 }
 
@@ -1555,7 +1566,7 @@ void PrivateState::setEnableFeature(GLenum feature, bool enabled)
             mShadingRatePreserveAspectRatio = enabled;
             return;
         case GL_FETCH_PER_SAMPLE_ARM:
-            mFetchPerSample = enabled;
+            setFetchPerSample(enabled);
             return;
         default:
             break;

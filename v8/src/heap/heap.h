@@ -374,6 +374,10 @@ class Heap final {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, size_t byte_size);
 
+#if defined(V8_USE_PERFETTO)
+  perfetto::NamedTrack tracing_track() const { return tracing_track_; }
+#endif
+
   enum class StackScanMode { kNone, kFull, kSelective };
   StackScanMode ConservativeStackScanningModeForMinorGC() const {
     if (v8_flags.scavenger_conservative_object_pinning) {
@@ -826,11 +830,9 @@ class Heap final {
 
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* js_dispatch_table_space() {
     return &js_dispatch_table_space_;
   }
-#endif  // V8_ENABLE_LEAPTIERING
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -2041,7 +2043,9 @@ class Heap final {
     kHardLimit,
     kFallbackForEmbedderLimit
   };
-  IncrementalMarkingLimit IncrementalMarkingLimitReached();
+
+  std::pair<IncrementalMarkingLimit, const char*>
+  IncrementalMarkingLimitReached();
 
   bool ShouldStressCompaction() const;
 
@@ -2053,7 +2057,7 @@ class Heap final {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-  static LimitsComputationResult ComputeNewAllocationLimits(Heap* heap);
+  LimitsComputationResult ComputeNewAllocationLimits();
 
   // ===========================================================================
   // GC Tasks. =================================================================
@@ -2259,10 +2263,8 @@ class Heap final {
   CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   // The space in the process-wide JSDispatchTable managed by this heap.
   JSDispatchTable::Space js_dispatch_table_space_;
-#endif  // V8_ENABLE_LEAPTIERING
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 
@@ -2492,6 +2494,10 @@ class Heap final {
   // The amount of physical memory on the device passed in by the embedder. If
   // no value was provided this will be 0.
   uint64_t physical_memory_;
+
+#if defined(V8_USE_PERFETTO)
+  perfetto::NamedTrack tracing_track_;
+#endif
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;

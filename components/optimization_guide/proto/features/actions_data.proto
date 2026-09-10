@@ -361,47 +361,6 @@ message Action {
   }
 }
 
-// Deprecated. Use Actions instead.
-// A single set of actions to be taken by Chrome before responding.
-// Next ID: 4
-message BrowserAction {
-  // The actions to be taken by Chrome.
-  repeated Action actions = 1;
-
-  // The task id of the action.
-  int32 task_id = 2 [features = { field_presence: EXPLICIT }];
-
-  // The id of the tab the action will be taken in.
-  // TODO(crbug.com/421441072): Remove this field once all models are using tab_id in
-  // actions.
-  int32 tab_id = 3 [features = { field_presence: EXPLICIT }];
-}
-
-// Deprecated. Use ActionsResult instead.
-// The state of the browser after an action is taken.
-// Currently only used for extension APIs, but should directly reflect the
-// production state of the browser returned in glic.mojom.
-// Next ID: 7
-message BrowserActionResult {
-  // The page content at the time after the action.
-  AnnotatedPageContent annotated_page_content = 1 [features = { field_presence: EXPLICIT }];
-
-  // The screenshot of the page at the time after the action.
-  bytes screenshot = 2 [features = { field_presence: EXPLICIT }];
-
-  // The mime type of the |screenshot|.
-  string screenshot_mime_type = 3 [features = { field_presence: EXPLICIT }];
-
-  // The result of the action.
-  int32 action_result = 4 [features = { field_presence: EXPLICIT }];
-
-  // The task id of the action.
-  int32 task_id = 5 [features = { field_presence: EXPLICIT }];
-
-  // The id of the tab the action was taken in.
-  int32 tab_id = 6 [features = { field_presence: EXPLICIT }];
-}
-
 // A single set of actions to be taken by Chrome. The response is ActionsResult.
 // Next ID: 3
 message Actions {
@@ -463,6 +422,9 @@ message TabObservation {
 
     // The screenshot of the tab timed out.
     TAB_OBSERVATION_SCREENSHOT_TIMEOUT = 2;
+
+    // The page crashed.
+    TAB_OBSERVATION_PAGE_CRASHED = 3;
   }
 }
 
@@ -552,8 +514,8 @@ message BrowserStartTask {
   // The id of the tab the task should be started in. If not set, the task
   // will be started in a new tab.
   // TODO(crbug.com/421441072): Remove this field. This is only needed in the short term
-  // since bluedog needs a mechanism to start tasks in a new tab, and the model
-  // has not yet been trained to use CreateTabAction.
+  // since we need a mechanism to start tasks in a new tab, and the model has
+  // not yet been trained to use CreateTabAction.
   int32 tab_id = 1 [features = { field_presence: EXPLICIT }];
 }
 

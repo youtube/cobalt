@@ -224,9 +224,8 @@ DEFINE_VIEW_BUILDER(/* no export */, TopBackgroundView)
 
 RoundedOmniboxResultsFrame::RoundedOmniboxResultsFrame(
     views::View* contents,
-    LocationBarView* location_bar,
-    bool is_webui)
-    : contents_(contents), is_webui_(is_webui) {
+    LocationBarView* location_bar)
+    : contents_(contents) {
   const int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
       views::ShapeContextTokens::kOmniboxExpandedRadius);
   // Host the contents in its own View to simplify layout and customization.
@@ -310,11 +309,6 @@ void RoundedOmniboxResultsFrame::Layout(PassKey) {
   // animated smoothly.
   // TODO(tapted): Investigate using a static Widget size.
   gfx::Rect bounds = GetContentsBounds();
-  bounds.set_height(
-      bounds.height() +
-      (is_webui_ ? views::LayoutProvider::Get()->GetCornerRadiusMetric(
-                       views::ShapeContextTokens::kOmniboxExpandedRadius)
-                 : 0));
   contents_host_->SetBoundsRect(bounds);
 
   gfx::Rect top_bounds(contents_host_->GetContentsBounds());
@@ -365,12 +359,7 @@ void RoundedOmniboxResultsFrame::OnMouseEvent(ui::MouseEvent* event) {
 
 // Insets used to position |contents_| within |contents_host_|.
 gfx::Insets RoundedOmniboxResultsFrame::GetContentInsets() {
-  return gfx::Insets::TLBR(
-      GetNonResultSectionHeight(), 0,
-      (is_webui_ ? views::LayoutProvider::Get()->GetCornerRadiusMetric(
-                       views::ShapeContextTokens::kOmniboxExpandedRadius)
-                 : 0),
-      0);
+  return gfx::Insets::TLBR(GetNonResultSectionHeight(), 0, 0, 0);
 }
 
 BEGIN_METADATA(RoundedOmniboxResultsFrame)

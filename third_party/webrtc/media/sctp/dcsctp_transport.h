@@ -22,6 +22,7 @@
 #include "api/array_view.h"
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
+#include "api/field_trials_view.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/sctp_transport_interface.h"
@@ -29,6 +30,7 @@
 #include "api/transport/data_channel_transport_interface.h"
 #include "media/sctp/sctp_transport_internal.h"
 #include "net/dcsctp/public/dcsctp_message.h"
+#include "net/dcsctp/public/dcsctp_options.h"
 #include "net/dcsctp/public/dcsctp_socket.h"
 #include "net/dcsctp/public/dcsctp_socket_factory.h"
 #include "net/dcsctp/public/timeout.h"
@@ -146,6 +148,10 @@ class DcSctpTransport : public SctpTransportInternal,
   bool ready_to_send_data_ RTC_GUARDED_BY(network_thread_) = false;
   std::function<void()> on_connected_callback_ RTC_GUARDED_BY(network_thread_);
   DataChannelSink* data_channel_sink_ RTC_GUARDED_BY(network_thread_) = nullptr;
+
+  static dcsctp::DcSctpOptions CreateDcSctpOptions(
+      const SctpOptions& options,
+      const FieldTrialsView& field_trials);
 };
 
 }  // namespace webrtc

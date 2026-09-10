@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/containers/to_vector.h"
@@ -178,21 +179,17 @@ void AddressDataManager::OnWebDataServiceRequestDone(
 
   if (!has_initial_load_finished_) {
     has_initial_load_finished_ = true;
-    // `UpdateOrCreateAccountNameEmail()` is responsible for creating or
-    // updating the `kAccountNameEmail` profile. This requires profiles from the
-    // database to be loaded, so any old `kAccountNameEmail` profile can be
-    // accessed. Updates to the account info are generally caught by an identity
-    // observer. But if the account info becomes available before the initial
-    // load has finished, the additional call here is necessary to apply these
-    // updates.
+    // `AccountNameEmailStore::MaybeUpdateOrCreateAccountNameEmail()` is
+    // responsible for creating or updating the `kAccountNameEmail` profile.
+    // This requires profiles from the database to be loaded, so any old
+    // `kAccountNameEmail` profile can be accessed. Updates to the account info
+    // are generally caught by an identity observer. But if the account info
+    // becomes available before the initial load has finished, the additional
+    // call here is necessary to apply these updates.
     // TODO(crbug.com/356845298): Clean up after launch.
     if (base::FeatureList::IsEnabled(
             features::kAutofillEnableSupportForNameAndEmail)) {
-      const std::optional<CoreAccountInfo>& core_info = GetPrimaryAccountInfo();
-      if (core_info.has_value()) {
-        account_name_email_store_->UpdateOrCreateAccountNameEmail(
-            identity_manager_->FindExtendedAccountInfo(core_info.value()));
-      }
+      account_name_email_store_->MaybeUpdateOrCreateAccountNameEmail();
     } else {
       // In case the feature got disabled the profile should be cleaned up.
       if (!GetProfilesByRecordType(
@@ -237,7 +234,45 @@ std::vector<const AutofillProfile*> AddressDataManager::GetProfilesToSuggest()
   if (!IsAutofillProfileEnabled()) {
     return {};
   }
-  return GetProfiles(ProfileOrder::kHighestFrecencyDesc);
+
+  std::vector<const AutofillProfile*> profiles =
+      GetProfiles(ProfileOrder::kHighestFrecencyDesc);
+
+  // If the `pref_service_` doesn't exits the special logic which depends on
+  // prefs shouldn't run.
+  if (!pref_service_) {
+    CHECK_IS_TEST();
+    return profiles;
+  }
+
+  if (!base::FeatureList::IsEnabled(
+          features::kAutofillEnableSupportForNameAndEmail)) {
+    return profiles;
+  }
+
+  // `prefs::kAutofillNameAndEmailProfileNotSelectedCounter` counts how many
+  // times the suggestion for kAccountNameEmail profile was shown and wasn't
+  // accepted.
+  const bool should_promote_name_email_profile =
+      !pref_service_->GetBoolean(prefs::kAutofillWasNameAndEmailProfileUsed) &&
+      (pref_service_->GetInteger(
+          prefs::kAutofillNameAndEmailProfileNotSelectedCounter) == 0);
+  // Move the kAccountNameEmail profile to the front (or back) depending on
+  // the `should_promote_name_email_profile`.
+  std::ranges::stable_partition(
+      profiles, [should_promote_name_email_profile](
+                    const AutofillProfile* p) {
+        bool is_name_email_profile =
+            p->record_type() == AutofillProfile::RecordType::kAccountNameEmail;
+        // stable_partition() moves all elements where the predicate returns
+        // true to the front. The name/email profile should be in front when
+        // it hasn't been used before and in the back otherwise.
+        return should_promote_name_email_profile
+                   ? is_name_email_profile
+                   : !is_name_email_profile;
+      });
+
+  return profiles;
 }
 
 std::vector<const AutofillProfile*> AddressDataManager::GetProfilesForSettings()
@@ -311,9 +346,10 @@ void AddressDataManager::UpdateProfile(const AutofillProfile& profile) {
   UpdateProfileInDB(profile);
 }
 
-void AddressDataManager::RemoveProfile(const std::string& guid,
-                                       bool is_deduplication_initiated) {
-  RemoveProfileImpl(guid, is_deduplication_initiated);
+void AddressDataManager::RemoveProfile(
+    const std::string& guid,
+    bool non_permanent_account_profile_removal) {
+  RemoveProfileImpl(guid, non_permanent_account_profile_removal);
 }
 
 void AddressDataManager::RemoveLocalProfilesModifiedBetween(base::Time begin,
@@ -795,6 +831,9 @@ void AddressDataManager::HandleNextProfileChange() {
   if (home_and_work_metadata_) {
     home_and_work_metadata_->ApplyChange(change);
   }
+  if (account_name_email_store_) {
+    account_name_email_store_->ApplyChange(change);
+  }
   is_ongoing = true;
 }
 
@@ -818,8 +857,9 @@ void AddressDataManager::LogStoredDataMetrics() const {
   }
 }
 
-void AddressDataManager::RemoveProfileImpl(const std::string& guid,
-                                           bool is_deduplication_initiated) {
+void AddressDataManager::RemoveProfileImpl(
+    const std::string& guid,
+    bool non_permanent_account_profile_removal) {
   if (!webdata_service_) {
     return;
   }
@@ -842,12 +882,12 @@ void AddressDataManager::RemoveProfileImpl(const std::string& guid,
   }
 
   ongoing_profile_changes_.emplace_back(
-      AutofillProfileChange(
-          (profile->IsAccountProfile() && is_deduplication_initiated) ||
-                  profile->IsHomeAndWorkProfile()
-              ? AutofillProfileChange::HIDE_IN_AUTOFILL
-              : AutofillProfileChange::REMOVE,
-          guid, *profile),
+      AutofillProfileChange((profile->IsAccountProfile() &&
+                             non_permanent_account_profile_removal) ||
+                                    profile->IsHomeAndWorkProfile()
+                                ? AutofillProfileChange::HIDE_IN_AUTOFILL
+                                : AutofillProfileChange::REMOVE,
+                            guid, *profile),
       /*is_ongoing=*/false);
   HandleNextProfileChange();
 }

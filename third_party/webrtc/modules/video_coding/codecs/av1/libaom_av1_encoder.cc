@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -182,6 +183,8 @@ class LibaomAv1Encoder final : public VideoEncoder {
   FrameSampler psnr_frame_sampler_;
   // TODO(webrtc:388070060): Remove after rollout.
   const bool calculate_psnr_;
+  const bool drop_repeat_frames_on_enhancement_layers_;
+  std::map<int, uint32_t> last_encoded_timestamp_by_sid_;
 };
 
 int32_t VerifyCodecSettings(const VideoCodec& codec_settings) {
@@ -225,7 +228,9 @@ LibaomAv1Encoder::LibaomAv1Encoder(const Environment& env,
       post_encode_frame_drop_(!env.field_trials().IsDisabled(
           "WebRTC-LibaomAv1Encoder-PostEncodeFrameDrop")),
       calculate_psnr_(
-          env.field_trials().IsEnabled("WebRTC-Video-CalculatePsnr")) {}
+          env.field_trials().IsEnabled("WebRTC-Video-CalculatePsnr")),
+      drop_repeat_frames_on_enhancement_layers_(env.field_trials().IsEnabled(
+          "WebRTC-LibaomAv1Encoder-DropRepeatFramesOnEnhancementLayers")) {}
 
 LibaomAv1Encoder::~LibaomAv1Encoder() {
   Release();
@@ -665,6 +670,35 @@ int32_t LibaomAv1Encoder::Encode(
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
 
+  if (drop_repeat_frames_on_enhancement_layers_ && frame.is_repeat_frame()) {
+    bool all_layers_droppable = !layer_frames.empty();
+    for (const auto& layer_frame : layer_frames) {
+      if (layer_frame.TemporalId() == 0) {
+        all_layers_droppable = false;
+        break;
+      }
+      if (auto it =
+              last_encoded_timestamp_by_sid_.find(layer_frame.SpatialId());
+          it != last_encoded_timestamp_by_sid_.end()) {
+        // Get the time since the last encoded frame for this spatial layer.
+        // Don't drop enhancement layer repeat frame if last encode was more
+        // than one second ago.
+        if ((frame.rtp_timestamp() - it->second) > kVideoPayloadTypeFrequency) {
+          all_layers_droppable = false;
+          break;
+        }
+      }
+    }
+
+    if (all_layers_droppable) {
+      RTC_LOG(LS_VERBOSE) << "Dropping repeat frame on enhancement layers.";
+      for (const auto& layer_frame : layer_frames) {
+        svc_controller_->OnEncodeDone(layer_frame);
+      }
+      return WEBRTC_VIDEO_CODEC_OK;  // Frame dropped
+    }
+  }
+
   scoped_refptr<VideoFrameBuffer> buffer = frame.video_frame_buffer();
   absl::InlinedVector<VideoFrameBuffer::Type, kMaxPreferredPixelFormats>
       supported_formats = {VideoFrameBuffer::Type::kI420,
@@ -820,9 +854,12 @@ int32_t LibaomAv1Encoder::Encode(
   if (!encoded_images.empty()) {
     encoded_images.back().second.end_of_picture = true;
   }
-  for (auto& [encoded_image, codec_specific_info] : encoded_images) {
-    encoded_image_callback_->OnEncodedImage(encoded_image,
-                                            &codec_specific_info);
+  for (auto& [encoded_image, codec_specifics] : encoded_images) {
+    encoded_image_callback_->OnEncodedImage(encoded_image, &codec_specifics);
+    if (encoded_image.SpatialIndex().has_value()) {
+      last_encoded_timestamp_by_sid_[*encoded_image.SpatialIndex()] =
+          frame.rtp_timestamp();
+    }
   }
 
   return WEBRTC_VIDEO_CODEC_OK;

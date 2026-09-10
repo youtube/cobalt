@@ -1416,19 +1416,6 @@ if (rtc_include_tests) {
     ]
   }
 
-  rtc_source_set("mock_session_description_interface") {
-    visibility = [ "*" ]
-    testonly = true
-    sources = [ "test/mock_session_description_interface.h" ]
-    deps = [
-      ":candidate",
-      ":libjingle_peerconnection_api",
-      "../pc:session_description",
-      "../test:test_support",
-      "//third_party/abseil-cpp/absl/strings:string_view",
-    ]
-  }
-
   rtc_source_set("mock_transformable_frame") {
     visibility = [ "*" ]
     testonly = true
@@ -1700,6 +1687,7 @@ if (rtc_include_tests) {
       "video/corruption_detection:frame_instrumentation_data_reader_unittest",
       "video/corruption_detection:frame_instrumentation_data_unittest",
       "video/corruption_detection:frame_instrumentation_evaluation_unittest",
+      "video/corruption_detection:frame_instrumentation_generator_unittest",
       "//third_party/abseil-cpp/absl/functional:any_invocable",
       "//third_party/abseil-cpp/absl/strings",
       "//third_party/abseil-cpp/absl/strings:string_view",
@@ -1730,7 +1718,6 @@ if (rtc_include_tests) {
       ":mock_peer_connection_factory_interface",
       ":mock_peerconnectioninterface",
       ":mock_rtp",
-      ":mock_session_description_interface",
       ":mock_transformable_audio_frame",
       ":mock_transformable_frame",
       ":mock_transformable_video_frame",

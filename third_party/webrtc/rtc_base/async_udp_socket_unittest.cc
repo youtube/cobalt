@@ -38,17 +38,17 @@ TEST(AsyncUDPSocketTest, SetSocketOptionIfEctChange) {
 
   uint8_t buffer[] = "hello";
   AsyncSocketPacketOptions packet_options;
-  packet_options.ecn_1 = false;
+  packet_options.ect_1 = false;
   udp_socket->SendTo(buffer, 5, kAddr, packet_options);
   udp_socket->GetOption(Socket::OPT_SEND_ECN, &ect);
   EXPECT_EQ(ect, 0);
 
-  packet_options.ecn_1 = true;
+  packet_options.ect_1 = true;
   udp_socket->SendTo(buffer, 5, kAddr, packet_options);
   udp_socket->GetOption(Socket::OPT_SEND_ECN, &ect);
   EXPECT_EQ(ect, 1);
 
-  packet_options.ecn_1 = false;
+  packet_options.ect_1 = false;
   udp_socket->SendTo(buffer, 5, kAddr, packet_options);
   udp_socket->GetOption(Socket::OPT_SEND_ECN, &ect);
   EXPECT_EQ(ect, 0);

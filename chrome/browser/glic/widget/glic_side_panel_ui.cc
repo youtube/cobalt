@@ -5,8 +5,8 @@
 #include "chrome/browser/glic/widget/glic_side_panel_ui.h"
 
 #include "base/notimplemented.h"
-#include "chrome/browser/glic/host/glic_ui_embedder.h"
 #include "chrome/browser/glic/public/glic_instance.h"
+#include "chrome/browser/glic/service/glic_ui_embedder.h"
 #include "chrome/browser/glic/widget/glic_inactive_side_panel_ui.h"
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
@@ -16,6 +16,8 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/web_contents.h"
 
 namespace glic {
 
@@ -23,15 +25,27 @@ GlicSidePanelUi::GlicSidePanelUi(Profile* profile,
                                  base::WeakPtr<tabs::TabInterface> tab,
                                  GlicUiEmbedder::Delegate& delegate)
     : profile_(profile), tab_(tab), delegate_(delegate) {
-  if (tab_) {
-    coordinator_observation_.Observe(
-        tab_->GetTabFeatures()->glic_side_panel_coordinator());
+  if (!tab_ || !tab_->GetTabFeatures()) {
+    return;
   }
+  auto* glic_side_panel_coordinator =
+      tab_->GetTabFeatures()->glic_side_panel_coordinator();
+  coordinator_observation_.Observe(glic_side_panel_coordinator);
+  glic_side_panel_coordinator->SetContentsView(CreateView(profile_));
+  panel_state_.kind = mojom::PanelState_Kind::kAttached;
+}
+
+std::unique_ptr<views::View> GlicSidePanelUi::CreateView(Profile* profile) {
+  auto glic_view = std::make_unique<GlicView>(
+      profile, GlicWidget::GetInitialSize(), nullptr);
+  glic_view->SetWebContents(delegate_->host().webui_contents());
+  glic_view->UpdateBackgroundColor();
+  return glic_view;
 }
 
 GlicSidePanelUi::~GlicSidePanelUi() = default;
 
-Host::Delegate* GlicSidePanelUi::GetHostDelegate() {
+Host::EmbedderDelegate* GlicSidePanelUi::GetHostEmbedderDelegate() {
   return this;
 }
 
@@ -71,24 +85,23 @@ bool GlicSidePanelUi::IsShowing() const {
   if (!tab_) {
     return false;
   }
-  return panel_state_.kind == mojom::PanelState_Kind::kAttached;
+  // If this embedder is active, side panel must be showing.
+  return true;
 }
 
-void GlicSidePanelUi::SwitchConversation(
-    const std::string& conversation_id,
-    mojom::WebClientHandler::SwitchConversationCallback callback) {
-  delegate_->SwitchConversation(tab_.get(), conversation_id,
-                                std::move(callback));
-}
-
-// TODO(crbug.com/444293841): Support closing multi instance.
 void GlicSidePanelUi::VisibilityChanged(bool visible) {
   // Showing only happens through glic entrypoint, hiding can also be triggered
   // by side panel coordinator when replacing glic with another entry.
-  if (!visible) {
-    panel_state_.kind = mojom::PanelState_Kind::kHidden;
-    // TODO(crbug.com/444293841): Support closing multi instance.
+  if (!visible && tab_) {
+    delegate_->WillCloseFor(tab_.get());
   }
+}
+
+void GlicSidePanelUi::SwitchConversation(
+    glic::mojom::ConversationInfoPtr info,
+    mojom::WebClientHandler::SwitchConversationCallback callback) {
+  delegate_->SwitchConversation(tab_.get(), std::move(info),
+                                std::move(callback));
 }
 
 void GlicSidePanelUi::Show() {
@@ -100,6 +113,7 @@ void GlicSidePanelUi::Show() {
       tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_coordinator();
   side_panel_coordinator->Show(SidePanelEntry::Id::kGlic);
 }
+
 void GlicSidePanelUi::Close() {
   if (!tab_ || !IsShowing()) {
     return;
@@ -110,18 +124,33 @@ void GlicSidePanelUi::Close() {
   side_panel_coordinator->Close();
 }
 
-std::unique_ptr<views::View> GlicSidePanelUi::CreateView() {
-  auto glic_view = std::make_unique<GlicView>(
-      profile_, GlicWidget::GetInitialSize(), nullptr);
-  // TODO(refactor): use the right host when we have multiple hosts
-  glic_view->SetWebContents(delegate_->host().webui_contents());
-  glic_view->UpdateBackgroundColor();
-  return glic_view;
-}
-
 std::unique_ptr<GlicUiEmbedder> GlicSidePanelUi::CreateInactiveEmbedder()
     const {
-  return GlicInactiveSidePanelUi::From(*this);
+  return GlicInactiveSidePanelUi::From(*this, tab_);
+}
+
+void GlicSidePanelUi::TakeScreenshot(
+    ui::GrabSnapshotImageCallback callback) const {
+  content::WebContents* web_contents = delegate_->host().webui_contents();
+  if (!web_contents) {
+    std::move(callback).Run(gfx::Image());
+    return;
+  }
+
+  content::RenderWidgetHostView* render_widget_host_view =
+      web_contents->GetRenderWidgetHostView();
+  if (!render_widget_host_view) {
+    std::move(callback).Run(gfx::Image());
+    return;
+  }
+
+  render_widget_host_view->CopyFromSurface(
+      gfx::Rect(), gfx::Size(),
+      base::BindOnce(
+          [](ui::GrabSnapshotImageCallback callback, const SkBitmap& bitmap) {
+            std::move(callback).Run(gfx::Image::CreateFrom1xBitmap(bitmap));
+          },
+          std::move(callback)));
 }
 
 }  // namespace glic

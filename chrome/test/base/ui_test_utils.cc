@@ -45,6 +45,9 @@
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
@@ -59,9 +62,6 @@
 #include "components/javascript_dialogs/app_modal_dialog_controller.h"
 #include "components/javascript_dialogs/app_modal_dialog_queue.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
-#include "components/omnibox/browser/omnibox_controller.h"
-#include "components/omnibox/browser/omnibox_edit_model.h"
-#include "components/omnibox/browser/omnibox_view.h"
 #include "components/prefs/pref_service.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/download_manager.h"
@@ -668,6 +668,19 @@ Browser* GetBrowserNotInSet(
       });
   return browser_not_in_set ? browser_not_in_set->GetBrowserForMigrationOnly()
                             : nullptr;
+}
+
+std::vector<BrowserWindowInterface*> FindMatchingBrowsers(
+    BrowserMatcher matcher) {
+  std::vector<BrowserWindowInterface*> browser_matches;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (matcher(browser)) {
+          browser_matches.push_back(browser);
+        }
+        return true;  // Continue iterating.
+      });
+  return browser_matches;
 }
 
 namespace {

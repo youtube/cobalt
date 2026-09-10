@@ -274,6 +274,14 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
   node.in_subtree_of_page_scale_layer = wire.in_subtree_of_page_scale_layer;
   node.delegates_to_parent_for_backface = wire.delegates_to_parent_for_backface;
   node.will_change_transform = wire.will_change_transform;
+  node.maximum_animation_scale = wire.maximum_animation_scale;
+  node.node_and_ancestors_are_animated_or_invertible =
+      wire.node_and_ancestors_are_animated_or_invertible;
+  node.is_invertible = wire.is_invertible;
+  node.ancestors_are_invertible = wire.ancestors_are_invertible;
+  node.node_and_ancestors_are_flat = wire.node_and_ancestors_are_flat;
+  node.node_or_ancestors_will_change_transform =
+      wire.node_or_ancestors_will_change_transform;
 
   node.visible_frame_element_id = wire.visible_frame_element_id;
   node.SetTransformChanged(cc::DamageReason::kUntracked);
@@ -710,6 +718,7 @@ void UpdateTileDisplayLayerExtra(const mojom::TileDisplayLayerExtraPtr& extra,
   layer.SetIsBackdropFilterMask(extra->is_backdrop_filter_mask);
   layer.SetIsDirectlyCompositedImage(extra->is_directly_composited_image);
   layer.SetNearestNeighbor(extra->nearest_neighbor);
+  layer.SetContentColorUsage(extra->content_color_usage);
 }
 
 base::expected<void, std::string> UpdateLayer(const mojom::Layer& wire,
@@ -1460,6 +1469,16 @@ void LayerContextImpl::BeginFrame(const BeginFrameArgs& args) {
 
 void LayerContextImpl::ReceiveReturnsFromParent(
     std::vector<ReturnedResource> resources) {
+  // Impl and Main thread task runners are the same. They bind to the viz
+  // thread.
+  auto* task_runner = task_runner_provider_->MainThreadTaskRunner();
+  if (!task_runner->BelongsToCurrentThread()) {
+    task_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(&LayerContextImpl::ReceiveReturnsFromParent,
+                       weak_factory_.GetWeakPtr(), std::move(resources)));
+    return;
+  }
   host_impl_->resource_provider()->ReceiveReturnsFromParent(
       std::move(resources));
   DoReturnResources();
@@ -1920,6 +1939,7 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   property_trees.set_changed(any_tree_changed);
   if (any_tree_changed) {
     property_trees.ResetCachedData();
+    layers.set_needs_update_draw_properties();
   }
 
   std::vector<std::unique_ptr<cc::RenderSurfaceImpl>> old_render_surfaces;

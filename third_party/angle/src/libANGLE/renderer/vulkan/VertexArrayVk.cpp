@@ -1023,10 +1023,19 @@ angle::Result VertexArrayVk::syncDirtyEnabledAttrib(ContextVk *contextVk,
             mCurrentArrayBuffers[attribIndex]      = &bufferHelper;
             mCurrentArrayBufferSerial[attribIndex] = bufferHelper.getBufferSerial();
             VkDeviceSize bufferSize                = bufferVk->getSize();
+
             VkDeviceSize bufferOffset;
-            mCurrentArrayBufferHandles[attribIndex] =
-                bufferHelper.getBufferForVertexArray(contextVk, bufferSize, &bufferOffset)
-                    .getHandle();
+            if (contextVk->getFeatures().useVertexInputBindingStrideDynamicState.enabled)
+            {
+                mCurrentArrayBufferHandles[attribIndex] = bufferHelper.getBuffer().getHandle();
+                bufferOffset                            = bufferHelper.getOffset();
+            }
+            else
+            {
+                mCurrentArrayBufferHandles[attribIndex] =
+                    bufferHelper.getBufferForVertexArray(contextVk, bufferSize, &bufferOffset)
+                        .getHandle();
+            }
 
             // Vulkan requires the offset is within the buffer. We use robust access
             // behaviour to reset the offset if it starts outside the buffer.
@@ -1189,9 +1198,18 @@ angle::Result VertexArrayVk::syncNeedsConversionAttrib(ContextVk *contextVk,
     mCurrentArrayBuffers[attribIndex]      = bufferHelper;
     mCurrentArrayBufferSerial[attribIndex] = bufferHelper->getBufferSerial();
     VkDeviceSize bufferSize                = bufferHelper->getSize();
+
     VkDeviceSize bufferOffset;
-    mCurrentArrayBufferHandles[attribIndex] =
-        bufferHelper->getBufferForVertexArray(contextVk, bufferSize, &bufferOffset).getHandle();
+    if (contextVk->getFeatures().useVertexInputBindingStrideDynamicState.enabled)
+    {
+        mCurrentArrayBufferHandles[attribIndex] = bufferHelper->getBuffer().getHandle();
+        bufferOffset                            = bufferHelper->getOffset();
+    }
+    else
+    {
+        mCurrentArrayBufferHandles[attribIndex] =
+            bufferHelper->getBufferForVertexArray(contextVk, bufferSize, &bufferOffset).getHandle();
+    }
     ASSERT(BindingIsAligned(dstFormat, bufferOffset + dstRelativeOffset, dstStride));
     mCurrentArrayBufferOffsets[attribIndex]         = bufferOffset + dstRelativeOffset;
     mCurrentArrayBufferSizes[attribIndex]           = bufferSize - dstRelativeOffset;
@@ -1440,10 +1458,19 @@ angle::Result VertexArrayVk::updateStreamedAttribs(const gl::Context *context,
         mCurrentArrayBuffers[attribIndex]      = vertexDataBuffer;
         mCurrentArrayBufferSerial[attribIndex] = vertexDataBuffer->getBufferSerial();
         VkDeviceSize bufferSize                = vertexDataBuffer->getSize();
+
         VkDeviceSize bufferOffset;
-        mCurrentArrayBufferHandles[attribIndex] =
-            vertexDataBuffer->getBufferForVertexArray(contextVk, bufferSize, &bufferOffset)
-                .getHandle();
+        if (contextVk->getFeatures().useVertexInputBindingStrideDynamicState.enabled)
+        {
+            mCurrentArrayBufferHandles[attribIndex] = vertexDataBuffer->getBuffer().getHandle();
+            bufferOffset                            = vertexDataBuffer->getOffset();
+        }
+        else
+        {
+            mCurrentArrayBufferHandles[attribIndex] =
+                vertexDataBuffer->getBufferForVertexArray(contextVk, bufferSize, &bufferOffset)
+                    .getHandle();
+        }
         mCurrentArrayBufferOffsets[attribIndex]  = bufferOffset + startOffset;
         mCurrentArrayBufferSizes[attribIndex]       = bufferSize - startOffset;
         mVertexInputBindingDesc[attribIndex].stride = stride;
@@ -1520,36 +1547,39 @@ angle::Result VertexArrayVk::handleLineLoop(ContextVk *contextVk,
 
 angle::Result VertexArrayVk::updateDefaultAttrib(ContextVk *contextVk, size_t attribIndex)
 {
+    ASSERT(!mState.getEnabledAttributesMask().test(attribIndex));
     vk::Renderer *renderer = contextVk->getRenderer();
-    if (!mState.getEnabledAttributesMask().test(attribIndex))
+    vk::BufferHelper *bufferHelper;
+    ANGLE_TRY(
+        contextVk->allocateStreamedVertexBuffer(attribIndex, kDefaultValueSize, &bufferHelper));
+
+    const gl::VertexAttribCurrentValueData &defaultValue =
+        contextVk->getState().getVertexAttribCurrentValues()[attribIndex];
+    uint8_t *ptr = bufferHelper->getMappedMemory();
+    memcpy(ptr, &defaultValue.Values, kDefaultValueSize);
+    ANGLE_TRY(bufferHelper->flush(contextVk->getRenderer()));
+
+    VkDeviceSize bufferOffset;
+    if (contextVk->getFeatures().useVertexInputBindingStrideDynamicState.enabled)
     {
-        vk::BufferHelper *bufferHelper;
-        ANGLE_TRY(
-            contextVk->allocateStreamedVertexBuffer(attribIndex, kDefaultValueSize, &bufferHelper));
-
-        const gl::VertexAttribCurrentValueData &defaultValue =
-            contextVk->getState().getVertexAttribCurrentValues()[attribIndex];
-        uint8_t *ptr = bufferHelper->getMappedMemory();
-        memcpy(ptr, &defaultValue.Values, kDefaultValueSize);
-        ANGLE_TRY(bufferHelper->flush(contextVk->getRenderer()));
-
-        VkDeviceSize bufferOffset;
+        mCurrentArrayBufferHandles[attribIndex] = bufferHelper->getBuffer().getHandle();
+        bufferOffset                            = bufferHelper->getOffset();
+    }
+    else
+    {
         mCurrentArrayBufferHandles[attribIndex] =
             bufferHelper->getBufferForVertexArray(contextVk, kDefaultValueSize, &bufferOffset)
                 .getHandle();
-        mCurrentArrayBufferOffsets[attribIndex]  = bufferOffset;
-        mCurrentArrayBufferSizes[attribIndex]       = kDefaultValueSize;
-        mCurrentArrayBuffers[attribIndex]        = bufferHelper;
-        mCurrentArrayBufferSerial[attribIndex]   = bufferHelper->getBufferSerial();
-        mVertexInputBindingDesc[attribIndex].stride = 0;
-        setVertexInputBindingDescDivisor(renderer, attribIndex, 0);
-
-        setDefaultPackedInput(contextVk, attribIndex, &mDefaultAttribFormatIDs[attribIndex]);
-        setVertexInputAttribDescFormat(renderer, attribIndex, mDefaultAttribFormatIDs[attribIndex]);
-
-        ANGLE_TRY(contextVk->onVertexAttributeChange(
-            attribIndex, 0, 0, mDefaultAttribFormatIDs[attribIndex], 0, nullptr));
     }
+    mCurrentArrayBufferOffsets[attribIndex]     = bufferOffset;
+    mCurrentArrayBufferSizes[attribIndex]       = kDefaultValueSize;
+    mCurrentArrayBuffers[attribIndex]           = bufferHelper;
+    mCurrentArrayBufferSerial[attribIndex]      = bufferHelper->getBufferSerial();
+    mVertexInputBindingDesc[attribIndex].stride = 0;
+    setVertexInputBindingDescDivisor(renderer, attribIndex, 0);
+
+    setDefaultPackedInput(contextVk, attribIndex, &mDefaultAttribFormatIDs[attribIndex]);
+    setVertexInputAttribDescFormat(renderer, attribIndex, mDefaultAttribFormatIDs[attribIndex]);
 
     return angle::Result::Continue;
 }

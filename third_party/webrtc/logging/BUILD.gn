@@ -201,8 +201,6 @@ rtc_library("rtc_event_frame_events") {
 rtc_library("rtc_event_generic_packet_events") {
   visibility = [ "*" ]
   sources = [
-    "rtc_event_log/events/rtc_event_generic_ack_received.cc",
-    "rtc_event_log/events/rtc_event_generic_ack_received.h",
     "rtc_event_log/events/rtc_event_generic_packet_received.cc",
     "rtc_event_log/events/rtc_event_generic_packet_received.h",
     "rtc_event_log/events/rtc_event_generic_packet_sent.cc",
@@ -214,7 +212,6 @@ rtc_library("rtc_event_generic_packet_events") {
     "../api:array_view",
     "../api/rtc_event_log",
     "../api/units:timestamp",
-    "../rtc_base:timeutils",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]

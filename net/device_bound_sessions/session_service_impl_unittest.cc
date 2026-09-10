@@ -58,8 +58,7 @@ const std::string kOrigin2 = "https://example2.com";
 const std::string kChallenge = "challenge";
 
 const char* GetSessionChallengeHeaderName() {
-  return base::FeatureList::IsEnabled(
-             net::features::kDeviceBoundSessionsOriginTrialFeedback)
+  return net::features::kDeviceBoundSessionsOriginTrialFeedback.Get()
              ? "Secure-Session-Challenge"
              : "Sec-Session-Challenge";
 }
@@ -165,8 +164,9 @@ class SessionServiceImplTestWithOriginTrialFeedback
     : public SessionServiceImplTest {
  public:
   SessionServiceImplTestWithOriginTrialFeedback() {
-    scoped_feature_list_.InitAndEnableFeature(
-        net::features::kDeviceBoundSessionsOriginTrialFeedback);
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kDeviceBoundSessions,
+        {{features::kDeviceBoundSessionsOriginTrialFeedback.name, "true"}});
   }
 
  private:
@@ -177,8 +177,33 @@ class SessionServiceImplTestWithoutOriginTrialFeedback
     : public SessionServiceImplTest {
  public:
   SessionServiceImplTestWithoutOriginTrialFeedback() {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kDeviceBoundSessions,
+        {{features::kDeviceBoundSessionsOriginTrialFeedback.name, "false"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class SessionServiceImplTestWithFederatedSessions
+    : public SessionServiceImplTest {
+ public:
+  SessionServiceImplTestWithFederatedSessions() {
+    scoped_feature_list_.InitAndEnableFeature(
+        net::features::kDeviceBoundSessionsFederatedRegistration);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class SessionServiceImplTestWithoutFederatedSessions
+    : public SessionServiceImplTest {
+ public:
+  SessionServiceImplTestWithoutFederatedSessions() {
     scoped_feature_list_.InitAndDisableFeature(
-        net::features::kDeviceBoundSessionsOriginTrialFeedback);
+        net::features::kDeviceBoundSessionsFederatedRegistration);
   }
 
  private:
@@ -1085,7 +1110,8 @@ TEST_F(SessionServiceImplTest, NoDebugHeaderOnSuccess) {
   EXPECT_FALSE(debug_header.has_value());
 }
 
-TEST_F(SessionServiceImplTest, FederatedRegistrationSuccess) {
+TEST_F(SessionServiceImplTestWithFederatedSessions,
+       FederatedRegistrationSuccess) {
   // Create the provider session
   SchemefulSite site(kTestUrl);
   AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
@@ -1125,7 +1151,8 @@ TEST_F(SessionServiceImplTest, FederatedRegistrationSuccess) {
   EXPECT_NE(relying_session, nullptr);
 }
 
-TEST_F(SessionServiceImplTest, FederatedRegistrationWrongKey) {
+TEST_F(SessionServiceImplTestWithFederatedSessions,
+       FederatedRegistrationWrongKey) {
   // Create the provider session
   SchemefulSite site(kTestUrl);
   AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
@@ -1162,7 +1189,8 @@ TEST_F(SessionServiceImplTest, FederatedRegistrationWrongKey) {
   EXPECT_EQ(relying_session, nullptr);
 }
 
-TEST_F(SessionServiceImplTest, FederatedRegistrationWrongSession) {
+TEST_F(SessionServiceImplTestWithFederatedSessions,
+       FederatedRegistrationWrongSession) {
   // Create the provider session
   SchemefulSite site(kTestUrl);
   AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
@@ -1202,7 +1230,8 @@ TEST_F(SessionServiceImplTest, FederatedRegistrationWrongSession) {
   EXPECT_EQ(relying_session, nullptr);
 }
 
-TEST_F(SessionServiceImplTest, FederatedRegistrationWrongOrigin) {
+TEST_F(SessionServiceImplTestWithFederatedSessions,
+       FederatedRegistrationWrongOrigin) {
   // Create the provider session
   SchemefulSite site(kTestUrl);
   AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
@@ -1245,7 +1274,8 @@ TEST_F(SessionServiceImplTest, FederatedRegistrationWrongOrigin) {
   EXPECT_EQ(relying_session, nullptr);
 }
 
-TEST_F(SessionServiceImplTest, FederatedRegistrationInvalidUrl) {
+TEST_F(SessionServiceImplTestWithFederatedSessions,
+       FederatedRegistrationInvalidUrl) {
   base::HistogramTester histograms;
 
   auto scoped_test_fetcher = ScopedTestRegistrationFetcher::CreateWithSuccess(
@@ -1269,7 +1299,8 @@ TEST_F(SessionServiceImplTest, FederatedRegistrationInvalidUrl) {
       SessionError::ErrorType::kInvalidFederatedSessionUrl, 1);
 }
 
-TEST_F(SessionServiceImplTest, FederatedRegistrationOpaqueOrigin) {
+TEST_F(SessionServiceImplTestWithFederatedSessions,
+       FederatedRegistrationOpaqueOrigin) {
   base::HistogramTester histograms;
 
   auto scoped_test_fetcher = ScopedTestRegistrationFetcher::CreateWithSuccess(
@@ -1291,6 +1322,47 @@ TEST_F(SessionServiceImplTest, FederatedRegistrationOpaqueOrigin) {
   histograms.ExpectUniqueSample(
       "Net.DeviceBoundSessions.RegistrationResult",
       SessionError::ErrorType::kInvalidFederatedSessionUrl, 1);
+}
+
+TEST_F(SessionServiceImplTestWithoutFederatedSessions,
+       IgnoresFederatedRegistration) {
+  // Create the provider session
+  SchemefulSite site(kTestUrl);
+  AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
+  Session* provider_session =
+      service().GetSession({site, Session::Id(kSessionId)});
+  ASSERT_NE(provider_session, nullptr);
+
+  // Create the provider key and the correct thumbprint
+  base::test::TestFuture<
+      unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>>
+      key_future;
+  key_service()->GenerateSigningKeySlowlyAsync(
+      {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
+      unexportable_keys::BackgroundTaskPriority::kBestEffort,
+      key_future.GetCallback());
+  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  std::string key_thumbprint = CreateJwkThumbprint(
+      crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
+      *key_service()->GetSubjectPublicKeyInfo(key));
+  provider_session->set_unexportable_key_id(key);
+
+  // Attempt a registration with a session provider
+  auto scoped_test_fetcher = ScopedTestRegistrationFetcher::CreateWithSuccess(
+      "RelyingSession", "https://rp.com/refresh", "https://rp.com");
+  auto fetch_param = RegistrationFetcherParam::CreateInstanceForTesting(
+      kTestUrl, {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
+      "challenge", /*authorization=*/std::nullopt, key_thumbprint, kTestUrl,
+      Session::Id(kSessionId));
+  service().RegisterBoundSession(
+      SessionService::OnAccessCallback(), std::move(fetch_param),
+      IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
+      NetLogWithSource(), /*original_request_initiator=*/std::nullopt);
+
+  // Validate the relying session does not exist.
+  Session* relying_session = service().GetSession(
+      {SchemefulSite(GURL("https://rp.com")), Session::Id("RelyingSession")});
+  EXPECT_EQ(relying_session, nullptr);
 }
 
 TEST_F(SessionServiceImplTest, EmptyResponseOnRegistration) {
@@ -1608,6 +1680,40 @@ TEST_F(SessionServiceImplWithStoreTest, NoSessionUsageDuringInitialization) {
                             FirstPartySetMetadata());
 
   EXPECT_EQ(request->device_bound_session_usage(), SessionUsage::kUnknown);
+}
+
+TEST_F(SessionServiceImplTest, GoogleRegistrationLog) {
+  base::HistogramTester histogram_tester;
+  auto scoped_test_fetcher = ScopedTestRegistrationFetcher::CreateWithSuccess(
+      kSessionId, kRefreshUrlString, kOrigin);
+  auto fetch_param = RegistrationFetcherParam::CreateInstanceForTesting(
+      GURL("https://accounts.google.com/"),
+      {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
+      "challenge", /*authorization=*/std::nullopt);
+  service().RegisterBoundSession(
+      base::DoNothing(), std::move(fetch_param),
+      IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
+      NetLogWithSource::Make(NetLogSourceType::URL_REQUEST),
+      /*original_request_initiator=*/std::nullopt);
+  histogram_tester.ExpectUniqueSample(
+      "Net.DeviceBoundSessions.GoogleRegistrationIsFromStandard", true, 1);
+}
+
+TEST_F(SessionServiceImplTest, NoGoogleRegistrationLog) {
+  base::HistogramTester histogram_tester;
+  auto scoped_test_fetcher = ScopedTestRegistrationFetcher::CreateWithSuccess(
+      kSessionId, kRefreshUrlString, kOrigin);
+  auto fetch_param = RegistrationFetcherParam::CreateInstanceForTesting(
+      GURL("https://notgoogle.com/"),
+      {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
+      "challenge", /*authorization=*/std::nullopt);
+  service().RegisterBoundSession(
+      base::DoNothing(), std::move(fetch_param),
+      IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
+      NetLogWithSource::Make(NetLogSourceType::URL_REQUEST),
+      /*original_request_initiator=*/std::nullopt);
+  histogram_tester.ExpectTotalCount(
+      "Net.DeviceBoundSessions.GoogleRegistrationIsFromStandard", 0);
 }
 
 }  // namespace net::device_bound_sessions

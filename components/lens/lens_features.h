@@ -139,6 +139,21 @@ BASE_DECLARE_FEATURE(kLensOverlayForceEmptyCsbQuery);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensSidePanelEnableWebviewResults);
 
+// Enables the zero state contextual searchbox feature which opens the SRP
+// immediately when entering Lens entry points.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensSearchZeroStateCsb);
+
+// Enables handling for the video citations feature.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensVideoCitations);
+
+// Enables the updated feedback entrypoint in the Lens side panel. This differs
+// from the "kLensSearchSidePanelNewFeedback" because this does not add a new
+// entrypoint, but updates the existing one.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensUpdatedFeedbackEntrypoint);
+
 // The base URL for Lens.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<std::string> kHomepageURLForLens;
@@ -810,6 +825,10 @@ extern bool GetSidePanelGhostLoaderDisabledForAim();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool GetShouldComposeboxContextualizeOnFocus();
 
+// Whether lens should show AIM suggestions.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool GetAimSuggestionsEnabled();
+
 // Whether to close the overlay when the user transitions to the AIM UI.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool ShouldCloseOverlayOnAimTransition();
@@ -912,6 +931,10 @@ extern std::string GetLensOverlayEduHashedDomainBlockFilters();
 COMPONENT_EXPORT(LENS_FEATURES)
 bool IsLensOverlayEduActionChipDisabledByGlic();
 
+// The number of times the EDU action chip can be shown.
+COMPONENT_EXPORT(LENS_FEATURES)
+int GetLensOverlayEduActionChipMaxShownCount();
+
 // Whether to enable keyboard selection in the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensOverlayKeyboardSelectionEnabled();
@@ -951,6 +974,23 @@ extern bool IsLensOverlayForceEmptyCsbQueryEnabled();
 // Whether to use a webview for the results frame instead of an iframe.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensSidePanelWebviewResultsEnabled();
+
+// Whether to enable zero state contextual suggest in the Lens overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensSearchZeroStateCsbEnabled();
+
+// The query text to use for zero state CSB in the Lens overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern std::string GetZeroStateCsbQuery();
+
+// Whether the feature to enable the special handling for video citations is
+// enabled.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensVideoCitationsEnabled();
+
+// Whether to enable the updated feedback entry point in the Lens side panel.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensUpdatedFeedbackEnabled();
 
 }  // namespace lens::features
 #endif  // COMPONENTS_LENS_LENS_FEATURES_H_

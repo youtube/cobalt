@@ -100,28 +100,6 @@ function extractFieldsFromControlElements(
 }
 
 /**
- * Check if the node is visible.
- *
- * @param node The node to be processed.
- * @return Whether the node is visible or not.
- */
-gCrWebLegacy.fill.isVisibleNode = function(node: Node): boolean {
-  if (!node) {
-    return false;
-  }
-
-  if (node.nodeType === Node.ELEMENT_NODE) {
-    const style = window.getComputedStyle(node as Element);
-    if (style.visibility === 'hidden' || style.display === 'none') {
-      return false;
-    }
-  }
-
-  // Verify all ancestors are focusable.
-  return !node.parentNode || gCrWebLegacy.fill.isVisibleNode(node.parentNode);
-};
-
-/**
  * For each label element, get the corresponding form control element, use the
  * form control element along with |controlElements| and |elementArray| to find
  * the previously created AutofillFormFieldData and set the
@@ -447,7 +425,7 @@ gCrWebLegacy.fill.webFormElementToFormData = function(
   form.name_attribute = formElement.getAttribute('name') || '';
   form.id_attribute = formElement.getAttribute('id') || '';
 
-  form.renderer_id = gCrWebLegacy.fill.getUniqueID(formElement);
+  form.renderer_id = fillUtil.getUniqueID(formElement);
 
   form.host_frame = frame.__gCrWeb.getFrameId();
 
@@ -506,7 +484,7 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
   field.name_attribute = element.getAttribute('name') || '';
   field.id_attribute = element.getAttribute('id') || '';
 
-  field.renderer_id = gCrWebLegacy.fill.getUniqueID(element);
+  field.renderer_id = fillUtil.getUniqueID(element);
 
   field.form_control_type = element.type;
   const autocompleteAttribute = element.getAttribute('autocomplete');
@@ -549,9 +527,9 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
       gCrWebLegacy.fill.isSelectElement(element)) {
     field.is_autofilled = (element as any).isAutofilled;
     field.is_user_edited = gCrWebLegacy.form.fieldWasEditedByUser(element);
-    field.should_autocomplete = gCrWebLegacy.fill.shouldAutocomplete(element);
+    field.should_autocomplete = fillUtil.shouldAutocomplete(element);
     field.is_focusable = !element.disabled && !(element as any).readOnly &&
-        element.tabIndex >= 0 && gCrWebLegacy.fill.isVisibleNode(element);
+        element.tabIndex >= 0 && fillUtil.isVisibleNode(element);
   }
 
   if (gCrWebLegacy.fill.isAutofillableInputElement(element)) {
@@ -628,7 +606,7 @@ gCrWebLegacy.fill.getUnownedAutofillableFormFieldElements = function(
     }
 
     if (gCrWebLegacy.fill.hasTagName(element, 'fieldset') &&
-        !gCrWebLegacy.fill.isElementInsideFormOrFieldSet(element)) {
+        !fillUtil.isElementInsideFormOrFieldSet(element)) {
       fieldsets.push(element);
     }
   }

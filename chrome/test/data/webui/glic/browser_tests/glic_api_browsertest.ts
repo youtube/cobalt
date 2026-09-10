@@ -911,6 +911,15 @@ class ApiTests extends ApiTestFixtureBase {
     assertEquals(url.pathname, '/glic/browser_tests/test.html');
   }
 
+  async testNavigateToAboutBlank() {
+    // Navigation to about:blank will destroy this test client, so the code
+    // below will first allow this test function to return, and then navigate.
+    (async () => {
+      await sleep(100);
+      location.href = 'about:blank';
+    })();
+  }
+
   async testCallingApiWhileHiddenRecordsMetrics() {
     assertDefined(this.host.createTab);
     await this.advanceToNextStep();
@@ -1721,6 +1730,56 @@ class ApiTests extends ApiTestFixtureBase {
         metadata.frameMetadata[0]!.metaTags.find(tag => tag.name === 'author');
     assertDefined(authorTag);
     assertEquals('Ruth', authorTag.content);
+  }
+
+  async testAdditionalContext() {
+    const additionalContextPromise = new Promise<void>(resolve => {
+      this.host.getAdditionalContext!().subscribe(async context => {
+        assertEquals(context.name, 'part with everything');
+        assertDefined(context.tabId);
+        assertTrue(context.tabId!.length > 0);
+        assertDefined(context.frameUrl);
+        assertTrue(context.frameUrl!.length > 0);
+        assertEquals(context.parts.length, 5);
+
+        const part1 = context.parts[0]!;
+        assertDefined(part1.data);
+        assertEquals(part1.data!.type, 'text/plain');
+        const data1 = new Uint8Array(await part1.data!.arrayBuffer());
+        assertEquals(data1.length, 4);
+        assertEquals(data1[0], 't'.charCodeAt(0));
+
+        const part2 = context.parts[1]!;
+        assertUndefined(part2.data);
+        assertDefined(part2.screenshot);
+        assertEquals(part2.screenshot!.widthPixels, 10);
+        assertEquals(part2.screenshot!.heightPixels, 20);
+        assertEquals(part2.screenshot!.mimeType, 'image/png');
+        const data2 = new Uint8Array(part2.screenshot!.data);
+        assertEquals(data2.length, 4);
+        assertEquals(data2[0], 1);
+
+        const part3 = context.parts[2]!;
+        assertDefined(part3.webPageData);
+        assertEquals(
+            part3.webPageData!.mainDocument.innerText, 'some inner text');
+
+        const part4 = context.parts[3]!;
+        assertDefined(part4.annotatedPageData);
+
+        const part5 = context.parts[4]!;
+        assertDefined(part5.pdf);
+        assertDefined(part5.pdf!.pdfData);
+        const pdfText = await new Response(part5.pdf!.pdfData!).text();
+        assertEquals(pdfText, 'pdf');
+
+
+        resolve();
+      });
+    });
+
+    await this.advanceToNextStep();
+    await additionalContextPromise;
   }
 
   private async closePanelAndWaitUntilInactive() {

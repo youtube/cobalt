@@ -9,10 +9,9 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_reporter.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
-import type {AutocompleteMatch, AutocompleteResult, OmniboxPopupSelection, PageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {AutocompleteMatch, AutocompleteResult, OmniboxPopupSelection} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {RenderType, SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
-import {SearchboxBrowserProxy} from './searchbox_browser_proxy.js';
 import {getCss} from './searchbox_dropdown.css.js';
 import {getHtml} from './searchbox_dropdown.html.js';
 import type {SearchboxMatchElement} from './searchbox_match.js';
@@ -105,40 +104,15 @@ export class SearchboxDropdownElement extends CrLitElement {
 
   accessor canShowSecondarySide: boolean = false;
   accessor hadSecondarySide: boolean = false;
-  accessor hasSecondarySide: boolean;
-  accessor hasEmptyInput: boolean;
-  accessor result: AutocompleteResult;
+  accessor hasSecondarySide: boolean = false;
+  accessor hasEmptyInput: boolean = false;
+  accessor result: AutocompleteResult|null = null;
   accessor selectedMatchIndex: number = -1;
   accessor showThumbnail: boolean = false;
   private accessor showSecondarySide_: boolean = false;
 
   /** The list of selectable match elements. */
   private selectableMatchElements_: SearchboxMatchElement[] = [];
-  private resizeObserver_: ResizeObserver|null = null;
-  private pageHandler_: PageHandlerInterface;
-
-  constructor() {
-    super();
-    this.pageHandler_ = SearchboxBrowserProxy.getInstance().handler;
-  }
-
-  override connectedCallback() {
-    super.connectedCallback();
-    this.resizeObserver_ = new ResizeObserver(
-        (entries: ResizeObserverEntry[]) =>
-            this.pageHandler_.popupElementSizeChanged({
-              width: entries[0].contentRect.width,
-              height: entries[0].contentRect.height,
-            }));
-    this.resizeObserver_.observe(this.$.content);
-  }
-
-  override disconnectedCallback() {
-    if (this.resizeObserver_) {
-      this.resizeObserver_.disconnect();
-    }
-    super.disconnectedCallback();
-  }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
@@ -295,7 +269,7 @@ export class SearchboxDropdownElement extends CrLitElement {
   }
 
   private computeHasEmptyInput_(): boolean {
-    return this.result && decodeString16(this.result.input) === '';
+    return !!this.result && decodeString16(this.result.input) === '';
   }
 
   protected isSelected_(match: AutocompleteMatch): boolean {

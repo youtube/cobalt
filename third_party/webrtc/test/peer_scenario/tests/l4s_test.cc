@@ -500,8 +500,8 @@ TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithEcn) {
   s.ProcessMessages(TimeDelta::Seconds(3));
   DataRate available_bwe =
       GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
-  EXPECT_GT(available_bwe.kbps(), 450);
-  EXPECT_LT(available_bwe.kbps(), 610);
+  EXPECT_GT(available_bwe, DataRate::KilobitsPerSec(450));
+  EXPECT_LT(available_bwe, DataRate::KilobitsPerSec(610));
 }
 
 TEST(L4STest, SendsEct1UntilFirstFeedback) {

@@ -237,7 +237,6 @@ class CORE_EXPORT WebFrameWidgetImpl
   void RequestDecode(const cc::DrawImage&,
                      base::OnceCallback<void(bool)>,
                      bool speculative) override;
-  bool SpeculativeDecodeRequestInFlight() const override;
   int GetLayerTreeId() final;
   const cc::LayerTreeSettings* GetLayerTreeSettings() final;
   void UpdateBrowserControlsState(
@@ -677,7 +676,9 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   void SetScreenMetricsEmulationParameters(
       bool enabled,
-      const blink::DeviceEmulationParams& params);
+      const blink::DeviceEmulationParams& params,
+      const mojom::blink::DeviceEmulationCacheBehavior& cache_behavior =
+          mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
   void SetScreenInfoAndSize(const display::ScreenInfos& screen_infos,
                             const gfx::Size& widget_size_in_dips,
                             const gfx::Size& visible_viewport_size_in_dips);
@@ -870,7 +871,9 @@ class CORE_EXPORT WebFrameWidgetImpl
   void UpdateRenderThrottlingStatusForSubFrame(bool is_throttled,
                                                bool subtree_throttled,
                                                bool display_locked) override;
-  void EnableDeviceEmulation(const DeviceEmulationParams& parameters) override;
+  void EnableDeviceEmulation(
+      const DeviceEmulationParams& parameters,
+      const mojom::blink::DeviceEmulationCacheBehavior cache_behavior) override;
   void DisableDeviceEmulation() override;
   // Sets the inert bit on an out-of-process iframe, causing it to ignore
   // input.

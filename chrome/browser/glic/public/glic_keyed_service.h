@@ -14,17 +14,19 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 
 class BrowserWindowInterface;
@@ -53,7 +55,7 @@ class GlicMetrics;
 class GlicOcclusionNotifier;
 class GlicProfileManager;
 class GlicScreenshotCapturer;
-class GlicSharingManagerImpl;
+class GlicTabSourceObserver;
 class GlicWindowController;
 class HostManager;
 
@@ -113,33 +115,12 @@ class GlicKeyedService : public KeyedService,
   // manager.
   void CloseUI();
 
-  // The user has performed an action suggesting that they made open the UI
-  // soon.
-  void PrepareForOpen();
-
   GlicEnabling& enabling() { return *enabling_.get(); }
 
   GlicMetrics* metrics() { return metrics_.get(); }
   GlicFreController& fre_controller();
   GlicWindowController& window_controller() const;
   GlicSharingManager& sharing_manager() override;
-
-  // Host::InstanceDelegate:
-  // TODO(crbug.com/445762814): InstanceDelegate methods should replace the
-  // existing methods of the same names.
-  void CreateTab() override;
-  void CreateTask() override;
-  void PerformActions() override;
-  void StopActorTask() override;
-  void PauseActorTask() override;
-  void ResumeActorTask() override;
-  void GetZeroStateSuggestionsAndSubscribe() override;
-  void GetZeroStateSuggestionsForFocusedTab() override;
-  void FetchZeroStateSuggestions(
-      bool is_first_run,
-      std::optional<std::vector<std::string>> supported_tools,
-      glic::mojom::WebClientHandler::
-          GetZeroStateSuggestionsForFocusedTabCallback callback) override;
 
   // Called when a webview guest is created within a chrome://glic WebUI.
   void GuestAdded(content::WebContents* guest_contents);
@@ -154,12 +135,6 @@ class GlicKeyedService : public KeyedService,
 
   // Private API for the glic WebUI.
 
-  // CreateTab is used by both the FRE page and the glic web client to open a
-  // URL in a new tab.
-  void CreateTab(const ::GURL& url,
-                 bool open_in_background,
-                 const std::optional<int32_t>& window_id,
-                 glic::mojom::WebClientHandler::CreateTabCallback callback);
   virtual void ClosePanel();
   void SetContextAccessIndicator(bool show);
 
@@ -183,18 +158,48 @@ class GlicKeyedService : public KeyedService,
     return is_context_access_indicator_enabled_;
   }
 
-  void CreateTask(actor::webui::mojom::TaskOptionsPtr options,
-                  mojom::WebClientHandler::CreateTaskCallback callback);
-  void PerformActions(const std::vector<uint8_t>& actions_proto,
-                      mojom::WebClientHandler::PerformActionsCallback callback);
+  // Host::InstanceDelegate:
+  // CreateTab is used by both the FRE page and the glic web client to open a
+  // URL in a new tab. The source is the RenderFrameHost of the Glic
+  // instance that is requesting the navigation - this gets set as the
+  // navigation handle's opener param.
+  void CreateTab(
+      content::RenderFrameHost* source,
+      const ::GURL& url,
+      bool open_in_background,
+      const std::optional<int32_t>& window_id,
+      glic::mojom::WebClientHandler::CreateTabCallback callback) override;
+  void CreateTask(
+      actor::webui::mojom::TaskOptionsPtr options,
+      mojom::WebClientHandler::CreateTaskCallback callback) override;
+  void PerformActions(
+      const std::vector<uint8_t>& actions_proto,
+      mojom::WebClientHandler::PerformActionsCallback callback) override;
   void StopActorTask(actor::TaskId task_id,
-                     mojom::ActorTaskStopReason stop_reason);
+                     mojom::ActorTaskStopReason stop_reason) override;
   void PauseActorTask(actor::TaskId task_id,
-                      mojom::ActorTaskPauseReason pause_reason);
+                      mojom::ActorTaskPauseReason pause_reason) override;
+  // TODO(crbug.com/446696379) - The ResumeActorTask Glic API should, like the
+  // rest of actor observations, operate in terms of TabObservation rather than
+  // TabContext.
   void ResumeActorTask(
       actor::TaskId task_id,
       const mojom::GetTabContextOptions& context_options,
-      glic::mojom::WebClientHandler::ResumeActorTaskCallback callback);
+      glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) override;
+  void FetchZeroStateSuggestions(
+      bool is_first_run,
+      std::optional<std::vector<std::string>> supported_tools,
+      glic::mojom::WebClientHandler::
+          GetZeroStateSuggestionsForFocusedTabCallback callback) override;
+  void GetZeroStateSuggestionsAndSubscribe(
+      bool has_active_subscription,
+      const mojom::ZeroStateSuggestionsOptions& options,
+      mojom::WebClientHandler::GetZeroStateSuggestionsAndSubscribeCallback
+          callback) override;
+  void RegisterConversation(
+      glic::mojom::ConversationInfoPtr info,
+      mojom::WebClientHandler::RegisterConversationCallback callback) override;
+  void PrepareForOpen() override;
 
   void OnUserInputSubmitted(glic::mojom::WebClientMode mode);
 
@@ -243,6 +248,13 @@ class GlicKeyedService : public KeyedService,
   // null if there is none. `bwi` can be null if preloaded with no browser open.
   GlicInstance* GetInstanceForActiveTab(BrowserWindowInterface* bwi);
 
+  // Sends additional context to the web client associated with the given tab.
+  // If no web client exists for the tab, then this method does nothing. It is
+  // the responsibility of the caller to ensure that a host exists before
+  // calling this method.
+  void SendAdditionalContext(tabs::TabHandle tab_handle,
+                             mojom::AdditionalContextPtr context);
+
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback
   // callbacks.
@@ -280,13 +292,14 @@ class GlicKeyedService : public KeyedService,
   std::unique_ptr<GlicFreController> fre_controller_;
   // Is either a GlicWindowControllerImpl or GlicPanelCoordinatorImpl.
   std::unique_ptr<GlicWindowController> window_controller_;
-  std::unique_ptr<GlicSharingManagerImpl> sharing_manager_;
+  std::unique_ptr<GlicSharingManager> sharing_manager_;
   std::unique_ptr<GlicScreenshotCapturer> screenshot_capturer_;
   std::unique_ptr<AuthController> auth_controller_;
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
   std::unique_ptr<GlicOcclusionNotifier> occlusion_notifier_;
   std::unique_ptr<GlicZeroStateSuggestionsManager>
       zero_state_suggestions_manager_;
+  std::unique_ptr<GlicTabSourceObserver> glic_tab_source_observer_;
   base::OnceCallback<void()> preload_callback_;
 
   // Unowned

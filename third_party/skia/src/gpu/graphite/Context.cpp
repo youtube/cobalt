@@ -181,7 +181,7 @@ bool Context::finishInitialization() {
         return false;
     }
     if (result == StaticBufferManager::FinishResult::kSuccess &&
-        !fQueueManager->submitToGpu()) {
+        !fQueueManager->submitToGpu(/*submitInfo=*/{})) {
         SKGPU_LOG_W("Failed to submit initial command buffer for Context creation.\n");
         return false;
     } // else result was kNoWork so skip submitting to the GPU
@@ -238,16 +238,16 @@ InsertStatus Context::insertRecording(const InsertRecordingInfo& info) {
     return fQueueManager->addRecording(info, this);
 }
 
-bool Context::submit(SyncToCpu syncToCpu) {
+bool Context::submit(SubmitInfo submitInfo) {
     ASSERT_SINGLE_OWNER
 
-    if (syncToCpu == SyncToCpu::kYes && !fSharedContext->caps()->allowCpuSync()) {
+    if (submitInfo.fSync == SyncToCpu::kYes && !fSharedContext->caps()->allowCpuSync()) {
         SKGPU_LOG_E("SyncToCpu::kYes not supported with ContextOptions::fNeverYieldToWebGPU. "
                     "The parameter is ignored and no synchronization will occur.");
-        syncToCpu = SyncToCpu::kNo;
+        submitInfo.fSync = SyncToCpu::kNo;
     }
-    bool success = fQueueManager->submitToGpu();
-    this->checkForFinishedWork(syncToCpu);
+    bool success = fQueueManager->submitToGpu(submitInfo);
+    this->checkForFinishedWork(submitInfo.fSync);
     return success;
 }
 
@@ -833,6 +833,7 @@ void Context::checkForFinishedWork(SyncToCpu syncToCpu) {
     fMappedBufferManager->process();
     // Process the return queue periodically to make sure it doesn't get too big
     fResourceProvider->forceProcessReturnedResources();
+    fSharedContext->forceProcessReturnedResources();
 }
 
 void Context::checkAsyncWorkCompletion() {
@@ -854,6 +855,7 @@ void Context::freeGpuResources() {
     this->checkAsyncWorkCompletion();
 
     fResourceProvider->freeGpuResources();
+    fSharedContext->freeGpuResources();
 }
 
 void Context::performDeferredCleanup(std::chrono::milliseconds msNotUsed) {
@@ -863,20 +865,24 @@ void Context::performDeferredCleanup(std::chrono::milliseconds msNotUsed) {
 
     auto purgeTime = skgpu::StdSteadyClock::now() - msNotUsed;
     fResourceProvider->purgeResourcesNotUsedSince(purgeTime);
+    fSharedContext->purgeResourcesNotUsedSince(purgeTime);
 }
 
 size_t Context::currentBudgetedBytes() const {
     ASSERT_SINGLE_OWNER
+    SkASSERT(fSharedContext->getResourceCacheCurrentBudgetedBytes() == 0);
     return fResourceProvider->getResourceCacheCurrentBudgetedBytes();
 }
 
 size_t Context::currentPurgeableBytes() const {
     ASSERT_SINGLE_OWNER
+    SkASSERT(fSharedContext->getResourceCacheCurrentPurgeableBytes() == 0);
     return fResourceProvider->getResourceCacheCurrentPurgeableBytes();
 }
 
 size_t Context::maxBudgetedBytes() const {
     ASSERT_SINGLE_OWNER
+    SkASSERT(fSharedContext->getResourceCacheLimit() == SharedContext::kThreadedSafeResourceBudget);
     return fResourceProvider->getResourceCacheLimit();
 }
 
@@ -888,6 +894,7 @@ void Context::setMaxBudgetedBytes(size_t bytes) {
 void Context::dumpMemoryStatistics(SkTraceMemoryDump* traceMemoryDump) const {
     ASSERT_SINGLE_OWNER
     fResourceProvider->dumpMemoryStatistics(traceMemoryDump);
+    fSharedContext->dumpMemoryStatistics(traceMemoryDump);
     // TODO: What is the graphite equivalent for the text blob cache and how do we print out its
     // used bytes here (see Ganesh implementation).
 }

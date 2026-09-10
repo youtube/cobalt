@@ -10,13 +10,18 @@
 #include "components/safe_browsing/core/browser/web_ui/safe_browsing_local_state_delegate.h"
 #include "content/public/browser/web_ui_controller.h"
 
+namespace os_crypt_async {
+class OSCryptAsync;
+}
+
 namespace safe_browsing {
 
 // The WebUI for chrome://safe-browsing
 class SafeBrowsingUI : public content::WebUIController {
  protected:
   SafeBrowsingUI(content::WebUI* web_ui,
-                 std::unique_ptr<SafeBrowsingLocalStateDelegate> delegate);
+                 std::unique_ptr<SafeBrowsingLocalStateDelegate> delegate,
+                 os_crypt_async::OSCryptAsync* os_crypt_async);
 
   SafeBrowsingUI(const SafeBrowsingUI&) = delete;
   SafeBrowsingUI& operator=(const SafeBrowsingUI&) = delete;
@@ -24,9 +29,9 @@ class SafeBrowsingUI : public content::WebUIController {
   ~SafeBrowsingUI() override;
 };
 
-// Used for streaming messages to the WebUIInfoSingleton. Collects streamed
-// messages, then sends them to the WebUIInfoSingleton when destroyed. Intended
-// to be used in CRSBLOG macro.
+// Used for streaming messages to the WebUIContentInfoSingleton. Collects
+// streamed messages, then sends them to the WebUIContentInfoSingleton when
+// destroyed. Intended to be used in CRSBLOG macro.
 class CrSBLogMessage {
  public:
   CrSBLogMessage();
@@ -49,10 +54,10 @@ class CrSBLogVoidify {
   void operator&(std::ostream&) {}
 };
 
-#define CRSBLOG                                         \
-  (!::safe_browsing::WebUIInfoSingleton::HasListener()) \
-      ? static_cast<void>(0)                            \
-      : ::safe_browsing::CrSBLogVoidify() &             \
+#define CRSBLOG                                                \
+  (!::safe_browsing::WebUIContentInfoSingleton::HasListener()) \
+      ? static_cast<void>(0)                                   \
+      : ::safe_browsing::CrSBLogVoidify() &                    \
             ::safe_browsing::CrSBLogMessage().stream()
 
 }  // namespace safe_browsing

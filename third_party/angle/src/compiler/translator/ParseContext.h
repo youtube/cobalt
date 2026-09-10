@@ -78,6 +78,7 @@ class TParseContext : angle::NonCopyable
     bool isEarlyFragmentTestsSpecified() const { return mEarlyFragmentTestsSpecified; }
     bool hasDiscard() const { return mHasDiscard; }
     bool isSampleQualifierSpecified() const { return mSampleQualifierSpecified; }
+    bool isMainDeclared() const { return mIsMainDeclared; }
 
     void setLoopNestingLevel(int loopNestintLevel) { mLoopNestingLevel = loopNestintLevel; }
 
@@ -548,7 +549,7 @@ class TParseContext : angle::NonCopyable
     // Note that there may be tests in AtomicCounter_test that will need to be updated as well.
     constexpr static size_t kAtomicCounterArrayStride = 4;
 
-    void markStaticReadIfSymbol(TIntermNode *node);
+    void markStaticUseIfSymbol(TIntermNode *node);
 
     // Returns a clamped index. If it prints out an error message, the token is "[]".
     int checkIndexLessThan(bool outOfRangeIndexIsError,
@@ -692,6 +693,8 @@ class TParseContext : angle::NonCopyable
     bool parseTessControlShaderOutputLayoutQualifier(const TTypeQualifier &typeQualifier);
     bool parseTessEvaluationShaderInputLayoutQualifier(const TTypeQualifier &typeQualifier);
 
+    void sizeUnsizedArrayTypes(uint32_t arraySize);
+
     // Certain operations become illegal only iff the shader declares pixel local storage uniforms.
     enum class PLSIllegalOperations
     {
@@ -800,6 +803,7 @@ class TParseContext : angle::NonCopyable
 
     // keeps track whether we are declaring / defining the function main().
     bool mDeclaringMain;
+    bool mIsMainDeclared;
 
     // Track the state of each atomic counter binding.
     std::map<int, AtomicCounterBindingState> mAtomicCounterBindingStates;

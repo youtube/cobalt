@@ -152,7 +152,7 @@
 #include "device/fido/fido_test_data.h"
 #include "device/fido/win/fake_webauthn_api.h"
 #include "device/fido/win/util.h"
-#include "third_party/microsoft_webauthn/webauthn.h"  // nogncheck
+#include "third_party/microsoft_webauthn/src/webauthn.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -694,7 +694,8 @@ TEST_F(AuthenticatorImplTest, ClientDataJSONSerialization) {
         BuildClientDataJson({test.type, test.origin, test.top_origin,
                              test.challenge, test.is_cross_origin});
 
-    const auto parsed = base::JSONReader::Read(json);
+    const auto parsed =
+        base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     ASSERT_TRUE(parsed.has_value());
     std::string type_key;
     std::string expected_type;
@@ -823,6 +824,9 @@ TEST_F(AuthenticatorImplTest, GetClientCapabilities) {
       client_capabilities::kUserVerifyingPlatformAuthenticator,
       client_capabilities::kRelatedOrigins,
       client_capabilities::kConditionalCreate,
+      client_capabilities::kSignalAllAcceptedCredentials,
+      client_capabilities::kSignalCurrentUserDetails,
+      client_capabilities::kSignalUnknownCredential,
   };
 
   // Ensure no extra capabilities
@@ -866,7 +870,7 @@ TEST_F(AuthenticatorImplTest, GetClientCapabilities_RelatedOrigins) {
   ExpectCapability(capabilities, client_capabilities::kRelatedOrigins, true);
 }
 
-TEST_F(AuthenticatorImplTest, GetClientCapabilities_ConditonalCreate) {
+TEST_F(AuthenticatorImplTest, GetClientCapabilities_ConditionalCreate) {
   for (const bool enabled : {false, true}) {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitWithFeatureState(device::kWebAuthnPasskeyUpgrade, enabled);
@@ -888,15 +892,26 @@ TEST_F(AuthenticatorImplTest, GetClientCapabilities_ImmediateGet) {
   }
 }
 
+TEST_F(AuthenticatorImplTest, GetClientCapabilities_SignalApi) {
+  NavigateAndCommit(GURL(kTestOrigin1));
+  ClientCapabilitiesList capabilities = AuthenticatorGetClientCapabilities();
+  ExpectCapability(capabilities,
+                   client_capabilities::kSignalAllAcceptedCredentials, true);
+  ExpectCapability(capabilities, client_capabilities::kRelatedOrigins, true);
+  ExpectCapability(capabilities, client_capabilities::kRelatedOrigins, true);
+}
+
 // Parses its arguments as JSON and expects that all the keys in the first are
 // also in the second, and with the same value.
 static void CheckJSONIsSubsetOfJSON(std::string_view subset_str,
                                     std::string_view test_str) {
-  std::optional<base::Value> subset = base::JSONReader::Read(subset_str);
+  std::optional<base::Value> subset =
+      base::JSONReader::Read(subset_str, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(subset);
   ASSERT_TRUE(subset->is_dict());
   const base::Value::Dict& subset_dict = subset->GetDict();
-  std::optional<base::Value> test = base::JSONReader::Read(test_str);
+  std::optional<base::Value> test =
+      base::JSONReader::Read(test_str, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(test);
   ASSERT_TRUE(test->is_dict());
   const base::Value::Dict& test_dict = test->GetDict();
@@ -8073,6 +8088,49 @@ TEST_F(ResidentKeyAuthenticatorImplTest, MakeCredentialLargeBlobWinPreferred) {
     ASSERT_EQ(result.status, AuthenticatorStatus::SUCCESS);
     EXPECT_TRUE(result.response->echo_large_blob);
     EXPECT_EQ(result.response->supports_large_blob, large_blob_supported);
+  }
+}
+
+// Tests that the AAGUID is not zeroed out for Windows Hello on Windows versions
+// where Chrome can learn the transport used.
+// Regression test for crbug.com/446157740.
+TEST_F(ResidentKeyAuthenticatorImplTest,
+       WinPlatformAuthenticatorAttestationAAGUID) {
+  enum Test {
+    kWindowsReportsUsb,
+    kWindowsReportsInternal,
+    kWindowsDoesNotReportTransport
+  };
+  virtual_device_factory_->set_discover_win_webauthn_api_authenticator(true);
+  fake_win_webauthn_api_.set_available(true);
+  for (Test test : {kWindowsReportsUsb, kWindowsReportsInternal,
+                    kWindowsDoesNotReportTransport}) {
+    SCOPED_TRACE(test);
+    fake_win_webauthn_api_.set_version(test == kWindowsDoesNotReportTransport
+                                           ? WEBAUTHN_API_VERSION_5
+                                           : WEBAUTHN_API_VERSION_6);
+    fake_win_webauthn_api_.set_transport(test == kWindowsReportsInternal
+                                             ? WEBAUTHN_CTAP_TRANSPORT_INTERNAL
+                                             : WEBAUTHN_CTAP_TRANSPORT_USB);
+    PublicKeyCredentialCreationOptionsPtr options =
+        GetTestPublicKeyCredentialCreationOptions();
+    MakeCredentialResult result =
+        AuthenticatorMakeCredential(std::move(options));
+    ASSERT_EQ(result.status, AuthenticatorStatus::SUCCESS);
+
+    const device::AuthenticatorData auth_data =
+        AuthDataFromMakeCredentialResponse(result.response);
+
+    std::optional<Value> attestation_value =
+        Reader::Read(result.response->attestation_object);
+    ASSERT_TRUE(attestation_value);
+    ASSERT_TRUE(attestation_value->is_map());
+    if (test == kWindowsReportsInternal) {
+      EXPECT_EQ(auth_data.attested_data()->aaguid(),
+                device::FakeWinWebAuthnApi::kTestWindowsAaguid);
+    } else {
+      EXPECT_TRUE(auth_data.attested_data()->IsAaguidZero());
+    }
   }
 }
 #endif  // BUILDFLAG(IS_WIN)

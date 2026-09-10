@@ -323,7 +323,6 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 #ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
@@ -350,7 +349,6 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
   // The code objects referenced from a dispatch table entry are treated as weak
   // references for the purpose of bytecode/baseline flushing, so they are not
   // marked here. See also VisitJSFunction below.
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // ===========================================================================
@@ -363,14 +361,10 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     MaybeObjectSize maybe_object_size) {
   if (ShouldFlushBaselineCode(js_function)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-#ifndef V8_ENABLE_LEAPTIERING
-    local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
-#endif  // !V8_ENABLE_LEAPTIERING
     return Base::VisitJSFunction(map, js_function, maybe_object_size);
   }
 
   // We're not flushing the Code, so mark it as alive.
-#ifdef V8_ENABLE_LEAPTIERING
   // Here we can see JSFunctions that aren't fully initialized (e.g. during
   // deserialization) so we need to check for the null handle.
   JSDispatchHandle handle(
@@ -378,37 +372,48 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
           JSFunction::kDispatchHandleOffset));
   if (handle != kNullJSDispatchHandle) {
     // See `ProcessStrongHeapObject()` for synchronization details.
-    Tagged<HeapObject> code =
-        Tagged<Object>(
-            IsolateGroup::current()->js_dispatch_table()->GetCodePointerForGC(
-                handle))
-            .GetHeapObjectAssumeStrong();
-    SynchronizePageAccess(code);
+    Tagged<Code> code =
+        IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
+    // Dispatch table operations on code are synchronizing, so there's no need
+    // to synchronize the page.
     const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, code);
     if (target_worklist) {
       DCHECK(IsCode(code));
       MarkObject(js_function, code, target_worklist.value());
     }
   }
-#else
-
-#ifdef V8_ENABLE_SANDBOX
-  VisitIndirectPointer(js_function,
-                       js_function->RawIndirectPointerField(
-                           JSFunction::kCodeOffset, kCodeIndirectPointerTag),
-                       IndirectPointerMode::kStrong);
-#else
-  VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
-#endif  // V8_ENABLE_SANDBOX
-
-#endif  // V8_ENABLE_LEAPTIERING
 
   // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
   // also include cases where there is old bytecode even when there is no
   // baseline code and remove this check here.
-  if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
-      js_function->NeedsResetDueToFlushedBytecode(heap_->isolate())) {
-    local_weak_objects_->flushed_js_functions_local.Push(js_function);
+  if (IsByteCodeFlushingEnabled(code_flush_mode_)) {
+    // At this point the JSFunction is fully initialized which is guaranteed by
+    // the marking protocol. However, due to deserialization we may observe
+    // fields still as `Smi::uninitialized_deserialization_value()` which is not
+    // a valid bailout condition for the `TrustedCast()`.
+
+    // The SFI itself is synchronized via acq/rel pair here.
+    Tagged<Object> maybe_sfi =
+        ACQUIRE_READ_FIELD(*js_function, JSFunction::kSharedFunctionInfoOffset);
+    Tagged<SharedFunctionInfo> sfi;
+    if (!TryCast(maybe_sfi, &sfi)) {
+      DCHECK_EQ(maybe_sfi,
+                Tagged<Smi>(Smi::uninitialized_deserialization_value()));
+    }
+    // Code is synchronized via acq/release pair here and in the dispatch table
+    // if enabled.
+    Tagged<Object> maybe_code =
+        js_function->raw_code(heap_->isolate(), kAcquireLoad);
+    Tagged<Code> code;
+    if (!TryCast(maybe_code, &code)) {
+      DCHECK_EQ(maybe_code,
+                Tagged<Smi>(Smi::uninitialized_deserialization_value()));
+    }
+    if (!sfi.is_null() && !code.is_null() &&
+        js_function->NeedsResetDueToFlushedBytecode(heap_->isolate(), sfi,
+                                                    code)) {
+      local_weak_objects_->flushed_js_functions_local.Push(js_function);
+    }
   }
 
   return Base::VisitJSFunction(map, js_function, maybe_object_size);

@@ -14,6 +14,8 @@
 
 #include "third_party/blink/renderer/core/inspector/worker_thread_debugger.h"
 
+#include "third_party/blink/renderer/core/workers/worker_thread.h"
+
 namespace blink {
 
 WorkerThreadDebugger::WorkerThreadDebugger(v8::Isolate* isolate)

@@ -451,6 +451,19 @@ std::vector<Codec> LegacyCollectCodecs(const std::vector<AudioCodecSpec>& specs,
   return out;
 }
 
+scoped_refptr<AudioDeviceModule> EnsureAudioDeviceModule(
+    const Environment& env,
+    scoped_refptr<AudioDeviceModule>& adm) {
+#if defined(WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE)
+  // No ADM supplied? Create a default one.
+  if (!adm) {
+    return CreateAudioDeviceModule(env,
+                                   AudioDeviceModule::kPlatformDefaultAudio);
+  }
+#endif  // WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE
+  return std::move(adm);
+}
+
 }  // namespace
 
 WebRtcVoiceEngine::WebRtcVoiceEngine(
@@ -462,20 +475,44 @@ WebRtcVoiceEngine::WebRtcVoiceEngine(
     scoped_refptr<AudioProcessing> audio_processing,
     std::unique_ptr<AudioFrameProcessor> audio_frame_processor)
     : env_(env),
-      adm_(std::move(adm)),
-      encoder_factory_(std::move(encoder_factory)),
-      decoder_factory_(std::move(decoder_factory)),
-      audio_mixer_(std::move(audio_mixer)),
-      apm_(std::move(audio_processing)),
-      audio_frame_processor_(std::move(audio_frame_processor)),
       minimized_remsampling_on_mobile_trial_enabled_(
           env_.field_trials().IsEnabled(
               "WebRTC-Audio-MinimizeResamplingOnMobile")),
       payload_types_in_transport_trial_enabled_(
-          env_.field_trials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+          env_.field_trials().IsEnabled("WebRTC-PayloadTypesInTransport")),
+      adm_(EnsureAudioDeviceModule(env, adm)),
+      encoder_factory_(std::move(encoder_factory)),
+      decoder_factory_(std::move(decoder_factory)),
+      apm_(std::move(audio_processing)),
+      legacy_send_codecs_(
+          LegacyCollectCodecs(encoder_factory_->GetSupportedEncoders(),
+                              !payload_types_in_transport_trial_enabled_)),
+      legacy_recv_codecs_(
+          LegacyCollectCodecs(decoder_factory_->GetSupportedDecoders(),
+                              !payload_types_in_transport_trial_enabled_)) {
   RTC_LOG(LS_INFO) << "WebRtcVoiceEngine::WebRtcVoiceEngine";
+  RTC_CHECK(adm_);
   RTC_DCHECK(decoder_factory_);
   RTC_DCHECK(encoder_factory_);
+
+  // Set up AudioState.
+  {
+    AudioState::Config config;
+    if (audio_mixer) {
+      config.audio_mixer = std::move(audio_mixer);
+    } else {
+      config.audio_mixer = AudioMixerImpl::Create();
+    }
+    config.audio_processing = apm_;
+    config.audio_device_module = adm_;
+    if (audio_frame_processor) {
+      config.async_audio_processing_factory =
+          make_ref_counted<AsyncAudioProcessing::Factory>(
+              std::move(audio_frame_processor), env_.task_queue_factory());
+    }
+    audio_state_ = AudioState::Create(config);
+  }
+
   // The rest of our initialization will happen in Init.
 }
 
@@ -502,50 +539,7 @@ void WebRtcVoiceEngine::Init() {
   low_priority_worker_queue_ = env_.task_queue_factory().CreateTaskQueue(
       "rtc-low-prio", TaskQueueFactory::Priority::LOW);
 
-  // Load our audio codec lists.
-  RTC_LOG(LS_VERBOSE) << "Supported send codecs in order of preference:";
-  send_codecs_ =
-      LegacyCollectCodecs(encoder_factory_->GetSupportedEncoders(),
-                          !payload_types_in_transport_trial_enabled_);
-  for (const Codec& codec : send_codecs_) {
-    RTC_LOG(LS_VERBOSE) << ToString(codec);
-  }
-
-  RTC_LOG(LS_VERBOSE) << "Supported recv codecs in order of preference:";
-  recv_codecs_ =
-      LegacyCollectCodecs(decoder_factory_->GetSupportedDecoders(),
-                          !payload_types_in_transport_trial_enabled_);
-  for (const Codec& codec : recv_codecs_) {
-    RTC_LOG(LS_VERBOSE) << ToString(codec);
-  }
-
-#if defined(WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE)
-  // No ADM supplied? Create a default one.
-  if (!adm_) {
-    adm_ =
-        CreateAudioDeviceModule(env_, AudioDeviceModule::kPlatformDefaultAudio);
-  }
-#endif  // WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE
-  RTC_CHECK(adm());
   adm_helpers::Init(adm());
-
-  // Set up AudioState.
-  {
-    AudioState::Config config;
-    if (audio_mixer_) {
-      config.audio_mixer = audio_mixer_;
-    } else {
-      config.audio_mixer = AudioMixerImpl::Create();
-    }
-    config.audio_processing = apm_;
-    config.audio_device_module = adm_;
-    if (audio_frame_processor_) {
-      config.async_audio_processing_factory =
-          make_ref_counted<AsyncAudioProcessing::Factory>(
-              std::move(audio_frame_processor_), env_.task_queue_factory());
-    }
-    audio_state_ = AudioState::Create(config);
-  }
 
   // Connect the ADM to our audio path.
   adm()->RegisterAudioCallback(audio_state()->audio_transport());
@@ -749,12 +743,12 @@ void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
 
 const std::vector<Codec>& WebRtcVoiceEngine::LegacySendCodecs() const {
   RTC_DCHECK(signal_thread_checker_.IsCurrent());
-  return send_codecs_;
+  return legacy_send_codecs_;
 }
 
 const std::vector<Codec>& WebRtcVoiceEngine::LegacyRecvCodecs() const {
   RTC_DCHECK(signal_thread_checker_.IsCurrent());
-  return recv_codecs_;
+  return legacy_recv_codecs_;
 }
 
 std::vector<RtpHeaderExtensionCapability>

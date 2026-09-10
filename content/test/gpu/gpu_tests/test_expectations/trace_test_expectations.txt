@@ -8,7 +8,7 @@
 #         mac highsierra mojave catalina bigsur monterey ventura sonoma sequoia
 #         win win8 win10 win11 ]
 # Devices
-# tags: [ android-pixel-2 android-pixel-4 android-pixel-6
+# tags: [ android-pixel-2 android-pixel-4 android-pixel-6 android-pixel-10
 #             android-shield-android-tv android-sm-a137f android-sm-a236b
 #             android-sm-s911u1
 #         android-brya android-corsola
@@ -37,6 +37,7 @@
 #         arm
 #         google google-0xffff google-0xc0de
 #         imagination
+#         imagination-technologies
 #         intel intel-gen-9 intel-gen-12 intel-0xa2e intel-0xa011 intel-0x3e92
 #             intel-0x3e9b intel-0x4680 intel-0x46a8 intel-0x5912 intel-0x9bc5
 #         microsoft microsoft-0xffff
@@ -191,9 +192,6 @@ crbug.com/364179193 [ linux ] TraceTest_Video_Media_Stream_Incompatible_Stride [
 # Flaky timeouts on all platforms
 crbug.com/371949935 TraceTest_ViewTransitionsCapture [ Skip ]
 
-# Slow on DCHECK and need extra time to address.
-crbug.com/425745937 [ fuchsia web-engine-shell ] TraceTest_Canvas2DBlitText [ Skip ]
-
 ###################
 # Failures/Flakes #
 ###################
@@ -238,6 +236,15 @@ crbug.com/398149367 [ win11 amd-0x7480 ] WebGPUCachingTraceTest_RenderPipelineCr
 crbug.com/398149367 [ win11 amd-0x7480 ] WebGPUCachingTraceTest_RenderPipelineDifferentOrigins [ Failure ]
 crbug.com/398149367 [ win11 amd-0x7480 ] WebGPUCachingTraceTest_RenderPipelineIncognito [ Failure ]
 
+# Win/AMD 780M failures
+crbug.com/402989071 [ win11 amd-0x1900 ] TraceTest_MediaFoundationD3D11VideoCapture [ Failure ]
+crbug.com/329138770 [ win11 amd-0x1900 ] WebGPUCachingTraceTest_ComputePipelineCrossOriginsCacheMisses [ Failure ]
+crbug.com/329138770 [ win11 amd-0x1900 ] WebGPUCachingTraceTest_ComputePipelineDifferentOrigins [ Failure ]
+crbug.com/329138770 [ win11 amd-0x1900 ] WebGPUCachingTraceTest_ComputePipelineIncognito [ Failure ]
+crbug.com/329138770 [ win11 amd-0x1900 ] WebGPUCachingTraceTest_RenderPipelineCrossOriginsCacheMisses [ Failure ]
+crbug.com/329138770 [ win11 amd-0x1900 ] WebGPUCachingTraceTest_RenderPipelineDifferentOrigins [ Failure ]
+crbug.com/329138770 [ win11 amd-0x1900 ] WebGPUCachingTraceTest_RenderPipelineIncognito [ Failure ]
+
 # Win/AMD 890M failures
 crbug.com/402989071 [ win11 amd-0x150e ] TraceTest_MediaFoundationD3D11VideoCapture [ Failure ]
 crbug.com/329138770 [ win11 amd-0x150e ] WebGPUCachingTraceTest_ComputePipelineCrossOriginsCacheMisses [ Failure ]
@@ -250,6 +257,13 @@ crbug.com/329138770 [ win11 amd-0x150e ] WebGPUCachingTraceTest_RenderPipelineIn
 
 # Win11/RTX 4070 Super failures after upgrading to driver 580.88
 crbug.com/438512194 [ win11 nvidia-0x2783 ] OverlayModeTraceTest_DirectComposition_Underlay [ RetryOnFailure ]
+
+###############################
+# Permanent Slow Expectations #
+###############################
+
+# Slow on DCHECK builds being used on fuchsia builders.
+crbug.com/425745937 [ fuchsia web-engine-shell ] TraceTest_Canvas2DBlitText [ Slow ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

@@ -24,9 +24,12 @@
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
-#include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/public/browser/global_routing_id.h"
 #include "storage/browser/quota/quota_manager.h"
+
+namespace net {
+class CanonicalCookie;
+}
 
 namespace storage {
 class QuotaOverrideHandle;
@@ -52,7 +55,8 @@ class StorageHandler
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     {
  public:
-  explicit StorageHandler(DevToolsAgentHostClient* client);
+  explicit StorageHandler(DevToolsAgentHostImpl* host,
+                          DevToolsAgentHostClient* client);
 
   StorageHandler(const StorageHandler&) = delete;
   StorageHandler& operator=(const StorageHandler&) = delete;
@@ -78,10 +82,8 @@ class StorageHandler
   // content::protocol::storage::Backend
   Response GetStorageKeyForFrame(const std::string& frame_id,
                                  std::string* serialized_storage_key) override;
-#if CHROMIUM_MILESTONE_LE_150
   Response GetStorageKey(std::optional<std::string> frame_id,
                          std::string* serialized_storage_key) override;
-#endif
   void ClearDataForOrigin(
       const std::string& origin,
       const std::string& storage_types,
@@ -290,7 +292,12 @@ class StorageHandler
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   void ResetAttributionReporting();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+  Response GetStorageKeyForFrameInternal(const std::string& frame_id,
+                                         std::string* serialized_storage_key);
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // This doesn't update `interest_group_auction_tracking_enabled_` and does not
   // have to work on `storage_partition_`, unlike the public version.
   Response SetInterestGroupTrackingInternal(StoragePartition* storage_partition,
@@ -300,10 +307,7 @@ class StorageHandler
       std::unique_ptr<Storage::Backend::GetCookiesCallback> callback,
       const std::vector<net::CanonicalCookie>& cookies);
 
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_150
-  Response SerializeStorageKey(RenderFrameHostImpl* rfh,
-                               std::string* serialized_storage_key) const;
-#endif
+  const raw_ptr<DevToolsAgentHostImpl> host_;
 
   std::unique_ptr<Storage::Frontend> frontend_;
   raw_ptr<StoragePartition> storage_partition_{nullptr};

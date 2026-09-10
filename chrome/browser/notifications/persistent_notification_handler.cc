@@ -47,6 +47,7 @@
 #include "content/public/common/persistent_notification_status.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
+#include "ui/message_center/message_center_stats_collector.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -338,6 +339,12 @@ void PersistentNotificationHandler::OpenSettings(Profile* profile,
                                                  const GURL& origin) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   NotificationCommon::OpenNotificationSettings(profile, origin);
+  UMA_HISTOGRAM_ENUMERATION(
+      "Notifications.Actions",
+      message_center::MessageCenterStatsCollector::NotificationActionType::
+          NOTIFICATION_ACTION_OPEN_SETTINGS_BUTTON_CLICK,
+      message_center::MessageCenterStatsCollector::NotificationActionType::
+          NOTIFICATION_ACTION_COUNT);
 }
 
 void PersistentNotificationHandler::ReportNotificationAsSafe(
@@ -375,6 +382,18 @@ void PersistentNotificationHandler::OnShowOriginalNotification(
               safe_browsing::SuspiciousNotificationWarningInteractions::
                   kShowOriginalNotification),
           url, notification_id, profile);
+  if (base::FeatureList::IsEnabled(
+          safe_browsing::kAutoRevokeSuspiciousNotification)) {
+    auto* hcsm = HostContentSettingsMapFactory::GetForProfile(profile);
+    if (hcsm && !url.is_empty()) {
+      hcsm->SetWebsiteSettingCustomScope(
+          ContentSettingsPattern::FromURLNoWildcard(url),
+          ContentSettingsPattern::Wildcard(),
+          ContentSettingsType::SUSPICIOUS_NOTIFICATION_SHOW_ORIGINAL,
+          base::Value(base::Value::Dict().Set(
+              safe_browsing::kSuspiciousNotificationShowOriginalKey, true)));
+    }
+  }
 #endif
 }
 

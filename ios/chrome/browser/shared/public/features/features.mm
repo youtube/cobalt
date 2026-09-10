@@ -129,6 +129,8 @@ BASE_FEATURE(kShareInWebContextMenuIOS, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSBrowserEditMenuMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kIOSCustomFileUploadMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+
 const char kIOSDockingPromoExperimentType[] = "IOSDockingPromoExperimentType";
 const char kIOSDockingPromoNewUserInactiveThresholdHours[] =
     "IOSDockingPromoNewUserInactiveThresholdHours";
@@ -197,6 +199,8 @@ BASE_FEATURE(kLensOverlayForceShowOnboardingScreen,
 
 BASE_FEATURE(kLensOverlayNavigationHistory, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kLensOverlayCustomBottomSheet, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kLensSearchHeadersCheckEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Variations of MIA NTP entrypoint.
@@ -216,6 +220,9 @@ const char kNTPMIAEntrypointParamAIMInQuickActions[] =
 BASE_FEATURE(kNTPMIAEntrypoint,
              "kNTPMIAEntrypoint",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kNTPMIAEntrypointAllLocales,
+             "kNTPMIAEntrypointAllLocales",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled the AIM ZPS entrypoint will open the AIM prototype which
 // contains temporary UI exploration for AIM.
@@ -224,6 +231,9 @@ BASE_FEATURE(kAIMPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 const char kAIMPrototypeParam[] = "AIMPrototypeParam";
 const char kAIMPrototypeParamAllOmniboxEntrypoints[] =
     "AIMPrototypeAllOmniboxEntrypoints";
+
+// Used to gate the immersive SRP in the AIM prototype.
+BASE_FEATURE(kAIMPrototypeImmersiveSRP, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOmniboxDRSPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -390,9 +400,6 @@ TipsSafeBrowsingExperimentType TipsSafeBrowsingExperimentTypeEnabled() {
 }
 
 BASE_FEATURE(kIOSChooseFromDrive, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSChooseFromDriveSimulatedClick,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSDownloadNoUIUpdateInBackground,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -680,9 +687,6 @@ bool IsLiquidGlassEffectEnabled() {
 
   return false;
 }
-
-// Feature disabled by default.
-BASE_FEATURE(kMagicStack, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabResumption, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1049,6 +1053,14 @@ bool IsNTPBackgroundCustomizationEnabled() {
   return base::FeatureList::IsEnabled(kNTPBackgroundCustomization);
 }
 
+constexpr base::FeatureParam<int> kMaxRecentlyUsedBackgrounds{
+    &kNTPBackgroundCustomization,
+    /*name=*/"max-recently-used-backgrounds", /*default_value=*/7};
+
+int MaxRecentlyUsedBackgrounds() {
+  return kMaxRecentlyUsedBackgrounds.Get();
+}
+
 BASE_FEATURE(kRunDefaultStatusCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsRunDefaultStatusCheckEnabled() {
@@ -1119,7 +1131,7 @@ bool IsDefaultBrowserOffCyclePromoEnabled() {
   return false;
 }
 
-BASE_FEATURE(kIOSLogInstallAttribution, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIOSLogInstallAttribution, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsInstallAttributionLoggingEnabled() {
   return base::FeatureList::IsEnabled(kIOSLogInstallAttribution);
