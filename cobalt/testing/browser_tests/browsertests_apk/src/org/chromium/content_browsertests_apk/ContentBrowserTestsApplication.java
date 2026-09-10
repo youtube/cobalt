@@ -45,6 +45,7 @@ public class ContentBrowserTestsApplication extends NativeBrowserTestApplication
       // Test-only stuff, see also NativeUnitTest.java.
       PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
       ResourceBundle.setNoAvailableLocalePaks();
+      System.setProperty("org.mockito.android.target", getCacheDir().getPath());
     }
   }
 }
