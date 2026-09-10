@@ -213,7 +213,8 @@ def _node_to_markdown(out, node):
     assert not _strip(tail)
     out.paragraph()
   elif node.tag == 'bold':
-    assert len(node) == 0, f"computeroutput node has children: {[c.tag for c in node]}"
+    assert len(
+        node) == 0, f"computeroutput node has children: {[c.tag for c in node]}"
     out.bold(text)
     text = ''
   elif node.tag == 'computeroutput':
@@ -249,7 +250,8 @@ def _node_to_markdown(out, node):
     out.heading(levels=levels)
   elif node.tag == 'verbatim':
     # Verbatim tags can appear inside paragraphs.
-    assert len(node) == 0, f"computeroutput node has children: {[c.tag for c in node]}"
+    assert len(
+        node) == 0, f"computeroutput node has children: {[c.tag for c in node]}"
     # Don't replace pipes in verbatim text.
     text = node.text if node.text else ''
     # Strip doxygen comment prefix '///' and one space if present
