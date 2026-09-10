@@ -50,6 +50,12 @@ class TestGetGtestFilter(unittest.TestCase):
       json.dump(data, f)
     return filepath
 
+  def _write_filter_text(self, filename: str, content: str) -> str:
+    filepath = os.path.join(self.temp_dir, filename)
+    with open(filepath, 'w', encoding='utf-8', newline='') as f:
+      f.write(content)
+    return filepath
+
   def test_file_not_found(self):
     self.assertEqual(get_gtest_filter(self.temp_dir, 'nonexistent'), '*')
 
@@ -59,6 +65,82 @@ class TestGetGtestFilter(unittest.TestCase):
     self.assertEqual(
         get_gtest_filter(self.temp_dir, 'my_target'),
         '-Suite.Test1:Suite.Test2')
+
+  def test_filter_format_negative_only(self):
+    content = """# Comments are ignored
+-Suite.Test1
+# Another comment
+-Suite.Test2
+"""
+    self._write_filter_text('my_target.filter', content)
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target'),
+        '-Suite.Test1:Suite.Test2')
+
+  def test_filter_format_positive_only(self):
+    content = """Suite.Test1
+Suite.Test2
+"""
+    self._write_filter_text('my_target.filter', content)
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target'), 'Suite.Test1:Suite.Test2')
+
+  def test_filter_format_explicit_plus_positive(self):
+    content = """+Suite.Test1
++Suite.Test2
+"""
+    self._write_filter_text('my_target.filter', content)
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target'), 'Suite.Test1:Suite.Test2')
+
+  def test_filter_format_mixed_positive_and_negative(self):
+    content = """# Run Test1 but exclude Test2
+Suite.Test1
+-Suite.Test2
+"""
+    self._write_filter_text('my_target.filter', content)
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target'), 'Suite.Test1-Suite.Test2')
+
+  def test_filter_format_inline_comments_and_whitespace(self):
+    content = """
+    # Leading whitespace comment
+    Suite.Test1  # inline comment
+    -Suite.Test2 # inline comment 2
+
+"""
+    self._write_filter_text('my_target.filter', content)
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target'), 'Suite.Test1-Suite.Test2')
+
+  def test_filter_format_double_slash_raises_value_error(self):
+    content = """// Invalid comment style
+-Suite.Test1
+"""
+    self._write_filter_text('my_target.filter', content)
+    with self.assertRaises(ValueError):
+      get_gtest_filter(self.temp_dir, 'my_target')
+
+  def test_filter_format_precedence_over_json(self):
+    self._write_filter_file('my_target_filter.json',
+                            {'tests_to_run': ['Suite.JsonTest']})
+    self._write_filter_text('my_target.filter', 'Suite.FilterTest\n')
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target'), 'Suite.FilterTest')
+
+  def test_filter_format_sharding(self):
+    self._write_filter_text('my_target.filter', 'Suite.GlobalTest\n')
+    self._write_filter_text('my_target_0.filter', 'Suite.Shard0Test\n')
+    self._write_filter_text('my_target_1.filter', '-*\n')
+
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target', shard_index=0),
+        'Suite.Shard0Test')
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target', shard_index=1), '-*')
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'my_target', shard_index=2),
+        'Suite.GlobalTest')
 
   def test_wildcard_skip(self):
     self._write_filter_file('my_target_filter.json', {'failing_tests': ['*']})
