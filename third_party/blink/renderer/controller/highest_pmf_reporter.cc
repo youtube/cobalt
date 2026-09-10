@@ -89,9 +89,7 @@ HighestPmfReporter::~HighestPmfReporter() {
   if (instance_ == this) {
     instance_ = nullptr;
   }
-  if (MemoryUsageMonitor::Instance().HasObserver(this)) {
-    MemoryUsageMonitor::Instance().RemoveObserver(this);
-  }
+  MemoryUsageMonitor::Instance().RemoveObserver(this);
 }
 #endif
 
@@ -194,9 +192,9 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
   DCHECK(IsMainThread());
   if (FirstNavigationStarted()) {
 #if BUILDFLAG(IS_COBALT)
-    // Only schedule initial startup reporting if we are not actively measuring
-    // a resumed-from-background session.
-    if (!is_foreground_measuring_) {
+    // Only schedule initial startup reporting if the process has not been
+    // backgrounded.
+    if (!has_been_backgrounded_once_) {
       cancelable_report_task_.Reset(WTF::BindOnce(
           &HighestPmfReporter::OnReportMetrics, WTF::Unretained(this)));
       task_runner_->PostDelayedTask(
@@ -227,32 +225,18 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
 }
 
 #if BUILDFLAG(IS_COBALT)
-void HighestPmfReporter::OnProcessBackgrounded() {
-  if (HighestPmfReporter::Instance()) {
-    HighestPmfReporter::Instance()->ProcessBackgrounded();
-  }
-}
-
 // Handles transition into background: cancel in-flight reporting tasks and
 // stop observing memory usage.
-void HighestPmfReporter::ProcessBackgrounded() {
+void HighestPmfReporter::OnProcessBackgrounded() {
   DCHECK(IsMainThread());
   cancelable_report_task_.Cancel();
-  is_foreground_measuring_ = false;
-  if (MemoryUsageMonitor::Instance().HasObserver(this)) {
-    MemoryUsageMonitor::Instance().RemoveObserver(this);
-  }
-}
-
-void HighestPmfReporter::OnProcessForegrounded() {
-  if (HighestPmfReporter::Instance()) {
-    HighestPmfReporter::Instance()->ProcessForegrounded();
-  }
+  has_been_backgrounded_once_ = true;
+  MemoryUsageMonitor::Instance().RemoveObserver(this);
 }
 
 // Handles transition when resumed from background into foreground: reset
 // peak tracking and start a new measuring window for foreground metrics.
-void HighestPmfReporter::ProcessForegrounded() {
+void HighestPmfReporter::OnProcessForegrounded() {
   DCHECK(IsMainThread());
 
   cancelable_report_task_.Cancel();
@@ -260,7 +244,7 @@ void HighestPmfReporter::ProcessForegrounded() {
   peak_resident_bytes_at_current_highest_pmf_ = 0.0;
   webpage_counts_at_current_highest_pmf_ = 0;
   report_count_ = 0;
-  is_foreground_measuring_ = true;
+  has_been_backgrounded_once_ = true;
 
   if (metrics_.empty()) {
     return;
@@ -330,7 +314,7 @@ void HighestPmfReporter::ReportMetrics() {
       base::saturated_cast<base::Histogram::Sample32>(
           peak_resident_bytes_at_current_highest_pmf_ / 1024 / 1024);
 
-  if (is_foreground_measuring_) {
+  if (has_been_backgrounded_once_) {
     // Resumed from background state.
     base::UmaHistogramMemoryMB(metric_info.pmf_foregrounded_name.Utf8(),
                                highest_pmf_mb);

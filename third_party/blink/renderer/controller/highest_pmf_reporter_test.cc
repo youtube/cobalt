@@ -327,11 +327,11 @@ TEST_F(HighestPmfReporterTest, TestReportForegroundWithLowerOrFlatMemory) {
   AdvanceClock(base::Seconds(1));
 
   // Background and foreground transitions
-  HighestPmfReporter::OnProcessBackgrounded();
+  reporter_->OnProcessBackgrounded();
   EXPECT_FALSE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
 
   base::TimeTicks foreground_time = NowTicks();
-  HighestPmfReporter::OnProcessForegrounded();
+  reporter_->OnProcessForegrounded();
   EXPECT_TRUE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
 
   // Lower memory during the new foreground session

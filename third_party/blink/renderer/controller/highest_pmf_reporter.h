@@ -38,9 +38,10 @@ class CONTROLLER_EXPORT HighestPmfReporter
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 #if BUILDFLAG(IS_COBALT)
   static HighestPmfReporter* Instance();
-  static void OnProcessForegrounded();
-  static void OnProcessBackgrounded();
   ~HighestPmfReporter() override;
+
+  void OnProcessForegrounded();
+  void OnProcessBackgrounded();
 #endif
 
  private:
@@ -51,11 +52,6 @@ class CONTROLLER_EXPORT HighestPmfReporter
   HighestPmfReporter(
       scoped_refptr<base::SingleThreadTaskRunner> task_runner_for_testing,
       const base::TickClock* clock);
-
-#if BUILDFLAG(IS_COBALT)
-  void ProcessForegrounded();
-  void ProcessBackgrounded();
-#endif
 
   friend class MockHighestPmfReporter;
 
@@ -87,9 +83,9 @@ class CONTROLLER_EXPORT HighestPmfReporter
   };
   WTF::Vector<MetricInfo> metrics_;
 
-  // True when measuring metrics after resuming from background state into
-  // foreground. False when measuring during initial startup navigation.
-  bool is_foreground_measuring_ = false;
+  // True after the process has been backgrounded at least once. When false,
+  // metrics are reported for the initial startup navigation.
+  bool has_been_backgrounded_once_ = false;
   base::CancelableOnceClosure cancelable_report_task_;
 #endif
 };

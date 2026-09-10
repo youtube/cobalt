@@ -354,7 +354,9 @@ void BlinkInitializer::OnClearWindowObjectInMainWorld(
 void OnProcessForegrounded() {
   WTF::Partitions::AdjustPartitionsForForeground();
 #if BUILDFLAG(IS_COBALT)
-  HighestPmfReporter::OnProcessForegrounded();
+  if (auto* reporter = HighestPmfReporter::Instance()) {
+    reporter->OnProcessForegrounded();
+  }
 #endif
 }
 
@@ -362,7 +364,9 @@ void OnProcessForegrounded() {
 void OnProcessBackgrounded() {
   WTF::Partitions::AdjustPartitionsForBackground();
 #if BUILDFLAG(IS_COBALT)
-  HighestPmfReporter::OnProcessBackgrounded();
+  if (auto* reporter = HighestPmfReporter::Instance()) {
+    reporter->OnProcessBackgrounded();
+  }
 #endif
 }
 
