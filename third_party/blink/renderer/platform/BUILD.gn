@@ -146,6 +146,7 @@ executable("character_data_generator") {
     "wtf/text/wtf_uchar.h",
   ]
   configs += [ "//third_party/blink/renderer:config" ]
+  data_deps = [ "//third_party/icu:icudata" ]
   deps = [
     # Default manifest on Windows(a no-op elsewhere).
     "//base",

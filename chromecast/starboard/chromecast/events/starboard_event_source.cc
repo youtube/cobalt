@@ -58,8 +58,7 @@ const base::flat_map<SbKey, ui::DomCode>& GetSbKeyToDomCodeMap() {
       {kSbKeyOem6, ui::DomCode::BRACKET_RIGHT},
       {kSbKeyOem7, ui::DomCode::QUOTE},
 
-<<<<<<< HEAD
-      // Media Keys
+// Media Keys
       {kSbKeyMediaPlayPause, ui::DomCode::MEDIA_PLAY_PAUSE},
       {kSbKeyMediaRewind, ui::DomCode::MEDIA_REWIND},
       {kSbKeyMediaFastForward, ui::DomCode::MEDIA_FAST_FORWARD},
@@ -70,36 +69,7 @@ const base::flat_map<SbKey, ui::DomCode>& GetSbKeyToDomCodeMap() {
       {kSbKeyMediaStop, ui::DomCode::MEDIA_STOP},
       {kSbKeyChannelUp, ui::DomCode::CHANNEL_UP},
       {kSbKeyChannelDown, ui::DomCode::CHANNEL_DOWN},
-      {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},
-=======
-    // Keys which are used by the Cast SDK.
-    {kSbKeyReturn, ui::DomCode::ENTER},
-    {kSbKeySelect, ui::DomCode::SELECT},
-    {kSbKeyUp, ui::DomCode::ARROW_UP},
-    {kSbKeyDown, ui::DomCode::ARROW_DOWN},
-    {kSbKeyLeft, ui::DomCode::ARROW_LEFT},
-    {kSbKeyRight, ui::DomCode::ARROW_RIGHT},
-    {kSbKeyBack, ui::DomCode::BROWSER_BACK},
-    {kSbKeyEscape, ui::DomCode::BROWSER_BACK},
-
-    // Keys which are used by the Cast SDK when the DPAD UI is enabled.
-    {kSbKeyMediaPlayPause, ui::DomCode::MEDIA_PLAY_PAUSE},
-    {kSbKeyMediaRewind, ui::DomCode::MEDIA_REWIND},
-    {kSbKeyMediaFastForward, ui::DomCode::MEDIA_FAST_FORWARD},
-    {kSbKeyMediaNextTrack, ui::DomCode::MEDIA_TRACK_NEXT},
-    {kSbKeyMediaPrevTrack, ui::DomCode::MEDIA_TRACK_PREVIOUS},
-    {kSbKeyPause, ui::DomCode::MEDIA_PAUSE},
-    {kSbKeyPlay, ui::DomCode::MEDIA_PLAY},
-    {kSbKeyMediaStop, ui::DomCode::MEDIA_STOP},
-
-    // Keys which are not used by the Cast SDK, but are defined in the HDMI CEC
-    // specification.
-    {kSbKeyMenu, ui::DomCode::HOME},
-    {kSbKeyChannelUp, ui::DomCode::CHANNEL_UP},
-    {kSbKeyChannelDown, ui::DomCode::CHANNEL_DOWN},
-    {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},
->>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#if SB_API_VERSION >= 15
+      {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},#if SB_API_VERSION >= 15
       {kSbKeyRecord, ui::DomCode::MEDIA_RECORD},
 #endif  // SB_API_VERSION >=15
       {kSbKeyVolumeUp, ui::DomCode::VOLUME_UP},

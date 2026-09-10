@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <unicode/brkiter.h>
+#include <unicode/icudataver.h>
 #include <unicode/locid.h>
 #include <unicode/ucptrie.h>
 #include <unicode/udata.h>
@@ -40,8 +41,12 @@ namespace {
 void CheckIcuDataResources() {
   UErrorCode error = U_ZERO_ERROR;
   UVersionInfo version;
-  ulocdata_getCLDRVersion(version, &error);
-  CHECK_U_ERROR(error, "ulocdata_getCLDRVersion");
+  u_getDataVersion(version, &error);
+  if (!U_SUCCESS(error)) {
+    error = U_ZERO_ERROR;
+    ulocdata_getCLDRVersion(version, &error);
+    CHECK_U_ERROR(error, "ulocdata_getCLDRVersion");
+  }
 }
 
 //
@@ -56,6 +61,27 @@ void InitializeIcu(const char* exec_path) {
 
   std::ifstream data_ifstream(path, std::ios_base::binary);
   if (!data_ifstream.is_open()) {
+    // Try current working directory.
+    path = std::filesystem::path("icudt" U_ICUDATA_TYPE_LETTER ".dat");
+    data_ifstream.open(path, std::ios_base::binary);
+  }
+  if (!data_ifstream.is_open()) {
+    // Try parent of parent directory (e.g. clang_x64/../icudtl.dat).
+    path = std::filesystem::path{exec_path}.parent_path().parent_path() /
+           "icudt" U_ICUDATA_TYPE_LETTER ".dat";
+    data_ifstream.open(path, std::ios_base::binary);
+  }
+  // If not found in the build directory, try the common ICU data file in the source tree.
+  if (!data_ifstream.is_open()) {
+    path = std::filesystem::path("third_party/icu/common/icudt" U_ICUDATA_TYPE_LETTER ".dat");
+    data_ifstream.open(path, std::ios_base::binary);
+  }
+  if (!data_ifstream.is_open()) {
+    // Try relative to ../../ for builds run from out/<dir>.
+    path = std::filesystem::path("../../third_party/icu/common/icudt" U_ICUDATA_TYPE_LETTER ".dat");
+    data_ifstream.open(path, std::ios_base::binary);
+  }
+  if (!data_ifstream.is_open()) {
     // When the build config is `!use_icu_data_file`, the ICU data is built into
     // the binary.
     CheckIcuDataResources();
@@ -67,6 +93,23 @@ void InitializeIcu(const char* exec_path) {
             std::istreambuf_iterator<char>(), std::back_inserter(icu_data));
   UErrorCode error = U_ZERO_ERROR;
   udata_setCommonData(icu_data.data(), &error);
+  if (!U_SUCCESS(error)) {
+    // If setting common data failed, fallback to third_party/icu/common.
+    path = std::filesystem::path("../../third_party/icu/common/icudt" U_ICUDATA_TYPE_LETTER ".dat");
+    data_ifstream.close();
+    data_ifstream.open(path, std::ios_base::binary);
+    if (!data_ifstream.is_open()) {
+      path = std::filesystem::path("third_party/icu/common/icudt" U_ICUDATA_TYPE_LETTER ".dat");
+      data_ifstream.open(path, std::ios_base::binary);
+    }
+    if (data_ifstream.is_open()) {
+      icu_data.clear();
+      std::copy(std::istreambuf_iterator<char>(data_ifstream),
+                std::istreambuf_iterator<char>(), std::back_inserter(icu_data));
+      error = U_ZERO_ERROR;
+      udata_setCommonData(icu_data.data(), &error);
+    }
+  }
   CHECK_U_ERROR(error, "udata_setCommonData");
 
   CheckIcuDataResources();
