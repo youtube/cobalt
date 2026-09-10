@@ -1,0 +1,8 @@
+// Copyright 2025 The ANGLE Project Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// See README.md for format.
+
+42264522 PIXEL4ORXL VULKAN : KHR-GLESEXT.draw_elements_base_vertex_tests.valid_active_tf = SKIP
+
