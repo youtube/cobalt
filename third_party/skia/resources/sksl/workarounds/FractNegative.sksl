@@ -1,6 +1,0 @@
-/*#pragma settings CannotUseFractForNegativeValues*/
-
-void main() {
-    float x = -42.0;
-    sk_FragColor.r = half(fract(x));
-}
