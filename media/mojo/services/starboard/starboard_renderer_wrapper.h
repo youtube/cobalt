@@ -160,7 +160,14 @@ class StarboardRendererWrapper
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider();
   void GetCurrentDecodeTarget();
-  void CreateVideoFrame_OnImageReady(
+  void OnCreateImageDone(VideoPixelFormat format,
+                         const gfx::Size& coded_size,
+                         const gfx::Rect& visible_rect,
+                         const gfx::Size& natural_size,
+                         std::vector<uint32_t> texture_service_ids,
+                         GetCurrentVideoFrameCallback callback,
+                         scoped_refptr<gpu::ClientSharedImage> shared_image);
+  void UpdateVideoFrameWithSharedImage(
       VideoPixelFormat format,
       const gfx::Size& coded_size,
       const gfx::Rect& visible_rect,
