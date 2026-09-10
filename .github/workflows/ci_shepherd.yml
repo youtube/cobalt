@@ -138,6 +138,9 @@ jobs:
             -f description="${desc}" \
             -f context="CI / ${WORKFLOW_NAME}"
 
+          pr_number=$(gh pr list --repo "${REPO}" --search "${HEAD_SHA}" --json number --jq '.[0].number // ""')
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+
           # Query commit statuses and update overall CI commit status (CI / All Pass) for rulesets.
           status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
           IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r '
@@ -147,14 +150,16 @@ jobs:
             else "pending\tChecks are running" end
           ') || true
 
+          all_pass_url="https://github.com/${REPO}/commit/${HEAD_SHA}"
+          if [[ -n "${pr_number}" ]]; then
+            all_pass_url="https://github.com/${REPO}/pull/${pr_number}"
+          fi
+
           gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
             -f state="${overall_state:-pending}" \
-            -f target_url="${GITHUB_SERVER_URL}/${REPO}/actions/runs/${GITHUB_RUN_ID}" \
+            -f target_url="${all_pass_url}" \
             -f description="${overall_desc:-Checks are running}" \
             -f context="CI / All Pass"
-
-          pr_number=$(gh pr list --repo "${REPO}" --search "${HEAD_SHA}" --json number --jq '.[0].number // ""')
-          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
 
   comment-pr:
     runs-on: ubuntu-latest
