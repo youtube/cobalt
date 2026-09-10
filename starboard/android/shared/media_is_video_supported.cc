@@ -68,14 +68,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return false;
     }
 
-    // Disable MediaCapabilitiesCache if "disablecache" option presented.
-    if (!mime_type->ValidateBoolParameter("disablecache")) {
-      return false;
-    }
-    if (mime_type->GetParamBoolValue("disablecache", false)) {
-      MediaCapabilitiesCache::GetInstance()->SetCacheEnabled(false);
-    }
-
     if (!mime_type->ValidateBoolParameter("disabledynamicprerollframecount")) {
       return false;
     }
