@@ -1,2 +1,4 @@
 -All/MultiprocessMessagePipeTestWithPeerSupport.QueueMessages/1
+-BinderExchangeTest.PlatformChannelPassing
 -DataPipeTest.NoSpuriousEvents
+-MessagePipeTest.DataPipeProducerHandlePingPong

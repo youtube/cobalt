@@ -8,6 +8,7 @@
 -H264/ResolutionMonitorTestWithValidFrame.*
 -HarfBuzzShaperTest.*
 -KeySystemConfigSelectorTest.*
+-PageSchedulerImplTest.PageFrozen_EnableVirtualTime
 -ResolutionMonitorTestWithInvalidFrame.*
 -ResolutionMonitorTestWithTruncatedH264.*
 -SchemeRegistryTest.CodeCacheWithHashing

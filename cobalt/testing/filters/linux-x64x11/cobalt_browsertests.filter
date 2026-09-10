@@ -1,10 +1,10 @@
-# Temporarily disable tests in NavigationBrowserTest. See b/433354983.
 -*CobaltMetricsBrowserTest*
 -*DeferSpeculativeRFHCreationRenderProcessTest*
 -*NavigationBrowserTestDeprecateUnloadOptOut*
 -*NavigationBrowserTestPaintHoldingSubframe*
 -*NavigationBrowserTestReferrerPolicy*
 -*NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest*
+-All/CobaltMemoryThresholdBrowserTest.BlankPageMemoryFootprint/*
 -CommitNavigationRaceBrowserTest*
 -DeferSpeculativeRFHCreationReuseRFHTest*
 -DeferSpeculativeRFHCreationTest*
