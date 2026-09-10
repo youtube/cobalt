@@ -142,6 +142,7 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
 
   void RunWithGlesContext(base::OnceClosure callback,
                           base::WaitableEvent* done_event) override {
+    std::move(callback).Run();
     if (done_event) {
       done_event->Signal();
     }

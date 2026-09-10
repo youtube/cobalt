@@ -154,12 +154,12 @@ class StarboardRendererWrapper
   void OnRequestOverlayInfoByStarboard(bool restart_for_transitions);
 #endif  // BUILDFLAG(IS_ANDROID)
   void PostGpuTaskWithGlesContext(base::OnceClosure task);
-  void PostGpuTaskWithGlesContextAndWait(base::OnceClosure task);
   void ReleaseDecodeTargetOnGpu(SbDecodeTarget decode_target);
 
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider();
-  void GetCurrentDecodeTarget();
+  void OnDecodeTargetReady(SbDecodeTarget decode_target,
+                           GetCurrentVideoFrameCallback callback);
   void OnCreateImageDone(VideoPixelFormat format,
                          const gfx::Size& coded_size,
                          const gfx::Rect& visible_rect,

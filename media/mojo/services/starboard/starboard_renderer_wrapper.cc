@@ -348,13 +348,41 @@ void StarboardRendererWrapper::OnGpuChannelTokenReady(
 void StarboardRendererWrapper::GetCurrentVideoFrame(
     GetCurrentVideoFrameCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  PostGpuTaskWithGlesContextAndWait(
-      base::BindOnce(&StarboardRendererWrapper::GetCurrentDecodeTarget,
-                     base::Unretained(this)));
-  if (!SbDecodeTargetIsValid(decode_target_)) {
+  auto target_holder = std::make_unique<SbDecodeTarget>(kSbDecodeTargetInvalid);
+  auto* target_ptr = target_holder.get();
+  GetGpuFactory()
+      ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
+      .WithArgs(
+          base::BindOnce(
+              [](StarboardRenderer* renderer, SbDecodeTarget* out_target) {
+                *out_target = renderer->GetSbDecodeTarget();
+              },
+              base::Unretained(GetRenderer()), target_ptr),
+          /*done_event=*/nullptr)
+      .Then(base::BindOnce(
+          [](base::WeakPtr<StarboardRendererWrapper> self,
+             std::unique_ptr<SbDecodeTarget> holder,
+             GetCurrentVideoFrameCallback callback) {
+            if (!self) {
+              std::move(callback).Run(nullptr);
+              return;
+            }
+            self->OnDecodeTargetReady(*holder, std::move(callback));
+          },
+          weak_factory_.GetWeakPtr(), std::move(target_holder),
+          std::move(callback)));
+}
+
+void StarboardRendererWrapper::OnDecodeTargetReady(
+    SbDecodeTarget decode_target,
+    GetCurrentVideoFrameCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!SbDecodeTargetIsValid(decode_target)) {
     std::move(callback).Run(current_frame_);
     return;
   }
+
+  decode_target_ = decode_target;
 
   auto info = std::make_unique<SbDecodeTargetInfo>();
   *info = {};
@@ -648,10 +676,6 @@ StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider() {
   return &decode_target_graphics_context_provider_;
 }
 
-void StarboardRendererWrapper::GetCurrentDecodeTarget() {
-  decode_target_ = GetRenderer()->GetSbDecodeTarget();
-}
-
 void StarboardRendererWrapper::OnCreateImageDone(
     VideoPixelFormat format,
     const gfx::Size& coded_size,
@@ -713,8 +737,16 @@ void StarboardRendererWrapper::GraphicsContextRunner(
     return;
   }
   if (provider->gpu_factory_) {
-    provider->PostGpuTaskWithGlesContextAndWait(base::BindOnce(
-        &CallTargetFunction, target_function, target_function_context));
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    provider->GetGpuFactory()
+        ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
+        .WithArgs(base::BindOnce(&CallTargetFunction, target_function,
+                                 target_function_context),
+                  &done_event);
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+    done_event.Wait();
   }
 }
 
@@ -724,19 +756,6 @@ void StarboardRendererWrapper::PostGpuTaskWithGlesContext(
   GetGpuFactory()
       ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
       .WithArgs(std::move(task), /*done_event=*/nullptr);
-}
-
-void StarboardRendererWrapper::PostGpuTaskWithGlesContextAndWait(
-    base::OnceClosure task) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  base::WaitableEvent done_event(
-      base::WaitableEvent::ResetPolicy::MANUAL,
-      base::WaitableEvent::InitialState::NOT_SIGNALED);
-  GetGpuFactory()
-      ->AsyncCall(&StarboardGpuFactory::RunWithGlesContext)
-      .WithArgs(std::move(task), &done_event);
-  base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
-  done_event.Wait();
 }
 
 void StarboardRendererWrapper::ReleaseDecodeTargetOnGpu(
