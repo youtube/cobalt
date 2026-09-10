@@ -162,6 +162,8 @@ void CobaltVideoOverlayWindow::SetSkipAdButtonVisibility(bool is_visible) {}
 void CobaltVideoOverlayWindow::SetNextTrackButtonVisibility(bool is_visible) {}
 void CobaltVideoOverlayWindow::SetPreviousTrackButtonVisibility(
     bool is_visible) {}
+void CobaltVideoOverlayWindow::SetHidePictureInPictureButtonVisibility(
+    bool is_visible) {}
 void CobaltVideoOverlayWindow::SetMicrophoneMuted(bool muted) {}
 void CobaltVideoOverlayWindow::SetCameraState(bool turned_on) {}
 void CobaltVideoOverlayWindow::SetToggleMicrophoneButtonVisibility(
