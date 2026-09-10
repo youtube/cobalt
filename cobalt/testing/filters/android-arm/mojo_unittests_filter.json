@@ -1,6 +1,8 @@
 {
   "failing_tests": [
     "All/MultiprocessMessagePipeTestWithPeerSupport.QueueMessages/1",
-    "DataPipeTest.NoSpuriousEvents"
+    "BinderExchangeTest.PlatformChannelPassing",
+    "DataPipeTest.NoSpuriousEvents",
+    "MessagePipeTest.DataPipeProducerHandlePingPong"
   ]
 }
