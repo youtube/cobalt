@@ -172,7 +172,7 @@ jobs:
             {success: "✅ PASS", pending: "⏳ PENDING"} as $icons |
             ["| Context | State | Description |", "|---|---|---|"] +
             [
-              .statuses // [] | sort_by(.context)[] |
+              .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
               "| [\(.context)](\(.target_url // "")) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
             ] | join("\n")
           ' > shepherd_report.md
