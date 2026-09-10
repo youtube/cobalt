@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
@@ -54,7 +53,6 @@
 #include "gpu/command_buffer/common/shared_image_trace_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/config/gpu_feature_info.h"
-#include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "third_party/skia/include/core/SkFont.h"
@@ -832,18 +830,8 @@ SkRect HeadsUpDisplayLayerImpl::DrawGpuRasterizationStatus(PaintCanvas* canvas,
   std::string status;
   SkColor color = SK_ColorRED;
   if (layer_tree_impl()->use_gpu_rasterization()) {
-#if BUILDFLAG(IS_COBALT)
-    if (base::FeatureList::IsEnabled(features::kCobaltInProcessDirectRaster)) {
-      status = "in-proc";
-      color = SK_ColorCYAN;
-    } else {
-      status = "on";
-      color = SK_ColorGREEN;
-    }
-#else
     status = "on";
     color = SK_ColorGREEN;
-#endif
   } else {
     status = "off";
     color = SK_ColorRED;

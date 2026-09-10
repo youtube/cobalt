@@ -31,8 +31,7 @@ void registerContextSnapshotAndroid(
           .Append(FILE_PATH_LITERAL(BUILDFLAG(V8_CONTEXT_SNAPSHOT_FILENAME)));
 }
 }  // namespace
-#endif  // BUILDFLAG(IS_ANDROID) && (BUILDFLAG(USE_V8_CONTEXT_SNAPSHOT) ||
-        // BUILDFLAG(INCLUDE_BOTH_V8_SNAPSHOTS))
+#endif  // BUILDFLAG(IS_ANDROID)
 
 std::map<std::string, std::variant<base::FilePath, base::ScopedFD>>
 GetV8SnapshotFilesToPreload(base::CommandLine& process_command_line) {

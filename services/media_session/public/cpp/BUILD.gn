@@ -33,11 +33,6 @@ component("base_cpp") {
       "media_position_android.cc",
     ]
     deps += [ "android:media_session_jni_headers" ]
-    if (is_cobalt) {
-      deps += [ 
-        "//third_party/jni_zero:cobalt_for_google3_buildflags",
-      ]
-    }
   }
 
   defines = [ "IS_MEDIA_SESSION_BASE_CPP_IMPL" ]

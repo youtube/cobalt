@@ -39,7 +39,7 @@ class UtilityThreadImpl : public UtilityThread,
   // UtilityThread:
   void ReleaseProcess() override;
   void EnsureBlinkInitialized() override;
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
   void EnsureBlinkInitializedWithSandboxSupport() override;
 #endif
 
