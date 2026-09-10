@@ -22,8 +22,7 @@ jobs:
       GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
       GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     defaults:
       run:
         working-directory: src
