@@ -119,9 +119,9 @@ Declare numeric literals of unsigned 64-bit type.
 ### SB_UNREFERENCED_PARAMETER(x)
 
 Deprecated: Per the Google C++ Style Guide, comment out unused parameter names
-(e.g., `void* /*context*/` / or `Type /*param_name*/` /), or use
-`[[maybe_unused]]` if conditionally unused. Trivially references a parameter
-that is otherwise unreferenced, preventing a compiler warning on some platforms.
+(e.g., `void* /*context*/` or `Type /*param_name*/`), or use `[[maybe_unused]]`
+if conditionally unused. Trivially references a parameter that is otherwise
+unreferenced, preventing a compiler warning on some platforms.
 
 ### SB_WARN_UNUSED_RESULT
 
