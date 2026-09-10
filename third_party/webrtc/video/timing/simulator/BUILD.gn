@@ -1,0 +1,43 @@
+# Copyright (c) 2025 The WebRTC project authors. All Rights Reserved.
+#
+# Use of this source code is governed by a BSD-style license
+# that can be found in the LICENSE file in the root of the source
+# tree. An additional intellectual property rights grant can be found
+# in the file PATENTS.  All contributing project authors may
+# be found in the AUTHORS file in the root of the source tree.
+
+import("../../../webrtc.gni")
+
+if (rtc_enable_protobuf) {
+  rtc_library("simulator") {
+    sources = [
+      "rtp_packet_simulator.cc",
+      "rtp_packet_simulator.h",
+    ]
+    deps = [
+      "../../../api:rtp_headers",
+      "../../../api/environment",
+      "../../../logging:rtc_event_log_parser",
+      "../../../logging:rtc_event_rtp_rtcp",
+      "../../../modules/rtp_rtcp:rtp_rtcp_format",
+    ]
+  }
+
+  if (rtc_include_tests) {
+    rtc_library("simulator_tests") {
+      testonly = true
+      sources = [ "rtp_packet_simulator_unittest.cc" ]
+      deps = [
+        ":simulator",
+        "../../../api:rtp_headers",
+        "../../../api/environment",
+        "../../../api/units:timestamp",
+        "../../../logging:rtc_event_rtp_rtcp",
+        "../../../modules/rtp_rtcp:rtp_rtcp_format",
+        "../../../system_wrappers",
+        "../../../test:create_test_environment",
+        "../../../test:test_support",
+      ]
+    }
+  }
+}

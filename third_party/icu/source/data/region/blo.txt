@@ -1,0 +1,317 @@
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/
+blo{
+    Countries{
+        001{"nɖulinya"}
+        002{"Garɩɖontǝna"}
+        003{"Gamalɩkatǝna gʊnyɩpɛnɛlaŋ"}
+        005{"Gamalɩkatǝna gʊnyɩsonolaŋ"}
+        009{"Oseyanii"}
+        011{"Garɩɖontǝna gɩteŋshilelaŋ"}
+        013{"Gamalɩkatǝna gɩcɩɩca"}
+        014{"Garɩɖontǝna gajakalaŋ"}
+        015{"Garɩɖontǝna gʊnyɩpɛnɛlaŋ"}
+        017{"Garɩɖontǝna gɩcɩɩca"}
+        018{"Garɩɖontǝna gʊnyɩsonolaŋ"}
+        019{"Gamalɩkatǝna"}
+        021{"Gamalɩkatǝna kagʊnyɩpɛnɛlaŋ"}
+        029{"Karayiib"}
+        030{"Gacǝlǝŋtǝna gajakalaŋ"}
+        034{"Gacǝlǝŋtǝna gʊnyɩsonolaŋ"}
+        035{"Gacǝlǝŋtǝna gʊsono na gajakayɛlaŋ kʊfɔɔ nɩ"}
+        039{"Garɩfɔntǝna gʊnyɩsonolaŋ"}
+        053{"Ɔstracǝlǝŋtǝna"}
+        054{"Melanesiya"}
+        057{"Mikronesiya kagʊsaʊ"}
+        061{"Polinesiya"}
+        142{"Gacǝlǝŋtǝna"}
+        143{"Gacǝlǝŋtǝna gɩcɩɩca"}
+        145{"Gacǝlǝŋtǝna gɩteŋshilelaŋ"}
+        150{"Garɩfɔntǝna"}
+        151{"Garɩfɔntǝna gajakalaŋ"}
+        154{"Garɩfɔntǝna gʊnyɩpɛnɛlaŋ"}
+        155{"Garɩfɔntǝna gɩteŋshilelaŋ"}
+        202{"Garɩɖontǝna Sahara katǝntǝn"}
+        419{"Latɛŋ kaAmalɩkatǝna"}
+        AC{"Asɛnsiyɔɔn kaAtukǝltǝna"}
+        AD{"Anɖɔraa"}
+        AE{"Emiir baGanɔ gaɖɔŋkɔnɔ kaAlaaributǝna"}
+        AF{"Afganistan"}
+        AG{"Antiguwaa na Barbuɖaa"}
+        AI{"Aŋguwilaa"}
+        AL{"Albanii"}
+        AM{"Armenii"}
+        AO{"Aŋgolaa"}
+        AQ{"Gatutaltǝna"}
+        AR{"Arjantin"}
+        AS{"Samowa Amalɩka kaja"}
+        AT{"Otrish"}
+        AU{"Ɔstraliya"}
+        AW{"Arubaa"}
+        AX{"Ɔɔlanɖ kaBʊtǝlǝltǝna"}
+        AZ{"Asɛrbaɩjaŋ"}
+        BA{"Bɔsniya na Hɛrsegɔfina"}
+        BB{"Barbaɖɔɔsɩ"}
+        BD{"Baŋglaɖɛɛshɩ"}
+        BE{"Bɛljiiki"}
+        BF{"Burkinaa"}
+        BG{"Bulgarii"}
+        BH{"Barɛɛn"}
+        BI{"Burunɖii"}
+        BJ{"Benɛɛ"}
+        BL{"Sɛŋ-Batolomayɔ"}
+        BM{"Bɛrmuɖaa"}
+        BN{"Brunɛɩ"}
+        BO{"Bolifiya"}
+        BQ{"Holanɖ kaKarayiib"}
+        BR{"Bresil"}
+        BS{"Bahamaasɩ"}
+        BT{"Butan"}
+        BV{"Bufee kaAtukǝltǝna"}
+        BW{"Bɔsʊwanaa"}
+        BY{"Belaruus"}
+        BZ{"Beliis"}
+        CA{"Kanaɖaa"}
+        CC{"Kokoos (Kiiliŋ) kaBʊtukǝltǝna"}
+        CD{"Koŋgoo Kinshasaa"}
+        CF{"Santrafrika"}
+        CG{"Koŋgoo Brasafil"}
+        CH{"Suwis"}
+        CI{"Koɖifʊaa"}
+        CK{"Kʊkʊ kaBʊtukǝltǝna"}
+        CL{"Shilii"}
+        CM{"Kamerun"}
+        CN{"Caɩna"}
+        CO{"Kolɔmbii"}
+        CP{"Klipɛɛtɔn kaAtukǝltǝna"}
+        CQ{"Sark"}
+        CR{"Kɔsta Rikaa"}
+        CU{"Kubaa"}
+        CV{"Kapfɛɛr"}
+        CW{"Kurasawuu"}
+        CX{"Nowɛl kaAtukǝltǝna"}
+        CY{"Ciprɔs"}
+        CZ{"Cɛk"}
+        DE{"Gajaamatǝna"}
+        DG{"Ɖiyego Garsiya"}
+        DJ{"Jibutii"}
+        DK{"Ɖanǝmark"}
+        DM{"Ɖominikaa"}
+        DO{"Ɖominikaa kaRepibliiki"}
+        DZ{"Aljerii"}
+        EA{"Seyuta na Meliliya"}
+        EC{"Ekuwaɖɔɔr"}
+        EE{"Ɛstoniya"}
+        EG{"Ejipti"}
+        EH{"Sarawii"}
+        ER{"Eritree"}
+        ES{"Ɛspanyǝ"}
+        ET{"Etiyopii"}
+        EU{"Ganɔ gaɖɔŋkɔnɔ kaBʊtǝna Garɩfɔntǝna nɩ"}
+        EZ{"Eroo kaBʊtǝna"}
+        FI{"Fɛnlanɖ"}
+        FJ{"Fiji"}
+        FK{"Fɔklanɖ kaBʊtukǝltǝna (Malfina kaBʊtukǝltǝna)"}
+        FM{"Mikronesiya"}
+        FO{"Faroi kaBʊtukǝltǝna"}
+        FR{"Gafɔntǝna"}
+        GA{"Gabɔŋ"}
+        GB{"Gagɛɛshɩtǝna"}
+        GD{"Grenaɖaa"}
+        GE{"Jɔrjiya"}
+        GF{"Guyanaa Gafɔntǝna kaja"}
+        GG{"Gǝrǝnsɛɩ"}
+        GH{"Gana"}
+        GI{"Gibraltaa"}
+        GL{"Grinlanɖ"}
+        GM{"Gambii"}
+        GN{"Ginee"}
+        GP{"Guwaɖeluupu"}
+        GQ{"Ginee Malabo"}
+        GR{"Grɛs"}
+        GS{"Jɔrjiya gʊnyɩsonolaŋ kaja na Sanɖuush gʊnyɩsonolaŋ kaBʊtukǝltǝna"}
+        GT{"Guwatemalaa"}
+        GU{"Guwam"}
+        GW{"Ginee Bisoo"}
+        GY{"Guyanaa"}
+        HK{"Hɔŋ Kɔŋ"}
+        HM{"Hɛɛrɖ na Mɛkɖɔnalɖ kaBʊtukǝltǝna"}
+        HN{"Hɔnɖuraasɩ"}
+        HR{"Krowasii"}
+        HT{"Hayitii"}
+        HU{"Ɔŋgrii"}
+        IC{"Kanarii kaBʊtukǝltǝna"}
+        ID{"Ɛnɖonosii"}
+        IE{"Irlanɖ"}
+        IL{"Yishraɛl"}
+        IM{"Man kaAtukǝltǝna"}
+        IN{"Inɖiya"}
+        IO{"Gɛɛshɩ kaAtǝna Inɖiya kaTeŋku nɩ"}
+        IQ{"Ɩraakɩ"}
+        IR{"Iraŋ"}
+        IS{"Islanɖ"}
+        IT{"Italii"}
+        JE{"Jersei"}
+        JM{"Jamaɩka"}
+        JO{"Jɔrɖanii"}
+        JP{"Japaŋ"}
+        KE{"Keniya"}
+        KG{"Kirgistan"}
+        KH{"Kamboɖiya"}
+        KI{"Kiribatii"}
+        KM{"Komɔɔr"}
+        KN{"Sɛŋ Kits na Nefis"}
+        KP{"Koree gʊnyɩpɛnɛlaŋ"}
+        KR{"Koree gʊnyɩsonolaŋ"}
+        KW{"Koweeti"}
+        KY{"Kayimaan kaBʊtukǝltǝna"}
+        KZ{"Kasastan"}
+        LA{"Lawɔs"}
+        LB{"Liibaaŋ"}
+        LC{"Sɛŋ Lusiya"}
+        LI{"Liishtɛntaɩn"}
+        LK{"Siri Laŋkaa"}
+        LR{"Liberiya"}
+        LS{"Lesotoo"}
+        LT{"Lituwaniya"}
+        LU{"Lusɛmbuur"}
+        LV{"Lɛtfiya"}
+        LY{"Libii"}
+        MA{"Morooko"}
+        MC{"Monakoo"}
+        MD{"Mɔlɖafiya"}
+        ME{"Mɔntenegroo"}
+        MF{"Sɛŋ Martɛɛŋ"}
+        MG{"Maɖagaskaa"}
+        MH{"Marshal kaBʊtukǝltǝna"}
+        MK{"Maseɖoniya gʊnyɩpɛnɛlaŋ kaja"}
+        ML{"Malii"}
+        MM{"Miyanmaa (Birmanii)"}
+        MN{"Mɔŋgolii"}
+        MO{"Makawoo"}
+        MP{"Mariyan kaBʊtukǝltǝna gʊnyɩpɛnɛlaŋ"}
+        MQ{"Martiniiki"}
+        MR{"Moritanii"}
+        MS{"Mɔnsɛraatɩ"}
+        MT{"Malta"}
+        MU{"Imoris"}
+        MV{"Malɖiifu"}
+        MW{"Malawii"}
+        MX{"Mɛsik"}
+        MY{"Malɛsii"}
+        MZ{"Mosambii"}
+        NA{"Namibii"}
+        NC{"Kaleɖonii afɔlɩ"}
+        NE{"Nijɛr"}
+        NF{"Nɔrfook kaAtukǝltǝna"}
+        NG{"Nanjiiriya"}
+        NI{"Nikaraguwaa"}
+        NL{"Holanɖ"}
+        NO{"Nɔrfɛsh"}
+        NP{"Neepal"}
+        NR{"Nawuru"}
+        NU{"Niwuye"}
+        NZ{"Selanɖ afɔlɩ"}
+        OM{"Oman"}
+        PA{"Panamaa"}
+        PE{"Peruu"}
+        PF{"Polinesiya Gafɔntǝna kaja"}
+        PG{"Papuasii Ginee afɔlɩ"}
+        PH{"Filipiin"}
+        PK{"Pakistan"}
+        PL{"Polanɖ"}
+        PM{"Sɛŋ-Petrɔs na Mikelɔŋ"}
+        PN{"Pɩtkɛɛn kaBʊtukǝltǝna"}
+        PR{"Pɔrto Rikoo"}
+        PS{"Palɛstiin"}
+        PT{"Pɔrtigal"}
+        PW{"Palawoo"}
+        PY{"Paraguwee"}
+        QA{"Kataa"}
+        QO{"Oseyanii kasaʊlǝŋka"}
+        RE{"Reeniyɔŋ"}
+        RO{"Romanii"}
+        RS{"Sɛrbii"}
+        RU{"Rɔɔshɩya"}
+        RW{"Rʊwanɖaa"}
+        SA{"Sauɖiya"}
+        SB{"Salomɔɔn kaBʊtukǝltǝna"}
+        SC{"Seshɛl"}
+        SD{"Suɖaŋ"}
+        SE{"Sʊwɛɖ"}
+        SG{"Siŋgapuur"}
+        SH{"Sɛŋ Elenaa (kaAtukǝltǝna)"}
+        SI{"Slofeniya"}
+        SJ{"Sǝfalbaaɖ na Yan Mayɛn"}
+        SK{"Slofakii"}
+        SL{"Seraleyɔn"}
+        SM{"Sɛŋ Marinoo"}
+        SN{"Senegal"}
+        SO{"Somalii"}
+        SR{"Surinam"}
+        SS{"Suɖaŋ gʊnyɩsonolaŋ"}
+        ST{"Saotomee"}
+        SV{"Ɛl Salfaɖɔɔr"}
+        SX{"Sɛŋ Martɛɛŋ (Holanɖ kaja)"}
+        SY{"Sirii"}
+        SZ{"Ɛsʊwatinii"}
+        TA{"Tristan ɖa Kuna"}
+        TC{"Turkisii na Kayɩkɔɔsɩ kaBʊtukǝltǝna"}
+        TD{"Caɖ"}
+        TF{"Gafɔntǝna kaBʊtǝna gʊnyɩsonolaŋ kabʊja"}
+        TG{"Togoo"}
+        TH{"Taɩlanɖ"}
+        TJ{"Tajikistan"}
+        TK{"Tokelaʊ"}
+        TL{"Timɔɔ gajakalaŋ"}
+        TM{"Turkmenistan"}
+        TN{"Tunisii"}
+        TO{"Tɔŋga"}
+        TR{"Turkii"}
+        TT{"Triniɖaaɖ na Tobagoo"}
+        TV{"Tufalu"}
+        TW{"Taɩwan"}
+        TZ{"Taŋsanii"}
+        UA{"Ikrɛɛn"}
+        UG{"Uganɖaa"}
+        UM{"Ganɔ gaɖɔŋkɔnɔ kaBʊtǝna Amalɩka nɩ kaBʊtukǝltǝna bʊlǝŋka"}
+        UN{"Ganɔ gaɖɔŋkɔnɔ kaBʊtǝna nɖulinya nɩ"}
+        US{"Ganɔ gaɖɔŋkɔnɔ kaBʊtǝna Amalɩka nɩ"}
+        UY{"Uruguwee"}
+        UZ{"Usbeekistan"}
+        VA{"Fatikaŋ kaMpá"}
+        VC{"Sɛŋ Fɩnsaŋ na Grenaɖiniisi"}
+        VE{"Fenesuwelaa"}
+        VG{"Fɩrjɩɩn kǝBʊtukǝltǝna Gɛɛshɩ kabʊja"}
+        VI{"Fɩrjɩɩn kaBʊtukǝltǝna Amalɩka kabʊja"}
+        VN{"Fɛtnam"}
+        VU{"Fanuwatu"}
+        WF{"Walis na Futuna"}
+        WS{"Samowa"}
+        XA{"sǝɖoo-aksaŋ"}
+        XB{"sǝɖoo-biɖi"}
+        XK{"Kɔsofoo"}
+        YE{"Yemɛn"}
+        YT{"Mayɔɔtɩ"}
+        ZA{"Sautafrika"}
+        ZM{"Sambii"}
+        ZW{"Simbabʊwee"}
+        ZZ{"gʊsaʊɩ kʊyɔʊ ʊ mana ma"}
+    }
+    Countries%chagos{
+        IO{"Cagɔɔsɩ kaBʊtukǝltǝna"}
+    }
+    Countries%short{
+        GB{"GT"}
+        US{"GKA"}
+    }
+    Countries%variant{
+        CD{"Koŋgoo Sayiir"}
+        CG{"Koŋgoo kaRepibliiki"}
+        CI{"Aɩfɔrɩ Kɔɔst"}
+        CZ{"Cɛk kaRepibliiki"}
+        NZ{"Awoteyarowa Selanɖ afɔlɩ"}
+        SZ{"Sʊwasilanɖ"}
+    }
+}
