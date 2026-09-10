@@ -16,22 +16,29 @@ source_set("memory") {
   sources = [
     "cobalt_memory_attribution_manager.cc",
     "cobalt_memory_attribution_manager.h",
+    "cobalt_system_memory_pressure_evaluator.cc",
+    "cobalt_system_memory_pressure_evaluator.h",
   ]
 
   deps = [
     "//base",
     "//cobalt/browser:features",
+    "//components/memory_pressure",
   ]
 }
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "cobalt_memory_attribution_manager_unittest.cc" ]
+  sources = [
+    "cobalt_memory_attribution_manager_unittest.cc",
+    "cobalt_system_memory_pressure_evaluator_unittest.cc",
+  ]
 
   deps = [
     ":memory",
     "//base/test:test_support",
     "//cobalt/browser:features",
+    "//components/memory_pressure",
     "//testing/gtest",
   ]
 }
