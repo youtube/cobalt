@@ -54,17 +54,28 @@ namespace content {
 
 ScopedJavaLocalRef<jobject> CreateShellView(Shell* shell) {
   JNIEnv* env = base::android::AttachCurrentThread();
+  if (g_global_state.Get().j_shell_manager.is_null()) {
+    return ScopedJavaLocalRef<jobject>();
+  }
   return Java_ShellManager_createShell(env,
                                        g_global_state.Get().j_shell_manager,
                                        reinterpret_cast<intptr_t>(shell));
 }
 
-void RemoveShellView(const JavaRef<jobject>& shell_view) {
+void RemoveShellView(const JavaRef<jobject>& shell_view,
+                     uint64_t manager_generation) {
   JNIEnv* env = base::android::AttachCurrentThread();
+  if (g_global_state.Get().generation != manager_generation) {
+    return;
+  }
   ScopedJavaLocalRef<jobject> manager(g_global_state.Get().j_shell_manager);
   if (!manager.is_null()) {
     Java_ShellManager_removeShell(env, manager, shell_view);
   }
+}
+
+uint64_t GetShellManagerGeneration() {
+  return g_global_state.Get().generation;
 }
 
 static void JNI_ShellManager_Init(JNIEnv* env,
