@@ -82,25 +82,47 @@ void StarboardGpuFactoryImpl::CreateImageOnGpu(
     scoped_refptr<gpu::RefCountedLock> drdc_lock,
 #endif  // BUILDFLAG(IS_ANDROID)
     base::WaitableEvent* done_event) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (MakeContextCurrent(stub_)) {
-    DCHECK_EQ(texture_service_ids.size(), texture_targets.size());
-
-    scoped_refptr<gpu::GpuChannelSharedImageInterface>
-        gpu_channel_shared_image_interface =
-            stub_->channel()->shared_image_stub()->shared_image_interface();
-
-    shared_image = gpu_channel_shared_image_interface
-                       ->CreateSharedImageForStarboardGLTexture(
-                           format, coded_size, color_space, texture_service_ids,
-                           texture_targets, decode_target
+  RunWithGlesContext(
+      base::BindOnce(
+          [](StarboardGpuFactoryImpl* self, const gfx::Size& coded_size,
+             const gfx::ColorSpace& color_space, viz::SharedImageFormat format,
+             scoped_refptr<gpu::ClientSharedImage>& shared_image,
+             const std::vector<uint32_t>& texture_service_ids,
+             const std::vector<uint32_t>& texture_targets,
+             uint64_t decode_target
 #if BUILDFLAG(IS_ANDROID)
-                           ,
-                           std::move(drdc_lock)
-#endif
-                       );
-  }
-  done_event->Signal();
+             ,
+             scoped_refptr<gpu::RefCountedLock> drdc_lock
+#endif  // BUILDFLAG(IS_ANDROID)
+          ) {
+            DCHECK_EQ(texture_service_ids.size(), texture_targets.size());
+
+            scoped_refptr<gpu::GpuChannelSharedImageInterface>
+                gpu_channel_shared_image_interface =
+                    self->stub_->channel()
+                        ->shared_image_stub()
+                        ->shared_image_interface();
+
+            shared_image =
+                gpu_channel_shared_image_interface
+                    ->CreateSharedImageForStarboardGLTexture(
+                        format, coded_size, color_space, texture_service_ids,
+                        texture_targets, decode_target
+#if BUILDFLAG(IS_ANDROID)
+                        ,
+                        std::move(drdc_lock)
+#endif  // BUILDFLAG(IS_ANDROID)
+                    );
+          },
+          base::Unretained(this), coded_size, color_space, format,
+          std::ref(shared_image), std::cref(texture_service_ids),
+          std::cref(texture_targets), decode_target
+#if BUILDFLAG(IS_ANDROID)
+          ,
+          std::move(drdc_lock)
+#endif  // BUILDFLAG(IS_ANDROID)
+              ),
+      done_event);
 }
 
 void StarboardGpuFactoryImpl::OnWillDestroyStub(bool /*have_context*/) {
