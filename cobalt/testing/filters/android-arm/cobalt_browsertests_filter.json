@@ -68,6 +68,7 @@
     "NavigationBrowserTest.SameDocumentNavigationOn404ErrorPage",
     "NavigationBrowserTest.SameOriginFlagOfAboutBlankToAboutBlankNavigation",
     "NavigationBrowserTest.SubFrameJsNavigationInitiator",
+    "NavigationBrowserTest.SubframeNavigationByTopFrameInitiator",
     "NavigationBrowserTest.TraversingToRestoredEntryUsesRestoreType",
     "NavigationBrowserTest.VerifyBlockedErrorPageURL_Reload",
     "NavigationBrowserTestCredentiallessIframe.CredentiallessAttributeIsHonoredByNavigation",
