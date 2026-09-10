@@ -71,7 +71,7 @@ static const WrapperTypeInfo g_dummy_wrapper_type_info = {
 };
 
 static const WrapperTypeInfo g_dummy_namespace_wrapper_type_info = {
-    gin::kEmbedderBlink,
+    {gin::kEmbedderBlink},
     DummyInstallInterfaceTemplateFunc,
     nullptr,
     "DummyNamespace",
