@@ -19,6 +19,7 @@ import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
 import android.util.Range;
+import androidx.annotation.GuardedBy;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,9 +55,12 @@ public class VideoDecoderCache {
   private static final int DEFAULT_CACHE_TTL_MILLIS = 1000;
 
   private static Map<String, List<CachedDecoder>> sCache = new HashMap<>();
+
+  @GuardedBy("sCache")
   private static long sLastCacheUpdateAt = 0;
 
-  private static synchronized boolean isExpired(int cacheTtlOverride) {
+  @GuardedBy("sCache")
+  private static boolean isExpired(int cacheTtlOverride) {
     long cacheTtl = cacheTtlOverride >= 0 ? cacheTtlOverride : DEFAULT_CACHE_TTL_MILLIS;
     return System.currentTimeMillis() - sLastCacheUpdateAt >= cacheTtl;
   }
