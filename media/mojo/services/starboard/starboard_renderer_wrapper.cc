@@ -734,12 +734,7 @@ void StarboardRendererWrapper::GraphicsContextRunner(
   if (!provider || !provider->is_gpu_factory_initialized_) {
     return;
   }
-  if (provider->gpu_task_runner_->RunsTasksInCurrentSequence()) {
-    // If it is on the gpu thread, post target_function() directly on it.
-    target_function(target_function_context);
-  } else if (provider->gpu_factory_) {
-    // If it is not on the gpu thread, post target_function() with
-    // |gpu_factory_|.
+  if (provider->gpu_factory_) {
     base::WaitableEvent done_event(
         base::WaitableEvent::ResetPolicy::MANUAL,
         base::WaitableEvent::InitialState::NOT_SIGNALED);

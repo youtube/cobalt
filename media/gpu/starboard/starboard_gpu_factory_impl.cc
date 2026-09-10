@@ -62,6 +62,8 @@ void StarboardGpuFactoryImpl::RunWithGlesContext(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (MakeContextCurrent(stub_)) {
     std::move(callback).Run();
+  } else {
+    LOG(ERROR) << "Failed to make context current on GPU thread";
   }
   if (done_event) {
     done_event->Signal();
