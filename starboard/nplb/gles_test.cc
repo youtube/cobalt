@@ -14,6 +14,12 @@
 
 #include "starboard/gles.h"
 
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+#include "starboard/system.h"
+#include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -26,9 +32,7 @@ namespace {
 TEST(SbGlesInterfaceTest, HasValidGlesInterface) {
   const SbGlesInterface* const gles_interface = SbGetGlesInterface();
 
-  if (!gles_interface) {
-    return;
-  }
+  ASSERT_NE(nullptr, gles_interface);
 
   EXPECT_NE(nullptr, gles_interface->glActiveTexture);
   EXPECT_NE(nullptr, gles_interface->glAttachShader);
@@ -172,6 +176,52 @@ TEST(SbGlesInterfaceTest, HasValidGlesInterface) {
   EXPECT_NE(nullptr, gles_interface->glVertexAttrib4fv);
   EXPECT_NE(nullptr, gles_interface->glVertexAttribPointer);
   EXPECT_NE(nullptr, gles_interface->glViewport);
+}
+
+// Verifies that the target device supports OpenGLES 3.2 or higher graphics API.
+TEST(SbGlesTest, SupportsOpenGles32OrHigher) {
+  char platform_name[512] = {0};
+  if (SbSystemGetProperty(kSbSystemPropertyPlatformName, platform_name,
+                          sizeof(platform_name)) &&
+      std::strcmp(platform_name, "X11; Linux x86_64") == 0) {
+    GTEST_SKIP()
+        << "Skipping OpenGLES 3.2 check on linux-x64x11 platform. Cobalt's "
+           "on-host reference does not act like a real device in this way, but "
+           "our reference devices to adhere to this.";
+  }
+
+  const SbGlesInterface* const gles_interface = SbGetGlesInterface();
+  ASSERT_NE(nullptr, gles_interface);
+
+  starboard::FakeGraphicsContextProvider fake_graphics_context_provider;
+  std::string version_string;
+
+  fake_graphics_context_provider.RunOnGlesContextThread([&]() {
+    const char* str = reinterpret_cast<const char*>(
+        gles_interface->glGetString(SB_GL_VERSION));
+    if (str) {
+      version_string = str;
+    }
+  });
+
+  ASSERT_FALSE(version_string.empty())
+      << "Failed to retrieve OpenGL ES version string. "
+         "glGetString(SB_GL_VERSION) returned NULL.";
+
+  int major = 0;
+  int minor = 0;
+  int parsed =
+      std::sscanf(version_string.c_str(), "OpenGL ES %d.%d", &major, &minor);
+  if (parsed != 2) {
+    parsed = std::sscanf(version_string.c_str(), "%d.%d", &major, &minor);
+  }
+  ASSERT_EQ(2, parsed) << "Failed to parse OpenGL ES version string: "
+                       << version_string;
+
+  // The target device MUST support OpenGLES 3.2 or higher graphics API.
+  EXPECT_TRUE(major > 3 || (major == 3 && minor >= 2))
+      << "Expected OpenGLES 3.2 or higher, but found OpenGLES " << major << "."
+      << minor << " (version string: " << version_string << ")";
 }
 
 }  // namespace
