@@ -1,6 +1,15 @@
 {
   "failing_tests": [
+<<<<<<< HEAD
     "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/*",
+=======
+    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/1",
+    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/2",
+    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/3",
+    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/4",
+    "All/AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/5",
+    "All/CobaltMemoryThresholdBrowserTest.BlankPageMemoryFootprint/*",
+>>>>>>> 9dde123444 (cobalt/gardener: Update flaky test filters from CSV (#12513))
     "All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/0",
     "All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/1",
     "All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/2",
@@ -15,15 +24,21 @@
     "All/NavigationBrowserTestPaintHoldingSubframe.CrossOrigin/1",
     "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.RecordUma/UnloadMainFrameNavigateOther",
     "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.RecordUma/UnloadMainFrameNavigateSubFrame",
+    "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.RecordUma/UnloadNoneNavigateOther",
     "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.RecordUma/UnloadNoneNavigateSubFrame",
     "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.RecordUma/UnloadSubFrameNavigateMainFrame",
     "CobaltMetricsBrowserTest.*",
+<<<<<<< HEAD
     "DeferSpeculativeRFHCreationReuseRFHTest.ReuseSameRFHNotDeferred",
+=======
+    "CommitNavigationRaceBrowserTest.*",
+>>>>>>> 9dde123444 (cobalt/gardener: Update flaky test filters from CSV (#12513))
     "DeferSpeculativeRFHCreationTest.NavigateWithPendingCommit",
     "DeferSpeculativeRFHCreationTest.NavigationFromCrashedFrameNotDeferred",
     "DocumentPolicyBrowserTest.FragmentAnchorEnabledByDocumentPolicy",
     "DocumentPolicyBrowserTest.ScrollRestorationDisabledByDocumentPolicy",
     "GranularMemoryBrowsertest.CobaltSpecificMetrics",
+    "H5vccRuntimeBrowserTest.*",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.CacheExistsButResourceMissing",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.LoadSplashVideoFromDefaultCache",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.LoadSplashVideoNoCache",
@@ -32,6 +47,7 @@
     "MediaNavigationBrowserTest.*",
     "NavigationBrowserTest.AboutMumble",
     "NavigationBrowserTest.BrowserInitiatedNavigations",
+    "NavigationBrowserTest.BrowserNavigationInitiator",
     "NavigationBrowserTest.Bug1210234",
     "NavigationBrowserTest.DataURLWithReferenceFragment",
     "NavigationBrowserTest.DisableRefCountsWhileKeepAliveExists",
@@ -64,6 +80,7 @@
     "NavigationBrowserTest.SameDocumentNavigationOn404ErrorPage",
     "NavigationBrowserTest.SameOriginFlagOfAboutBlankToAboutBlankNavigation",
     "NavigationBrowserTest.SubFrameJsNavigationInitiator",
+    "NavigationBrowserTest.SubframeNavigationByTopFrameInitiator",
     "NavigationBrowserTest.TraversingToRestoredEntryUsesRestoreType",
     "NavigationBrowserTest.VerifyBlockedErrorPageURL_Reload",
     "NavigationBrowserTestCredentiallessIframe.CredentiallessAttributeIsHonoredByNavigation",
