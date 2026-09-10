@@ -38,7 +38,9 @@ media::EmeInitDataType EncryptedMediaUtils::ConvertToInitDataType(
     return media::EmeInitDataType::WEBM;
 
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (init_data_type == media::GetPlatformDrmInitDataTypeString().c_str()) {
+  const std::string& platform_format =
+      media::GetPlatformDrmInitDataTypeString();
+  if (!platform_format.empty() && init_data_type == platform_format.c_str()) {
     return media::EmeInitDataType::PLATFORM_DRM;
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)

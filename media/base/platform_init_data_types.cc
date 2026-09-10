@@ -29,6 +29,7 @@ std::string& StoredString() {
 }  // namespace
 
 void SetPlatformDrmInitDataTypeString(const std::string& type_string) {
+  DCHECK(!type_string.empty());
   std::string& stored = StoredString();
   DCHECK(stored.empty());
   stored = type_string;
