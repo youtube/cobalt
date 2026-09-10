@@ -35,5 +35,4 @@
 /third_party/blink/renderer/modules/cobalt/h5vcc_settings/ @youtube/cobalt-web-api @youtube/cobalt-media
 
 *nplb*.filter @youtube/nplb-filters
-*.nplb_filter.json @youtube/nplb-filters
 /starboard/contrib/rdk @youtube/starboard-rdk-owners

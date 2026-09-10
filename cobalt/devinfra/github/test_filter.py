@@ -15,23 +15,19 @@
 """Utilities for reading and evaluating Cobalt test filters."""
 
 import argparse
-import json
 import os
 import sys
 from typing import List, Optional, Sequence, Tuple, Union
 
 
 def parse_filter_file(filter_file: str) -> Tuple[List[str], List[str]]:
-  """Parses a test filter file into positive and negative filter lists.
-
-  Supports Chromium/buildbot simple list (.filter) format as well as legacy
-  JSON (.json) format.
+  """Parses a buildbot .filter file into positive and negative filter lists.
 
   In .filter files:
   - Empty lines and lines starting with '#' are ignored.
   - Lines starting with '//' raise a ValueError.
   - Lines starting with '-' are treated as negative (failing/excluded) filters.
-  - All other lines are treated as positive (included/run) filters.
+  - Lines starting with '+' or bare test names are treated as positive filters.
 
   Args:
     filter_file: Path to the filter file.
@@ -41,13 +37,6 @@ def parse_filter_file(filter_file: str) -> Tuple[List[str], List[str]]:
   """
   if not os.path.exists(filter_file):
     return [], []
-
-  if filter_file.endswith('.json'):
-    with open(filter_file, 'r', encoding='utf-8') as f:
-      filter_data = json.load(f)
-    positive = filter_data.get('tests_to_run') or []
-    negative = filter_data.get('failing_tests') or []
-    return list(positive), list(negative)
 
   positive: List[str] = []
   negative: List[str] = []
@@ -94,27 +83,19 @@ def find_filter_file(
     target_name: str,
     shard_index: Optional[Union[int, str]] = None,
 ) -> Optional[str]:
-  """Locates the filter file for a target and optional shard."""
+  """Locates the .filter file for a target and optional shard."""
   if target_name:
     target_name = target_name.split(':')[-1]
 
-  candidates = []
   if shard_index is not None and str(shard_index) != '':
-    candidates.extend([
-        os.path.join(filter_dir, f'{target_name}_{shard_index}.filter'),
-        os.path.join(filter_dir, f'{target_name}_{shard_index}_filter.json'),
-        os.path.join(filter_dir, f'{target_name}_{shard_index}_filter.filter'),
-    ])
+    shard_file = os.path.join(filter_dir, f'{target_name}_{shard_index}.filter')
+    if os.path.exists(shard_file):
+      return shard_file
 
-  candidates.extend([
-      os.path.join(filter_dir, f'{target_name}.filter'),
-      os.path.join(filter_dir, f'{target_name}_filter.json'),
-      os.path.join(filter_dir, f'{target_name}_filter.filter'),
-  ])
+  target_file = os.path.join(filter_dir, f'{target_name}.filter')
+  if os.path.exists(target_file):
+    return target_file
 
-  for candidate in candidates:
-    if os.path.exists(candidate):
-      return candidate
   return None
 
 
