@@ -161,7 +161,7 @@ class OopPixelTest : public testing::Test,
         /*max_persistent_cache_memory_size=*/std::numeric_limits<size_t>::max(),
 #endif
         nullptr);
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   class RasterOptions {

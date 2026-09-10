@@ -254,7 +254,7 @@ class BASE_EXPORT CurrentUIThread : public CurrentThread {
 #if BUILDFLAG(IS_OZONE) && !BUILDFLAG(IS_FUCHSIA)
 =======
 #if BUILDFLAG(IS_OZONE) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   static_assert(
       std::is_base_of_v<WatchableIOMessagePumpPosix, MessagePumpForUI>,
       "CurrentThreadForUI::WatchFileDescriptor is supported only"

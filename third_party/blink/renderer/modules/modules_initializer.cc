@@ -315,7 +315,7 @@ void ModulesInitializer::InitInspectorAgentSession(
 #if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   session->CreateAndAppend<InspectorIndexedDBAgent>(inspected_frames,
                                                     session->V8Session());
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   session->CreateAndAppend<DeviceOrientationInspectorAgent>(inspected_frames);
   session->CreateAndAppend<InspectorDOMStorageAgent>(inspected_frames);
   session->CreateAndAppend<InspectorAccessibilityAgent>(inspected_frames,

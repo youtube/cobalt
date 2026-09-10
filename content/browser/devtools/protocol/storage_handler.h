@@ -30,7 +30,7 @@
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"
 =======
 #include "content/browser/renderer_host/frame_tree_node.h"
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/public/browser/global_routing_id.h"
 #include "storage/browser/quota/quota_manager.h"
 
@@ -93,7 +93,7 @@ class StorageHandler
   Response GetStorageKey(std::optional<std::string> frame_id,
                          std::string* serialized_storage_key) override;
 #endif
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void ClearDataForOrigin(
       const std::string& origin,
       const std::string& storage_types,
@@ -322,7 +322,7 @@ class StorageHandler
   Response SerializeStorageKey(RenderFrameHostImpl* rfh,
                                std::string* serialized_storage_key) const;
 #endif
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   std::unique_ptr<Storage::Frontend> frontend_;
   raw_ptr<StoragePartition> storage_partition_{nullptr};

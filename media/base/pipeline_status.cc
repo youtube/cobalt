@@ -45,7 +45,7 @@ std::string PipelineStatusToString(const PipelineStatus& status) {
 #undef STRINGIFY_STATUS_CASE
 
   NOTREACHED();
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 std::ostream& operator<<(std::ostream& out, const PipelineStatus& status) {

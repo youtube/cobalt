@@ -190,7 +190,7 @@ cc::ImageDecodeCache* WebGraphicsContext3DProviderImpl::ImageDecodeCache(
           cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes(),
 #endif
           nullptr));
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   DCHECK(insertion_result.second);
   cache_iterator = insertion_result.first;
   return cache_iterator->second.get();

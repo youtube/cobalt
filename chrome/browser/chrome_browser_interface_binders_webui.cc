@@ -382,7 +382,7 @@
 #include "chrome/browser/ui/webui/watermark/watermark_ui.h"
 #endif
 
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace chrome::internal {
 
 using content::RegisterWebUIControllerInterfaceBinder;
@@ -603,7 +603,7 @@ void PopulateChromeWebUIFrameBinders(
   RegisterWebUIControllerInterfaceBinder<
       guest_contents::mojom::GuestContentsHost, WebUIBrowserUI>(map);
 #endif
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void PopulateChromeWebUIFrameInterfaceBrokers(

@@ -44,7 +44,7 @@ class InMemoryFederatedPermissionContext;
 =======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class NavigationEntryScreenshotManager;
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 class PermissionController;
 class PrefetchService;
 class StoragePartitionImplMap;
@@ -176,7 +176,7 @@ class CONTENT_EXPORT BrowserContextImpl {
 #endif  // BUILDFLAG(IS_ANDROID)
 =======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 16db8b77b67 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   std::unique_ptr<InMemoryFederatedPermissionContext>
       federated_permission_context_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
