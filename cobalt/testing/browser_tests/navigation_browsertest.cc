@@ -9983,7 +9983,7 @@ IN_PROC_BROWSER_TEST_F(HstsUpgradeBrowserTest, DISABLED_UpgradeTopLevelOnly) {
                                 ->GetDefaultStoragePartition()
                                 ->GetNetworkContext();
     base::RunLoop run_loop;
-    network_context->AddHSTS(url_of_hsts_frame_http.host(), expiry,
+    network_context->AddHSTS(url_of_hsts_frame_http.GetHost(), expiry,
                              include_subdomains, run_loop.QuitClosure());
     run_loop.Run();
   }

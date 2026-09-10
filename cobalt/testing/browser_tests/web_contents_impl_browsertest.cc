@@ -1486,8 +1486,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   // Displayed view-source URLs don't include the scheme of the effective URL if
   // the effective URL is HTTP. (e.g. view-source:example.com is displayed
   // instead of view-source:http://example.com).
-  EXPECT_EQ(base::ASCIIToUTF16(std::string("view-source:") + kUrl.host() + ":" +
-                               kUrl.port() + kUrl.path()),
+  EXPECT_EQ(base::ASCIIToUTF16(std::string("view-source:") + kUrl.GetHost() +
+                               ":" + kUrl.GetPort() + kUrl.GetPath()),
             shell()->web_contents()->GetTitle());
   EXPECT_TRUE(shell()
                   ->web_contents()
