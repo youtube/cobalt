@@ -1047,11 +1047,16 @@ jobs:
           symbolize: 'false'
 
   validate-result:
-    # List required jobs here.
+    # The needs block functions as the Single Source of Truth (SoT) of primary
+    # execution workloads that must pass (or legitimately skip) for this
+    # platform to achieve green CI status. It is serialized into
+    # shepherd_report.json to evaluate failing_jobs. Auxiliary post-processing
+    # matrix jobs (like test-results) are excluded to preserve telemetry.
     needs:
       - initialize
       - build
-      - test-results
+      - on-device-test
+      - on-host-test
       - web-tests
       - e2e-test
       - yts-test
@@ -1091,6 +1096,7 @@ jobs:
           NEEDS_JSON: ${{ toJSON(needs) }}
           EXPECTED_TESTS: ${{ needs.initialize.outputs.expected_tests_json || '[]' }}
           BROWSER_TESTS: ${{ needs.initialize.outputs.run_browser_tests == 'true' && needs.initialize.outputs.browser_test_targets || '[]' }}
+          NUM_GTEST_SHARDS: ${{ needs.initialize.outputs.num_gtest_shards || 1 }}
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
@@ -1098,26 +1104,28 @@ jobs:
           xml_files=()
           missing_required=0
 
-          for target in $(jq -nr \
-            --argjson expected "${EXPECTED_TESTS}" \
-            --argjson browser "${BROWSER_TESTS}" \
-            '($expected + $browser)[]
-             | select(.target != null and .required != false)
-             | .target
-             | split(":")[-1]'); do
+          while read -r target expected_shards; do
+            [[ -z "${target}" ]] && continue
+
             filter="cobalt/testing/filters/${PLATFORM}/${target}_filter.json"
             if [[ -f "${filter}" ]] && grep -F -q '"*"' "${filter}"; then
               continue
             fi
 
             files=(results/**/"${target}"*.xml)
-            if [[ ${#files[@]} -eq 0 ]]; then
-              echo "::error::Missing required test results for target: ${target}"
+            if [[ ${#files[@]} -lt "${expected_shards}" ]]; then
+              echo "::error::Missing required test results for target: ${target}. Found ${#files[@]}, expected ${expected_shards}."
               (( missing_required += 1 ))
             else
               xml_files+=("${files[@]}")
             fi
-          done
+          done < <(jq -nr \
+            --argjson expected "${EXPECTED_TESTS}" \
+            --argjson browser "${BROWSER_TESTS}" \
+            --argjson shards "${NUM_GTEST_SHARDS:-1}" \
+            '($expected + $browser)[]
+             | select(.target != null and .required != false)
+             | "\(.target | split(":")[-1]) \(if .runs_on == "host" and .test_type == "gtest" then $shards else 1 end)"')
 
           test_failures='{}'
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
