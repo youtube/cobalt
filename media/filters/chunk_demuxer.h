@@ -448,7 +448,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
       bool force_instant_gc);
 
->>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Returns the current presentation duration.
   double GetDuration();
   double GetDuration_Locked();

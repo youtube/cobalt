@@ -231,7 +231,7 @@ void ChunkDemuxerStream::OnMemoryPressure(
                                    force_instant_gc);
 }
 
->>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void ChunkDemuxerStream::OnSetDuration(base::TimeDelta duration) {
   base::AutoLock auto_lock(lock_);
   stream_->OnSetDuration(duration);

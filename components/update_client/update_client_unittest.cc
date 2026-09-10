@@ -1945,7 +1945,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         result.installation_index = 0;
 #endif
       } else if (url.path() ==
->>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                  "/download/ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff") {
         download_metrics.url = url;
         download_metrics.downloader = DownloadMetrics::kNone;
@@ -2710,7 +2710,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         result.installation_index = 0;
 #endif
       } else if (url.path() ==
->>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                  "/download/ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff") {
         // A download error is injected on this execution path.
         download_metrics.url = url;

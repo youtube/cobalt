@@ -865,7 +865,7 @@ class BLINK_PLATFORM_EXPORT Platform {
   virtual uint64_t GetMediaSourceCurrentMemoryCapacity() const { return 0; }
   virtual uint64_t GetMediaSourceTotalAllocatedMemory() const { return 0; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  private:
   static void InitializeMainThreadCommon(
