@@ -322,10 +322,9 @@ void StarboardRendererClient::RequestOverlayInfo() {
   DCHECK(request_overlay_info_cb_);
 
   overlay_info_requested_ = true;
-  request_overlay_info_cb_.Run(
-      base::BindPostTaskToCurrentDefault(
-          base::BindRepeating(&StarboardRendererClient::OnOverlayInfoChanged,
-                              weak_factory_.GetWeakPtr())));
+  request_overlay_info_cb_.Run(base::BindPostTaskToCurrentDefault(
+      base::BindRepeating(&StarboardRendererClient::OnOverlayInfoChanged,
+                          weak_factory_.GetWeakPtr())));
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
