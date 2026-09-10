@@ -33,5 +33,5 @@ Book: /youtube/cobalt/_book.yaml
 | **`starboard_level_final_executable_type`**<br><br>The default value is `"executable"`. |
 | **`starboard_level_gtest_target_type`**<br><br>The default value is `"executable"`. |
 | **`static_library_configs`**<br><br> Target-specific configurations for static_library targets.<br><br>The default value is `[]`. |
-| **`use_crashpad`**<br><br> Platforms can set this to false to avoid building and using a real crashpad implementation. If false, crashpad either won't be built or a stub implementation will be built and used. all Early Access Program platforms.<br><br>The default value is `false`. |
+| **`use_crashpad`**<br><br> Platforms can set this to false to avoid building and using a real crashpad implementation. If false, crashpad either won't be built or a stub implementation will be built and used. all Early Access Program platforms.<br><br>The default value is `true`. |
 | **`v8_enable_pointer_compression_override`**<br><br> Set to true to enable pointer compression for v8.<br><br>The default value is `true`. |

@@ -116,7 +116,7 @@ def main(source_dir, output_dir=None):
   try:
     out_dir = '/project_out_dir'
     subprocess.check_call([
-        sys.executable, 'cobalt/build/gn.py', '-p', 'linux-x64x11', '-c',
+        sys.executable, 'cobalt/build/gn.py', '-p', 'evergreen-x64', '-c',
         'devel', '--no-rbe', out_dir
     ],
                           cwd=source_dir)
