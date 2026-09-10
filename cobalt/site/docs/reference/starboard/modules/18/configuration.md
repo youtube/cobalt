@@ -85,13 +85,11 @@ Determines at compile-time an inherent aspect of this platform.
 
 ### SB_MAXIMUM_API_VERSION
 
-The maximum API version allowed by this version of the Starboard headers,
-inclusive. The API version is not stable and is open for changes.
+The maximum Starboard API version supported.
 
 ### SB_MINIMUM_API_VERSION
 
-The minimum API version allowed by this version of the Starboard headers,
-inclusive.
+The minimum Starboard API version supported.
 
 ### SB_NORETURN
 
@@ -120,8 +118,10 @@ Declare numeric literals of unsigned 64-bit type.
 
 ### SB_UNREFERENCED_PARAMETER(x)
 
-Trivially references a parameter that is otherwise unreferenced, preventing a
-compiler warning on some platforms.
+Deprecated: Per the Google C++ Style Guide, comment out unused parameter names
+(e.g., `void* /*context*/` / or `Type /*param_name*/` /), or use
+`[[maybe_unused]]` if conditionally unused. Trivially references a parameter
+that is otherwise unreferenced, preventing a compiler warning on some platforms.
 
 ### SB_WARN_UNUSED_RESULT
 

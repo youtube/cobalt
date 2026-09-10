@@ -81,9 +81,9 @@ Same as the [Evergreen full doc](cobalt_evergreen_overview.md).
 
 ## Building Cobalt Evergreen Components
 
-`kSbSystemPathStorageDirectory` is not required to implement. Set both
-`sb_evergreen_compatible` and `sb_evergreen_compatible_lite` to `1`s in the `gyp`
-platform config. The remaining is the same as the Evergreen full doc.
+`kSbSystemPathStorageDirectory` is not required to implement. The rest of the
+implementation is the same as the Evergreen Full doc -
+[cobalt_evergreen_overview.md](cobalt_evergreen_overview.md).
 
 ## How does the update work with Evergreen Lite?
 
@@ -171,7 +171,6 @@ binaries - `kSbSystemPathStorageDirectory `and configure the slots as instructed
 in the Evergreen full doc
 *   Configure icu table under `kSbSystemPathStorageDirectory` to be shared
     among slots
-*   Set `sb_evergreen_compatible_lite` to 0
 *   Implement the handling of pending updates
 *   Rebuild and rerun `nplb_evergreen_compat_tests`
 *   Launch Cobalt with loader app without the `evergreen_lite` flag
