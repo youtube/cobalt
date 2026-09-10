@@ -122,7 +122,7 @@ class MEDIA_EXPORT StarboardRendererClient
                                   base::TimeDelta length) override;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
-  void RequestOverlayInfo(bool restart_for_transitions) override;
+  void RequestOverlayInfo() override;
 #endif  // BUILDFLAG(IS_ANDROID)
 
  private:

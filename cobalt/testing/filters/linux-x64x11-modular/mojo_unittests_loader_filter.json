@@ -4,6 +4,7 @@
     "BindingsSampleTest.Basic",
     "BindingsSampleTest.DefaultValues",
     "DataPipeProducerTest.*",
+    "DirectReceiverTest.FallbackToIOThreadHopOnFailure",
     "DirectReceiverTest.NoIOThreadHopInBroker",
     "DirectReceiverTest.NoIOThreadHopInNonBrokerProcess",
     "DisableSyncInterruptTest.NoInterruptWhenDisabled",

@@ -281,7 +281,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     // isSetOutputSurfaceSupported() in
     // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
     LOG(INFO) << "Requesting AndroidOverlay for Video SurfaceView.";
-    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+    request_overlay_info_cb_.Run();
     return;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -328,7 +328,7 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
     // enabled or if secondary video requires DRM (L1).
     LOG(INFO)
         << "Requesting AndroidOverlay for Video SurfaceView after CDM set.";
-    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+    request_overlay_info_cb_.Run();
     return;
   }
 #endif  // BUILDFLAG(IS_ANDROID)

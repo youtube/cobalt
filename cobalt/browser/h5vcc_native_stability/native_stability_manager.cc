@@ -114,8 +114,8 @@ std::unordered_set<std::string> ReadAckedUuidsFromDisk(
     return acked_uuids;
   }
 
-  std::optional<base::Value::List> parsed_list =
-      base::JSONReader::ReadList(file_content);
+  std::optional<base::Value::List> parsed_list = base::JSONReader::ReadList(
+      file_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_list) {
     LOG(WARNING) << "Failed to parse acked UUIDs JSON list in: "
                  << file_path.value();
@@ -196,8 +196,8 @@ std::unordered_map<std::string, HangAttributes> ReadHangAttributesFromDisk(
     return hang_attributes;
   }
 
-  std::optional<base::Value::Dict> parsed_dict =
-      base::JSONReader::ReadDict(file_content);
+  std::optional<base::Value::Dict> parsed_dict = base::JSONReader::ReadDict(
+      file_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_dict) {
     LOG(WARNING) << "Failed to parse hang attributes JSON dict in: "
                  << file_path.value();

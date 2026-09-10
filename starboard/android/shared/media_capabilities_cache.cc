@@ -59,7 +59,7 @@ const jint HDR_TYPE_HDR10_PLUS = 4;
 const char SECURE_DECODER_SUFFIX[] = ".secure";
 
 Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
-  const auto j_range_ref = JavaParamRef<jobject>(env, j_range);
+  const auto j_range_ref = JavaParamRef<jobject>::CreateLeaky(env, j_range);
   return Range(Java_MediaCodecUtil_getRangeLower(env, j_range_ref),
                Java_MediaCodecUtil_getRangeUpper(env, j_range_ref));
 }
