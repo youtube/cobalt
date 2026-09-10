@@ -69,9 +69,16 @@ public class ShellManager {
    */
   @Initializer
   public void setWindow(WindowAndroid window) {
+    if (mDestroyed) {
+      throw new IllegalStateException("Cannot attach a window to a destroyed ShellManager");
+    }
+    Context context = mContext;
+    if (context == null) {
+      throw new IllegalStateException("ShellManager has no context");
+    }
     assert window != null;
     mWindow = window;
-    mContentViewRenderView = new ContentViewRenderView(getContext());
+    mContentViewRenderView = new ContentViewRenderView(context);
     mContentViewRenderView.onNativeLibraryLoaded(window);
   }
 
@@ -103,10 +110,13 @@ public class ShellManager {
    */
   public void launchShell(
       String url, String deepLinkUrl, Shell.OnWebContentsReadyListener listener) {
+    if (mDestroyed) {
+      throw new IllegalStateException("Cannot launch a shell after ShellManager is destroyed");
+    }
     ThreadUtils.assertOnUiThread();
     mNextWebContentsReadyListener = listener;
     Shell previousShell = mActiveShell;
-    sNatives.launchShell(url, deepLinkUrl);
+    sNatives.launchShell(this, url, deepLinkUrl);
     if (previousShell != null) previousShell.close();
   }
 
@@ -168,12 +178,19 @@ public class ShellManager {
     mDestroyed = true;
 
     // Remove active shell (Currently single shell support only available).
-    if (mActiveShell != null) {
-      removeShell(mActiveShell);
+    Shell activeShell = mActiveShell;
+    if (activeShell != null) {
+      removeShell(activeShell);
     }
     if (mContentViewRenderView != null) {
       mContentViewRenderView.destroy();
       mContentViewRenderView = null;
+    }
+    // Release compositor resources before closing the last native Shell, which
+    // can shut down the platform and reenter destroy(). Keep the manager's JNI
+    // reference alive until the native Shell has finished its cleanup callbacks.
+    if (activeShell != null) {
+      activeShell.close();
     }
     sNatives.destroy(this);
     mNextWebContentsReadyListener = null;
@@ -203,7 +220,7 @@ public class ShellManager {
      * @param url The URL the shell should load upon creation.
      * @param deepLinkUrl The topic URL from the DeepLink URL.
      */
-    void launchShell(String url, String deepLinkUrl);
+    void launchShell(Object shellManagerInstance, String url, String deepLinkUrl);
 
     /** Releases the native global reference to this ShellManager. */
     void destroy(Object shellManagerInstance);

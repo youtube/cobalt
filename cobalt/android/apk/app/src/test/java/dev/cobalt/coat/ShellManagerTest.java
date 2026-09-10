@@ -17,8 +17,10 @@ package dev.cobalt.coat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -31,6 +33,7 @@ import dev.cobalt.shell.ShellManager;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
@@ -75,14 +78,16 @@ public class ShellManagerTest {
   }
 
   @Test
-  public void testDestroyDetachesActiveShellWithoutClosingAndClearsContext() {
+  public void testDestroyClosesActiveShellBeforeReleasingNativeManager() {
     Shell mockShell = mock(Shell.class);
     ReflectionHelpers.setField(mShellManager, "mActiveShell", mockShell);
 
     mShellManager.destroy();
 
-    verify(mockShell, never()).close();
-    verify(mMockShellManagerNatives).destroy(mShellManager);
+    InOrder order = inOrder(mockShell, mMockShellManagerNatives);
+    order.verify(mockShell).setContentViewRenderView(null);
+    order.verify(mockShell).close();
+    order.verify(mMockShellManagerNatives).destroy(mShellManager);
     assertNull(ReflectionHelpers.getField(mShellManager, "mActiveShell"));
     assertNull(ReflectionHelpers.getField(mShellManager, "mContext"));
     assertNull(mShellManager.getContext());
@@ -97,7 +102,75 @@ public class ShellManagerTest {
     mShellManager.destroy();
     mShellManager.destroy();
 
-    verify(mockShell, never()).close();
+    verify(mockShell, times(1)).close();
     verify(mMockShellManagerNatives, times(1)).destroy(mShellManager);
+  }
+
+  @Test
+  public void testNativeCloseReenteringDestroyDoesNotCloseTwice() {
+    Shell shell = mock(Shell.class);
+    ReflectionHelpers.setField(mShellManager, "mActiveShell", shell);
+    doAnswer(
+            invocation -> {
+              mShellManager.destroy();
+              return null;
+            })
+        .when(shell)
+        .close();
+
+    mShellManager.destroy();
+
+    verify(shell, times(1)).close();
+    verify(mMockShellManagerNatives, times(1)).destroy(mShellManager);
+    assertNull(mShellManager.getActiveShell());
+  }
+
+  @Test
+  public void testDestroyReleasesRenderViewBeforeClosingLastNativeShell() {
+    Shell shell = mock(Shell.class);
+    ReflectionHelpers.setField(mShellManager, "mActiveShell", shell);
+    ReflectionHelpers.setField(mShellManager, "mContentViewRenderView", mMockContentViewRenderView);
+
+    mShellManager.destroy();
+
+    InOrder order = inOrder(mMockContentViewRenderView, shell);
+    order.verify(mMockContentViewRenderView).destroy();
+    order.verify(shell).close();
+    assertNull(mShellManager.getContentViewRenderView());
+  }
+
+  @Test
+  public void testDestroyedManagerRejectsWindowReattachment() {
+    mShellManager.destroy();
+    assertThrows(
+        IllegalStateException.class,
+        () -> mShellManager.setWindow(mock(org.chromium.ui.base.WindowAndroid.class)));
+    assertNull(mShellManager.getWindow());
+  }
+
+  @Test
+  public void testDestroyedManagerRejectsLateLaunchWithoutRetainingCallback() {
+    mShellManager.destroy();
+    Shell.OnWebContentsReadyListener callback = mock(Shell.OnWebContentsReadyListener.class);
+    assertThrows(
+        IllegalStateException.class, () -> mShellManager.launchShell("about:blank", "", callback));
+    assertNull(ReflectionHelpers.getField(mShellManager, "mNextWebContentsReadyListener"));
+  }
+
+  @Test
+  public void testOldActivityDestroyDoesNotCloseReplacementShell() {
+    Shell oldShell = mock(Shell.class);
+    Shell newShell = mock(Shell.class);
+    ReflectionHelpers.setField(mShellManager, "mActiveShell", oldShell);
+    ShellManager replacement = new ShellManager(mActivity);
+    ReflectionHelpers.setField(replacement, "mActiveShell", newShell);
+
+    mShellManager.destroy();
+
+    verify(oldShell).close();
+    verify(newShell, org.mockito.Mockito.never()).close();
+    assertEquals(newShell, replacement.getActiveShell());
+    replacement.destroy();
+    verify(newShell).close();
   }
 }
