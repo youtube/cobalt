@@ -194,13 +194,6 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
   Supportability mime_supportability = result.supportability;
   const std::optional<ParsedMimeInfo>& mime_info = result.mime_info;
 
-  if (mime_info && mime_info->disable_cache()) {
-    // Disable all caches if required.
-    mime_supportability = kSupportabilityUnknown;
-    MimeSupportabilityCache::GetInstance()->SetCacheEnabled(false);
-    KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(false);
-  }
-
   // Reject mime if cached result is not supported.
   if (mime_supportability == kSupportabilityNotSupported) {
     return kSbMediaSupportTypeNotSupported;

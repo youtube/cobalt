@@ -14,31 +14,32 @@
 
 package dev.cobalt.util;
 
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
- * Generic holder class to turn null checks into a known RuntimeException. Access is synchronized,
- * so access from multiple threads is safe.
+ * Generic holder class to turn null checks into a known RuntimeException. Access is thread-safe.
  *
  * @param <T> The type of the value to hold.
  * @param <E> The type of the exception to throw if the value is null.
  */
 public class SynchronizedHolder<T, E extends RuntimeException> {
-  private T mValue;
+  private final AtomicReference<T> mValue = new AtomicReference<>();
   private final Supplier<E> mExceptionSupplier;
 
   public SynchronizedHolder(Supplier<E> exceptionSupplier) {
     mExceptionSupplier = exceptionSupplier;
   }
 
-  public synchronized T get() {
-    if (mValue == null) {
+  public T get() {
+    T value = mValue.get();
+    if (value == null) {
       throw mExceptionSupplier.get();
     }
-    return mValue;
+    return value;
   }
 
-  public synchronized void set(T value) {
-    mValue = value;
+  public void set(T value) {
+    mValue.set(value);
   }
 }

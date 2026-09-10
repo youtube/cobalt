@@ -51,9 +51,6 @@ class ParsedMimeInfo {
 
   const MimeType& mime_type() const { return mime_type_; }
 
-  // A switch in the mime string to disable caches.
-  bool disable_cache() const { return disable_cache_; }
-
   bool has_audio_info() const {
     return audio_info_.codec != kSbMediaAudioCodecNone;
   }
@@ -79,12 +76,10 @@ class ParsedMimeInfo {
 
  private:
   ParsedMimeInfo(MimeType mime_type,
-                 bool disable_cache,
                  AudioCodecInfo audio_info,
                  VideoCodecInfo video_info);
 
   const MimeType mime_type_;
-  const bool disable_cache_;
   const AudioCodecInfo audio_info_;
   const VideoCodecInfo video_info_;
 };
