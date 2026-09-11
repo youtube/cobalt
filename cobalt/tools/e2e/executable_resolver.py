@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,20 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Backward-compatibility shim for junit_mini_parser."""
+"""Abstract interface for locating Cobalt executables and launch commands."""
 
-import sys
+import abc
+from typing import List, Optional, Union
 
-try:
-  from cobalt.tools.lib.junit_mini_parser import find_failing_tests, main
-except ImportError:
-  import os
-  _lib_dir = os.path.join(os.path.dirname(__file__), 'lib')
-  if _lib_dir not in sys.path:
-    sys.path.insert(0, _lib_dir)
-  from junit_mini_parser import find_failing_tests, main  # type: ignore[no-redef]
 
-__all__ = ['find_failing_tests', 'main']
+class ExecutableResolver(abc.ABC):
+  """Abstract interface for locating Cobalt binaries and launch targets."""
 
-if __name__ == '__main__':
-  sys.exit(main(sys.argv[1:]))
+  @abc.abstractmethod
+  def resolve(
+      self,
+      config: str = 'qa',
+      custom_executable: Optional[str] = None,
+      out_dir: Optional[str] = None,
+  ) -> Union[str, List[str]]:
+    """Resolves and returns the executable command or target."""
