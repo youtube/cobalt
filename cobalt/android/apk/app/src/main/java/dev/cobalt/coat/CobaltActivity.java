@@ -34,6 +34,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -53,6 +54,7 @@ import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -85,8 +87,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
-  private List<CobaltJavaScriptAndroidObject> mJavaScriptAndroidObjectList = new ArrayList<>();
-  private Map<String, String> mJavaSwitches = new HashMap<>();
+  private final List<CobaltJavaScriptAndroidObject> mJavaScriptAndroidObjectList =
+      new ArrayList<>();
+  private final Map<String, String> mJavaSwitches = new HashMap<>();
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
@@ -141,14 +144,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private boolean mWasDisplayOn = true;
 
   @VisibleForTesting
-  static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
+  static void appendMetaDataArgs(@NonNull List<String> args, @Nullable Bundle metaData) {
     if (metaData == null) {
-      return commandLineArgs;
-    }
-
-    List<String> args = new ArrayList<>();
-    if (commandLineArgs != null) {
-      args.addAll(Arrays.asList(commandLineArgs));
+      return;
     }
 
     boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
@@ -158,14 +156,38 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
     if (TextUtils.isEmpty(enableFeatures)) {
-      return args.toArray(new String[0]);
+      return;
     }
 
     // CommandLineOverrideHelper will merge this with other --enable-features flags
     // It also accepts semi-colon-separated list of features.
     // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
     args.add("--enable-features=" + enableFeatures);
-    return args.toArray(new String[0]);
+  }
+
+  private void appendIntentArgs(@NonNull List<String> args) {
+    if (isReleaseBuild()) {
+      return;
+    }
+
+    String[] intentArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+    if (intentArgs == null) {
+      return;
+    }
+    Collections.addAll(args, intentArgs);
+  }
+
+  @VisibleForTesting
+  @NonNull
+  List<String> getCommandLineArgs() {
+    List<String> args = new ArrayList<>();
+    if (isDevelopmentBuild()) {
+      args.add("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com");
+    }
+    appendMetaDataArgs(args, getActivityMetaData());
+    args.addAll(JavaSwitches.getExtraCommandLineArgs(getJavaSwitches()));
+    appendIntentArgs(args);
+    return args;
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -175,25 +197,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
-
-      String[] commandLineArgs = null;
-      if (!isReleaseBuild()) {
-        commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
-      }
-      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
-
-      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
-
-      if (!extraCommandLineArgs.isEmpty()) {
-        if (commandLineArgs != null) {
-          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
-        }
-        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
-      }
-
-      CommandLineOverrideHelper.getFlagOverrides(
-          new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              !isDevelopmentBuild(), commandLineArgs));
+      CommandLineOverrideHelper.getFlagOverrides(getCommandLineArgs());
     }
     mIsCobaltUsingAndroidOverlay =
         CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
@@ -226,6 +230,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
+      starboardBridge.onActivityCreate(this);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
       if (savedInstanceState == null) {
@@ -284,6 +289,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
       Log.i(TAG, "Browser process init succeeded");
 
+      if (isDestroyed() || isFinishing()) {
+        Log.w(TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
+        return;
+      }
       finishInitialization(savedInstanceState);
     } else {
       BrowserStartupController.getInstance()
@@ -300,6 +309,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
                   // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test
                   // suite.
                   Log.i(TAG, "Browser process init succeeded");
+
+                  if (isDestroyed() || isFinishing()) {
+                    Log.w(
+                        TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
+                    return;
+                  }
 
                   finishInitialization(savedInstanceState);
                   getStarboardBridge().measureAppStartTimestamp();
@@ -473,10 +488,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     setupStartupGuard();
     createContent(savedInstanceState);
-    MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
-    MemoryPressureUma.initializeForBrowser();
-    NetworkChangeNotifier.init();
-    NetworkChangeNotifier.setAutoDetectConnectivityState(true);
+    if (!NetworkChangeNotifier.isInitialized()) {
+      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+      MemoryPressureUma.initializeForBrowser();
+      NetworkChangeNotifier.init();
+      NetworkChangeNotifier.setAutoDetectConnectivityState(true);
+    }
 
     if (!mIsCobaltUsingAndroidOverlay) {
       mVideoSurfaceView = new VideoSurfaceView(this);
@@ -535,6 +552,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
    */
   protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
+  @Override
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
@@ -689,7 +707,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mShellManager != null) {
       mShellManager.destroy();
     }
-    mWindowAndroid.destroy();
+    if (mWindowAndroid != null) {
+      mWindowAndroid.destroy();
+    }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
       mBackInvokedCallback = null;

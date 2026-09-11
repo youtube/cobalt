@@ -15,7 +15,9 @@
 # limitations under the License.
 """Wrapper to run google-java-format tool."""
 
+import os
 import platform
+import shutil
 import subprocess
 import sys
 
@@ -23,9 +25,19 @@ if __name__ == '__main__':
   if platform.system() != 'Linux':
     sys.exit(0)
 
+  gjf = (
+      shutil.which('google-java-format') or
+      shutil.which('google-java-format', path='/usr/bin'))
+  if not gjf:
+    if os.environ.get('CI') == 'true':
+      print('google-java-format not found in CI.', file=sys.stderr)
+      sys.exit(1)
+    print('google-java-format not found, skipping.')
+    sys.exit(0)
+
   google_java_format_args = sys.argv[1:]
   try:
-    sys.exit(subprocess.call(['google-java-format'] + google_java_format_args))
+    sys.exit(subprocess.call([gjf] + google_java_format_args))
   except FileNotFoundError:
     print('google-java-format not found, skipping.')
     sys.exit(0)
