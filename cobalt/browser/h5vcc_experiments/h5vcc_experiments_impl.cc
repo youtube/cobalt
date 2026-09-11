@@ -96,11 +96,9 @@ void H5vccExperimentsImpl::SetExperimentState(
       ->clean_exit_beacon()
       ->WriteBeaconValue(true);
 
-  int64_t previous_fetch_time_internal = experiment_config_ptr->GetInt64(
+  base::Time previous_fetch_time = experiment_config_ptr->GetTime(
       variations::prefs::kVariationsLastFetchTime);
-  if (previous_fetch_time_internal > 0) {
-    base::Time previous_fetch_time =
-        base::Time::FromInternalValue(previous_fetch_time_internal);
+  if (!previous_fetch_time.is_null()) {
     base::TimeDelta time_since_last_write =
         base::Time::Now() - previous_fetch_time;
     if (time_since_last_write.is_positive()) {
@@ -110,8 +108,8 @@ void H5vccExperimentsImpl::SetExperimentState(
     }
   }
 
-  experiment_config_ptr->SetInt64(variations::prefs::kVariationsLastFetchTime,
-                                  base::Time::Now().ToInternalValue());
+  experiment_config_ptr->SetTime(variations::prefs::kVariationsLastFetchTime,
+                                 base::Time::Now());
   experiment_config_ptr->SetDict(
       cobalt::kExperimentConfigFeatures,
       std::move(experiment_config.Find(cobalt::kExperimentConfigFeatures)
