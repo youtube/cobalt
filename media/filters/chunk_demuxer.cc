@@ -207,8 +207,6 @@ bool ChunkDemuxerStream::EvictCodedFrames(base::TimeDelta media_time,
   return stream_->GarbageCollectIfNeeded(media_time, newDataSize);
 }
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
   base::AutoLock auto_lock(lock_);
