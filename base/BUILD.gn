@@ -1428,7 +1428,7 @@ component("base") {
       ":command_line_jni($android_toolchain)",
       ":library_loader_jni($android_toolchain)",
       ":tasks_minimal_jni($android_toolchain)",
->>>>>>> parent of 7b052c2955e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       "//build:robolectric_buildflags",
     ]
     public_deps += [ "//third_party/jni_zero" ]

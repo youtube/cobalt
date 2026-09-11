@@ -104,7 +104,7 @@ class NetworkFetcher {
 
 protected:
   NetworkFetcher() = default;
->>>>>>> parent of 7b052c2955e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1cee04dee4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 class NetworkFetcherFactory
