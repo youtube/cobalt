@@ -1,0 +1,76 @@
+# Copyright (c) 2025 The WebRTC project authors. All Rights Reserved.
+#
+# Use of this source code is governed by a BSD-style license
+# that can be found in the LICENSE file in the root of the source
+# tree. An additional intellectual property rights grant can be found
+# in the file PATENTS.  All contributing project authors may
+# be found in the AUTHORS file in the root of the source tree.
+
+import("../../../webrtc.gni")
+
+if (rtc_enable_protobuf) {
+  rtc_library("simulator") {
+    sources = [
+      "assembler.cc",
+      "assembler.h",
+      "decodability_tracker.cc",
+      "decodability_tracker.h",
+      "rtp_packet_simulator.cc",
+      "rtp_packet_simulator.h",
+    ]
+    deps = [
+      "../../../api:array_view",
+      "../../../api:rtp_headers",
+      "../../../api:rtp_parameters",
+      "../../../api:sequence_checker",
+      "../../../api:transport_api",
+      "../../../api/environment",
+      "../../../api/video:encoded_frame",
+      "../../../api/video:frame_buffer",
+      "../../../api/video:video_frame",
+      "../../../call:video_receive_stream_api",
+      "../../../logging:rtc_event_log_parser",
+      "../../../logging:rtc_event_rtp_rtcp",
+      "../../../modules/rtp_rtcp",
+      "../../../modules/rtp_rtcp:rtp_rtcp_format",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:logging",
+      "../../../rtc_base:macromagic",
+      "../../../video",
+    ]
+  }
+
+  if (rtc_include_tests) {
+    rtc_library("simulator_tests") {
+      testonly = true
+      sources = [
+        "assembler_unittest.cc",
+        "decodability_tracker_unittest.cc",
+        "rtp_packet_simulator_unittest.cc",
+        "test_utils.cc",
+        "test_utils.h",
+      ]
+      deps = [
+        ":simulator",
+        "../../../api:rtp_headers",
+        "../../../api:sequence_checker",
+        "../../../api/environment",
+        "../../../api/task_queue",
+        "../../../api/transport/rtp:dependency_descriptor",
+        "../../../api/units:time_delta",
+        "../../../api/units:timestamp",
+        "../../../api/video:encoded_frame",
+        "../../../logging:rtc_event_log_parser",
+        "../../../logging:rtc_event_rtp_rtcp",
+        "../../../modules/rtp_rtcp:rtp_rtcp_format",
+        "../../../rtc_base:checks",
+        "../../../rtc_base:macromagic",
+        "../../../system_wrappers",
+        "../../../test:create_test_environment",
+        "../../../test:fake_encoded_frame",
+        "../../../test:test_support",
+        "../../../test/time_controller",
+      ]
+    }
+  }
+}

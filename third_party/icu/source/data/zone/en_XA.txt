@@ -1,0 +1,748 @@
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/
+en_XA{
+    zoneStrings{
+        "America:St_Barthelemy"{
+            ec{"[Šţ· Ɓåŕţĥéļéɱý one two]"}
+        }
+        "America:St_Johns"{
+            ec{"[Šţ· Ĵöĥñ’š one two]"}
+        }
+        "America:St_Kitts"{
+            ec{"[Šţ· Ķîţţš one two]"}
+        }
+        "America:St_Lucia"{
+            ec{"[Šţ· Ļûçîå one two]"}
+        }
+        "America:St_Thomas"{
+            ec{"[Šţ· Ţĥöɱåš one two]"}
+        }
+        "America:St_Vincent"{
+            ec{"[Šţ· Ṽîñçéñţ one two]"}
+        }
+        "Antarctica:Macquarie"{
+            ec{"[Ṁåçǫûåŕîé Îšļåñð one two three]"}
+        }
+        "Asia:Aqtau"{
+            ec{"[Åǫţåû one]"}
+        }
+        "Asia:Qostanay"{
+            ec{"[Ķöšţåñåý one two]"}
+        }
+        "Asia:Saigon"{
+            ec{"[Ĥö Çĥî Ṁîñĥ Çîţý one two three]"}
+        }
+        "Atlantic:St_Helena"{
+            ec{"[Šţ· Ĥéļéñå one two]"}
+        }
+        "Australia:Lord_Howe"{
+            ec{"[Ļöŕð Ĥöŵé Îšļåñð one two three]"}
+        }
+        "Etc:UTC"{
+            ls{"[Çööŕðîñåţéð Ûñîṽéŕšåļ Ţîɱé one two three]"}
+        }
+        "Etc:Unknown"{
+            ec{"[Ûñķñöŵñ Çîţý one two]"}
+        }
+        "Europe:Dublin"{
+            ld{"[Îŕîšĥ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "Europe:London"{
+            ld{"[Ɓŕîţîšĥ Šûɱɱéŕ Ţîɱé one two three]"}
+        }
+        "Indian:Christmas"{
+            ec{"[Çĥŕîšţɱåš Îšļåñð one two three]"}
+        }
+        "Indian:Cocos"{
+            ec{"[Çöçöš Îšļåñðš one two]"}
+        }
+        "Pacific:Easter"{
+            ec{"[Éåšţéŕ Îšļåñð one two]"}
+        }
+        "Pacific:Honolulu"{
+            sd{"[ĤÐŢ one]"}
+            sg{"[ĤŠŢ one]"}
+            ss{"[ĤŠŢ one]"}
+        }
+        "Pacific:Norfolk"{
+            ec{"[Ñöŕƒöļķ Îšļåñð one two]"}
+        }
+        "Pacific:Wake"{
+            ec{"[Ŵåķé Îšļåñð one two]"}
+        }
+        "meta:Acre"{
+            ld{"[Åçŕé Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åçŕé Ţîɱé one two]"}
+            ls{"[Åçŕé Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Afghanistan"{
+            ls{"[Åƒĝĥåñîšţåñ Ţîɱé one two three]"}
+        }
+        "meta:Africa_Central"{
+            ls{"[Çéñţŕåļ Åƒŕîçå Ţîɱé one two three]"}
+        }
+        "meta:Africa_Eastern"{
+            ls{"[Éåšţ Åƒŕîçå Ţîɱé one two three]"}
+        }
+        "meta:Africa_Southern"{
+            ls{"[Šöûţĥ Åƒŕîçå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Africa_Western"{
+            ld{"[Ŵéšţ Åƒŕîçå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ŵéšţ Åƒŕîçå Ţîɱé one two three]"}
+            ls{"[Ŵéšţ Åƒŕîçå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Alaska"{
+            ld{"[Åļåšķå Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Åļåšķå Ţîɱé one two]"}
+            ls{"[Åļåšķå Šţåñðåŕð Ţîɱé one two three]"}
+            sd{"[ÅĶÐŢ one]"}
+            sg{"[ÅĶŢ one]"}
+            ss{"[ÅĶŠŢ one]"}
+        }
+        "meta:Almaty"{
+            ld{"[Åļɱåţý Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åļɱåţý Ţîɱé one two]"}
+            ls{"[Åļɱåţý Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Amazon"{
+            ld{"[Åɱåžöñ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åɱåžöñ Ţîɱé one two]"}
+            ls{"[Åɱåžöñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:America_Central"{
+            ld{"[Çéñţŕåļ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Çéñţŕåļ Ţîɱé one two]"}
+            ls{"[Çéñţŕåļ Šţåñðåŕð Ţîɱé one two three]"}
+            sd{"[ÇÐŢ one]"}
+            sg{"[ÇŢ one]"}
+            ss{"[ÇŠŢ one]"}
+        }
+        "meta:America_Eastern"{
+            ld{"[Éåšţéŕñ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Éåšţéŕñ Ţîɱé one two]"}
+            ls{"[Éåšţéŕñ Šţåñðåŕð Ţîɱé one two three]"}
+            sd{"[ÉÐŢ one]"}
+            sg{"[ÉŢ one]"}
+            ss{"[ÉŠŢ one]"}
+        }
+        "meta:America_Mountain"{
+            ld{"[Ṁöûñţåîñ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Ṁöûñţåîñ Ţîɱé one two]"}
+            ls{"[Ṁöûñţåîñ Šţåñðåŕð Ţîɱé one two three]"}
+            sd{"[ṀÐŢ one]"}
+            sg{"[ṀŢ one]"}
+            ss{"[ṀŠŢ one]"}
+        }
+        "meta:America_Pacific"{
+            ld{"[Þåçîƒîç Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Þåçîƒîç Ţîɱé one two]"}
+            ls{"[Þåçîƒîç Šţåñðåŕð Ţîɱé one two three]"}
+            sd{"[ÞÐŢ one]"}
+            sg{"[ÞŢ one]"}
+            ss{"[ÞŠŢ one]"}
+        }
+        "meta:Anadyr"{
+            ld{"[Åñåðýŕ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åñåðýŕ Ţîɱé one two]"}
+            ls{"[Åñåðýŕ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Apia"{
+            ld{"[Šåɱöå Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Šåɱöå Ţîɱé one two]"}
+            ls{"[Šåɱöå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Aqtau"{
+            ld{"[Åǫţåû Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åǫţåû Ţîɱé one two]"}
+            ls{"[Åǫţåû Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Aqtobe"{
+            ld{"[Åǫţöƀé Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åǫţöƀé Ţîɱé one two]"}
+            ls{"[Åǫţöƀé Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Arabian"{
+            ld{"[Åŕåƀîåñ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Åŕåƀîåñ Ţîɱé one two]"}
+            ls{"[Åŕåƀîåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Argentina"{
+            ld{"[Åŕĝéñţîñå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åŕĝéñţîñå Ţîɱé one two]"}
+            ls{"[Åŕĝéñţîñå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Argentina_Western"{
+            ld{"[Ŵéšţéŕñ Åŕĝéñţîñå Šûɱɱéŕ Ţîɱé one two three four]"}
+            lg{"[Ŵéšţéŕñ Åŕĝéñţîñå Ţîɱé one two three]"}
+            ls{"[Ŵéšţéŕñ Åŕĝéñţîñå Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Armenia"{
+            ld{"[Åŕɱéñîå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åŕɱéñîå Ţîɱé one two]"}
+            ls{"[Åŕɱéñîå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Atlantic"{
+            ld{"[Åţļåñţîç Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Åţļåñţîç Ţîɱé one two]"}
+            ls{"[Åţļåñţîç Šţåñðåŕð Ţîɱé one two three]"}
+            sd{"[ÅÐŢ one]"}
+            sg{"[ÅŢ one]"}
+            ss{"[ÅŠŢ one]"}
+        }
+        "meta:Australia_Central"{
+            ld{"[Åûšţŕåļîåñ Çéñţŕåļ Ðåýļîĝĥţ Ţîɱé one two three four]"}
+            lg{"[Åûšţŕåļîåñ Çéñţŕåļ Ţîɱé one two three]"}
+            ls{"[Åûšţŕåļîåñ Çéñţŕåļ Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Australia_CentralWestern"{
+            ld{"[Åûšţŕåļîåñ Çéñţŕåļ Ŵéšţéŕñ Ðåýļîĝĥţ Ţîɱé one two three four five]"}
+            lg{"[Åûšţŕåļîåñ Çéñţŕåļ Ŵéšţéŕñ Ţîɱé one two three four]"}
+            ls{"[Åûšţŕåļîåñ Çéñţŕåļ Ŵéšţéŕñ Šţåñðåŕð Ţîɱé one two three four five]"}
+        }
+        "meta:Australia_Eastern"{
+            ld{"[Åûšţŕåļîåñ Éåšţéŕñ Ðåýļîĝĥţ Ţîɱé one two three four]"}
+            lg{"[Åûšţŕåļîåñ Éåšţéŕñ Ţîɱé one two three]"}
+            ls{"[Åûšţŕåļîåñ Éåšţéŕñ Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Australia_Western"{
+            ld{"[Åûšţŕåļîåñ Ŵéšţéŕñ Ðåýļîĝĥţ Ţîɱé one two three four]"}
+            lg{"[Åûšţŕåļîåñ Ŵéšţéŕñ Ţîɱé one two three]"}
+            ls{"[Åûšţŕåļîåñ Ŵéšţéŕñ Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Azerbaijan"{
+            ld{"[Åžéŕƀåîĵåñ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åžéŕƀåîĵåñ Ţîɱé one two three]"}
+            ls{"[Åžéŕƀåîĵåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Azores"{
+            ld{"[Åžöŕéš Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Åžöŕéš Ţîɱé one two]"}
+            ls{"[Åžöŕéš Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Bangladesh"{
+            ld{"[Ɓåñĝļåðéšĥ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ɓåñĝļåðéšĥ Ţîɱé one two three]"}
+            ls{"[Ɓåñĝļåðéšĥ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Bhutan"{
+            ls{"[Ɓĥûţåñ Ţîɱé one two]"}
+        }
+        "meta:Bolivia"{
+            ls{"[Ɓöļîṽîå Ţîɱé one two]"}
+        }
+        "meta:Brasilia"{
+            ld{"[Ɓŕåšîļîå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ɓŕåšîļîå Ţîɱé one two]"}
+            ls{"[Ɓŕåšîļîå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Brunei"{
+            ls{"[Ɓŕûñéî Ţîɱé one two]"}
+        }
+        "meta:Cape_Verde"{
+            ld{"[Çåþé Ṽéŕðé Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Çåþé Ṽéŕðé Ţîɱé one two three]"}
+            ls{"[Çåþé Ṽéŕðé Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Casey"{
+            ls{"[Çåšéý Ţîɱé one two]"}
+        }
+        "meta:Chamorro"{
+            ls{"[Çĥåɱöŕŕö Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Chatham"{
+            ld{"[Çĥåţĥåɱ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Çĥåţĥåɱ Ţîɱé one two]"}
+            ls{"[Çĥåţĥåɱ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Chile"{
+            ld{"[Çĥîļé Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Çĥîļé Ţîɱé one two]"}
+            ls{"[Çĥîļé Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:China"{
+            ld{"[Çĥîñå Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Çĥîñå Ţîɱé one two]"}
+            ls{"[Çĥîñå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Christmas"{
+            ls{"[Çĥŕîšţɱåš Îšļåñð Ţîɱé one two three]"}
+        }
+        "meta:Cocos"{
+            ls{"[Çöçöš Îšļåñðš Ţîɱé one two three]"}
+        }
+        "meta:Colombia"{
+            ld{"[Çöļöɱƀîå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Çöļöɱƀîå Ţîɱé one two]"}
+            ls{"[Çöļöɱƀîå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Cook"{
+            ld{"[Çööķ Îšļåñðš Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Çööķ Îšļåñðš Ţîɱé one two three]"}
+            ls{"[Çööķ Îšļåñðš Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Cuba"{
+            ld{"[Çûƀå Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Çûƀå Ţîɱé one two]"}
+            ls{"[Çûƀå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Davis"{
+            ls{"[Ðåṽîš Ţîɱé one two]"}
+        }
+        "meta:DumontDUrville"{
+            ls{"[Ðûɱöñţ ð’Ûŕṽîļļé Ţîɱé one two three]"}
+        }
+        "meta:East_Timor"{
+            ls{"[Ţîɱöŕ‐Ļéšţé Ţîɱé one two three]"}
+        }
+        "meta:Easter"{
+            ld{"[Éåšţéŕ Îšļåñð Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Éåšţéŕ Îšļåñð Ţîɱé one two three]"}
+            ls{"[Éåšţéŕ Îšļåñð Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Ecuador"{
+            ls{"[Éçûåðöŕ Ţîɱé one two]"}
+        }
+        "meta:Europe_Central"{
+            ld{"[Çéñţŕåļ Éûŕöþéåñ Šûɱɱéŕ Ţîɱé one two three four]"}
+            lg{"[Çéñţŕåļ Éûŕöþéåñ Ţîɱé one two three]"}
+            ls{"[Çéñţŕåļ Éûŕöþéåñ Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Europe_Eastern"{
+            ld{"[Éåšţéŕñ Éûŕöþéåñ Šûɱɱéŕ Ţîɱé one two three four]"}
+            lg{"[Éåšţéŕñ Éûŕöþéåñ Ţîɱé one two three]"}
+            ls{"[Éåšţéŕñ Éûŕöþéåñ Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Europe_Further_Eastern"{
+            ls{"[Ƒûŕţĥéŕ‐éåšţéŕñ Éûŕöþéåñ Ţîɱé one two three four]"}
+        }
+        "meta:Europe_Western"{
+            ld{"[Ŵéšţéŕñ Éûŕöþéåñ Šûɱɱéŕ Ţîɱé one two three four]"}
+            lg{"[Ŵéšţéŕñ Éûŕöþéåñ Ţîɱé one two three]"}
+            ls{"[Ŵéšţéŕñ Éûŕöþéåñ Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Falkland"{
+            ld{"[Ƒåļķļåñð Îšļåñðš Šûɱɱéŕ Ţîɱé one two three four]"}
+            lg{"[Ƒåļķļåñð Îšļåñðš Ţîɱé one two three]"}
+            ls{"[Ƒåļķļåñð Îšļåñðš Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Fiji"{
+            ld{"[Ƒîĵî Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ƒîĵî Ţîɱé one two]"}
+            ls{"[Ƒîĵî Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:French_Guiana"{
+            ls{"[Ƒŕéñçĥ Ĝûîåñå Ţîɱé one two three]"}
+        }
+        "meta:French_Southern"{
+            ls{"[Ƒŕéñçĥ Šöûţĥéŕñ ⅋ Åñţåŕçţîç Ţîɱé one two three four]"}
+        }
+        "meta:GMT"{
+            ls{"[Ĝŕééñŵîçĥ Ṁéåñ Ţîɱé one two three]"}
+            ss{"[ĜṀŢ one]"}
+        }
+        "meta:Galapagos"{
+            ls{"[Ĝåļåþåĝöš Ţîɱé one two]"}
+        }
+        "meta:Gambier"{
+            ls{"[Ĝåɱƀîéŕ Ţîɱé one two]"}
+        }
+        "meta:Georgia"{
+            ld{"[Ĝéöŕĝîå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ĝéöŕĝîå Ţîɱé one two]"}
+            ls{"[Ĝéöŕĝîå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Gilbert_Islands"{
+            ls{"[Ĝîļƀéŕţ Îšļåñðš Ţîɱé one two three]"}
+        }
+        "meta:Greenland"{
+            ld{"[Ĝŕééñļåñð Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ĝŕééñļåñð Ţîɱé one two]"}
+            ls{"[Ĝŕééñļåñð Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Greenland_Eastern"{
+            ld{"[Éåšţ Ĝŕééñļåñð Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Éåšţ Ĝŕééñļåñð Ţîɱé one two three]"}
+            ls{"[Éåšţ Ĝŕééñļåñð Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Greenland_Western"{
+            ld{"[Ŵéšţ Ĝŕééñļåñð Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ŵéšţ Ĝŕééñļåñð Ţîɱé one two three]"}
+            ls{"[Ŵéšţ Ĝŕééñļåñð Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Guam"{
+            ls{"[Ĝûåɱ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Gulf"{
+            ls{"[Ĝûļƒ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Guyana"{
+            ls{"[Ĝûýåñå Ţîɱé one two]"}
+        }
+        "meta:Hawaii_Aleutian"{
+            ld{"[Ĥåŵåîî‐Åļéûţîåñ Ðåýļîĝĥţ Ţîɱé one two three four]"}
+            lg{"[Ĥåŵåîî‐Åļéûţîåñ Ţîɱé one two three]"}
+            ls{"[Ĥåŵåîî‐Åļéûţîåñ Šţåñðåŕð Ţîɱé one two three four]"}
+            sd{"[ĤÅÐŢ one]"}
+            sg{"[ĤÅŢ one]"}
+            ss{"[ĤÅŠŢ one]"}
+        }
+        "meta:Hong_Kong"{
+            ld{"[Ĥöñĝ Ķöñĝ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ĥöñĝ Ķöñĝ Ţîɱé one two]"}
+            ls{"[Ĥöñĝ Ķöñĝ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Hovd"{
+            ld{"[Ĥöṽð Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ĥöṽð Ţîɱé one two]"}
+            ls{"[Ĥöṽð Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:India"{
+            ls{"[Îñðîå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Indian_Ocean"{
+            ls{"[Îñðîåñ Öçéåñ Ţîɱé one two three]"}
+        }
+        "meta:Indochina"{
+            ls{"[Îñðöçĥîñå Ţîɱé one two]"}
+        }
+        "meta:Indonesia_Central"{
+            ls{"[Çéñţŕåļ Îñðöñéšîå Ţîɱé one two three]"}
+        }
+        "meta:Indonesia_Eastern"{
+            ls{"[Éåšţéŕñ Îñðöñéšîå Ţîɱé one two three]"}
+        }
+        "meta:Indonesia_Western"{
+            ls{"[Ŵéšţéŕñ Îñðöñéšîå Ţîɱé one two three]"}
+        }
+        "meta:Iran"{
+            ld{"[Îŕåñ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Îŕåñ Ţîɱé one two]"}
+            ls{"[Îŕåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Irkutsk"{
+            ld{"[Îŕķûţšķ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Îŕķûţšķ Ţîɱé one two]"}
+            ls{"[Îŕķûţšķ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Israel"{
+            ld{"[Îšŕåéļ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Îšŕåéļ Ţîɱé one two]"}
+            ls{"[Îšŕåéļ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Japan"{
+            ld{"[Ĵåþåñ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Ĵåþåñ Ţîɱé one two]"}
+            ls{"[Ĵåþåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Kamchatka"{
+            ld{"[Ķåɱçĥåţķå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ķåɱçĥåţķå Ţîɱé one two]"}
+            ls{"[Ķåɱçĥåţķå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Kazakhstan"{
+            ls{"[Ķåžåķĥšţåñ Ţîɱé one two three]"}
+        }
+        "meta:Kazakhstan_Eastern"{
+            ls{"[Éåšţ Ķåžåķĥšţåñ Ţîɱé one two three]"}
+        }
+        "meta:Kazakhstan_Western"{
+            ls{"[Ŵéšţ Ķåžåķĥšţåñ Ţîɱé one two three]"}
+        }
+        "meta:Korea"{
+            ld{"[Ķöŕéåñ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Ķöŕéåñ Ţîɱé one two]"}
+            ls{"[Ķöŕéåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Kosrae"{
+            ls{"[Ķöšŕåé Ţîɱé one two]"}
+        }
+        "meta:Krasnoyarsk"{
+            ld{"[Ķŕåšñöýåŕšķ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ķŕåšñöýåŕšķ Ţîɱé one two three]"}
+            ls{"[Ķŕåšñöýåŕšķ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Kyrgystan"{
+            ls{"[Ķýŕĝýžšţåñ Ţîɱé one two three]"}
+        }
+        "meta:Lanka"{
+            ls{"[Ļåñķå Ţîɱé one two]"}
+        }
+        "meta:Line_Islands"{
+            ls{"[Ļîñé Îšļåñðš Ţîɱé one two three]"}
+        }
+        "meta:Lord_Howe"{
+            ld{"[Ļöŕð Ĥöŵé Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Ļöŕð Ĥöŵé Ţîɱé one two]"}
+            ls{"[Ļöŕð Ĥöŵé Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Macau"{
+            ld{"[Ṁåçåö Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ṁåçåö Ţîɱé one two]"}
+            ls{"[Ṁåçåö Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Magadan"{
+            ld{"[Ṁåĝåðåñ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ṁåĝåðåñ Ţîɱé one two]"}
+            ls{"[Ṁåĝåðåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Malaysia"{
+            ls{"[Ṁåļåýšîå Ţîɱé one two]"}
+        }
+        "meta:Maldives"{
+            ls{"[Ṁåļðîṽéš Ţîɱé one two]"}
+        }
+        "meta:Marquesas"{
+            ls{"[Ṁåŕǫûéšåš Ţîɱé one two]"}
+        }
+        "meta:Marshall_Islands"{
+            ls{"[Ṁåŕšĥåļļ Îšļåñðš Ţîɱé one two three]"}
+        }
+        "meta:Mauritius"{
+            ld{"[Ṁåûŕîţîûš Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ṁåûŕîţîûš Ţîɱé one two]"}
+            ls{"[Ṁåûŕîţîûš Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Mawson"{
+            ls{"[Ṁåŵšöñ Ţîɱé one two]"}
+        }
+        "meta:Mexico_Pacific"{
+            ld{"[Ṁéẋîçåñ Þåçîƒîç Ðåýļîĝĥţ Ţîɱé one two three four]"}
+            lg{"[Ṁéẋîçåñ Þåçîƒîç Ţîɱé one two three]"}
+            ls{"[Ṁéẋîçåñ Þåçîƒîç Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Mongolia"{
+            ld{"[Ûļååñƀååţåŕ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ûļååñƀååţåŕ Ţîɱé one two three]"}
+            ls{"[Ûļååñƀååţåŕ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Moscow"{
+            ld{"[Ṁöšçöŵ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ṁöšçöŵ Ţîɱé one two]"}
+            ls{"[Ṁöšçöŵ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Myanmar"{
+            ls{"[Ṁýåñɱåŕ Ţîɱé one two]"}
+        }
+        "meta:Nauru"{
+            ls{"[Ñåûŕû Ţîɱé one two]"}
+        }
+        "meta:Nepal"{
+            ls{"[Ñéþåļ Ţîɱé one two]"}
+        }
+        "meta:New_Caledonia"{
+            ld{"[Ñéŵ Çåļéðöñîå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ñéŵ Çåļéðöñîå Ţîɱé one two three]"}
+            ls{"[Ñéŵ Çåļéðöñîå Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:New_Zealand"{
+            ld{"[Ñéŵ Žéåļåñð Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Ñéŵ Žéåļåñð Ţîɱé one two three]"}
+            ls{"[Ñéŵ Žéåļåñð Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Newfoundland"{
+            ld{"[Ñéŵƒöûñðļåñð Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Ñéŵƒöûñðļåñð Ţîɱé one two three]"}
+            ls{"[Ñéŵƒöûñðļåñð Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Niue"{
+            ls{"[Ñîûé Ţîɱé one two]"}
+        }
+        "meta:Norfolk"{
+            ld{"[Ñöŕƒöļķ Îšļåñð Ðåýļîĝĥţ Ţîɱé one two three four]"}
+            lg{"[Ñöŕƒöļķ Îšļåñð Ţîɱé one two three]"}
+            ls{"[Ñöŕƒöļķ Îšļåñð Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Noronha"{
+            ld{"[Ƒéŕñåñðö ðé Ñöŕöñĥå Šûɱɱéŕ Ţîɱé one two three four]"}
+            lg{"[Ƒéŕñåñðö ðé Ñöŕöñĥå Ţîɱé one two three]"}
+            ls{"[Ƒéŕñåñðö ðé Ñöŕöñĥå Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:North_Mariana"{
+            ls{"[Ñöŕţĥéŕñ Ṁåŕîåñå Îšļåñðš Ţîɱé one two three four]"}
+        }
+        "meta:Novosibirsk"{
+            ld{"[Ñöṽöšîƀîŕšķ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ñöṽöšîƀîŕšķ Ţîɱé one two three]"}
+            ls{"[Ñöṽöšîƀîŕšķ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Omsk"{
+            ld{"[Öɱšķ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Öɱšķ Ţîɱé one two]"}
+            ls{"[Öɱšķ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Pakistan"{
+            ld{"[Þåķîšţåñ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Þåķîšţåñ Ţîɱé one two]"}
+            ls{"[Þåķîšţåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Palau"{
+            ls{"[Þåļåû Ţîɱé one two]"}
+        }
+        "meta:Papua_New_Guinea"{
+            ls{"[Þåþûå Ñéŵ Ĝûîñéå Ţîɱé one two three]"}
+        }
+        "meta:Paraguay"{
+            ld{"[Þåŕåĝûåý Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Þåŕåĝûåý Ţîɱé one two]"}
+            ls{"[Þåŕåĝûåý Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Peru"{
+            ld{"[Þéŕû Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Þéŕû Ţîɱé one two]"}
+            ls{"[Þéŕû Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Philippines"{
+            ld{"[Þĥîļîþþîñé Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Þĥîļîþþîñé Ţîɱé one two three]"}
+            ls{"[Þĥîļîþþîñé Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Phoenix_Islands"{
+            ls{"[Þĥöéñîẋ Îšļåñðš Ţîɱé one two three]"}
+        }
+        "meta:Pierre_Miquelon"{
+            ld{"[Šţ· Þîéŕŕé ⅋ Ṁîǫûéļöñ Ðåýļîĝĥţ Ţîɱé one two three four]"}
+            lg{"[Šţ· Þîéŕŕé ⅋ Ṁîǫûéļöñ Ţîɱé one two three]"}
+            ls{"[Šţ· Þîéŕŕé ⅋ Ṁîǫûéļöñ Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Pitcairn"{
+            ls{"[Þîţçåîŕñ Ţîɱé one two]"}
+        }
+        "meta:Ponape"{
+            ls{"[Þöĥñþéî Ţîɱé one two]"}
+        }
+        "meta:Pyongyang"{
+            ls{"[Ñöŕţĥ Ķöŕéå Ţîɱé one two three]"}
+        }
+        "meta:Qyzylorda"{
+            ld{"[Ǫýžýļöŕðå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ǫýžýļöŕðå Ţîɱé one two]"}
+            ls{"[Ǫýžýļöŕðå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Reunion"{
+            ls{"[Ŕéûñîöñ Ţîɱé one two]"}
+        }
+        "meta:Rothera"{
+            ls{"[Ŕöţĥéŕå Ţîɱé one two]"}
+        }
+        "meta:Sakhalin"{
+            ld{"[Šåķĥåļîñ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Šåķĥåļîñ Ţîɱé one two]"}
+            ls{"[Šåķĥåļîñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Samara"{
+            ld{"[Šåɱåŕå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Šåɱåŕå Ţîɱé one two]"}
+            ls{"[Šåɱåŕå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Samoa"{
+            ld{"[Åɱéŕîçåñ Šåɱöå Ðåýļîĝĥţ Ţîɱé one two three four]"}
+            lg{"[Åɱéŕîçåñ Šåɱöå Ţîɱé one two three]"}
+            ls{"[Åɱéŕîçåñ Šåɱöå Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Seychelles"{
+            ls{"[Šéýçĥéļļéš Ţîɱé one two three]"}
+        }
+        "meta:Singapore"{
+            ls{"[Šîñĝåþöŕé Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Solomon"{
+            ls{"[Šöļöɱöñ Îšļåñðš Ţîɱé one two three]"}
+        }
+        "meta:South_Georgia"{
+            ls{"[Šöûţĥ Ĝéöŕĝîå Ţîɱé one two three]"}
+        }
+        "meta:Suriname"{
+            ls{"[Šûŕîñåɱé Ţîɱé one two]"}
+        }
+        "meta:Syowa"{
+            ls{"[Šýöŵå Ţîɱé one two]"}
+        }
+        "meta:Tahiti"{
+            ls{"[Ţåĥîţî Ţîɱé one two]"}
+        }
+        "meta:Taipei"{
+            ld{"[Ţåîŵåñ Ðåýļîĝĥţ Ţîɱé one two three]"}
+            lg{"[Ţåîŵåñ Ţîɱé one two]"}
+            ls{"[Ţåîŵåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Tajikistan"{
+            ls{"[Ţåĵîķîšţåñ Ţîɱé one two three]"}
+        }
+        "meta:Tokelau"{
+            ls{"[Ţöķéļåû Ţîɱé one two]"}
+        }
+        "meta:Tonga"{
+            ld{"[Ţöñĝå Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ţöñĝå Ţîɱé one two]"}
+            ls{"[Ţöñĝå Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Truk"{
+            ls{"[Çĥûûķ Ţîɱé one two]"}
+        }
+        "meta:Turkmenistan"{
+            ld{"[Ţûŕķɱéñîšţåñ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ţûŕķɱéñîšţåñ Ţîɱé one two three]"}
+            ls{"[Ţûŕķɱéñîšţåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Tuvalu"{
+            ls{"[Ţûṽåļû Ţîɱé one two]"}
+        }
+        "meta:Uruguay"{
+            ld{"[Ûŕûĝûåý Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ûŕûĝûåý Ţîɱé one two]"}
+            ls{"[Ûŕûĝûåý Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Uzbekistan"{
+            ld{"[Ûžƀéķîšţåñ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ûžƀéķîšţåñ Ţîɱé one two three]"}
+            ls{"[Ûžƀéķîšţåñ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Vanuatu"{
+            ld{"[Ṽåñûåţû Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ṽåñûåţû Ţîɱé one two]"}
+            ls{"[Ṽåñûåţû Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Venezuela"{
+            ls{"[Ṽéñéžûéļå Ţîɱé one two]"}
+        }
+        "meta:Vladivostok"{
+            ld{"[Ṽļåðîṽöšţöķ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ṽļåðîṽöšţöķ Ţîɱé one two three]"}
+            ls{"[Ṽļåðîṽöšţöķ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Volgograd"{
+            ld{"[Ṽöļĝöĝŕåð Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ṽöļĝöĝŕåð Ţîɱé one two]"}
+            ls{"[Ṽöļĝöĝŕåð Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Vostok"{
+            ls{"[Ṽöšţöķ Ţîɱé one two]"}
+        }
+        "meta:Wake"{
+            ls{"[Ŵåķé Îšļåñð Ţîɱé one two three]"}
+        }
+        "meta:Wallis"{
+            ls{"[Ŵåļļîš ⅋ Ƒûţûñå Ţîɱé one two three]"}
+        }
+        "meta:Yakutsk"{
+            ld{"[Ýåķûţšķ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ýåķûţšķ Ţîɱé one two]"}
+            ls{"[Ýåķûţšķ Šţåñðåŕð Ţîɱé one two three]"}
+        }
+        "meta:Yekaterinburg"{
+            ld{"[Ýéķåţéŕîñƀûŕĝ Šûɱɱéŕ Ţîɱé one two three]"}
+            lg{"[Ýéķåţéŕîñƀûŕĝ Ţîɱé one two three]"}
+            ls{"[Ýéķåţéŕîñƀûŕĝ Šţåñðåŕð Ţîɱé one two three four]"}
+        }
+        "meta:Yukon"{
+            ls{"[Ýûķöñ Ţîɱé one two]"}
+        }
+        gmtFormat{"[ĜṀŢ{0} one]"}
+        hourFormat{"[+HH:mm;-HH:mm 'one' 'two']"}
+        regionFormat{"[{0} Ţîɱé one two]"}
+        regionFormatDaylight{"[{0} Ðåýļîĝĥţ Ţîɱé one two three]"}
+        regionFormatStandard{"[{0} Šţåñðåŕð Ţîɱé one two three]"}
+    }
+}

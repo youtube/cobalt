@@ -1,0 +1,20 @@
+{
+  "src/compiler/translator/ImmutableString_autogen.cpp":
+    "bdca088e715535c1295807cfad85cb43",
+  "src/compiler/translator/Operator_autogen.h":
+    "5bf164c0e357df73ab727dd14346f05e",
+  "src/compiler/translator/SymbolTable_autogen.cpp":
+    "53a0c37d1e414a4065df1c3be2413d46",
+  "src/compiler/translator/SymbolTable_autogen.h":
+    "fd467c935e0ce33ccd76fdd2c06c48c7",
+  "src/compiler/translator/builtin_function_declarations.txt":
+    "df755020e057b626d8a8412bb481bea8",
+  "src/compiler/translator/builtin_variables.json":
+    "bbf5c42235e6ed5fc9ba66ae5a93ff2f",
+  "src/compiler/translator/gen_builtin_symbols.py":
+    "868aec3ab57d9d487b66afc7ac454ba7",
+  "src/compiler/translator/tree_util/BuiltIn_autogen.h":
+    "5a487265773d50085866c3e4cfabe075",
+  "src/tests/compiler_tests/ImmutableString_test_autogen.cpp":
+    "5042b7aad8ef26523f4b6a6d08e96b55"
+}
