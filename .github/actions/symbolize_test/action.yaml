@@ -24,8 +24,10 @@ runs:
         set -x
         if [[ -f "cobalt/src/starboard/tools/symbolize/symbolize_test.py" ]]; then
           python3 cobalt/src/starboard/tools/symbolize/symbolize_test.py -v
+          python3 cobalt/src/tools/valgrind/asan/asan_symbolize_test.py -v
         elif [[ -f "starboard/tools/symbolize/symbolize_test.py" ]]; then
           python3 starboard/tools/symbolize/symbolize_test.py -v
+          python3 tools/valgrind/asan/asan_symbolize_test.py -v
         else
           echo "symbolize_test.py not found!" >&2
           exit 1
