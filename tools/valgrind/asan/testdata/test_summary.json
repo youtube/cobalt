@@ -1,0 +1,18 @@
+{
+  "per_iteration_data": [
+    {
+      "TestPassing": [
+        {
+          "output_snippet": "Running test...\nTest completed with 0 failures.\n",
+          "output_snippet_base64": "UnVubmluZyB0ZXN0Li4uClRlc3QgY29tcGxldGVkIHdpdGggMCBmYWlsdXJlcy4K"
+        }
+      ],
+      "TestWithSanitizerReport": [
+        {
+          "output_snippet": "=================================================================\n==1234==ERROR: AddressSanitizer: heap-use-after-free on address 0x602000000010\nLoad start=0x7f48e7a44000\n    #0 0x7f48e7a45000  (<unknown module>)\n    #1 0x7f48e7a46000  (<unknown module>)\n=================================================================\n",
+          "output_snippet_base64": "PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQo9PTEyMzQ9PUVSUk9SOiBBZGRyZXNzU2FuaXRpemVyOiBoZWFwLXVzZS1hZnRlci1mcmVlIG9uIGFkZHJlc3MgMHg2MDIwMDAwMDAwMTAKTG9hZCBzdGFydD0weDdmNDhlN2E0NDAwMAppICAgICMwIDB4N2Y0OGU3YTQ1MDAwICAoPHVua25vd24gbW9kdWxlPikKICAgICMxIDB4N2Y0OGU3YTQ2MDAwICAoPHVua25vd24gbW9kdWxlPikKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Cg=="
+        }
+      ]
+    }
+  ]
+}

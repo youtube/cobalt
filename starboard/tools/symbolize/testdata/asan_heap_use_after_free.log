@@ -1,0 +1,23 @@
+=================================================================
+==31245==ERROR: AddressSanitizer: heap-use-after-free on address 0x603000004f20 at pc 0x7f8b22a01456 bp 0x7ffe5d1b3290 sp 0x7ffe5d1b3288
+READ of size 8 at 0x603000004f20 thread T0 (CrBrowserMain)
+    #0 0x7f8b22a01456 in cobalt::dom::Node::parentNode() const /home/user/cobalt/src/out/Release/../../cobalt/dom/node.cc:154:10
+    #1 0x7f8b22a03578 in cobalt::dom::Element::parentElement() const /home/user/cobalt/src/out/Release/../../cobalt/dom/element.cc:82:12
+    #2 0x7f8b21856712 in cobalt::dom::HTMLDivElement::DispatchEvent() /home/user/cobalt/src/out/Release/../../cobalt/dom/html_div_element.cc:45:5
+    #3 0x7f8b20912345 in cobalt::browser::CobaltBrowserMainParts::PreCreateThreads() /home/user/cobalt/src/out/Release/../../cobalt/browser/cobalt_browser_main_parts.cc:316:3
+    #4 0x7f8b1f543210 in content::BrowserMainLoop::PreCreateThreads() /home/user/cobalt/src/out/Release/../../content/browser/browser_main_loop.cc:480:15
+    #5 0x564821e3cf8c in SbEventHandle /home/user/cobalt/src/starboard/shared/starboard/application.cc:350:7
+
+0x603000004f20 is located 32 bytes inside of 64-byte region [0x603000004f00,0x603000004f40)
+freed by thread T0 (CrBrowserMain) here:
+    #0 0x7f8b248a1234 in free /build/llvm/projects/compiler-rt/lib/asan/asan_malloc_linux.cpp:123
+    #1 0x7f8b22a02111 in cobalt::dom::Node::Release() /home/user/cobalt/src/out/Release/../../cobalt/dom/node.cc:120:5
+    #2 0x7f8b22a04888 in cobalt::dom::Element::~Element() /home/user/cobalt/src/out/Release/../../cobalt/dom/element.cc:60:3
+
+previously allocated by thread T0 (CrBrowserMain) here:
+    #0 0x7f8b248a1567 in malloc /build/llvm/projects/compiler-rt/lib/asan/asan_malloc_linux.cpp:145
+    #1 0x7f8b22a00999 in cobalt::dom::Document::createElement(std::string const&) /home/user/cobalt/src/out/Release/../../cobalt/dom/document.cc:210:14
+    #2 0x7f8b20911000 in cobalt::browser::CobaltBrowserMainParts::PreMainMessageLoopRun() /home/user/cobalt/src/out/Release/../../cobalt/browser/cobalt_browser_main_parts.cc:290:8
+
+SUMMARY: AddressSanitizer: heap-use-after-free /home/user/cobalt/src/out/Release/../../cobalt/dom/node.cc:154:10 in cobalt::dom::Node::parentNode() const
+=================================================================
