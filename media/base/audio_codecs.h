@@ -5,12 +5,7 @@
 #ifndef MEDIA_BASE_AUDIO_CODECS_H_
 #define MEDIA_BASE_AUDIO_CODECS_H_
 
-<<<<<<< HEAD
 #include <stdint.h>
-
-=======
-#include <cstdint>
->>>>>>> parent of 7b052c2955e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include <string>
 #include <string_view>
 
