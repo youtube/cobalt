@@ -371,19 +371,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       return PlayerComponents::Factory::CreateComponents(creation_parameters);
     }
 
-    if (!creation_parameters.audio_mime().empty()) {
-      auto audio_mime_type = MimeType::Create(creation_parameters.audio_mime());
-      if (!audio_mime_type ||
-          !audio_mime_type->ValidateBoolParameter("audiopassthrough")) {
-        return Failure("Invalid audio mime type.");
-      }
-      if (!audio_mime_type->GetParamBoolValue("audiopassthrough", true)) {
-        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
-                        "false. Passthrough is disabled.";
-        return Failure("Passthrough disabled by mime attribute.");
-      }
-    }
-
     bool enable_flush_during_seek = ShouldEnableFlushDuringSeek(
         creation_parameters.experimental_features());
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&

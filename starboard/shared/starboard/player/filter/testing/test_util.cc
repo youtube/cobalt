@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include "build/build_config.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -40,8 +41,7 @@ void StubDeallocateSampleFunc(SbPlayer player,
                               void* context,
                               const void* sample_buffer) {}
 
-std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
-                                         const char* mime_attributes) {
+std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec) {
   SB_DCHECK_NE(audio_codec, kSbMediaAudioCodecNone);
 
   std::string content_type;
@@ -64,14 +64,13 @@ std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
     default:
       SB_NOTREACHED();
   }
-  return strlen(mime_attributes) > 0 ? content_type + "; " + mime_attributes
-                                     : content_type;
+  return content_type;
 }
 
 std::vector<const char*> GetSupportedAudioTestFiles(
     HeaacOption heaac_option,
     int max_channels,
-    const char* extra_mime_attributes) {
+    PassthroughOption passthrough_option) {
   // beneath_the_canopy_aac_stereo.dmp
   //   codec: kSbMediaAudioCodecAac
   //   sampling rate: 44.1k
@@ -133,9 +132,19 @@ std::vector<const char*> GetSupportedAudioTestFiles(
       continue;
     }
 
+#if BUILDFLAG(IS_ANDROID)
+    // On Android, AC3 and E-AC3 are supported exclusively via audio
+    // passthrough and do not have an audio decoder.
+    if (passthrough_option == kExcludePassthrough &&
+        (audio_file_info.audio_codec == kSbMediaAudioCodecAc3 ||
+         audio_file_info.audio_codec == kSbMediaAudioCodecEac3)) {
+      continue;
+    }
+#endif
+
     // Filter files of unsupported codec.
-    const std::string audio_mime = GetContentTypeFromAudioCodec(
-        audio_file_info.audio_codec, extra_mime_attributes);
+    const std::string audio_mime =
+        GetContentTypeFromAudioCodec(audio_file_info.audio_codec);
     auto audio_mime_type = MimeType::Create(audio_mime);
     if (!audio_mime_type ||
         !MediaIsAudioSupported(audio_file_info.audio_codec, &*audio_mime_type,
