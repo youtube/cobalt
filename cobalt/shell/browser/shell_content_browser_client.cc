@@ -306,7 +306,7 @@ bool ShellContentBrowserClient::IsHandledURL(const GURL& url) {
       url::kDataScheme, url::kFileScheme,         kH5vccEmbeddedScheme,
   };
   for (const char* supported_protocol : kProtocolList) {
-    if (url.scheme_piece() == supported_protocol) {
+    if (url.scheme() == supported_protocol) {
       return true;
     }
   }
