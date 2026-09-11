@@ -172,25 +172,27 @@ The No Platform Left Behind (NPLB) test suite verifies Starboard implementation 
    autoninja -C out/aosp-arm_devel nplb_loader
    ```
 
-   This generates the test APK at `out/aosp-arm_devel/apks/nplb.apk`.
+   This generates the test APK at
+   `out/aosp-arm_devel/nplb_loader_apk/nplb_loader-debug.apk` and the
+   `out/aosp-arm_devel/bin/run_nplb_loader` wrapper that drives it.
 
-2. Install the NPLB test APK on the target device:
+2. Run NPLB on the target device. The wrapper installs the APK, pushes the
+   runtime dependencies and collects the results:
 
    ```bash
-   adb install -r out/aosp-arm_devel/apks/nplb.apk
+   out/aosp-arm_devel/bin/run_nplb_loader
    ```
 
-3. Launch NPLB on device passing the target compressed library argument via `--esa commandLineArgs`:
+3. Pass standard Google Test filtering arguments:
 
    ```bash
-   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   out/aosp-arm_devel/bin/run_nplb_loader --gtest-filter='*Memory*'
    ```
 
-4. Pass standard Google Test filtering arguments:
+4. Any other argument is forwarded to NPLB:
 
    ```bash
-   # Run NPLB with a specific test filter (e.g. Memory tests)
-   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content,--gtest_filter=*Memory*' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   out/aosp-arm_devel/bin/run_nplb_loader --gtest_shuffle
    ```
 
 ## Debugging
