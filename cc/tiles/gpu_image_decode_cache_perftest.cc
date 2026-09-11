@@ -59,12 +59,7 @@ class GpuImageDecodeCachePerfTest : public testing::Test {
     ASSERT_EQ(result, gpu::ContextResult::kSuccess);
     cache_ = std::make_unique<GpuImageDecodeCache>(
         context_provider_.get(), kRGBA_8888_SkColorType, kCacheSize,
-        MaxTextureSize(),
-#if BUILDFLAG(IS_COBALT)
-        /*max_persistent_cache_items=*/2000,
-        /*max_persistent_cache_memory_size=*/std::numeric_limits<size_t>::max(),
-#endif
-        nullptr);
+        MaxTextureSize(), nullptr);
   }
 
  protected:

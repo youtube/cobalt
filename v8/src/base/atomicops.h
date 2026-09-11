@@ -12,7 +12,22 @@
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "starboard/atomic.h"
+#endif  // V8_OS_STARBOARD
+
 namespace v8::base {
+
+#ifdef V8_OS_STARBOARD
+
+using Atomic8 = SbAtomic8;
+using Atomic16 = int16_t;
+using Atomic32 = SbAtomic32;
+#if SB_IS_64_BIT
+using Atomic64 = SbAtomic64;
+#endif
+
+#else
 
 using Atomic8 = char;
 using Atomic16 = int16_t;
@@ -26,6 +41,8 @@ using Atomic64 = int64_t;
 using Atomic64 = intptr_t;
 #endif  // defined(__ILP32__)
 #endif  // defined(V8_HOST_ARCH_64_BIT)
+
+#endif  // V8_OS_STARBOARD
 
 // Use AtomicWord for a machine-sized pointer. It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.

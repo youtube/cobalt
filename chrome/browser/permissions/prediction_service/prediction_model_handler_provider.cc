@@ -18,7 +18,6 @@
 #include "components/permissions/request_type.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#include "chrome/browser/passage_embeddings/chrome_passage_embeddings_service_controller.h"  // nogncheck
 #include "components/permissions/prediction_service/prediction_model_handler.h"
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 

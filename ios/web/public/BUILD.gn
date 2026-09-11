@@ -26,21 +26,6 @@ source_set("public") {
     "//ios/web/common:user_agent",
   ]
 
-  if (is_cobalt) {
-    # Required between 142.7429 and 147.0.7723.0. //ios/web/common pulls in
-    # crw_web_view_content_view.mm, and https://crrev.com/c/6827602 added an
-    # #import <WebKit/WebKit.h> there (no WebKit framework on tvOS; removed
-    # upstream in 142.0.7432.0 by https://crrev.com/c/6975450) plus a
-    # setObscuredContentInsets: call that is tvOS 26+ (fixed in 147.0.7723.0 by
-    # https://crrev.com/c/7642209, which moves the file out of //ios/web/common
-    # altogether). The dep itself is dropped upstream by
-    # https://crrev.com/c/7638529 in 148.0.7728.0. Only user_agent.h is used
-    # here, and that lives in //ios/web/common:user_agent, kept above.
-    # Delete this block when the roll reaches 148.0.7728.0: deps -= errors
-    # once the dep is gone upstream.
-    deps -= [ "//ios/web/common" ]
-  }
-
   sources = [
     "browser_state.h",
     "browser_state_utils.h",

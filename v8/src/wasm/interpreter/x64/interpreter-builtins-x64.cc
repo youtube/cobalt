@@ -241,17 +241,10 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
                    WasmExportedFunctionData::kPackedArgsSizeOffset));
   __ SmiToInt32(signature_data);
 
-  Register internal_function = valuetypes_array_ptr;
-  __ LoadProtectedPointerField(
-      internal_function,
-      MemOperand(
-          function_data,
-          WasmExportedFunctionData::kProtectedInternalOffset - kHeapObjectTag));
-
-  Register signature = internal_function;
+  Register signature = valuetypes_array_ptr;
   __ movq(signature,
-          MemOperand(internal_function,
-                     WasmInternalFunction::kSigOffset - kHeapObjectTag));
+          MemOperand(function_data,
+                     WasmExportedFunctionData::kSigOffset - kHeapObjectTag));
   LoadFromSignature(masm, valuetypes_array_ptr, return_count, param_count);
 }
 
