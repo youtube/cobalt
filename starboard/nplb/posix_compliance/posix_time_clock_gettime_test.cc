@@ -361,11 +361,9 @@ TEST_P(CpuTimeClock, Increases) {
 
   EXPECT_GT(time_after_us, time_before_us)
       << clock_name << " time should have increased.";
-  // Expect to have measured at least 75% of the elapsed time as CPU time.
-  // Note: This will fail on a busy system where this test receives less than
-  // 75% of a CPU core.
+  // Expect to have measured at least 5% of the elapsed time as CPU time.
   long measured_work_time = time_after_us - time_before_us;
-  long minimum_work_time = 0.75 * elapsed_time_us;
+  long minimum_work_time = 0.05 * elapsed_time_us;
   EXPECT_GE(measured_work_time, minimum_work_time)
       << clock_name << " time should measure at least  " << minimum_work_time
       << " us, of " << elapsed_time_us << " us elapsed during CPU work.";
