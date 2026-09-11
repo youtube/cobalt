@@ -71,7 +71,7 @@ bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
     size_t bytes_per_channel = source_bus->frames() * sizeof(float);
     for (int channel_index = 0; channel_index < source_bus->channels();
          ++channel_index) {
-      const float* source_data = source_bus->channel(channel_index);
+      const float* source_data = source_bus->channel_span(channel_index).data();
       float* dest_data = destination_bus->ChannelData(channel_index);
       memcpy(dest_data, source_data, bytes_per_channel);
     }
