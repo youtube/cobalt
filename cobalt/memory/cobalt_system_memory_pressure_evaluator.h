@@ -55,17 +55,33 @@ class CobaltSystemMemoryPressureEvaluator
   static constexpr int kDefaultBudgetMbLowEnd = 180;
   static constexpr int kDefaultBudgetMbStandard = 200;
   static constexpr base::TimeDelta kDefaultPollInterval = base::Seconds(5);
-  static constexpr base::TimeDelta kDefaultCooldown = base::Seconds(30);
+  static constexpr base::TimeDelta kDefaultCooldown = base::Seconds(15);
 
   using ProcessMemoryInfoGetter = base::RepeatingCallback<
       base::expected<base::ProcessMemoryInfo, base::ProcessUsageError>()>;
   using SystemMemoryInfoGetter =
       base::RepeatingCallback<bool(base::SystemMemoryInfoKB*)>;
+  using MediaAllowanceGetter = base::RepeatingCallback<uint64_t()>;
 
   explicit CobaltSystemMemoryPressureEvaluator(
-      std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter);
+      std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
+      MediaAllowanceGetter media_allowance_getter = {});
 
-  // Constructor for testing with mock getters and custom thresholds.
+  // Constructor for testing with mock getters, media allowance, and custom
+  // thresholds.
+  CobaltSystemMemoryPressureEvaluator(
+      std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
+      ProcessMemoryInfoGetter process_memory_info_getter,
+      SystemMemoryInfoGetter system_memory_info_getter,
+      MediaAllowanceGetter media_allowance_getter,
+      uint64_t process_memory_budget_bytes,
+      float moderate_budget_ratio,
+      float critical_budget_ratio,
+      float moderate_system_fraction,
+      float critical_system_fraction,
+      base::TimeDelta poll_interval,
+      base::TimeDelta cooldown);
+
   CobaltSystemMemoryPressureEvaluator(
       std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
       ProcessMemoryInfoGetter process_memory_info_getter,
@@ -112,6 +128,7 @@ class CobaltSystemMemoryPressureEvaluator
   std::unique_ptr<base::ProcessMetrics> process_metrics_;
   ProcessMemoryInfoGetter process_memory_info_getter_;
   SystemMemoryInfoGetter system_memory_info_getter_;
+  MediaAllowanceGetter media_allowance_getter_;
   const uint64_t process_memory_budget_bytes_;
   const float moderate_budget_ratio_;
   const float critical_budget_ratio_;

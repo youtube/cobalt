@@ -64,13 +64,16 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
         base::BindRepeating(
             &CobaltSystemMemoryPressureEvaluatorTest::GetSystemMemoryInfo,
             base::Unretained(this)),
+        base::BindRepeating(
+            &CobaltSystemMemoryPressureEvaluatorTest::GetMediaAllowance,
+            base::Unretained(this)),
         kTestBudgetBytes,
         /*moderate_budget_ratio=*/0.85f,
         /*critical_budget_ratio=*/0.95f,
         /*moderate_system_fraction=*/0.30f,
         /*critical_system_fraction=*/0.15f,
         /*poll_interval=*/base::Seconds(5),
-        /*cooldown=*/base::Seconds(30));
+        /*cooldown=*/base::Seconds(15));
 
     listener_ = std::make_unique<base::MemoryPressureListener>(
         FROM_HERE,
@@ -101,6 +104,8 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
     return true;
   }
 
+  uint64_t GetMediaAllowance() const { return media_allowance_bytes_; }
+
   void OnMemoryPressure(
       base::MemoryPressureListener::MemoryPressureLevel level) {
     notifications_.push_back(level);
@@ -119,10 +124,15 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
     sys_info_.free = available_mb * 1024;
   }
 
+  void SetMediaAllowanceMB(uint64_t mb) {
+    media_allowance_bytes_ = mb * 1024ULL * 1024ULL;
+  }
+
  protected:
   base::test::TaskEnvironment task_environment_;
   base::ProcessMemoryInfo proc_info_;
   base::SystemMemoryInfoKB sys_info_;
+  uint64_t media_allowance_bytes_ = 0;
   bool get_proc_info_should_fail_ = false;
   bool get_sys_info_should_fail_ = false;
 
@@ -262,18 +272,58 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1u, notifications_.size());
 
-  // 5 seconds later: still Moderate, within 30s cooldown -> no new
+  // 5 seconds later: still Moderate, within 15s cooldown -> no new
   // notification.
   task_environment_.FastForwardBy(base::Seconds(5));
   evaluator_->CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1u, notifications_.size());
 
-  // Fast-forward 25s more (30s total cooldown) -> renotify.
-  task_environment_.FastForwardBy(base::Seconds(25));
+  // Fast-forward 10s more (15s total cooldown) -> renotify.
+  task_environment_.FastForwardBy(base::Seconds(10));
   evaluator_->CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(2u, notifications_.size());
+}
+
+TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
+       MediaAllowanceExpandsEffectiveBudget) {
+  // Budget is 200 MB.
+  // Set private memory to 250 MB (without allowance, 250 / 200 = 125% ->
+  // CRITICAL).
+  SetProcessPrivateMemoryMB(250);
+
+  // Without media allowance -> CRITICAL.
+  evaluator_->CheckMemoryPressure();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
+            evaluator_->current_vote());
+
+  // Simulate 100 MB media buffer allocation (e.g. video playback started).
+  // Effective budget becomes 200 MB + 100 MB = 300 MB.
+  // 250 MB / 300 MB = 83.3% (< 85% MODERATE threshold) -> NONE.
+  SetMediaAllowanceMB(100);
+  evaluator_->CheckMemoryPressure();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE,
+            evaluator_->current_vote());
+
+  // If memory continues growing during playback to 270 MB (90% of 300 MB) ->
+  // MODERATE.
+  SetProcessPrivateMemoryMB(270);
+  evaluator_->CheckMemoryPressure();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
+            evaluator_->current_vote());
+
+  // Playback stops, media allowance returns to 0.
+  // Effective budget returns to 200 MB.
+  // 270 MB / 200 MB = 135% -> CRITICAL.
+  SetMediaAllowanceMB(0);
+  evaluator_->CheckMemoryPressure();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
+            evaluator_->current_vote());
 }
 
 TEST_F(CobaltSystemMemoryPressureEvaluatorTest, HandlesErrorsGracefully) {
