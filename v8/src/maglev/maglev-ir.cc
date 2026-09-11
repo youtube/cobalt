@@ -745,13 +745,14 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
     case Opcode::kCheckedHoleyFloat64ToFloat64:
     case Opcode::kHoleyFloat64ToMaybeNanFloat64:
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     case Opcode::kFloat64ToHoleyFloat64:
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     case Opcode::kConvertHoleNanToUndefinedNan:
     case Opcode::kHoleyFloat64IsUndefinedOrHole:
 #else
     case Opcode::kHoleyFloat64IsHole:
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
+    case Opcode::kHoleyFloat64SilenceNumberNans:
     case Opcode::kSetPendingMessage:
     case Opcode::kStringLength:
     case Opcode::kAllocateElementsArray:
@@ -2138,9 +2139,31 @@ void CheckedNumberOrOddballToHoleyFloat64::GenerateCode(
   __ bind(&is_not_smi);
   JumpToFailIfNotHeapNumberOrOddball(masm, src, conversion_type(), fail);
   __ LoadHeapNumberOrOddballValue(dst, src);
-  __ JumpIfNotObjectType(src, InstanceType::HEAP_NUMBER_TYPE, &done,
-                         Label::kNear);
-  __ Float64SilenceNan(dst);
+  if (silence_number_nans()) {
+    __ JumpIfNotObjectType(src, InstanceType::HEAP_NUMBER_TYPE, &done,
+                           Label::kNear);
+    __ Float64SilenceNan(dst);
+  }
+  __ bind(&done);
+}
+
+void HoleyFloat64SilenceNumberNans::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void HoleyFloat64SilenceNumberNans::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  auto scratch = temps.Acquire();
+
+  Label done;
+  __ JumpIfHoleNan(value, scratch, &done, Label::kNear);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  // TODO(nicohartmann): Consider using a combined JumpIfUndefinedOrHoleNan.
+  __ JumpIfUndefinedNan(value, scratch, &done, Label::kNear);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+  __ Float64SilenceNan(value);
   __ bind(&done);
 }
 
@@ -2505,36 +2528,31 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
       has_migration_targets = true;
     }
   }
+  DCHECK(has_migration_targets);
+  USE(has_migration_targets);
 
-  if (!has_migration_targets) {
-    // Emit deopt for the last map.
-    map_compare.Generate(map_handle, kNotEqual,
-                         __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
-  } else {
-    map_compare.Generate(
-        map_handle, kNotEqual,
-        __ MakeDeferredCode(
-            [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-               ZoneLabelRef map_checks, MapCompare map_compare,
-               CheckMapsWithMigration* node) {
-              Label* deopt =
-                  __ GetDeoptLabel(node, DeoptimizeReason::kWrongMap);
-              // If the map is not deprecated, we fail the map check.
-              __ TestInt32AndJumpIfAllClear(
-                  FieldMemOperand(map_compare.GetMap(), Map::kBitField3Offset),
-                  Map::Bits3::IsDeprecatedBit::kMask, deopt);
+  map_compare.Generate(
+      map_handle, kNotEqual,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+             ZoneLabelRef map_checks, MapCompare map_compare,
+             CheckMapsWithMigration* node) {
+            Label* deopt = __ GetDeoptLabel(node, DeoptimizeReason::kWrongMap);
+            // If the map is not deprecated, we fail the map check.
+            __ TestInt32AndJumpIfAllClear(
+                FieldMemOperand(map_compare.GetMap(), Map::kBitField3Offset),
+                Map::Bits3::IsDeprecatedBit::kMask, deopt);
 
-              // Otherwise, try migrating the object.
-              __ TryMigrateInstance(map_compare.GetObject(), register_snapshot,
-                                    deopt);
-              __ Jump(*map_checks);
-              // We'll need to reload the map since it might have changed; it's
-              // done right after the map_checks label.
-            },
-            save_registers, map_checks, map_compare, this));
-    // If the jump to deferred code was not taken, the map was equal to the
-    // last map.
-  }  // End of the `has_migration_targets` case.
+            // Otherwise, try migrating the object.
+            __ TryMigrateInstance(map_compare.GetObject(), register_snapshot,
+                                  deopt);
+            __ Jump(*map_checks);
+            // We'll need to reload the map since it might have changed; it's
+            // done right after the map_checks label.
+          },
+          save_registers, map_checks, map_compare, this));
+  // If the jump to deferred code was not taken, the map was equal to the
+  // last map.
   __ bind(*done);
 }
 

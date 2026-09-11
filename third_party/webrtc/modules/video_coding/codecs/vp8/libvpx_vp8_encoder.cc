@@ -57,6 +57,7 @@
 #include "modules/video_coding/utility/vp8_constants.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/field_trial_parser.h"
+#include "rtc_base/experiments/psnr_experiment.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/trace_event.h"
@@ -341,10 +342,8 @@ LibvpxVp8Encoder::LibvpxVp8Encoder(const Environment& env,
       max_frame_drop_interval_(ParseFrameDropInterval(env_.field_trials())),
       android_specific_threading_settings_(env_.field_trials().IsEnabled(
           "WebRTC-LibvpxVp8Encoder-AndroidSpecificThreadingSettings")),
-      calculate_psnr_(
-          env.field_trials().IsEnabled("WebRTC-Video-CalculatePsnr")) {
-  // TODO(eladalon/ilnik): These reservations might be wasting memory.
-  // InitEncode() is resizing to the actual size, which might be smaller.
+      psnr_experiment_(env.field_trials()),
+      psnr_frame_sampler_(psnr_experiment_.SamplingInterval()) {
   raw_images_.reserve(kMaxSimulcastStreams);
   encoded_images_.reserve(kMaxSimulcastStreams);
   send_stream_.reserve(kMaxSimulcastStreams);
@@ -1094,7 +1093,8 @@ int LibvpxVp8Encoder::Encode(const VideoFrame& frame,
   }
 
 #if defined(WEBRTC_ENCODER_PSNR_STATS) && defined(VPX_EFLAG_CALCULATE_PSNR)
-  if (calculate_psnr_ && psnr_frame_sampler_.ShouldBeSampled(frame)) {
+  if (psnr_experiment_.IsEnabled() &&
+      psnr_frame_sampler_.ShouldBeSampled(frame)) {
     for (size_t i = 0; i < encoders_.size(); ++i) {
       flags[i] |= VPX_EFLAG_CALCULATE_PSNR;
     }

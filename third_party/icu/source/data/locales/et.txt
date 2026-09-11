@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 et{
     AuxExemplarCharacters{"[áàâåãā æ ç éèêëē íìîïī ñ óòŏôøō œ úùûū]"}
     Ellipsis{
@@ -1554,34 +1554,6 @@ et{
         UK{"inglise mõõdustik"}
         US{"USA mõõdustik"}
         metric{"meetermõõdustik"}
-    }
-    parse{
-        date{
-            lenient{
-                "[\\- ‑ . /]",
-                "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ ₨ {Rp} {Rs}]",
-            }
-        }
-        number{
-            lenient{
-                "[\\-－﹣ ‑ ‒ −⁻₋ ➖]",
-                "[,，﹐︐ ⹁ ، ٫ 、﹑､︑]",
-                "[+＋﬩﹢⁺₊ ➕]",
-            }
-        }
     }
     personNames{
         nameOrderLocales{

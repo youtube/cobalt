@@ -299,15 +299,6 @@ gfx::Rect BrowserFrameViewChromeOS::GetBoundsForTabStripRegion(
 
 gfx::Rect BrowserFrameViewChromeOS::GetBoundsForWebAppFrameToolbar(
     const gfx::Size& toolbar_preferred_size) const {
-  if (!GetShowCaptionButtons()) {
-    return gfx::Rect();
-  }
-  if (browser_view()->browser()->is_type_app_popup() &&
-      !browser_view()->AppUsesWindowControlsOverlay() &&
-      !browser_view()->AppUsesBorderlessMode()) {
-    return gfx::Rect();
-  }
-
   const int x = GetToolbarLeftInset();
   const int available_width = caption_button_container_->x() - x;
   int painted_height = GetTopInset(false);
@@ -315,6 +306,20 @@ gfx::Rect BrowserFrameViewChromeOS::GetBoundsForWebAppFrameToolbar(
     painted_height += browser_view()->GetTabStripHeight();
   }
   return gfx::Rect(x, 0, std::max(0, available_width), painted_height);
+}
+
+bool BrowserFrameViewChromeOS::ShouldShowWebAppFrameToolbar() const {
+  if (!GetShowCaptionButtons()) {
+    return false;
+  }
+
+  if (browser_view()->browser()->is_type_app_popup() &&
+      !browser_view()->AppUsesWindowControlsOverlay() &&
+      !browser_view()->AppUsesBorderlessMode()) {
+    return false;
+  }
+
+  return true;
 }
 
 int BrowserFrameViewChromeOS::GetTopInset(bool restored) const {
@@ -895,7 +900,7 @@ bool BrowserFrameViewChromeOS::ShouldEnableImmersiveModeController() const {
     return false;
   }
 
-  if (IsTrustedPinned() &&
+  if (IsLockedFullscreen() &&
       !GetFrameWindow()->GetProperty(chromeos::kUseImmersiveInTrustedPinned)) {
     return false;
   }
@@ -924,9 +929,9 @@ bool BrowserFrameViewChromeOS::ShouldShowAvatarForTesting(
   return ShouldShowAvatar(window);
 }
 
-bool BrowserFrameViewChromeOS::IsTrustedPinned() const {
+bool BrowserFrameViewChromeOS::IsLockedFullscreen() const {
   return ash::WindowState::Get(browser_widget()->GetNativeWindow())
-      ->IsTrustedPinned();
+      ->IsLockedFullscreen();
 }
 
 void BrowserFrameViewChromeOS::PaintAsActiveChanged() {
@@ -970,7 +975,7 @@ bool BrowserFrameViewChromeOS::GetShowCaptionButtonsWhenNotInOverview() const {
   // state. This is to show the three dot menu which is a part of caption button
   // container, rather than showing buttons. Only relevant for non-web browser
   // scenarios.
-  if (IsTrustedPinned() &&
+  if (IsLockedFullscreen() &&
       GetFrameWindow()->GetProperty(chromeos::kUseImmersiveInTrustedPinned)) {
     return true;
   }

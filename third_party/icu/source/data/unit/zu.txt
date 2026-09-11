@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 zu{
     units{
         acceleration{
@@ -162,10 +162,6 @@ zu{
             week{
                 one{"{0} iviki"}
                 other{"{0} amaviki"}
-            }
-            year{
-                one{"{0} y"}
-                other{"{0} y"}
             }
         }
         energy{
@@ -420,10 +416,6 @@ zu{
             week{
                 one{"{0} w"}
                 other{"{0} w"}
-            }
-            year{
-                one{"{0} y"}
-                other{"{0} y"}
             }
         }
         electric{
@@ -942,11 +934,6 @@ zu{
                 dnam{"amaviki"}
                 one{"{0} viki"}
                 other{"{0} amaviki"}
-            }
-            year{
-                dnam{"y"}
-                one{"{0} y"}
-                other{"{0} yrs"}
             }
         }
         energy{

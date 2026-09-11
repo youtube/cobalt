@@ -35,6 +35,7 @@ import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.browser.tabmodel.PendingTabClosureManager.PendingTabClosureDelegate;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
 import org.chromium.chrome.browser.tasks.tab_management.MoveTabUtils;
+import org.chromium.components.tabs.TabStripCollection;
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.ArrayList;
@@ -406,22 +407,43 @@ public class TabModelImpl extends TabModelJniBridge {
     }
 
     @Override
-    public void pinTab(int tabId) {
+    public void pinTab(
+            int tabId,
+            boolean showUngroupDialog,
+            @Nullable TabModelActionListener tabModelActionListener) {
+        Tab eligibleTabToPin = getEligibleTabToPin(tabId);
+        if (eligibleTabToPin == null) return;
+
+        TabPinnerActionListener listener =
+                new TabPinnerActionListener(() -> doPin(tabId), tabModelActionListener);
+        getTabUngrouper()
+                .ungroupTabs(
+                        Collections.singletonList(eligibleTabToPin),
+                        /* trailing= */ true,
+                        showUngroupDialog,
+                        listener);
+        listener.pinIfCollaborationDialogShown();
+    }
+
+    private @Nullable Tab getEligibleTabToPin(int tabId) {
+        Tab tab = getTabById(tabId);
+        if (tab == null) return null;
+
+        if (tab.getIsPinned()) return null;
+
+        return tab;
+    }
+
+    private void doPin(int tabId) {
+        Tab tab = getEligibleTabToPin(tabId);
+        if (tab == null) return;
+
         int availableIndex = findFirstNonPinnedTabIndex();
         if (availableIndex == mTabs.size()) return;
 
-        Tab tab = getTabById(tabId);
-        if (tab == null) return;
-
-        if (tab.getIsPinned()) return;
-
-        // Call #notifyWillChangePinState before #moveTab. The notify step triggers
-        // TabGroupModelFilterImpl#willChangePinState to ungroup the tab prior to pinning.
-        // #moveTab typically kicks off StripLayoutHelper#rebuildStripView. If rebuild runs
-        // before the tab is removed from its group, the strip can treat the group as split,
-        // miscount groups, and hit an out-of-bounds.
         notifyWillChangeInPinState(tab);
         tab.setIsPinned(true);
+        recordPinTimestamp(tab);
         moveTab(tab.getId(), availableIndex);
         notifyDidChangeInPinState(tab);
     }
@@ -441,6 +463,7 @@ public class TabModelImpl extends TabModelJniBridge {
 
         notifyWillChangeInPinState(tab);
         tab.setIsPinned(false);
+        recordPinnedDuration(tab);
         notifyDidChangeInPinState(tab);
     }
 
@@ -1132,5 +1155,10 @@ public class TabModelImpl extends TabModelJniBridge {
         }
 
         return firstNonPinnedIndex;
+    }
+
+    @Override
+    public @Nullable TabStripCollection getTabStripCollection() {
+        return null;
     }
 }

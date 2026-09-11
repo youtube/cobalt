@@ -118,16 +118,16 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   explicit PeerConnectionFactory(
       PeerConnectionFactoryDependencies dependencies);
 
-  virtual ~PeerConnectionFactory();
+  ~PeerConnectionFactory() override;
 
  private:
-  Environment env_;
   Thread* network_thread() const { return context_->network_thread(); }
 
   std::unique_ptr<Call> CreateCall_w(
       const Environment& env,
       const PeerConnectionInterface::RTCConfiguration& configuration);
 
+  Environment env_;
   scoped_refptr<ConnectionContext> context_;
   PeerConnectionFactoryInterface::Options options_
       RTC_GUARDED_BY(signaling_thread());
@@ -141,6 +141,7 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   std::unique_ptr<NetEqFactory> neteq_factory_;
   std::unique_ptr<Metronome> decode_metronome_ RTC_GUARDED_BY(worker_thread());
   std::unique_ptr<Metronome> encode_metronome_ RTC_GUARDED_BY(worker_thread());
+  bool aec_dump_active_ RTC_GUARDED_BY(worker_thread()) = false;
 };
 
 }  // namespace webrtc

@@ -67,7 +67,7 @@ enum class Jump { kOmitted, kRequired };
 enum class Emission { kIfNeeded, kForced };
 enum class Alignment { kOmitted, kRequired };
 enum class RelocInfoStatus { kMustRecord, kMustOmitForDuplicate };
-enum class PoolEmissionCheck { kSkip };
+enum class ConstantPoolEmission { kSkip, kCheck };
 
 // Pools are emitted in the instruction stream, preferably after unconditional
 // jumps or after returns from functions (in dead code locations).
@@ -79,52 +79,28 @@ enum class PoolEmissionCheck { kSkip };
 // if so, a relocation info entry is associated to the constant pool entry.
 class ConstantPool {
  public:
-  explicit ConstantPool(Assembler* assm);
-  ~ConstantPool();
+  explicit ConstantPool(Assembler* assm) : assm_(assm) {}
+
+  bool IsEmpty() const { return deduped_entry_count_ == 0; }
 
   // Records a constant pool entry. Returns whether we need to write RelocInfo.
   RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode);
 
-  size_t EntryCount() const { return deduped_entry_count_; }
-  bool IsEmpty() const { return deduped_entry_count_ == 0; }
-
   // Check if pool will be out of range at {pc_offset}.
-  bool IsInImmRangeIfEmittedAt(int pc_offset);
-  // Size in bytes of the constant pool. Depending on parameters, the size will
-  // include the branch over the pool and alignment padding.
-  int ComputeSize(Jump require_jump, Alignment require_alignment) const;
+  bool IsInRangeIfEmittedAt(int pc_offset) const;
 
-  // Emit the pool at the current pc with a branch over the pool if requested.
-  void EmitAndClear(Jump require);
-  bool ShouldEmitNow(Jump require_jump, size_t margin = 0) const;
   V8_EXPORT_PRIVATE void Check(Emission force_emission, Jump require_jump,
                                size_t margin = 0);
 
   V8_EXPORT_PRIVATE void MaybeCheck();
   void Clear();
 
-  // Constant pool emission can be blocked temporarily.
-  bool IsBlocked() const;
-
   // Repeated checking whether the constant pool should be emitted is expensive;
   // only check once a number of bytes have been generated.
   void SetNextCheckIn(size_t bytes);
+  void DisableNextCheckIn() { next_check_ = kMaxInt; }
 
-  // Class for scoping postponing the constant pool generation.
-  class V8_EXPORT_PRIVATE V8_NODISCARD BlockScope {
-   public:
-    // BlockScope immediatelly emits the pool if necessary to ensure that
-    // during the block scope at least {margin} bytes can be emitted without
-    // pool emission becomming necessary.
-    explicit BlockScope(Assembler* pool, size_t margin = 0);
-    BlockScope(Assembler* pool, PoolEmissionCheck);
-    ~BlockScope();
-
-   private:
-    ConstantPool* pool_;
-    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockScope);
-  };
-
+ private:
   // Pool entries are accessed with pc relative load therefore this cannot be
   // more than 1 * MB. Since constant pool emission checks are interval based,
   // and we want to keep entries close to the code, we try to emit every 64KB.
@@ -141,17 +117,26 @@ class ConstantPool {
   // Number of entries in the pool which trigger a check.
   static const size_t kApproxMaxEntryCount = 512;
 
- private:
-  void StartBlock();
-  void EndBlock();
+  size_t EntryCount() const { return deduped_entry_count_; }
+
+  // Emit the pool at the current pc with a branch over the pool if requested.
+  void EmitAndClear(Jump require);
+  bool ShouldEmitNow(Jump require_jump, size_t margin = 0) const;
 
   void EmitEntries();
   void EmitPrologue(Alignment require_alignment);
-  int PrologueSize(Jump require_jump) const;
+
+  // Size in bytes of the constant pool. Depending on parameters, the size will
+  // include the branch over the pool and alignment padding.
+  int ComputeSize(Jump require_jump, Alignment require_alignment) const;
+
+  // Size of the prologue in bytes.
+  int ComputePrologueSize(Jump require_jump) const;
+
   RelocInfoStatus RecordKey(ConstantPoolKey key, int offset);
   RelocInfoStatus GetRelocInfoStatusFor(const ConstantPoolKey& key);
   void Emit(const ConstantPoolKey& key);
-  void SetLoadOffsetToConstPoolEntry(int load_offset, Instruction* entry_offset,
+  void SetLoadOffsetToConstPoolEntry(int load_offset, int entry_offset,
                                      const ConstantPoolKey& key);
   Alignment IsAlignmentRequiredIfEmittedAt(Jump require_jump,
                                            int pc_offset) const;
@@ -175,7 +160,6 @@ class ConstantPool {
   size_t deduped_entry_count_ = 0;
 
   int next_check_ = 0;
-  int blocked_nesting_ = 0;
 };
 
 }  // namespace internal

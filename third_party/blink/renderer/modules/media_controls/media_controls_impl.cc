@@ -231,7 +231,6 @@ bool ShouldShowCastButton(HTMLMediaElement& media_element) {
 
 bool ShouldShowCastOverlayButton(HTMLMediaElement& media_element) {
   return !media_element.ShouldShowControls() &&
-         RuntimeEnabledFeatures::MediaCastOverlayButtonEnabled() &&
          ShouldShowCastButton(media_element);
 }
 

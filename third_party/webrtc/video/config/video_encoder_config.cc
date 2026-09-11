@@ -108,6 +108,15 @@ bool VideoEncoderConfig::HasScaleResolutionDownTo() const {
   return false;
 }
 
+bool VideoEncoderConfig::HasScaleResolutionDownBy() const {
+  for (const VideoStream& simulcast_layer : simulcast_layers) {
+    if (simulcast_layer.scale_resolution_down_by >= 1.0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 VideoEncoderConfig::VideoEncoderConfig(const VideoEncoderConfig&) = default;
 
 SdpVideoFormat VideoEncoderConfig::GetSimulcastVideoFormat(

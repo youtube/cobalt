@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 km{
     Countries{
         001{"ពិភពលោក"}
@@ -312,6 +312,5 @@ km{
         CI{"អាយវ៉ូរី ខូសថ៍"}
         CZ{"សាធារណរដ្ឋឆែក"}
         TL{"ទីម័រ​ខាង​កើត"}
-        TR{"តួកគីយេ"}
     }
 }

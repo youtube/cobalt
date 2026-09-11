@@ -482,13 +482,6 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
     // refer to that code. The code cannot be shared across native contexts,
     // so we only need to search one.
     code->SetMarkedForDeoptimization(isolate, reason);
-#ifndef V8_ENABLE_LEAPTIERING_BOOL
-    // The code in the function's optimized code feedback vector slot might
-    // be different from the code on the function - evict it if necessary.
-    function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
-        isolate, function->shared(), "unlinking code marked for deopt");
-#endif  // !V8_ENABLE_LEAPTIERING_BOOL
-
     DeoptimizeMarkedCode(isolate);
   }
 }
@@ -948,6 +941,7 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
       &env, body,
       wasm::LiftoffOptions{}
           .set_func_index(function_index)
+          .set_counter_updates(native_module->counter_updates())
           .set_deopt_info_bytecode_offset(deopt_point.ToInt())
           .set_deopt_location_kind(
               is_topmost ? wasm::LocationKindForDeopt::kEagerDeopt
@@ -1440,6 +1434,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
 
   isolate()->counters()->wasm_deopts_executed()->AddSample(
       wasm::GetWasmEngine()->IncrementDeoptsExecutedCount());
+  native_module->counter_updates()->Publish(isolate());
 
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());

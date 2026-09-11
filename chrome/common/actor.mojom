@@ -372,6 +372,13 @@ enum ActionResultCode {
   // Neither the username, nor the password field could be filled.
   kLoginNoFillableFields = 903,
 
+  // The use of the password manager is not allowed on the page (e.g. blocked
+  // by enterprise policy).
+  kLoginFillingNotAllowed = 904,
+
+  // The page changed before the credential selected by the user was filled.
+  kLoginPageChangedDuringSelection = 905,
+
   // Please see the comment above about adding new values.
 };
 
@@ -402,6 +409,10 @@ struct ToolInvocation {
 struct ActionResult {
   // A code with the outcome of the tool invocation.
   ActionResultCode code;
+
+  // Whether any action was taken on the page. This is used to know if we need
+  // to wait for the page to settle.
+  bool requires_page_stabilization;
 
   // If the code is not kOk, an English language message describing the error.
   string message;

@@ -46,14 +46,21 @@ class WebNNGraphBuilderImpl;
 class WebNNTensorImpl;
 class ScopedSequence;
 
+// A WebNNContextImpl owns a collection of graphs and tensors and may be bound
+// to a device such as a GPU or NPU. It is created and destroyed on its
+// `owning_task_runner()`. Mojo messages are dispatched on
+// `scheduler_task_runner()`, which is a distinct task runner but runs on the
+// same thread.
 class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
-    : public WebNNObjectImpl<mojom::WebNNContext, blink::WebNNContextToken> {
+    : public WebNNObjectImpl<mojom::WebNNContext,
+                             blink::WebNNContextToken,
+                             mojo::Receiver<mojom::WebNNContext>> {
  public:
   using CreateGraphImplCallback = base::OnceCallback<void(
       base::expected<scoped_refptr<WebNNGraphImpl>, mojom::ErrorPtr>)>;
 
   WebNNContextImpl(
-      mojo::PendingAssociatedReceiver<mojom::WebNNContext> receiver,
+      mojo::PendingReceiver<mojom::WebNNContext> receiver,
       WebNNContextProviderImpl* context_provider,
       ContextProperties properties,
       mojom::CreateContextOptionsPtr options,
@@ -61,7 +68,10 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
       mojo::ScopedDataPipeProducerHandle read_tensor_producer,
       gpu::CommandBufferId command_buffer_id,
       std::unique_ptr<ScopedSequence> sequence,
-      scoped_refptr<gpu::SchedulerTaskRunner> task_runner);
+      scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
+      scoped_refptr<gpu::MemoryTracker> memory_tracker,
+      scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+      gpu::SharedImageManager* shared_image_manager);
 
   WebNNContextImpl(const WebNNContextImpl&) = delete;
   WebNNContextImpl& operator=(const WebNNContextImpl&) = delete;
@@ -132,7 +142,7 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // Exposes a SequencedTaskRunner which can be used to schedule tasks in
   // sequence with this WebNNContext -- that is, on the same gpu::Scheduler
   // sequence. Does not support nested loops or delayed tasks.
-  scoped_refptr<base::SequencedTaskRunner> scheduler_task_runner() const {
+  scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner() const {
     return scheduler_task_runner_;
   }
 
@@ -205,7 +215,9 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // by the lifetime of the tensors it contains.
   base::flat_set<
       scoped_refptr<WebNNTensorImpl>,
-      WebNNObjectImpl<mojom::WebNNTensor, blink::WebNNTensorToken>::Comparator>
+      WebNNObjectImpl<mojom::WebNNTensor,
+                      blink::WebNNTensorToken,
+                      mojo::AssociatedReceiver<mojom::WebNNTensor>>::Comparator>
       tensor_impls_;
 
  private:
@@ -219,7 +231,9 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // context during operations.
   base::flat_set<
       scoped_refptr<WebNNGraphImpl>,
-      WebNNObjectImpl<mojom::WebNNGraph, blink::WebNNGraphToken>::Comparator>
+      WebNNObjectImpl<mojom::WebNNGraph,
+                      blink::WebNNGraphToken,
+                      mojo::AssociatedReceiver<mojom::WebNNGraph>>::Comparator>
       graph_impls_;
 
   const gpu::CommandBufferId command_buffer_id_;
@@ -242,6 +256,21 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // Data pipe handles for transferring tensor data across processes.
   mojo::ScopedDataPipeConsumerHandle write_tensor_consumer_;
   mojo::ScopedDataPipeProducerHandle read_tensor_producer_;
+
+  // The MemoryTypeTracker is used for creating tensors from shared images.
+  // It is stored on the context because only the tracker it was created with
+  // is thread safe.
+  gpu::MemoryTypeTracker memory_type_tracker_;
+
+  // The SharedImageManager is used for creating tensors from shared images.
+  // It is provided by the provider but stored per context, because only the
+  // SharedImageManager is thread-safe.
+  //
+  // Storing a raw pointer is safe because WebNNContextImpl is owned by its
+  // provider and cannot outlive it, while the SharedImageManager is managed by
+  // the GPU service and destroyed after the provider, ensuring the raw pointer
+  // remains valid.
+  const raw_ptr<gpu::SharedImageManager> shared_image_manager_;
 };
 
 }  // namespace webnn

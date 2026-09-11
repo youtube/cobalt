@@ -22,10 +22,14 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/neural_feature_extractor.h"
+#include "third_party/tflite/src/tensorflow/lite/c/c_api_types.h"
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/aec3/neural_residual_echo_estimator.pb.h"
 #else
@@ -36,9 +40,10 @@
 #include "rtc_base/logging.h"
 #include "third_party/tflite/src/tensorflow/lite/error_reporter.h"
 #include "third_party/tflite/src/tensorflow/lite/interpreter.h"
+#include "third_party/tflite/src/tensorflow/lite/interpreter_builder.h"
 #include "third_party/tflite/src/tensorflow/lite/kernels/kernel_util.h"
-#include "third_party/tflite/src/tensorflow/lite/kernels/register.h"
 #include "third_party/tflite/src/tensorflow/lite/model_builder.h"
+#include "third_party/tflite/src/tensorflow/lite/op_resolver.h"
 
 namespace webrtc {
 namespace {
@@ -109,7 +114,7 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
     for (const auto input_enum :
          {ModelInputEnum::kMic, ModelInputEnum::kLinearAecOutput,
           ModelInputEnum::kAecRef}) {
-      webrtc::ArrayView<float> input_tensor(
+      ArrayView<float> input_tensor(
           tflite_interpreter_->typed_input_tensor<float>(
               static_cast<int>(input_enum)),
           input_tensor_size_);
@@ -136,7 +141,7 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
 
   int StepSize() const override { return step_size_; }
 
-  webrtc::ArrayView<float> GetInput(ModelInputEnum input_enum) override {
+  ArrayView<float> GetInput(ModelInputEnum input_enum) override {
     int tensor_size = 0;
     switch (input_enum) {
       case ModelInputEnum::kMic:              // fall-through
@@ -150,14 +155,13 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
       case ModelInputEnum::kNumInputs:
         RTC_CHECK(false);
     }
-    return webrtc::ArrayView<float>(
-        tflite_interpreter_->typed_input_tensor<float>(
-            static_cast<int>(input_enum)),
-        tensor_size);
+    return ArrayView<float>(tflite_interpreter_->typed_input_tensor<float>(
+                                static_cast<int>(input_enum)),
+                            tensor_size);
   }
 
-  webrtc::ArrayView<const float> GetOutputEchoMask() override {
-    return webrtc::ArrayView<const float>(
+  ArrayView<const float> GetOutputEchoMask() override {
+    return ArrayView<const float>(
         tflite_interpreter_->typed_output_tensor<const float>(
             static_cast<int>(ModelOutputEnum::kEchoMask)),
         frame_size_by_2_plus_1_);
@@ -183,7 +187,7 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
       --processing_error_log_counter_;
     }
 
-    auto output_state = webrtc::ArrayView<const float>(
+    auto output_state = ArrayView<const float>(
         tflite_interpreter_->typed_output_tensor<const float>(
             static_cast<int>(ModelOutputEnum::kModelState)),
         model_state_.size());
@@ -230,12 +234,12 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
   // Counter to avoid logging processing errors too often.
   int processing_error_log_counter_ = 0;
 };
-
 }  // namespace
 
 std::unique_ptr<NeuralResidualEchoEstimatorImpl::ModelRunner>
 NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
-    absl::string_view ml_ree_model_path) {
+    absl::string_view ml_ree_model_path,
+    const tflite::OpResolver& op_resolver) {
   std::string model_data;
   auto model = tflite::FlatBufferModel::BuildFromFile(
       std::string(ml_ree_model_path).c_str(), DefaultLoggingErrorReporter());
@@ -244,8 +248,8 @@ NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
     return nullptr;
   }
   std::unique_ptr<tflite::Interpreter> interpreter;
-  tflite::ops::builtin::BuiltinOpResolver resolver;
-  if (tflite::InterpreterBuilder(*model, resolver)(&interpreter) != kTfLiteOk) {
+  if (tflite::InterpreterBuilder(*model, op_resolver)(&interpreter) !=
+      kTfLiteOk) {
     RTC_LOG(LS_ERROR) << "Error creating interpreter";
     return nullptr;
   }
@@ -282,10 +286,23 @@ NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
                                              std::move(interpreter), *metadata);
 }
 
+absl_nullable std::unique_ptr<NeuralResidualEchoEstimator>
+NeuralResidualEchoEstimatorImpl::Create(absl::string_view ml_ree_model_path,
+                                        const tflite::OpResolver& op_resolver) {
+  std::unique_ptr<ModelRunner> model_runner =
+      NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(ml_ree_model_path,
+                                                       op_resolver);
+  if (!model_runner) {
+    return nullptr;
+  }
+  return std::make_unique<NeuralResidualEchoEstimatorImpl>(
+      std::move(model_runner));
+}
+
 int NeuralResidualEchoEstimatorImpl::instance_count_ = 0;
 
 NeuralResidualEchoEstimatorImpl::NeuralResidualEchoEstimatorImpl(
-    std::unique_ptr<ModelRunner> model_runner)
+    absl_nonnull std::unique_ptr<ModelRunner> model_runner)
     : model_runner_(std::move(model_runner)),
       data_dumper_(new ApmDataDumper(++instance_count_)) {
   input_mic_buffer_.reserve(model_runner_->StepSize());
@@ -301,14 +318,14 @@ NeuralResidualEchoEstimatorImpl::NeuralResidualEchoEstimatorImpl(
 }
 
 void NeuralResidualEchoEstimatorImpl::Estimate(
-    webrtc::ArrayView<const float> x,
-    webrtc::ArrayView<const std::array<float, kBlockSize>> y,
-    webrtc::ArrayView<const std::array<float, kBlockSize>> e,
-    webrtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
-    webrtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>> Y2,
-    webrtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
-    webrtc::ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
-    webrtc::ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) {
+    ArrayView<const float> x,
+    ArrayView<const std::array<float, kBlockSize>> y,
+    ArrayView<const std::array<float, kBlockSize>> e,
+    ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
+    ArrayView<const std::array<float, kFftLengthBy2Plus1>> Y2,
+    ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
+    ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
+    ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) {
   // The input is buffered for model inference; multi-channel data is handled by
   // summing the content of all channels.
   input_mic_buffer_.insert(input_mic_buffer_.end(), y[0].begin(), y[0].end());
@@ -337,8 +354,7 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
         model_runner_->GetInput(ModelInputEnum::kAecRef));
     if (model_runner_->Invoke()) {
       // Downsample output mask to match the AEC3 frequency resolution.
-      webrtc::ArrayView<const float> output_mask =
-          model_runner_->GetOutputEchoMask();
+      ArrayView<const float> output_mask = model_runner_->GetOutputEchoMask();
       const int kDownsampleFactor = (output_mask.size() - 1) / kFftLengthBy2;
       output_mask_[0] = output_mask[0];
       for (size_t i = 1; i < kFftLengthBy2Plus1; ++i) {
@@ -367,6 +383,27 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
                    [](float power, float mask) { return power * mask; });
     std::copy(R2[ch].begin(), R2[ch].end(), R2_unbounded[ch].begin());
   }
+}
+
+EchoCanceller3Config NeuralResidualEchoEstimatorImpl::GetConfiguration(
+    bool multi_channel) const {
+  EchoCanceller3Config config;
+  EchoCanceller3Config::Suppressor::MaskingThresholds tuning_masking_thresholds(
+      /*enr_transparent=*/0.0f, /*enr_suppress=*/1.0f,
+      /*emr_transparent=*/0.3f);
+  EchoCanceller3Config::Suppressor::Tuning tuning(
+      /*mask_lf=*/tuning_masking_thresholds,
+      /*mask_hf=*/tuning_masking_thresholds, /*max_inc_factor=*/100.0f,
+      /*max_dec_factor_lf=*/0.0f);
+  config.filter.enable_coarse_filter_output_usage = false;
+  config.suppressor.nearend_average_blocks = 1;
+  config.suppressor.normal_tuning = tuning;
+  config.suppressor.nearend_tuning = tuning;
+  config.suppressor.dominant_nearend_detection.enr_threshold = 0.5f;
+  config.suppressor.dominant_nearend_detection.trigger_threshold = 2;
+  config.suppressor.high_frequency_suppression.limiting_gain_band = 24;
+  config.suppressor.high_frequency_suppression.bands_in_limiting_gain = 3;
+  return config;
 }
 
 void NeuralResidualEchoEstimatorImpl::DumpInputs() {

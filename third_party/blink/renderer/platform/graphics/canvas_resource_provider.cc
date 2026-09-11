@@ -492,8 +492,7 @@ void CanvasResourceProviderSharedImage::EndWriteAccess() {
   current_resource_has_write_access_ = false;
 }
 
-void CanvasResourceProviderSharedImage::WillDrawInternal(
-    bool write_to_local_texture) {
+void CanvasResourceProviderSharedImage::WillDrawInternal() {
   DCHECK(resource_);
 
   if (IsGpuContextLost()) {
@@ -536,12 +535,12 @@ void CanvasResourceProviderSharedImage::WillDrawInternal(
     }
     resource_ = NewOrRecycledResource();
     DCHECK(IsResourceUsable(resource_.get()));
-
+    resource_->WaitSyncToken();
     if (mode_ == SkSurface::kRetain_ContentChangeMode) {
       auto old_mailbox =
           old_resource_shared_image->GetClientSharedImage()->mailbox();
       auto mailbox = resource()->GetClientSharedImage()->mailbox();
-
+      old_resource->WaitSyncToken();
       RasterInterface()->CopySharedImage(old_mailbox, mailbox, 0, 0, 0, 0,
                                          Size().width(), Size().height());
     } else {
@@ -553,24 +552,19 @@ void CanvasResourceProviderSharedImage::WillDrawInternal(
     UMA_HISTOGRAM_BOOLEAN("Blink.Canvas.ContentChangeMode",
                           mode_ == SkSurface::kRetain_ContentChangeMode);
     mode_ = SkSurface::kRetain_ContentChangeMode;
-  }
-
-  if (write_to_local_texture) {
-    EnsureWriteAccess();
   } else {
-    EndWriteAccess();
-  }
-
-  if (resource()) {
-    resource()->WillDraw();
+    resource_->WaitSyncToken();
   }
 }
 
-void CanvasResourceProviderSharedImage::WillDraw() {
+void CanvasResourceProviderSharedImage::WillDrawUnaccelerated() {
+  CHECK(!IsAccelerated());
+
   if (is_software_) {
     return;
   }
-  WillDrawInternal(true);
+  cached_snapshot_.reset();
+  EnsureWriteAccess();
 }
 
 bool CanvasResourceProviderSharedImage::WritePixels(
@@ -580,6 +574,7 @@ bool CanvasResourceProviderSharedImage::WritePixels(
     int x,
     int y) {
   if (!is_accelerated_) {
+    WillDrawUnaccelerated();
     return UnacceleratedWritePixels(orig_info, pixels, row_bytes, x, y);
   }
 
@@ -595,13 +590,15 @@ bool CanvasResourceProviderSharedImage::WritePixels(
   // actually intended here and either don't call the former (preserving
   // current behavior) or call resource()->GetClientSharedImage() rather than
   // the latter (if the current behavior is a bug).
-  WillDrawInternal(true);
+  WillDrawInternal();
+  EnsureWriteAccess();
 
   // End the internal write access before calling WillDrawInternal(), which
   // has a precondition that there should be no current write access on the
   // resource.
   EndWriteAccess();
-  WillDrawInternal(false);
+  WillDrawInternal();
+  EndWriteAccess();
 
   auto client_si = resource()->GetClientSharedImage();
   RasterInterface()->WritePixels(client_si->mailbox(), x, y,
@@ -635,7 +632,8 @@ bool CanvasResourceProviderSharedImage::OverwriteImage(
   }
 
   EndWriteAccess();
-  WillDrawInternal(false);
+  WillDrawInternal();
+  EndWriteAccess();
 
   auto dst_client_si = resource()->GetClientSharedImage();
   if (!dst_client_si) {
@@ -706,17 +704,6 @@ CanvasResourceProviderSharedImage::ProduceCanvasResource(FlushReason reason) {
     return nullptr;
   }
   scoped_refptr<CanvasResource> resource = resource_;
-  if (ContextProviderWrapper()
-          ->ContextProvider()
-          .GetCapabilities()
-          .disable_2d_canvas_copy_on_write) {
-    // A readback operation may alter the texture parameters, which may affect
-    // the compositor's behavior. Therefore, we must trigger copy-on-write
-    // even though we are not technically writing to the texture, only to its
-    // parameters. This issue is Android-WebView specific: crbug.com/585250.
-    WillDraw();
-    resource->GetSyncToken();
-  }
 
   if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
                                               IsAccelerated())) {
@@ -784,7 +771,9 @@ CanvasResourceProviderSharedImage::GetBackingClientSharedImageForExternalWrite(
   EndWriteAccess();
 
   const CanvasResource* const original_resource = resource_.get();
-  WillDrawInternal(false);
+  WillDrawInternal();
+  EndWriteAccess();
+
   if (was_copy_performed != nullptr) {
     *was_copy_performed = resource_.get() != original_resource;
   }
@@ -815,7 +804,8 @@ void CanvasResourceProviderSharedImage::ExternalCanvasDrawHelper(
     // conditional WillDraw(), but we are getting memory leak on CreatePattern
     // with it. There should be a better way to solve this.
     if (cached_snapshot_) {
-      WillDrawInternal(true);
+      WillDrawInternal();
+      EnsureWriteAccess();
     }
   }
 
@@ -875,6 +865,7 @@ scoped_refptr<StaticBitmapImage> CanvasResourceProviderSharedImage::Snapshot(
 void CanvasResourceProviderSharedImage::RasterRecord(
     cc::PaintRecord last_recording) {
   if (!is_accelerated_) {
+    WillDrawUnaccelerated();
     UnacceleratedRasterRecord(std::move(last_recording));
     return;
   }
@@ -883,7 +874,9 @@ void CanvasResourceProviderSharedImage::RasterRecord(
     return;
   }
 
-  WillDrawInternal(true);
+  WillDrawInternal();
+  EnsureWriteAccess();
+
   const bool needs_clear = !is_cleared_;
   is_cleared_ = true;
   AcceleratedRasterRecord(std::move(last_recording), needs_clear,
@@ -1003,7 +996,7 @@ class CanvasResourceProviderSwapChain final : public CanvasResourceProvider {
   bool IsSingleBuffered() const override { return true; }
 
  private:
-  void WillDraw() override {
+  void WillDraw() {
     needs_present_ = true;
     needs_flush_ = true;
   }
@@ -1621,8 +1614,6 @@ void CanvasResourceProvider::NotifyWillTransfer(
 
 void CanvasResourceProvider::EnsureSkiaCanvas() {
   CHECK(!IsAccelerated());
-
-  WillDraw();
 
   if (skia_canvas_)
     return;

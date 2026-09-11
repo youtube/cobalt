@@ -27,6 +27,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_or_resource_context.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/process_allocation_context.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_ui_controller_factory.h"
 #include "content/public/common/content_client.h"
@@ -341,7 +342,8 @@ scoped_refptr<SiteInstanceImpl> SiteInstanceImpl::CreateForTesting(
 // static
 bool SiteInstanceImpl::ShouldAssignSiteForUrlInfo(const UrlInfo& url_info) {
   // Only empty document schemes can leave SiteInstances unassigned.
-  if (!base::Contains(url::GetEmptyDocumentSchemes(), url_info.url.scheme())) {
+  if (!base::Contains(url::GetEmptyDocumentSchemes(),
+                      url_info.url.GetScheme())) {
     return true;
   }
 

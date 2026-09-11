@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 yrl{
     Keys{
         calendar{"Akayupawa"}
@@ -766,7 +766,6 @@ yrl{
             phonebook{"Terefuni sesewara muakaresawa"}
             phonetic{"Yupurawakasawa terefuniara mukaresawa"}
             pinyin{"Pin-yin mukaresawa"}
-            reformed{"Muakaresawa amũrupisawaira"}
             search{"Sikaisá purusawa panhérupí"}
             searchjl{"Resikai kũsuãti uyupiruwa hangul rupí"}
             standard{"Mukaresawa retewa"}

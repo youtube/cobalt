@@ -90,6 +90,49 @@ BASE_FEATURE(kAutofillAiCreateEntityDataManager,
 BASE_FEATURE(kAutofillAiIgnoreCapabilityCheck,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, a HaTS survey is shown after a walletable suggestion is
+// displayed and the form submitted. The survey does not require the suggestion
+// to be accepted.
+BASE_FEATURE(kAutofillAiFillingSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyVehicleInfoTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_vehicle_info_trigger_id", ""};
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyFlightReservationTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_flight_reservation_trigger_id", ""};
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyDriversLicenseTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_drivers_license_trigger_id", ""};
+const base::FeatureParam<std::string> kAutofillAiFillingSurveyPassportTriggerId{
+    &kAutofillAiFillingSurvey, "autofill_ai_filling_survey_passport_trigger_id",
+    ""};
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyNationalIDTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_national_id_trigger_id", ""};
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyRedressNumberTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_redress_number_trigger_id", ""};
+const base::FeatureParam<std::string> kAutofillAiFillingSurveyKTNTriggerId{
+    &kAutofillAiFillingSurvey, "autofill_ai_filling_survey_ktn_trigger_id", ""};
+
+// When enabled, a HaTS survey is shown after the save prompt for a walletable
+// entity was interacted with.
+BASE_FEATURE(kAutofillAiSavePromptSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string>
+    kAutofillAiSavePromptSurveyAcceptedTriggerId{
+        &kAutofillAiSavePromptSurvey,
+        "autofill_ai_walletable_entity_save_prompt_survey_accepted_trigger_id",
+        ""};
+const base::FeatureParam<std::string>
+    kAutofillAiSavePromptSurveyDeclinedTriggerId{
+        &kAutofillAiSavePromptSurvey,
+        "autofill_ai_walletable_entity_save_prompt_survey_declined_trigger_id",
+        ""};
 // Allows us to control which actions `kAutofillAiIgnoreCapabilityCheck` applies
 // to. If `kAutofillAiIgnoreCapabilityCheckOnlyForNonModelActions` is true, then
 // MES and MQLS interactions are still constrained by an account-level
@@ -473,6 +516,13 @@ BASE_FEATURE(kAutofillSupportLastNamePrefix, base::FEATURE_DISABLED_BY_DEFAULT);
 // TODO(crbug.com/369503318): Clean up when launched.
 BASE_FEATURE(kAutofillSupportSplitZipCode, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Kill switch: If true, AutofillManager::AfterParsingFinishesDeprecated()
+// becomes the identity function. That is, it does not delay the callback until
+// after parsing has finished.
+// TODO(crbug.com/448144129): Clean up after M144 branch point (Dec 1, 2025).
+BASE_FEATURE(kAutofillSynchronousAfterParsing,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables extended zip code validation
 // and new zip code merging logic.
 // TODO(crbug.com/434140055): Clean up when launched.
@@ -504,10 +554,11 @@ BASE_FEATURE_PARAM(bool,
 // special cases. See
 // `FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields`.
 BASE_FEATURE_PARAM(bool,
-                   kAutofillModelPredictionsSmallFormRules,
-                   &kAutofillModelPredictions,
-                   "small_form_rules",
-                   false);
+    kAutofillModelPredictionsSmallFormRules,
+    &kAutofillModelPredictions,
+    "small_form_rules",
+    false);
+
 
 // If enabled, a pre-filled field will not be filled.
 BASE_FEATURE(kAutofillSkipPreFilledFields, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -802,11 +853,6 @@ BASE_FEATURE(kAutofillThirdPartyModeContentProvider,
 // Defines if the "Your Saved Info" page is eligible to be shown in Chrome
 // settings.
 BASE_FEATURE(kYourSavedInfoSettingsPage, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, the FieldClassificationModelHandler loads models with priority
-// USER_VISIBLE instead of BEST_EFFORT.
-BASE_FEATURE(kAutofillLoadModelWithHigherPriority,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace test {
 

@@ -18,10 +18,10 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.components.tabs.TabStripCollection;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.OptionalInt;
 import java.util.Set;
 
 /** Singleton class intended to stub out Tab model before it has been created. */
@@ -159,7 +159,10 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     public void moveTab(int id, int newIndex) {}
 
     @Override
-    public void pinTab(int tabId) {}
+    public void pinTab(
+            int tabId,
+            boolean showUngroupDialog,
+            @Nullable TabModelActionListener tabModelActionListener) {}
 
     @Override
     public void unpinTab(int tabId) {}
@@ -263,8 +266,8 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     }
 
     @Override
-    public OptionalInt getNativeSessionIdForTesting() {
-        return OptionalInt.empty();
+    public @Nullable Integer getNativeSessionIdForTesting() {
+        return null;
     }
 
     @Override
@@ -273,5 +276,10 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     @Override
     public boolean isMuted(Tab tab) {
         return false;
+    }
+
+    @Override
+    public @Nullable TabStripCollection getTabStripCollection() {
+        return null;
     }
 }

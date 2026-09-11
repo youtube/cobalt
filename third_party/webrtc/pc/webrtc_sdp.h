@@ -27,13 +27,11 @@
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
-#include "api/jsep_session_description.h"
 #include "api/rtp_parameters.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
-class JsepSessionDescription;
 struct SdpParseError;
 
 // Serializes the passed in SessionDescriptionInterface.

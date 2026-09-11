@@ -169,18 +169,20 @@ ConnectionContext::ConnectionContext(
   worker_thread_->SetDispatchWarningMs(30);
   network_thread_->SetDispatchWarningMs(10);
 
-  if (media_engine_) {
-    // TODO(tommi): Change VoiceEngine to do ctor time initialization so that
-    // this isn't necessary.
-    worker_thread_->BlockingCall([&] { media_engine_->Init(); });
-  }
-
   blocking_media_engine_destruction_ =
       env.field_trials().IsEnabled("WebRTC-SynchronousDestructors");
 }
 
 ConnectionContext::~ConnectionContext() {
   RTC_DCHECK_RUN_ON(signaling_thread_);
+
+  // Now that the `media_engine_reference_count_` will be 0 when we get here,
+  // the blocking terminate operation that previously ran as part of the
+  // destructor of the media engine, has already run and there's not
+  // a need any longer to do the blocking call behind the
+  // `blocking_media_engine_destruction_` flag.
+  RTC_DCHECK_EQ(media_engine_reference_count_, 0);
+
   // `media_engine_` requires destruction to happen on the worker thread.
   if (blocking_media_engine_destruction_) {
     // The media engine shares its Environment with objects that may outlive
@@ -203,6 +205,26 @@ ConnectionContext::~ConnectionContext() {
 
   if (wraps_current_thread_)
     ThreadManager::Instance()->UnwrapCurrentThread();
+}
+
+void ConnectionContext::AddRefMediaEngine() {
+  RTC_DCHECK_RUN_ON(worker_thread());
+  RTC_DCHECK_GE(media_engine_reference_count_, 0);
+  RTC_DCHECK(media_engine_);
+  ++media_engine_reference_count_;
+  if (media_engine_reference_count_ == 1) {
+    media_engine_->Init();
+  }
+}
+
+void ConnectionContext::ReleaseMediaEngine() {
+  RTC_DCHECK_RUN_ON(worker_thread());
+  RTC_DCHECK_GT(media_engine_reference_count_, 0);
+  RTC_DCHECK(media_engine_);
+  --media_engine_reference_count_;
+  if (media_engine_reference_count_ == 0) {
+    media_engine_->Terminate();
+  }
 }
 
 }  // namespace webrtc

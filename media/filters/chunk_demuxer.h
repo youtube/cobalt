@@ -441,10 +441,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   [[nodiscard]] base::TimeDelta GetWriteHead(const std::string& id) const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-  void OnMemoryPressure(
-      base::TimeDelta currentMediaTime,
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
-      bool force_instant_gc);
 
   // Returns the current presentation duration.
   double GetDuration();

@@ -53,8 +53,6 @@ class VideoFrameTest : public testing::Test {
  public:
   void SetUp() override {
     test_context_provider_ = viz::TestContextProvider::CreateRaster();
-    test_context_provider_->UnboundTestRasterInterface()->set_gpu_rasterization(
-        true);
     InitializeSharedGpuContextRaster(test_context_provider_.get());
   }
 
@@ -192,8 +190,6 @@ TEST_F(VideoFrameTest, ConstructorOddSize) {
 
 TEST_F(VideoFrameTest, CopyToRGB) {
   V8TestingScope scope;
-
-  ScopedWebCodecsCopyToRGBForTest feature(true);
   scoped_refptr<media::VideoFrame> media_frame = CreateBlackMediaVideoFrame(
       base::Microseconds(1000), media::PIXEL_FORMAT_I420,
       /* coded_size= */ gfx::Size(64, 48),

@@ -175,7 +175,34 @@ rtc_source_set("echo_control") {
 rtc_source_set("neural_residual_echo_estimator_api") {
   visibility = [ "*" ]
   sources = [ "neural_residual_echo_estimator.h" ]
-  deps = [ "..:array_view" ]
+  deps = [
+    ":aec3_config",
+    "..:array_view",
+  ]
+}
+
+if (rtc_enable_protobuf) {
+  rtc_library("neural_residual_echo_estimator_creator") {
+    visibility = [ "*" ]
+    allow_poison = [ "default_neural_residual_echo_estimator" ]
+    configs += [ "../../modules/audio_processing:apm_debug_dump" ]
+    sources = [
+      "neural_residual_echo_estimator_creator.cc",
+      "neural_residual_echo_estimator_creator.h",
+    ]
+    deps = [
+      ":neural_residual_echo_estimator_api",
+      "../../modules/audio_processing/aec3:neural_residual_echo_estimator_impl",
+      "../../rtc_base:checks",
+      "//third_party/abseil-cpp/absl/base:nullability",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+    if (build_with_chromium) {
+      deps += [ "//third_party/tflite" ]
+    } else {
+      deps += [ "//third_party/tflite:tflite_standalone" ]
+    }
+  }
 }
 
 rtc_library("echo_detector_creator") {

@@ -58,11 +58,12 @@ AsyncTCPSocketBase::AsyncTCPSocketBase(
       max_outsize_(max_packet_size) {
   inbuf_.EnsureCapacity(kMinimumRecvSize);
 
-  socket_->SignalConnectEvent.connect(this,
-                                      &AsyncTCPSocketBase::OnConnectEvent);
+  socket_->SubscribeConnectEvent(
+      [this](Socket* socket) { OnConnectEvent(socket); });
   socket_->SignalReadEvent.connect(this, &AsyncTCPSocketBase::OnReadEvent);
   socket_->SignalWriteEvent.connect(this, &AsyncTCPSocketBase::OnWriteEvent);
-  socket_->SignalCloseEvent.connect(this, &AsyncTCPSocketBase::OnCloseEvent);
+  socket_->SubscribeCloseEvent(
+      [this](Socket* socket, int error) { OnCloseEvent(socket, error); });
 }
 
 AsyncTCPSocketBase::~AsyncTCPSocketBase() {}

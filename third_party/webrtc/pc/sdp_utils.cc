@@ -11,10 +11,8 @@
 #include "pc/sdp_utils.h"
 
 #include <memory>
-#include <utility>
 
 #include "api/jsep.h"
-#include "api/jsep_session_description.h"
 #include "p2p/base/transport_info.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"

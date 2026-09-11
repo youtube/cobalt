@@ -1,16 +1,10 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 fo{
     zoneStrings{
         "Africa:Djibouti"{
             ec{"Djibuti"}
-        }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
@@ -24,9 +18,6 @@ fo{
         "America:Costa_Rica"{
             ec{"Kosta Rika"}
         }
-        "America:Curacao"{
-            ec{"Curaçao"}
-        }
         "America:Jamaica"{
             ec{"Jamaika"}
         }
@@ -35,9 +26,6 @@ fo{
         }
         "America:Puerto_Rico"{
             ec{"Puerto Riko"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "Asia:Bahrain"{
             ec{"Barein"}
@@ -77,9 +65,6 @@ fo{
         }
         "Atlantic:South_Georgia"{
             ec{"Suðurgeorgiaoyggjar"}
-        }
-        "Australia:Currie"{
-            ec{"Currie"}
         }
         "Etc:UTC"{
             ls{"Samskipað heimstíð"}
@@ -132,9 +117,6 @@ fo{
         "Europe:Stockholm"{
             ec{"Stokkhólm"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Uzhhorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikanið"}
         }
@@ -152,9 +134,6 @@ fo{
         }
         "Indian:Mauritius"{
             ec{"Móritius"}
-        }
-        "Indian:Reunion"{
-            ec{"Réunion"}
         }
         "Pacific:Enderbury"{
             ec{"Enderbury"}
@@ -310,11 +289,6 @@ fo{
             ld{"Kina summartíð"}
             lg{"Kina tíð"}
             ls{"Kina vanlig tíð"}
-        }
-        "meta:Choibalsan"{
-            ld{"Choibalsan summartíð"}
-            lg{"Choibalsan tíð"}
-            ls{"Choibalsan vanlig tíð"}
         }
         "meta:Christmas"{
             ls{"Jólaoyggj tíð"}
@@ -474,6 +448,9 @@ fo{
             lg{"Japan tíð"}
             ls{"Japan vanlig tíð"}
         }
+        "meta:Kazakhstan"{
+            ls{"Kasakstan tíð"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Eystur Kasakstan tíð"}
         }
@@ -504,9 +481,6 @@ fo{
             lg{"Lord Howe tíð"}
             ls{"Lord Howe vanlig tíð"}
         }
-        "meta:Macquarie"{
-            ls{"Macquariesoyggj tíð"}
-        }
         "meta:Magadan"{
             ld{"Magadan summartíð"}
             lg{"Magadan tíð"}
@@ -531,11 +505,6 @@ fo{
         }
         "meta:Mawson"{
             ls{"Mawson tíð"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Northwest Mexico summartíð"}
-            lg{"Northwest Mexico tíð"}
-            ls{"Northwest Mexico vanlig tíð"}
         }
         "meta:Mexico_Pacific"{
             ld{"Mexican Pacific summartíð"}

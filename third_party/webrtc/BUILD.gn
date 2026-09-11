@@ -78,6 +78,7 @@ if (!build_with_chromium) {
         "video:screenshare_loopback",
         "video:sv_loopback",
         "video:video_loopback",
+        "video/timing:video_timing_tests",
       ]
       if (use_libfuzzer) {
         deps += [ "test/fuzzers" ]

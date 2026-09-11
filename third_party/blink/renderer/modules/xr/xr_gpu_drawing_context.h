@@ -13,15 +13,14 @@ class GPUDevice;
 class XRCompositionLayer;
 class XRGPUBinding;
 class XRGPUSwapChain;
+class XRSession;
 
 class XRGPUDrawingContext final : public XRLayerDrawingContext {
  public:
   XRGPUDrawingContext(XRGPUBinding*,
                       XRGPUSwapChain* color_swap_chain,
                       XRGPUSwapChain* depth_stencil_swap_chain);
-  ~XRGPUDrawingContext() = default;
-
-  enum XRGraphicsBinding::Api GraphicsApi() const override;
+  ~XRGPUDrawingContext() override = default;
 
   uint16_t TextureWidth() const override;
   uint16_t TextureHeight() const override;
@@ -33,6 +32,11 @@ class XRGPUDrawingContext final : public XRLayerDrawingContext {
   void OnFrameEnd() override;
 
   bool TextureWasQueried() const override;
+
+  // XrLayerClient overrides.
+  XRSession* session() const override;
+  scoped_refptr<StaticBitmapImage> TransferToStaticBitmapImage() override;
+  XRFrameTransportDelegate* GetTransportDelegate() override;
 
   GPUDevice* device() { return device_; }
 
@@ -47,6 +51,7 @@ class XRGPUDrawingContext final : public XRLayerDrawingContext {
   Member<GPUDevice> device_;
   Member<XRGPUSwapChain> color_swap_chain_;
   Member<XRGPUSwapChain> depth_stencil_swap_chain_;
+  Member<XRGPUBinding> binding_;
 };
 
 }  // namespace blink

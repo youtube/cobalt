@@ -202,12 +202,14 @@ rtc_library("candidate") {
     "candidate.h",
   ]
   deps = [
+    ":rtc_error",
     "../p2p:p2p_constants",
     "../rtc_base:checks",
     "../rtc_base:crc32",
     "../rtc_base:crypto_random",
     "../rtc_base:ip_address",
     "../rtc_base:logging",
+    "../rtc_base:net_helper",
     "../rtc_base:network_constants",
     "../rtc_base:socket_address",
     "../rtc_base:stringutils",
@@ -295,17 +297,41 @@ rtc_library("rtp_sender_interface") {
   ]
 }
 
+rtc_library("jsep") {
+  visibility = [ "*" ]
+  cflags = []
+  sources = [
+    "jsep.cc",
+    "jsep.h",
+    "jsep_ice_candidate.cc",
+    "jsep_ice_candidate.h",
+    "jsep_session_description.h",
+  ]
+  deps = [
+    ":candidate",
+    ":ref_count",
+    ":rtc_error",
+    ":sequence_checker",
+    "../rtc_base:checks",
+    "../rtc_base:logging",
+    "../rtc_base:macromagic",
+    "../rtc_base/system:no_unique_address",
+    "../rtc_base/system:rtc_export",
+    "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
 rtc_library("libjingle_peerconnection_api") {
   visibility = [ "*" ]
   cflags = []
   sources = [
     "data_channel_interface.cc",
     "data_channel_interface.h",
-    "jsep.cc",
-    "jsep.h",
-    "jsep_ice_candidate.cc",
-    "jsep_ice_candidate.h",
-    "jsep_session_description.h",
     "legacy_stats_types.cc",
     "legacy_stats_types.h",
     "peer_connection_interface.cc",
@@ -323,11 +349,13 @@ rtc_library("libjingle_peerconnection_api") {
 
     # Remove when downstream has been updated
     "dtmf_sender_interface.h",
+    "jsep.h",
     "rtp_sender_interface.h",
   ]
   public_deps += [  # no-presubmit-check TODO(webrtc:8603)
     # Remove when downstream has been updated
     ":dtmf_sender_interface",
+    ":jsep",
     ":rtp_sender_interface",
   ]
   deps = [
@@ -417,8 +445,6 @@ rtc_library("libjingle_peerconnection_api") {
     # file, really. All these should arguably go away in time.
     "../media:rtc_media_config",
     "../rtc_base:checks",
-    "../rtc_base:ip_address",
-    "../rtc_base:socket_address",
     "../rtc_base:threading",
     "../rtc_base/system:rtc_export",
   ]
@@ -727,6 +753,7 @@ if (rtc_include_tests) {
       sources = [ "test/video_quality_test_fixture.h" ]
       deps = [
         ":fec_controller_api",
+        ":field_trials",
         ":libjingle_peerconnection_api",
         ":network_state_predictor_api",
         ":rtp_parameters",
@@ -738,6 +765,7 @@ if (rtc_include_tests) {
         "../video/config:encoder_config",
         "transport:bitrate_settings",
         "transport:network_control",
+        "video_codecs:scalability_mode",
         "video_codecs:video_codecs_api",
       ]
     }
@@ -1065,6 +1093,7 @@ rtc_library("datagram_connection") {
     "../rtc_base/system:rtc_export",
     "environment",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 
@@ -1076,12 +1105,16 @@ rtc_library("datagram_connection_factory") {
   ]
   deps = [
     ":datagram_connection",
+    ":make_ref_counted",
     ":ref_count",
+    ":scoped_refptr",
     "../p2p:port_allocator",
     "../pc:datagram_connection_internal",
     "../rtc_base:macromagic",
+    "../rtc_base:ssl",
     "../rtc_base/system:rtc_export",
     "environment",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 
@@ -1635,6 +1668,7 @@ if (rtc_include_tests) {
       "field_trials_unittest.cc",
       "function_view_unittest.cc",
       "jsep_unittest.cc",
+      "peer_connection_interface_unittest.cc",
       "rtc_error_unittest.cc",
       "rtc_event_log_output_file_unittest.cc",
       "rtp_packet_info_unittest.cc",
@@ -1670,6 +1704,7 @@ if (rtc_include_tests) {
       "../rtc_base:task_queue_for_test",
       "../rtc_base/containers:flat_set",
       "../rtc_base/synchronization:sequence_checker_internal",
+      "../rtc_base/system:unused",
       "../test:fileutils",
       "../test:test_support",
       "audio_codecs/opus:unittests",
@@ -1800,5 +1835,21 @@ rtc_library("frame_transformer_factory") {
     "../rtc_base/system:rtc_export",
     "video:encoded_frame",
     "video:video_frame_metadata",
+  ]
+}
+
+rtc_library("ice_server_parsing") {
+  visibility = [ "*" ]
+  sources = [
+    "ice_server_parsing.cc",
+    "ice_server_parsing.h",
+  ]
+  deps = [
+    ":libjingle_peerconnection_api",
+    ":rtc_error",
+    "../p2p:port_allocator",
+    "../pc:ice_server_parsing",
+    "../rtc_base:socket_address",
+    "../rtc_base/system:rtc_export",
   ]
 }

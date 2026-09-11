@@ -45,8 +45,7 @@ namespace {
 const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
-@interface AIMPrototypeCoordinator () <AIMPrototypeMediatorDelegate,
-                                       AIMPrototypeViewControllerDelegate,
+@interface AIMPrototypeCoordinator () <AIMPrototypeViewControllerDelegate,
                                        LocationBarModelDelegateWebStateProvider,
                                        LocationBarURLLoader,
                                        PHPickerViewControllerDelegate,
@@ -67,6 +66,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   AIMPrototypeEntrypoint _entrypoint;
   /// Optional query inserted into the omnibox at start.
   NSString* _query;
+  /// The URLLoader to pass to the mediator.
+  __weak id<AIMPrototypeURLLoader> _URLLoader;
   /// Coordinator of the omnibox.
   OmniboxCoordinator* _omniboxCoordinator;
   // API endpoint for omnibox.
@@ -78,11 +79,14 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 - (instancetype)initWithBaseViewController:(UIViewController*)baseViewController
                                    browser:(Browser*)browser
                                 entrypoint:(AIMPrototypeEntrypoint)entrypoint
-                                     query:(NSString*)query {
+                                     query:(NSString*)query
+                                 URLLoader:
+                                     (id<AIMPrototypeURLLoader>)URLLoader {
   self = [super initWithBaseViewController:baseViewController browser:browser];
   if (self) {
     _entrypoint = entrypoint;
     _query = query;
+    _URLLoader = URLLoader;
   }
   return self;
 }
@@ -94,8 +98,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   _voiceSearchController =
       ios::provider::CreateVoiceSearchController(self.browser);
 
-  UrlLoadingBrowserAgent* urlLoadingBrowserAgent =
-      UrlLoadingBrowserAgent::FromBrowser(self.browser);
   TemplateURLService* templateURLService =
       ios::TemplateURLServiceFactory::GetForProfile(self.profile);
   signin::IdentityManager* identityManager =
@@ -108,17 +110,17 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
           templateURLService,
           VariationsClientServiceFactory::GetForProfile(self.profile),
           /*send_lns_surface=*/false,
-          /*enable_multi_context_input_flow=*/false);
+          /*enable_multi_context_input_flow=*/false,
+          /*enable_viewport_images=*/true);
 
   FaviconLoader* faviconLoader =
       IOSChromeFaviconLoaderFactory::GetForProfile(self.profile);
   _mediator = [[AIMPrototypeMediator alloc]
-      initWithUrlLoadingBrowserAgent:urlLoadingBrowserAgent
-           composeboxQueryController:std::move(composeboxQueryController)
-                        webStateList:self.browser->GetWebStateList()
-                       faviconLoader:faviconLoader];
+      initWithComposeboxQueryController:std::move(composeboxQueryController)
+                           webStateList:self.browser->GetWebStateList()
+                          faviconLoader:faviconLoader];
+  _mediator.URLLoader = _URLLoader;
   _mediator.consumer = _viewController;
-  _mediator.delegate = self;
   _viewController.mutator = _mediator;
   _voiceSearchController.dispatcher = _mediator;
 
@@ -156,6 +158,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)stop {
+  _viewController.mutator = nil;
   _viewController = nil;
   _picker = nil;
   [_voiceSearchController dismissMicPermissionHelp];
@@ -163,6 +166,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   _voiceSearchController.dispatcher = nil;
   _voiceSearchController = nil;
   [_mediator disconnect];
+  _mediator.URLLoader = nil;
+  _mediator.consumer = nil;
   _mediator = nil;
   [_omniboxCoordinator endEditing];
   [_omniboxCoordinator stop];
@@ -279,14 +284,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   [picker dismissViewControllerAnimated:YES completion:nil];
 }
 
-#pragma mark - AIMPrototypeMediatorDelegate
-
-- (void)dismissAimPrototype {
-  id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
-  [commands hideAIMPrototype];
-}
-
 #pragma mark - LocationBarURLLoader
 
 - (void)loadGURLFromLocationBar:(const GURL&)url
@@ -321,7 +318,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     UrlLoadingBrowserAgent::FromBrowser(self.browser)->Load(params);
   }
 
-  [self dismissAimPrototype];
+  [self dismissAIMPrototype];
 }
 
 #pragma mark - LocationBarModelDelegateWebStateProvider
@@ -339,6 +336,14 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
 - (LocationBarModel*)locationBarModel {
   return _locationBarModel.get();
+}
+
+#pragma mark - Private
+
+- (void)dismissAIMPrototype {
+  id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [commands hideAIMPrototype];
 }
 
 @end

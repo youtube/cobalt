@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <string>
+#include "unicode/utypes.h"
 
 // Takes uint8_t data from fuzzer, and makes a zero terminated string.
 std::string MakeZeroTerminatedInput(const uint8_t* data, int32_t size);

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ff_Adlm{
     %%Parent{"root"}
     Countries{
@@ -70,7 +70,7 @@ ff_Adlm{
         BS{"𞤄𞤢𞤸𞤢𞤥𞤢𞥄𞤧"}
         BT{"𞤄𞤵𞥅𞤼𞤢𞥄𞤲"}
         BV{"𞤅𞤵𞤪𞤭𞥅𞤪𞤫 𞤄𞤵𞥅𞤾𞤫𞥅"}
-        BW{"‮𞤄𞤮𞤼𞤧𞤵𞤱𞤢𞥄𞤲𞤢"}
+        BW{"𞤄𞤮𞤼𞤧𞤵𞤱𞤢𞥄𞤲𞤢"}
         BY{"𞤄𞤫𞤤𞤢𞤪𞤵𞥅𞤧"}
         BZ{"𞤄𞤫𞤤𞤭𞥅𞥁"}
         CA{"𞤑𞤢𞤲𞤢𞤣𞤢𞥄"}

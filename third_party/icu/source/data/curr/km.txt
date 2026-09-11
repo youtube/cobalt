@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 km{
     Currencies{
         AED{
@@ -469,7 +469,7 @@ km{
         }
         QAR{
             "QAR",
-            "រៀល​កាតា",
+            "រីយ៉ាលកាតា",
         }
         RON{
             "RON",
@@ -681,11 +681,11 @@ km{
         PEN{
             other{"ញូវ៉ូសូល ប៉េរូ"}
         }
+        QAR{
+            other{"រីយ៉ាលកាតា"}
+        }
         XXX{
             other{"(រូបិយប័ណ្ណ​មិនស្គាល់)"}
         }
-    }
-    CurrencyUnitPatterns{
-        other{"{0} {1}"}
     }
 }

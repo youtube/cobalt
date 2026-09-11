@@ -217,6 +217,7 @@ TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest,
         EXPECT_GE(frame->ReceiveTime()->us(), 0);
         EXPECT_EQ(frame->CaptureTime(), capture_time);
         EXPECT_EQ(frame->SenderCaptureTimeOffset(), sender_capture_time_offset);
+        EXPECT_FALSE(frame->Rid().has_value());
       });
   // The delegate creates a transformable frame from the RtpFrameObject.
   delegate->TransformFrame(CreateRtpFrameObject(video_header, csrcs));

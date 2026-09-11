@@ -326,7 +326,35 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 			skip(ALL, "test", ALL, "MultisampleRetainTest")
 			skip(ALL, "test", ALL, "MultisampleClearThenLoad")
 			skip(ALL, "test", ALL, "MutableImagesTest")
-			skip(ALL, "test", ALL, "NotifyInUseTestBlend")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerClear")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerColor")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerColorBurn")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerColorDodge")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerDarken")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerDifference")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerDst")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerDstATop")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerDstIn")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerDstOut")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerDstOver")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerExclusion")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerHardLight")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerHue")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerLighten")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerLuminosity")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerModulate")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerMultiply")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerOverlay")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerPlus")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerSaturation")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerScreen")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerSoftLight")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerSrc")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerSrcATop")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerSrcIn")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerSrcOut")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerSrcOver")
+			skip(ALL, "test", ALL, "NotifyInUseTestLayerXor")
 			skip(ALL, "test", ALL, "NotifyInUseTestSnapshot")
 			skip(ALL, "test", ALL, "OpsTaskFlushCount")
 			skip(ALL, "test", ALL, "OverdrawSurface_Gpu")
@@ -1333,34 +1361,41 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 		skip(ALL, "tests", ALL, "ImageFilterCropRect_Gpu") // b/294080402
 	}
 
-	if !b.ExtraConfig("Graphite") && b.MatchOs("Mac15") && b.MatchGpu("IntelUHDGraphics630") {
-		if b.ExtraConfig("ANGLE") {
-			// b/405918638
-			skip(ALL, "tests", ALL, "TransferPixelsFromTextureTest")
-			skip(ALL, "tests", ALL, "ImageAsyncReadPixels_Renderable_BottomLeft")
-			skip(ALL, "tests", ALL, "ImageAsyncReadPixels_Renderable_TopLeft")
-			skip(ALL, "tests", ALL, "ImageAsyncReadPixels_NonRenderable_BottomLeft")
-			skip(ALL, "tests", ALL, "ImageAsyncReadPixels_NonRenderable_TopLeft")
-			skip(ALL, "tests", ALL, "SurfaceAsyncReadPixels")
-			skip(ALL, "tests", ALL, "TransferPixelsToTextureTest")
-		} else if b.ExtraConfig("Metal") {
-			// b/438450848
-			skip(ALL, "tests", ALL, "DMSAA_aa_dst_read_after_dmsaa")
-			skip(ALL, "tests", ALL, "DMSAA_dst_read")
-			skip(ALL, "tests", ALL, "SurfacePartialDraw_Gpu")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_RescaleWithColorFilter")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_RescaleWithTransform")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_RescaleWithTileMode")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_ColorFilterBetweenCrops")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_TransformAndTile")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_PeriodicTileCrops")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_IntersectingCrops")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_CropDisjointFromSourceAndOutput")
-			skip(ALL, "tests", ALL, "FilterResult_ganesh_Crop")
+	if b.MatchOs("Mac15") && b.MatchGpu("IntelUHDGraphics630") {
+		if !b.ExtraConfig("Graphite") {
+			if b.ExtraConfig("ANGLE") {
+				// b/405918638
+				skip(ALL, "tests", ALL, "TransferPixelsFromTextureTest")
+				skip(ALL, "tests", ALL, "ImageAsyncReadPixels_Renderable_BottomLeft")
+				skip(ALL, "tests", ALL, "ImageAsyncReadPixels_Renderable_TopLeft")
+				skip(ALL, "tests", ALL, "ImageAsyncReadPixels_NonRenderable_BottomLeft")
+				skip(ALL, "tests", ALL, "ImageAsyncReadPixels_NonRenderable_TopLeft")
+				skip(ALL, "tests", ALL, "SurfaceAsyncReadPixels")
+				skip(ALL, "tests", ALL, "TransferPixelsToTextureTest")
+			} else if b.ExtraConfig("Metal") {
+				// b/438450848
+				skip(ALL, "tests", ALL, "DMSAA_aa_dst_read_after_dmsaa")
+				skip(ALL, "tests", ALL, "DMSAA_dst_read")
+				skip(ALL, "tests", ALL, "SurfacePartialDraw_Gpu")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_RescaleWithColorFilter")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_RescaleWithTransform")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_RescaleWithTileMode")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_ColorFilterBetweenCrops")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_TransformAndTile")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_PeriodicTileCrops")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_IntersectingCrops")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_CropDisjointFromSourceAndOutput")
+				skip(ALL, "tests", ALL, "FilterResult_ganesh_Crop")
+			} else {
+				// These two are also broken for OpenGL configs b/405918638
+				skip(ALL, "tests", ALL, "TransferPixelsFromTextureTest")
+				skip(ALL, "tests", ALL, "TransferPixelsToTextureTest")
+			}
 		} else {
-			// These two are also broken for OpenGL configs b/405918638
-			skip(ALL, "tests", ALL, "TransferPixelsFromTextureTest")
-			skip(ALL, "tests", ALL, "TransferPixelsToTextureTest")
+			if b.ExtraConfig("Metal") {
+				skip(ALL, "tests", ALL, "NotifyInUseTestLayerDarken")  // b/449171614
+				skip(ALL, "tests", ALL, "NotifyInUseTestLayerLighten") // b/449171614
+			}
 		}
 	}
 

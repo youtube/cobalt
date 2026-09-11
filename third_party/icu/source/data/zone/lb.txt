@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 lb{
     zoneStrings{
         "Africa:Addis_Ababa"{
@@ -210,9 +210,6 @@ lb{
         "Europe:Tirane"{
             ec{"Tirana"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Uschgorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikan"}
         }
@@ -227,9 +224,6 @@ lb{
         }
         "Europe:Warsaw"{
             ec{"Warschau"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Saporischschja"}
         }
         "Europe:Zurich"{
             ec{"Zürech"}
@@ -410,11 +404,6 @@ lb{
             ld{"Chinesesch Summerzäit"}
             lg{"Chinesesch Zäit"}
             ls{"Chinesesch Normalzäit"}
-        }
-        "meta:Choibalsan"{
-            ld{"Choibalsan-Summerzäit"}
-            lg{"Choibalsan-Zäit"}
-            ls{"Choibalsan-Normalzäit"}
         }
         "meta:Christmas"{
             ls{"Chrëschtdagsinsel-Zäit"}
@@ -609,9 +598,6 @@ lb{
             lg{"Lord-Howe-Zäit"}
             ls{"Lord-Howe-Normalzäit"}
         }
-        "meta:Macquarie"{
-            ls{"Macquarieinsel-Zäit"}
-        }
         "meta:Magadan"{
             ld{"Magadan-Summerzäit"}
             lg{"Magadan-Zäit"}
@@ -636,11 +622,6 @@ lb{
         }
         "meta:Mawson"{
             ls{"Mawson-Zäit"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Nordwest-Mexiko-Summerzäit"}
-            lg{"Nordwest-Mexiko-Zäit"}
-            ls{"Nordwest-Mexiko-Normalzäit"}
         }
         "meta:Mexico_Pacific"{
             ld{"Mexikanesch Pazifik-Summerzäit"}

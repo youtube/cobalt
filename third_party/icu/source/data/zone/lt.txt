@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 lt{
     zoneStrings{
         "Africa:Abidjan"{
@@ -426,9 +426,6 @@ lt{
         "America:New_York"{
             ec{"Niujorkas"}
         }
-        "America:Nipigon"{
-            ec{"Nipigonas"}
-        }
         "America:Nome"{
             ec{"Nomas"}
         }
@@ -446,9 +443,6 @@ lt{
         }
         "America:Ojinaga"{
             ec{"Ochinaga"}
-        }
-        "America:Pangnirtung"{
-            ec{"Pangnirtungas"}
         }
         "America:Paramaribo"{
             ec{"Paramaribas"}
@@ -471,9 +465,6 @@ lt{
         "America:Punta_Arenas"{
             ec{"Punta Arenasas"}
         }
-        "America:Rainy_River"{
-            ec{"Reini Riveris"}
-        }
         "America:Rankin_Inlet"{
             ec{"Rankin Inletas"}
         }
@@ -488,9 +479,6 @@ lt{
         }
         "America:Rio_Branco"{
             ec{"Rio Brankas"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Izabelė"}
         }
         "America:Santarem"{
             ec{"Santarenas"}
@@ -534,9 +522,6 @@ lt{
         "America:Thule"{
             ec{"Kanakas"}
         }
-        "America:Thunder_Bay"{
-            ec{"Tander Bėjus"}
-        }
         "America:Tijuana"{
             ec{"Tichuana"}
         }
@@ -554,9 +539,6 @@ lt{
         }
         "America:Yakutat"{
             ec{"Jakutatas"}
-        }
-        "America:Yellowknife"{
-            ec{"Jelounaifas"}
         }
         "Antarctica:Casey"{
             ec{"Keisis"}
@@ -638,9 +620,6 @@ lt{
         }
         "Asia:Chita"{
             ec{"Čita"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Čoibalsanas"}
         }
         "Asia:Colombo"{
             ec{"Kolombas"}
@@ -861,9 +840,6 @@ lt{
         "Australia:Broken_Hill"{
             ec{"Broken Hilis"}
         }
-        "Australia:Currie"{
-            ec{"Karis"}
-        }
         "Australia:Darwin"{
             ec{"Darvinas"}
         }
@@ -1034,9 +1010,6 @@ lt{
         "Europe:Ulyanovsk"{
             ec{"Uljanovskas"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Užhorodas"}
-        }
         "Europe:Vaduz"{
             ec{"Vaducas"}
         }
@@ -1054,9 +1027,6 @@ lt{
         }
         "Europe:Zagreb"{
             ec{"Zagrebas"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporožė"}
         }
         "Europe:Zurich"{
             ec{"Ciurichas"}
@@ -1138,9 +1108,6 @@ lt{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-        }
-        "Pacific:Johnston"{
-            ec{"Džonstonas"}
         }
         "Pacific:Kiritimati"{
             ec{"Kiritimatis"}
@@ -1376,11 +1343,6 @@ lt{
             lg{"Kinijos laikas"}
             ls{"Kinijos žiemos laikas"}
         }
-        "meta:Choibalsan"{
-            ld{"Čoibalsano vasaros laikas"}
-            lg{"Čoibalsano laikas"}
-            ls{"Čoibalsano žiemos laikas"}
-        }
         "meta:Christmas"{
             ls{"Kalėdų Salos laikas"}
         }
@@ -1547,6 +1509,9 @@ lt{
             lg{"Kamčiatkos Petropavlovsko laikas"}
             ls{"Kamčiatkos Petropavlovsko žiemos laikas"}
         }
+        "meta:Kazakhstan"{
+            ls{"Kazachstano laikas"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Rytų Kazachstano laikas"}
         }
@@ -1585,9 +1550,6 @@ lt{
             lg{"Makau laikas"}
             ls{"Makau žiemos laikas"}
         }
-        "meta:Macquarie"{
-            ls{"Makvorio Salos laikas"}
-        }
         "meta:Magadan"{
             ld{"Magadano vasaros laikas"}
             lg{"Magadano laikas"}
@@ -1612,11 +1574,6 @@ lt{
         }
         "meta:Mawson"{
             ls{"Mosono laikas"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Šiaurės Vakarų Meksikos vasaros laikas"}
-            lg{"Šiaurės Vakarų Meksikos laikas"}
-            ls{"Šiaurės Vakarų Meksikos žiemos laikas"}
         }
         "meta:Mexico_Pacific"{
             ld{"Meksikos Ramiojo vandenyno vasaros laikas"}

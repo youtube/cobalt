@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_SEARCHBOX_SEARCHBOX_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_SEARCHBOX_SEARCHBOX_HANDLER_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -35,6 +37,10 @@ namespace searchbox_internal {
 extern const char* kSearchIconResourceName;
 }  // namespace searchbox_internal
 
+namespace lens {
+struct ImageEncodingOptions;
+}  // namespace lens
+
 // Base class for browser-side handlers that handle bi-directional communication
 // with WebUI search boxes.
 class SearchboxHandler : public searchbox::mojom::PageHandler,
@@ -51,7 +57,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   // Maps all icons returned from either `AutocompleteMatch::GetVectorIcon()` or
   // `OmniboxAction::GetIconImage()` to svg resource strings.
   virtual std::string AutocompleteIconToResourceName(
-      const gfx::VectorIcon& icon);
+      const gfx::VectorIcon& icon) const;
 
   // Returns true if the page remote is bound and ready to receive calls.
   bool IsRemoteBound() const;
@@ -106,6 +112,10 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest, RealboxUpdatesEditModelInput);
   FRIEND_TEST_ALL_PREFIXES(LensSearchboxHandlerTest,
                            Lens_AutocompleteController_Start);
+  FRIEND_TEST_ALL_PREFIXES(SearchboxHandlerBrowserTest,
+                           CreateTabPreviewEncodingOptions_NotScaled);
+  FRIEND_TEST_ALL_PREFIXES(SearchboxHandlerBrowserTestDSF2,
+                           CreateTabPreviewEncodingOptions_Scaled);
 
   SearchboxHandler(
       mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
@@ -115,9 +125,9 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
       std::unique_ptr<OmniboxController> controller);
   ~SearchboxHandler() override;
 
-  OmniboxController* omnibox_controller() const;
-  AutocompleteController* autocomplete_controller() const;
-  OmniboxEditModel* edit_model() const;
+  OmniboxController* omnibox_controller();
+  AutocompleteController* autocomplete_controller();
+  OmniboxEditModel* edit_model();
 
   void OnPreviewReceived(GetTabPreviewCallback callback,
                          const SkBitmap& preview_bitmap);
@@ -140,26 +150,36 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   mojo::Receiver<searchbox::mojom::PageHandler> page_handler_;
   mojo::Remote<searchbox::mojom::Page> page_;
 
- private:
-  std::vector<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatches(
-      const AutocompleteResult& result,
-      const OmniboxEditModel* edit_model,
-      bookmarks::BookmarkModel* bookmark_model,
-      const omnibox::GroupConfigMap& suggestion_groups_map,
-      const TemplateURLService* turl_service);
-  base::flat_map<int32_t, searchbox::mojom::SuggestionGroupPtr>
-  CreateSuggestionGroupsMap(
-      const AutocompleteResult& result,
-      const OmniboxEditModel* edit_model,
-      const PrefService* prefs,
-      const omnibox::GroupConfigMap& suggestion_groups_map);
   searchbox::mojom::AutocompleteResultPtr CreateAutocompleteResult(
       const std::u16string& input,
       const AutocompleteResult& result,
       const OmniboxEditModel* edit_model,
       bookmarks::BookmarkModel* bookmark_model,
       const PrefService* prefs,
-      const TemplateURLService* turl_service);
+      const TemplateURLService* turl_service) const;
+  base::flat_map<int32_t, searchbox::mojom::SuggestionGroupPtr>
+  CreateSuggestionGroupsMap(
+      const AutocompleteResult& result,
+      const OmniboxEditModel* edit_model,
+      const PrefService* prefs,
+      const omnibox::GroupConfigMap& suggestion_groups_map) const;
+  std::vector<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatches(
+      const AutocompleteResult& result,
+      const OmniboxEditModel* edit_model,
+      bookmarks::BookmarkModel* bookmark_model,
+      const omnibox::GroupConfigMap& suggestion_groups_map,
+      const TemplateURLService* turl_service) const;
+  virtual std::optional<searchbox::mojom::AutocompleteMatchPtr>
+  CreateAutocompleteMatch(const AutocompleteMatch& match,
+                          size_t line,
+                          const OmniboxEditModel* edit_model,
+                          bookmarks::BookmarkModel* bookmark_model,
+                          const omnibox::GroupConfigMap& suggestion_groups_map,
+                          const TemplateURLService* turl_service) const;
+
+ private:
+  std::optional<lens::ImageEncodingOptions> CreateTabPreviewEncodingOptions(
+     content::WebContents* web_contents);
 
   base::WeakPtrFactory<SearchboxHandler> weak_ptr_factory_{this};
 };

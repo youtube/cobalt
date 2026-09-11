@@ -91,7 +91,6 @@ class ErrorEvent;
 class EventTarget;
 class FrameOrWorkerScheduler;
 class KURL;
-class LocalDOMWindow;
 class OriginTrialContext;
 class RuntimeFeatureStateOverrideContext;
 class PolicyContainer;
@@ -257,12 +256,6 @@ class CORE_EXPORT ExecutionContext : public Supplementable<ExecutionContext>,
   void SetLifecycleState(mojom::FrameLifecycleState);
   virtual void NotifyContextDestroyed();
 
-  using ConsoleLogger::AddConsoleMessage;
-
-  void AddConsoleMessage(ConsoleMessage* message,
-                         bool discard_duplicates = false) {
-    AddConsoleMessageImpl(message, discard_duplicates);
-  }
   virtual void AddInspectorIssue(AuditsIssue) = 0;
 
   void CountDeprecation(WebFeature feature) override;

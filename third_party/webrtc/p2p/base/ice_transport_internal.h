@@ -352,9 +352,11 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   void RemoveGatheringStateCallback(const void* removal_tag);
 
   // Handles sending and receiving of candidates.
+  sigslot::signal2<IceTransportInternal*, const Candidate&>
+      SignalCandidateGathered;
   void NotifyCandidateGathered(IceTransportInternal* transport,
                                const Candidate& candidate) {
-    candidate_gathered_callbacks_.Send(transport, candidate);
+    SignalCandidateGathered(transport, candidate);
   }
   void SubscribeCandidateGathered(
       absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
@@ -373,14 +375,6 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
     RTC_DCHECK(!candidates_removed_callback_);
     candidates_removed_callback_ = std::move(callback);
   }
-
-  // Deprecated by PacketTransportInternal::SignalNetworkRouteChanged.
-  // This signal occurs when there is a change in the way that packets are
-  // being routed, i.e. to a different remote location. The candidate
-  // indicates where and how we are currently sending media.
-  // TODO(zhihuang): Update the Chrome remoting to use the new
-  // SignalNetworkRouteChanged.
-  sigslot::signal2<IceTransportInternal*, const Candidate&> SignalRouteChange;
 
   void SetCandidatePairChangeCallback(
       absl::AnyInvocable<void(const CandidatePairChangeEvent&)> callback) {
@@ -462,8 +456,9 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
       candidate_pair_change_callback_;
 
  private:
-  CallbackList<IceTransportInternal*, const Candidate&>
-      candidate_gathered_callbacks_;
+  SignalTrampoline<IceTransportInternal,
+                   &IceTransportInternal::SignalCandidateGathered>
+      candidate_gathered_trampoline_;
   SignalTrampoline<IceTransportInternal,
                    &IceTransportInternal::SignalRoleConflict>
       role_conflict_trampoline_;

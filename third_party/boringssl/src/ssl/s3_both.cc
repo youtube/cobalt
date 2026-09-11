@@ -586,9 +586,9 @@ class CNsaCipherScorer : public CipherScorer {
   virtual ~CNsaCipherScorer() override = default;
 
   Score Evaluate(const SSL_CIPHER *a) const override {
-    if (a->id == TLS1_3_CK_AES_256_GCM_SHA384) {
+    if (a->protocol_id == SSL_CIPHER_AES_256_GCM_SHA384) {
       return 3;
-    } else if (a->id == TLS1_3_CK_AES_128_GCM_SHA256) {
+    } else if (a->protocol_id == SSL_CIPHER_AES_128_GCM_SHA256) {
       return 2;
     }
     return 1;
@@ -606,10 +606,10 @@ bool ssl_tls13_cipher_meets_policy(uint16_t cipher_id,
 
     case ssl_compliance_policy_fips_202205:
       switch (cipher_id) {
-        case TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff:
-        case TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff:
+        case SSL_CIPHER_AES_128_GCM_SHA256:
+        case SSL_CIPHER_AES_256_GCM_SHA384:
           return true;
-        case TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff:
+        case SSL_CIPHER_CHACHA20_POLY1305_SHA256:
           return false;
         default:
           assert(false);
@@ -618,10 +618,10 @@ bool ssl_tls13_cipher_meets_policy(uint16_t cipher_id,
 
     case ssl_compliance_policy_wpa3_192_202304:
       switch (cipher_id) {
-        case TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff:
+        case SSL_CIPHER_AES_256_GCM_SHA384:
           return true;
-        case TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff:
-        case TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff:
+        case SSL_CIPHER_AES_128_GCM_SHA256:
+        case SSL_CIPHER_CHACHA20_POLY1305_SHA256:
           return false;
         default:
           assert(false);

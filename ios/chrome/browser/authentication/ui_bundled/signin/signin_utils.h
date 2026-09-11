@@ -7,8 +7,11 @@
 
 #import <UIKit/UIKit.h>
 
+#import <utility>
+
 #import "base/functional/callback.h"
 #import "base/ios/block_types.h"
+#import "base/time/time.h"
 #import "components/signin/public/identity_manager/tribool.h"
 #import "components/sync/base/data_type.h"
 #import "ios/chrome/app/change_profile_continuation.h"
@@ -44,6 +47,10 @@ class IdentityManager;
 
 using UnsyncedDataForSignoutOrProfileSwitchingCallback =
     base::OnceCallback<void(syncer::DataTypeSet data_type_set)>;
+
+inline constexpr std::pair<base::TimeDelta, base::TimeDelta> kPromoTriggerRange(
+    base::Days(53),
+    base::Days(68));
 
 // Represents a request to sign-out.
 class ProfileSignoutRequest {
@@ -94,9 +101,6 @@ class ProfileSignoutRequest {
   bool run_has_been_called_ = false;
 };
 
-// Returns the maximum allowed waiting time for the Account Capabilities API.
-base::TimeDelta GetWaitThresholdForCapabilities();
-
 // Returns true if this user sign-in upgrade should be shown for `profile`.
 bool ShouldPresentUserSigninUpgrade(ProfileIOS* profile,
                                     const base::Version& current_version);
@@ -105,13 +109,13 @@ bool ShouldPresentUserSigninUpgrade(ProfileIOS* profile,
 // actions is recorded to track why the sign-in dialog was not presented.
 bool ShouldPresentWebSignin(ProfileIOS* profile);
 
-// This method should be called when sign-in starts from the upgrade promo.
-// It records in user defaults:
+// This method should be called when sign-in starts from the fullscreen signin
+// promo. It records in user defaults:
 //   + the Chromium current version.
 //   + increases the sign-in promo display count.
 //   + Gaia ids list.
 // Separated out into a discrete function to allow overriding when testing.
-void RecordUpgradePromoSigninStarted(
+void RecordFullscreenSigninPromoStarted(
     signin::IdentityManager* identity_manager,
     ChromeAccountManagerService* account_manager_service,
     const base::Version& current_version);

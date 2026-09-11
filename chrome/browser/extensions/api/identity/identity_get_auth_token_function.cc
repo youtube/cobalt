@@ -36,7 +36,7 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/signin/public/identity_manager/scope_set.h"
+#include "components/signin/public/identity_manager/oauth_consumer_ids.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -69,9 +69,6 @@
 namespace extensions {
 
 namespace {
-
-const char* const kExtensionsIdentityAPIOAuthConsumerName =
-    "extensions_identity_api";
 
 bool IsBrowserSigninAllowed(Profile* profile) {
   return profile->GetPrefs()->GetBoolean(prefs::kSigninAllowed);
@@ -117,6 +114,22 @@ CoreAccountInfo GetSigninPrimaryAccount(Profile* profile) {
 }
 
 }  // namespace
+
+class IdentityGetAuthTokenFunction::RefreshTokensLoadedWaiter
+    : public signin::IdentityManager::Observer {
+ public:
+  RefreshTokensLoadedWaiter(signin::IdentityManager& identity_manager,
+                            base::OnceClosure callback);
+
+  // signin::IdentityManager::Observer:
+  void OnRefreshTokensLoaded() override;
+
+ private:
+  base::OnceClosure callback_;
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      identity_manager_observation_{this};
+};
 
 IdentityGetAuthTokenFunction::IdentityGetAuthTokenFunction() = default;
 
@@ -795,8 +808,7 @@ void IdentityGetAuthTokenFunction::StartTokenKeyAccountAccessTokenRequest() {
   token_key_account_access_token_fetcher_ =
       identity_manager->CreateAccessTokenFetcherForAccount(
           token_key_.account_info.account_id,
-          kExtensionsIdentityAPIOAuthConsumerName,
-          {GaiaConstants::kAnyApiOAuth2Scope},
+          signin::OAuthConsumerId::kExtensionsIdentityAPI,
           base::BindOnce(
               &IdentityGetAuthTokenFunction::OnAccessTokenFetchCompleted,
               base::Unretained(this)),
@@ -978,22 +990,6 @@ IdentityGetAuthTokenFunction::GetErrorFromInteractivityStatus(
   DCHECK_NE(state, IdentityGetAuthTokenError::State::kNone);
   return IdentityGetAuthTokenError(state);
 }
-
-class IdentityGetAuthTokenFunction::RefreshTokensLoadedWaiter
-    : public signin::IdentityManager::Observer {
- public:
-  RefreshTokensLoadedWaiter(signin::IdentityManager& identity_manager,
-                            base::OnceClosure callback);
-
-  // signin::IdentityManager::Observer:
-  void OnRefreshTokensLoaded() override;
-
- private:
-  base::OnceClosure callback_;
-  base::ScopedObservation<signin::IdentityManager,
-                          signin::IdentityManager::Observer>
-      identity_manager_observation_{this};
-};
 
 IdentityGetAuthTokenFunction::RefreshTokensLoadedWaiter::
     RefreshTokensLoadedWaiter(signin::IdentityManager& identity_manager,

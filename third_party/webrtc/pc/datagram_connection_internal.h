@@ -10,16 +10,28 @@
 #ifndef PC_DATAGRAM_CONNECTION_INTERNAL_H_
 #define PC_DATAGRAM_CONNECTION_INTERNAL_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
+#include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "api/candidate.h"
 #include "api/datagram_connection.h"
 #include "api/environment/environment.h"
-#include "api/ref_count.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "call/rtp_packet_sink_interface.h"
-#include "p2p/base/p2p_transport_channel.h"
+#include "p2p/base/ice_transport_internal.h"
+#include "p2p/base/packet_transport_internal.h"
 #include "p2p/base/port_allocator.h"
+#include "p2p/base/transport_description.h"
 #include "pc/dtls_srtp_transport.h"
 #include "pc/dtls_transport.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/rtc_certificate.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -34,6 +46,7 @@ class RTC_EXPORT DatagramConnectionInternal : public DatagramConnection,
                              bool ice_controlling,
                              scoped_refptr<RTCCertificate> certificate,
                              std::unique_ptr<Observer> observer,
+                             WireProtocol wire_protocol,
                              std::unique_ptr<IceTransportInternal>
                                  custom_ice_transport_internal = nullptr);
 
@@ -43,7 +56,7 @@ class RTC_EXPORT DatagramConnectionInternal : public DatagramConnection,
   void SetRemoteDtlsParameters(absl::string_view digestAlgorithm,
                                const uint8_t* digest,
                                size_t digest_len,
-                               DatagramConnection::SSLRole ssl_role) override;
+                               SSLRole ssl_role) override;
   bool SendPacket(ArrayView<const uint8_t> data) override;
 
   void Terminate(
@@ -59,6 +72,8 @@ class RTC_EXPORT DatagramConnectionInternal : public DatagramConnection,
   // RtpPacketSinkInterface
   void OnRtpPacket(const RtpPacketReceived& packet) override;
 
+  void OnDtlsPacket(CopyOnWriteBuffer packet);
+
 #if RTC_DCHECK_IS_ON
   DtlsSrtpTransport* GetDtlsSrtpTransportForTesting() {
     return dtls_srtp_transport_.get();
@@ -68,6 +83,8 @@ class RTC_EXPORT DatagramConnectionInternal : public DatagramConnection,
  private:
   enum class State { kActive, kTerminated };
   State current_state_ = State::kActive;
+
+  const WireProtocol wire_protocol_;
 
   // Note the destruction order of these transport objects must be preserved.
   const std::unique_ptr<PortAllocator> port_allocator_;

@@ -42,6 +42,7 @@
 <translation id="1434626383986940139">Aplicacions de Chrome Canary</translation>
 <translation id="1439793550875056299">Fixa Chrome</translation>
 <translation id="146866447420868597">Vols iniciar la sessió a Chrome?</translation>
+<translation id="1476347941828409626">&amp;Gestiona els perfils de Chrome</translation>
 <translation id="1492280395845991349">Reinicia per finalitzar l'actualització de Chrome</translation>
 <translation id="1497802159252041924">Error d'instal·lació: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1507198376417198979">Personalitza el teu perfil de Chrome nou</translation>
@@ -248,6 +249,9 @@
 <translation id="3810973564298564668">Gestiona</translation>
 <translation id="383928141529488001">Google Chrome necessita accés al Bluetooth per cercar 
  dispositius Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" />.</translation>
+<translation id="3846683726093018685">**Resumeix**: en una sola frase de menys de 30 paraules, descriu el tema i la finalitat principals del contingut de la captura de pantalla.
+
+          **Preguntes suggerides**: genera una llista de pics d'entre 3 i 5 preguntes que facin reflexionar i que un usuari podria fer per entendre millor la captura de pantalla. Aquestes preguntes n'han d'incloure com a mínim una que sigui específicament sobre un objecte visual, el seu disseny o el seu emplaçament.</translation>
 <translation id="386202838227397562">Tanqueu totes les finestres de Google Chrome i torneu-ho a provar.</translation>
 <translation id="3873044882194371212">Obre l'enllaç en una finestra d'incò&amp;gnit a Chrome</translation>
 <translation id="3885770153807205175">Selector d'idioma</translation>
@@ -507,6 +511,7 @@
 <translation id="6885412569789873916">Aplicacions de Chrome Beta</translation>
 <translation id="6893363893008038481">Suprimeix el compte de Chrome</translation>
 <translation id="6896758677409633944">Copia</translation>
+<translation id="6927941417289800361">Mentre tinguis la sessió iniciada, podràs utilitzar les teves contrasenyes i altres elements del teu Compte de Google a Chrome. Pots canviar aquesta opció en qualsevol moment a la configuració.</translation>
 <translation id="6930294499209825">Manté el programari de Google actualitzat. Si aquest servei es desactiva o s'atura, el programari de Google no es mantindrà actualitzat i, per tant, no es podran corregir les vulnerabilitats de seguretat que puguin sorgir i és possible que les funcions no estiguin operatives. Aquest servei es desinstal·la sol quan no hi ha cap programari de Google que l'utilitzi.</translation>
 <translation id="6933858244219479645">Sistema ChromeOS</translation>
 <translation id="6938166777909186039">Per obtenir actualitzacions de Google Chrome en el futur, necessitaràs Windows 10 o una versió posterior. Aquest ordinador utilitza Windows 8.1.</translation>
@@ -519,6 +524,7 @@
 <translation id="7024536598735240744">Error de descompressió: <ph name="UNPACK_ERROR" /></translation>
 <translation id="7025789849649390912">La instal·lació s'ha aturat.</translation>
 <translation id="7025800014283535195">Pots canviar entre perfils de Chrome aquí</translation>
+<translation id="7047386856539490735">Aquests resultats són útils?</translation>
 <translation id="7051685429025310665">No l'has visitat recentment. Chrome ha suprimit <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i <ph name="PERMISSION_3" />.</translation>
 <translation id="7059914902409643750">Personalitza Chrome</translation>
 <translation id="7060643578009939353">Cerca aquest vídeo amb Google Lens</translation>
@@ -589,10 +595,10 @@
 <translation id="7777080907402804672">Si una imatge no té una descripció útil, Chrome provarà d'oferir-te'n una. Per crear les descripcions, les imatges s'envien a Google. Pots desactivar aquesta funció en qualsevol moment a la configuració.</translation>
 <translation id="778331955594035129">Chrome necessita permís d'accés a la ubicació per a aquest lloc web</translation>
 <translation id="7787950393032327779">Sembla que un altre procés de Google Chrome (<ph name="PROCESS_ID" />) està fent servir el perfil en un altre ordinador (<ph name="HOST_NAME" />). Chrome ha bloquejat el perfil perquè no es malmeti. Si esteu segur que no hi ha cap altre procés que utilitzi el perfil, podeu desbloquejar-lo i tornar a iniciar Chrome.</translation>
+<translation id="7792336732117553384">&amp;Gestiona els perfils de Chrome</translation>
 <translation id="7801699035218095297">Google Chrome està provant de copiar les contrasenyes. Escriu la teva contrasenya de Windows per permetre-ho.</translation>
 <translation id="7804364787702057554">El teu compte a Chrome</translation>
 <translation id="7808348361785373670">Suprimeix de Chrome...</translation>
-<translation id="7825851276765848807">La instal·lació ha fallat a causa d'un error no especificat. Torneu a baixar Google Chrome.</translation>
 <translation id="7827099906024714326">Chrome ha de verificar la teva identitat perquè algunes dades es puguin desar al teu Compte de Google i utilitzar-se en tots els teus dispositius. Si tanques la sessió ara, aquestes dades se suprimiran.</translation>
 <translation id="7845233973568007926">T'agraïm la instal·lació. Has de reiniciar l'equip abans d'utilitzar <ph name="BUNDLE_NAME" />.</translation>
 <translation id="7849037457735762883">Continua des d'on ho vas deixar: Chrome pot restaurar les teves pestanyes cada vegada que reiniciïs el navegador. Per activar-ho, ves a</translation>
@@ -671,7 +677,6 @@
 <translation id="873133009373065397">Google Chrome no pot determinar ni definir el navegador predeterminat</translation>
 <translation id="8747073452963259673">extrem inferior esquerre de l'àrea de cerca: <ph name="LEFT" /> % per l'esquerra i <ph name="BOTTOM" /> % per baix</translation>
 <translation id="8748735421235723888">Chrome allibera memòria de les pestanyes inactives. Així, les pestanyes actives i altres aplicacions disposen de més recursos de l'ordinador i es manté l'agilitat de Chrome. Les pestanyes inactives s'activen de nou automàticament quan hi tornes. <ph name="BEGIN_LINK" />Obtén més informació sobre la funció Estalvi de memòria<ph name="END_LINK" />.</translation>
-<translation id="8753189155654018347">Suprimeix les dades d'aquesta aplicació de Chrome</translation>
 <translation id="8765470054473112089">Quan escrius a la barra d'adreces o al quadre de cerca, Chrome envia el que escrius al teu motor de cerca predeterminat per obtenir millors suggeriments. Aquesta opció està desactivada en el mode d'incògnit.</translation>
 <translation id="8781673607513845160">Per poder utilitzar la càmera, dona accés a Chrome des de la <ph name="BEGIN_LINK" />configuració del sistema<ph name="END_LINK" /></translation>
 <translation id="878572486461146056">Error d'instal·lació: l'administrador de la xarxa ha aplicat una norma de grup que impedeix la instal·lació (<ph name="INSTALL_ERROR" />)</translation>
@@ -687,6 +692,7 @@
 <translation id="8883862939660515976">Pregunta a Google Lens sobre aquesta imatge</translation>
 <translation id="8914504000324227558">Torna a iniciar Chrome</translation>
 <translation id="8922193594870374009">Per enviar un número del dispositiu <ph name="ORIGIN" /> al teu telèfon Android, inicia la sessió a Chrome en tots dos dispositius.</translation>
+<translation id="8922998289262614701">Suprimeix les dades d'aquesta aplicació de Chrome</translation>
 <translation id="8948460679427074738">Aquesta extensió no ha publicat les seves pràctiques de privadesa, per exemple, la manera com recull i utilitza les dades. Chrome et recomana que la suprimeixis.</translation>
 <translation id="8958307504142971576">Ara tens més funcions disponibles a Chrome</translation>
 <translation id="8991530961471831170">Obre Gemini a Chrome</translation>

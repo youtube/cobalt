@@ -52,7 +52,6 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/config/chromebox_for_meetings/buildflags.h"  // PLATFORM_CFM
-#include "chrome/browser/preloading/search_preload/search_preload_features.h"
 #include "chrome/browser/after_startup_task_utils.h"
 #include "chrome/browser/ai/ai_manager.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
@@ -81,6 +80,7 @@
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/enterprise/chrome_browser_main_extra_parts_enterprise.h"
 #include "chrome/browser/enterprise/reporting/legacy_tech/legacy_tech_service.h"
 #include "chrome/browser/enterprise/reporting/prefs.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
@@ -133,6 +133,7 @@
 #include "chrome/browser/preloading/preloading_features.h"
 #include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/browser/preloading/prerender/prerender_web_contents_delegate.h"
+#include "chrome/browser/preloading/search_preload/search_preload_features.h"
 #include "chrome/browser/privacy_budget/identifiability_study_state.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
 #include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
@@ -164,8 +165,6 @@
 #include "chrome/browser/tab_group_sync/tab_group_sync_utils.h"
 #include "chrome/browser/task_manager/sampling/task_manager_impl.h"
 #include "chrome/browser/task_manager/task_manager_interface.h"
-#include "chrome/browser/themes/theme_service.h"
-#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/tracing/chrome_tracing_delegate.h"
 #include "chrome/browser/translate/translate_service.h"
 #include "chrome/browser/ui/blocked_content/blocked_window_params.h"
@@ -212,6 +211,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/installer/util/google_update_settings.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_switches.h"
 #include "components/blocked_content/popup_blocker.h"
 #include "components/browsing_topics/browsing_topics_service.h"
@@ -527,6 +527,8 @@
 #include "chrome/browser/screen_ai/screen_ai_install_state.h"
 #include "chrome/browser/search/instant_service.h"
 #include "chrome/browser/search/instant_service_factory.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -585,10 +587,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/device_info.h"
 #include "components/crash/content/browser/crash_handler_host_linux.h"
-#endif
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-#include "chrome/browser/enterprise/chrome_browser_main_extra_parts_enterprise.h"
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -826,7 +824,7 @@ bool HandleNewTabPageLocationOverride(
     GURL* url,
     content::BrowserContext* browser_context) {
   if (!url->SchemeIs(content::kChromeUIScheme) ||
-      url->host() != chrome::kChromeUINewTabHost) {
+      url->GetHost() != chrome::kChromeUINewTabHost) {
     return false;
   }
 
@@ -1069,7 +1067,7 @@ void LaunchURL(
       ProtocolHandlerRegistryFactory::GetForBrowserContext(
           web_contents->GetBrowserContext());
   if (protocol_handler_registry &&
-      protocol_handler_registry->IsHandledProtocol(url.scheme())) {
+      protocol_handler_registry->IsHandledProtocol(url.GetScheme())) {
     return;
   }
 
@@ -1716,11 +1714,9 @@ ChromeContentBrowserClient::CreateBrowserMainParts(bool is_integration_test) {
 
   chrome::AddMetricsExtraParts(main_parts.get());
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   main_parts->AddParts(
       std::make_unique<
           enterprise_util::ChromeBrowserMainExtraPartsEnterprise>());
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   main_parts->AddParts(
@@ -1783,7 +1779,7 @@ ChromeContentBrowserClient::GetStoragePartitionConfigForSite(
     // The host in an extension site URL is the extension_id.
     CHECK(site.has_host());
     return extensions::util::GetStoragePartitionConfigForExtensionId(
-        site.host(), browser_context);
+        site.GetHost(), browser_context);
   }
 #endif
 
@@ -2103,7 +2099,7 @@ bool ChromeContentBrowserClient::DoesWebUIUrlRequireProcessLock(
   // embeds those tiles, should be locked.  This allows most visited tiles to
   // stay in their parent (i.e., third-party NTP's) process.
   if (url.SchemeIs(chrome::kChromeSearchScheme) &&
-      url.host() == chrome::kChromeSearchMostVisitedHost) {
+      url.GetHost() == chrome::kChromeSearchMostVisitedHost) {
     return false;
   }
 
@@ -2323,7 +2319,7 @@ bool ChromeContentBrowserClient::ShouldStayInParentProcessForNTP(
   //
   // TODO(crbug.com/41261582): clean up the logic for detecting NTP.
   return url.SchemeIs(chrome::kChromeSearchScheme) &&
-         url.host() == chrome::kChromeSearchMostVisitedHost &&
+         url.GetHost() == chrome::kChromeSearchMostVisitedHost &&
          search::IsNTPURL(parent_site_url);
 }
 
@@ -4190,6 +4186,7 @@ std::optional<SkColor> GetRootScrollbarThemeColor(WebContents* web_contents) {
     return std::nullopt;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   if (ThemeService* theme_service = ThemeServiceFactory::GetForProfile(
           Profile::FromBrowserContext(web_contents->GetBrowserContext()));
       !theme_service || (theme_service->UsingDefaultTheme() &&
@@ -4197,6 +4194,7 @@ std::optional<SkColor> GetRootScrollbarThemeColor(WebContents* web_contents) {
                          !theme_service->UsingDeviceTheme())) {
     return std::nullopt;
   }
+#endif
 
   color_utils::HSL hsl;
   color_utils::SkColorToHSL(
@@ -6168,7 +6166,7 @@ bool IsSystemFeatureURLDisabled(const GURL& url) {
   // chrome://os-settings/pwa.html shouldn't be replaced to let the settings app
   // installation complete successfully.
   if (url.DomainIs(chrome::kChromeUIOSSettingsHost) &&
-      url.path() != "/pwa.html") {
+      url.GetPath() != "/pwa.html") {
     return IsSystemFeatureDisabled(policy::SystemFeature::kOsSettings);
   }
 
@@ -7027,15 +7025,32 @@ bool ChromeContentBrowserClient::HandleWebUI(
 
   // Rewrite chrome://help to chrome://settings/help.
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->host() == chrome::kChromeUIHelpHost) {
+      url->GetHost() == chrome::kChromeUIHelpHost) {
     *url = ReplaceURLHostAndPath(*url, chrome::kChromeUISettingsHost,
                                  chrome::kChromeUIHelpHost);
   }
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+
+  // Rewrite chrome://settings/autofill to chrome://settings/yourSavedInfo.
+  if (url->SchemeIs(content::kChromeUIScheme) &&
+      url->GetHost() == chrome::kChromeUISettingsHost &&
+      url->GetPath() == chrome::kChromeUIAutofillPath &&
+      base::FeatureList::IsEnabled(
+          autofill::features::kYourSavedInfoSettingsPage)) {
+    GURL::Replacements replacements;
+    replacements.SetPathStr(chrome::kChromeUIYourSavedInfoPath);
+    *url = url->ReplaceComponents(replacements);
+  }
+
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
+
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->host() == chrome::kChromeUISettingsHost &&
-      url->path() == chrome::kChromeUICertificateRedirectPath) {
+      url->GetHost() == chrome::kChromeUISettingsHost &&
+      url->GetPath() == chrome::kChromeUICertificateRedirectPath) {
     *url = GURL(chrome::kChromeUICertificateManagerDialogURL);
     return true;
   }
@@ -7044,14 +7059,14 @@ bool ChromeContentBrowserClient::HandleWebUI(
 #if !BUILDFLAG(IS_ANDROID)
   // Redirect from deprecated trackingProtection subpage to cookies.
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->host() == chrome::kChromeUISettingsHost &&
-      url->path() == chrome::kTrackingProtectionSubPagePath) {
+      url->GetHost() == chrome::kChromeUISettingsHost &&
+      url->GetPath() == chrome::kTrackingProtectionSubPagePath) {
     GURL::Replacements replacements;
     replacements.SetPathStr(chrome::kCookiesSubPagePath);
     *url = url->ReplaceComponents(replacements);
     base::UmaHistogramBoolean("Settings.Cookies.TrackingProtectionRedirect",
                               true);
-  } else if (url->path() == chrome::kCookiesSubPagePath) {
+  } else if (url->GetPath() == chrome::kCookiesSubPagePath) {
     base::UmaHistogramBoolean("Settings.Cookies.TrackingProtectionRedirect",
                               false);
   }
@@ -7126,7 +7141,7 @@ bool ChromeContentBrowserClient::HandleWebUIReverse(
   // displayed URL when rewriting chrome://settings/certificates to
   // chrome://certificate-manager
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->host() == chrome::kChromeUICertificateManagerHost) {
+      url->GetHost() == chrome::kChromeUICertificateManagerHost) {
     return true;
   }
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
@@ -7134,7 +7149,7 @@ bool ChromeContentBrowserClient::HandleWebUIReverse(
   // No need to actually reverse-rewrite the URL, but return true to update the
   // displayed URL when rewriting chrome://help to chrome://settings/help.
   return url->SchemeIs(content::kChromeUIScheme) &&
-         url->host() == chrome::kChromeUISettingsHost;
+         url->GetHost() == chrome::kChromeUISettingsHost;
 }
 
 void ChromeContentBrowserClient::AddExtraPart(
@@ -7355,8 +7370,7 @@ std::string ChromeContentBrowserClient::GetUserAgentBasedOnPolicy(
 
 blink::UserAgentMetadata ChromeContentBrowserClient::GetUserAgentMetadata() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  return embedder_support::GetUserAgentMetadata(
-      g_browser_process->local_state());
+  return embedder_support::GetUserAgentMetadata();
 }
 
 std::optional<gfx::ImageSkia> ChromeContentBrowserClient::GetProductLogo() {
@@ -7755,6 +7769,12 @@ ChromeContentBrowserClient::ShouldOverridePrivateNetworkRequestPolicy(
         kBlockInsteadOfWarn;
   }
 
+  if (profile->GetPrefs()->GetBoolean(
+          prefs::kManagedLocalNetworkAccessRestrictionsTemporaryOptOut)) {
+    return content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
+        kWarnInsteadOfBlock;
+  }
+
   return content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
       kDefault;
 }
@@ -7786,7 +7806,7 @@ bool ChromeContentBrowserClient::AreV8OptimizationsDisabledForSite(
   // Only disable optimizations for schemes that might actually load web
   // content.
   auto* policy = ChildProcessSecurityPolicy::GetInstance();
-  if (!site_url.is_empty() && !policy->IsWebSafeScheme(site_url.scheme())) {
+  if (!site_url.is_empty() && !policy->IsWebSafeScheme(site_url.GetScheme())) {
     return false;
   }
 

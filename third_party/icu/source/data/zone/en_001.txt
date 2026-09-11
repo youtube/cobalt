@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 en_001{
     zoneStrings{
         "America:St_Barthelemy"{
@@ -26,9 +26,6 @@ en_001{
         }
         "Atlantic:St_Helena"{
             ec{"St Helena"}
-        }
-        "Australia:Currie"{
-            ec{"Currie"}
         }
         "Pacific:Enderbury"{
             ec{"Enderbury"}

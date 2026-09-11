@@ -1,12 +1,35 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 az{
     AuxExemplarCharacters{"[w]"}
     ExemplarCharacters{"[a b c ç d e ə f g ğ h x ı iİ j k q l m n o ö p r s ş t u ü v y z]"}
     ExemplarCharactersIndex{"[A B C Ç D E Ə F G Ğ H X I İ J K Q L M N O Ö P R S Ş T U Ü V Y Z W]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
+        arab{
+            patterns{
+                decimalFormat{"standart onluq kəsr0.###"}
+                scientificFormat{"standart elmi#"}
+            }
+            symbols{
+                group{","}
+                minusSign{"-"}
+                percentSign{"٪"}
+                plusSign{"+"}
+            }
+        }
+        arabext{
+            patterns{
+                decimalFormat{"standart onluq kəsr0.###"}
+            }
+            symbols{
+                decimal{","}
+                minusSign{"-"}
+                percentSign{"~"}
+                plusSign{"+"}
+            }
+        }
         latn{
             miscPatterns{
                 atLeast{"{0}+"}
@@ -1184,10 +1207,10 @@ az{
                 "[%％﹪ ٪]",
                 "[‰ ؉]",
                 "[\$＄﹩]",
-                "[£ ₤]",
+                "[£￡ ₤]",
                 "[¥￥]",
                 "[₩￦]",
-                "[₹ ₨ {Rp} {Rs}]",
+                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

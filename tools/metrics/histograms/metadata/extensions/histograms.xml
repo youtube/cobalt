@@ -2510,6 +2510,19 @@ This is emitted for two scenarios when a worker may be unregistered:
   </summary>
 </histogram>
 
+<histogram
+    name="Extensions.Functions.DeveloperPrivate.NoSuchExtensionErrorThrown"
+    enum="ExtensionFunctions" expires_after="2026-04-01">
+  <owner>kelvinjiang@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <summary>
+    Recorded when an error is thrown from a developerPrivate API function when
+    there is no extension with the specified ID found. Used to pinpoint which
+    functions may be causing most crashes as seen in crbug.com/431205004 when
+    this error is thrown.
+  </summary>
+</histogram>
+
 <histogram name="Extensions.Functions.DidSandboxedComponentExtensionAPICall"
     enum="Boolean" expires_after="2025-09-30">
   <owner>wjmaclean@chromium.org</owner>
@@ -2751,6 +2764,25 @@ This is emitted for two scenarios when a worker may be unregistered:
     when SafeBrowsingVerdictHandler ungreylists and enables an installed
     extension.
   </summary>
+</histogram>
+
+<histogram name="Extensions.GreylistedForceInstalled.{TrustLevel}.Enabled"
+    enum="Boolean" expires_after="2025-12-28">
+  <owner>anunoy@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records the enabled state of a greylisted force-installed extension in a
+    {TrustLevel} management environment. A greylisted extension is one that has
+    been taken down by the Chrome Web Store for non-malware reasons such as
+    store policy violations or unwanted software categorization. Recorded once
+    per extension at profile startup on Windows and macOS. Only applicable for
+    &quot;user profiles&quot; (profiles where people can install extensions,
+    specifically profiles that can have non-component extensions installed).
+  </summary>
+  <token key="TrustLevel">
+    <variant name="HighTrust" summary="high-trust"/>
+    <variant name="LowTrust" summary="low-trust"/>
+  </token>
 </histogram>
 
 <histogram name="Extensions.HasPermissions_Install4" enum="Boolean"
@@ -3271,7 +3303,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.LoadingFromCommandLine" enum="LoadExtensionFlag"
-    expires_after="2025-11-30">
+    expires_after="2026-03-29">
   <owner>richche@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -3581,6 +3613,19 @@ This is emitted for two scenarios when a worker may be unregistered:
   <token key="ExtensionMessagingPortType" variants="ExtensionMessagingPortType">
     <variant name=""/>
   </token>
+</histogram>
+
+<histogram name="Extensions.Messaging.NativeMessagingCount" units="extensions"
+    expires_after="2026-03-30">
+  <owner>kelvinjiang@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <summary>
+    Number of enabled extensions which have requested the
+    &quot;nativeMessaging&quot; permission. Includes all kinds of extensions,
+    including component and unpacked extensions. Recorded during &quot;user
+    profile&quot; (profiles where people can install extensions, specifically
+    profiles that can have non-component extensions installed) initialization.
+  </summary>
 </histogram>
 
 <histogram
@@ -3921,7 +3966,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ServiceWorkerBackground.MultiWorkerVersionIdMatch"
-    enum="Boolean" expires_after="2026-01-01">
+    enum="Boolean" expires_after="2026-03-29">
   <owner>andreaorru@chromium.org</owner>
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -4873,7 +4918,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ZeroStatePromo.IphActionChromeWebStoreLink"
-    enum="WebStoreLinkClicked" expires_after="2026-01-25">
+    enum="WebStoreLinkClicked" expires_after="2026-03-29">
   <owner>uwyiming@chromium.org</owner>
   <owner>cws-consumer-team@google.com</owner>
   <summary>

@@ -4,10 +4,10 @@
 
 package org.chromium.chrome.browser;
 
-import static org.chromium.ui.KeyboardUtils.ALT;
-import static org.chromium.ui.KeyboardUtils.CTRL;
-import static org.chromium.ui.KeyboardUtils.NO_MODIFIER;
-import static org.chromium.ui.KeyboardUtils.SHIFT;
+import static org.chromium.base.ui.KeyboardUtils.ALT;
+import static org.chromium.base.ui.KeyboardUtils.CTRL;
+import static org.chromium.base.ui.KeyboardUtils.NO_MODIFIER;
+import static org.chromium.base.ui.KeyboardUtils.SHIFT;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -21,7 +21,9 @@ import androidx.annotation.StringRes;
 import org.jni_zero.CalledByNative;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.ui.KeyboardUtils;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarUtils;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -39,7 +41,6 @@ import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.ContentFeatureMap;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.device.gamepad.GamepadList;
-import org.chromium.ui.KeyboardUtils;
 import org.chromium.ui.accessibility.AccessibilityState;
 
 import java.lang.annotation.Retention;
@@ -105,7 +106,7 @@ public class KeyboardShortcuts {
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_CONSOLE,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_INSPECT,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_TOGGLE,
-        KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_VIEW_SOURCE,
+        KeyboardShortcutsSemanticMeaning.VIEW_SOURCE,
         KeyboardShortcutsSemanticMeaning.TASK_MANAGER,
         KeyboardShortcutsSemanticMeaning.SAVE_PAGE,
         KeyboardShortcutsSemanticMeaning.SHOW_DOWNLOADS,
@@ -125,6 +126,7 @@ public class KeyboardShortcuts {
         KeyboardShortcutsSemanticMeaning.OPEN_HELP,
         KeyboardShortcutsSemanticMeaning.OPEN_MENU,
         KeyboardShortcutsSemanticMeaning.CUSTOM_EXTENSION_SHORTCUT,
+        KeyboardShortcutsSemanticMeaning.TOGGLE_MULTISELECT,
         KeyboardShortcutsSemanticMeaning.MAX_VALUE
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -190,7 +192,7 @@ public class KeyboardShortcuts {
         int NOT_IMPLEMENTED_DEV_TOOLS_CONSOLE = 38;
         int NOT_IMPLEMENTED_DEV_TOOLS_INSPECT = 39;
         int NOT_IMPLEMENTED_DEV_TOOLS_TOGGLE = 40;
-        int NOT_IMPLEMENTED_VIEW_SOURCE = 41;
+        int VIEW_SOURCE = 41;
         int TASK_MANAGER = 42;
 
         // Downloads.
@@ -224,8 +226,11 @@ public class KeyboardShortcuts {
         // This enum isn't precisely a single semantic meaning, but we want to report metrics.
         int CUSTOM_EXTENSION_SHORTCUT = 60;
 
+        // Tab strip shortcuts.
+        int TOGGLE_MULTISELECT = 61;
+
         // Max value.
-        int MAX_VALUE = 61;
+        int MAX_VALUE = 62;
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:KeyboardShortcutsSemanticMeaning, //tools/metrics/histograms/metadata/accessibility/histograms.xml:KeyboardShortcutsSemanticMeaning)
@@ -628,6 +633,9 @@ public class KeyboardShortcuts {
 
         // Developer tools.
         new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.VIEW_SOURCE,
+                new KeyCombo(KeyEvent.KEYCODE_U, KeyEvent.META_CTRL_ON));
+        new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.DEV_TOOLS,
                 new KeyCombo(KeyEvent.KEYCODE_I, (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)));
         new KeyboardShortcutDefinition(
@@ -682,6 +690,12 @@ public class KeyboardShortcuts {
                             (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON))
                 });
 
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.TOGGLE_MULTISELECT,
+                new KeyCombo(KeyEvent.KEYCODE_H, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON),
+                R.string.keyboard_shortcut_toggle_multiselect,
+                R.string.keyboard_shortcut_tab_navigation_group_header);
+
         // Unimplemented shortcuts.
         // TODO(crbug.com/402775002): Figure out what shortcut does TOGGLE_MULTITASK_MENU.
         new KeyboardShortcutDefinition(
@@ -729,9 +743,6 @@ public class KeyboardShortcuts {
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_TOGGLE,
                 new KeyCombo(KeyEvent.KEYCODE_F12, NO_MODIFIER));
-        new KeyboardShortcutDefinition(
-                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_VIEW_SOURCE,
-                new KeyCombo(KeyEvent.KEYCODE_U, KeyEvent.META_CTRL_ON));
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_BASIC_PRINT,
                 new KeyCombo(KeyEvent.KEYCODE_P, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
@@ -870,6 +881,13 @@ public class KeyboardShortcuts {
                     context,
                     shortcutGroupsById,
                     R.string.keyboard_shortcut_developer_group_header,
+                    R.string.keyboard_shortcut_view_source,
+                    KeyEvent.KEYCODE_U,
+                    KeyEvent.META_CTRL_ON);
+            addShortcut(
+                    context,
+                    shortcutGroupsById,
+                    R.string.keyboard_shortcut_developer_group_header,
                     R.string.keyboard_shortcut_developer_tools,
                     KeyEvent.KEYCODE_I,
                     (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
@@ -989,6 +1007,9 @@ public class KeyboardShortcuts {
                 } else {
                     break;
                 }
+            case KeyboardShortcutsSemanticMeaning.VIEW_SOURCE:
+                menuOrKeyboardActionController.onMenuOrKeyboardAction(R.id.view_source, false);
+                return true;
             case KeyboardShortcutsSemanticMeaning.DEV_TOOLS:
                 menuOrKeyboardActionController.onMenuOrKeyboardAction(R.id.dev_tools, false);
                 return true;
@@ -1055,12 +1076,19 @@ public class KeyboardShortcuts {
                     }
                     return true;
                 case KeyboardShortcutsSemanticMeaning.CLOSE_TAB:
+                    List<Tab> selectedTabs = new ArrayList<>();
+                    for (int i = 0; i < currentTabModel.getCount(); i++) {
+                        @Nullable Tab tab = currentTabModel.getTabAt(i);
+                        if (tab == null) continue;
+                        if (!currentTabModel.isTabMultiSelected(tab.getId())) continue;
+                        selectedTabs.add(tab);
+                    }
                     Tab tab = TabModelUtils.getCurrentTab(currentTabModel);
                     if (tab != null) {
                         currentTabModel
                                 .getTabRemover()
                                 .closeTabs(
-                                        TabClosureParams.closeTab(tab)
+                                        TabClosureParams.closeTabs(selectedTabs)
                                                 .allowUndo(false)
                                                 .tabClosingSource(
                                                         TabClosingSource.KEYBOARD_SHORTCUT)
@@ -1155,6 +1183,8 @@ public class KeyboardShortcuts {
                 case KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_BOOKMARKS:
                     return menuOrKeyboardActionController.onMenuOrKeyboardAction(
                             R.id.focus_bookmarks, /* fromMenu= */ false);
+                case KeyboardShortcutsSemanticMeaning.TOGGLE_MULTISELECT:
+                    return toolbarManager.multiselectKeyboardFocusedItem();
             }
         }
 

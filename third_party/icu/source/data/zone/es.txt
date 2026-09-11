@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 es{
     zoneStrings{
         "Africa:Abidjan"{
@@ -80,9 +80,6 @@ es{
         }
         "America:Argentina:Tucuman"{
             ec{"Tucumán"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bahia"{
             ec{"Bahía"}
@@ -173,9 +170,6 @@ es{
         }
         "America:Rio_Branco"{
             ec{"Río Branco"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:Santarem"{
             ec{"Santarém"}
@@ -372,9 +366,6 @@ es{
         "Australia:Adelaide"{
             ec{"Adelaida"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Australia:Sydney"{
             ec{"Sídney"}
         }
@@ -485,9 +476,6 @@ es{
         "Europe:Ulyanovsk"{
             ec{"Uliánovsk"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Úzhgorod"}
-        }
         "Europe:Vatican"{
             ec{"El Vaticano"}
         }
@@ -502,9 +490,6 @@ es{
         }
         "Europe:Warsaw"{
             ec{"Varsovia"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporiyia"}
         }
         "Europe:Zurich"{
             ec{"Zúrich"}
@@ -723,11 +708,6 @@ es{
             lg{"hora de China"}
             ls{"hora estándar de China"}
         }
-        "meta:Choibalsan"{
-            ld{"hora de verano de Choibalsan"}
-            lg{"hora de Choibalsan"}
-            ls{"hora estándar de Choibalsan"}
-        }
         "meta:Christmas"{
             ls{"hora de la Isla de Navidad"}
         }
@@ -904,6 +884,9 @@ es{
             lg{"hora de Kamchatka"}
             ls{"hora estándar de Kamchatka"}
         }
+        "meta:Kazakhstan"{
+            ls{"hora de Kazajistán"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"hora de Kazajistán oriental"}
         }
@@ -942,9 +925,6 @@ es{
             lg{"Hora de Macao"}
             ls{"Hora estándar de Macao"}
         }
-        "meta:Macquarie"{
-            ls{"hora de la isla Macquarie"}
-        }
         "meta:Magadan"{
             ld{"hora de verano de Magadán"}
             lg{"hora de Magadán"}
@@ -969,11 +949,6 @@ es{
         }
         "meta:Mawson"{
             ls{"hora de Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"hora de verano del noroeste de México"}
-            lg{"hora del noroeste de México"}
-            ls{"hora estándar del noroeste de México"}
         }
         "meta:Mexico_Pacific"{
             ld{"hora de verano del Pacífico de México"}

@@ -38,6 +38,7 @@
 #include "extensions/browser/install_tracker.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/browser/pref_types.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_id.h"
@@ -45,6 +46,8 @@
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_info.h"
 #include "testing/gmock/include/gmock/gmock.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using base::Time;
 using extensions::mojom::APIPermissionID;
@@ -463,7 +466,7 @@ class ExtensionPrefsDelayedInstallInfo : public ExtensionPrefsTest {
     manifest.Set(manifest_keys::kManifestVersion, 2);
     base::FilePath path =
         prefs_.extensions_dir().AppendASCII(base::NumberToString(num));
-    std::string errors;
+    std::u16string errors;
     scoped_refptr<Extension> extension =
         Extension::Create(path, ManifestLocation::kInternal, manifest,
                           Extension::NO_FLAGS, id, &errors);
@@ -587,7 +590,7 @@ class ExtensionPrefsFinishDelayedInstallInfo : public ExtensionPrefsTest {
     manifest.SetByDottedPath(manifest_keys::kBackgroundScripts,
                              std::move(scripts));
     base::FilePath path = prefs_.extensions_dir().AppendASCII("test_0.2");
-    std::string errors;
+    std::u16string errors;
     scoped_refptr<Extension> new_extension =
         Extension::Create(path, ManifestLocation::kInternal, manifest,
                           Extension::NO_FLAGS, id_, &errors);
@@ -813,7 +816,7 @@ TEST_F(ExtensionPrefsFlags, ExtensionPrefsFlags) {}
 
 PrefsPrepopulatedTestBase::PrefsPrepopulatedTestBase() {
   base::Value::Dict simple_dict;
-  std::string error;
+  std::u16string error;
 
   simple_dict.Set(manifest_keys::kVersion, "1.0.0.0");
   simple_dict.Set(manifest_keys::kManifestVersion, 2);

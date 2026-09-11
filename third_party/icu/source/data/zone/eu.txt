@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 eu{
     zoneStrings{
         "Africa:Accra"{
@@ -69,9 +69,6 @@ eu{
         "America:Cuiaba"{
             ec{"Cuiabá"}
         }
-        "America:Curacao"{
-            ec{"Curaçao"}
-        }
         "America:Dominica"{
             ec{"Dominika"}
         }
@@ -113,9 +110,6 @@ eu{
         }
         "America:Port_of_Spain"{
             ec{"Port-of-Spain"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:Santarem"{
             ec{"Santarém"}
@@ -164,9 +158,6 @@ eu{
         }
         "Asia:Chita"{
             ec{"Txita"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Txoibalsan"}
         }
         "Asia:Colombo"{
             ec{"Kolombo"}
@@ -270,9 +261,6 @@ eu{
         "Atlantic:St_Helena"{
             ec{"Santa Helena"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Etc:UTC"{
             ls{"ordu unibertsal koordinatua"}
         }
@@ -340,9 +328,6 @@ eu{
         "Europe:Ulyanovsk"{
             ec{"Ulianovsk"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Uzhhorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikano Hiria"}
         }
@@ -351,9 +336,6 @@ eu{
         }
         "Europe:Warsaw"{
             ec{"Varsovia"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporizhia"}
         }
         "Europe:Zurich"{
             ec{"Zürich"}
@@ -586,11 +568,6 @@ eu{
             lg{"Txinako ordua"}
             ls{"Txinako ordu estandarra"}
         }
-        "meta:Choibalsan"{
-            ld{"Txoibalsango udako ordua"}
-            lg{"Txoibalsango ordua"}
-            ls{"Txoibalsango ordu estandarra"}
-        }
         "meta:Christmas"{
             ls{"Christmas uharteko ordua"}
         }
@@ -770,6 +747,9 @@ eu{
             lg{"Petropavlovsk-Kamchatskiko ordua"}
             ls{"Petropavlovsk-Kamchatskiko ordu estandarra"}
         }
+        "meta:Kazakhstan"{
+            ls{"Kazakhstango ordua"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Kazakhstango ekialdeko ordua"}
         }
@@ -808,9 +788,6 @@ eu{
             lg{"Macaoko ordua"}
             ls{"Macaoko ordu estandarra"}
         }
-        "meta:Macquarie"{
-            ls{"Macquarie uharteko ordua"}
-        }
         "meta:Magadan"{
             ld{"Magadango udako ordua"}
             lg{"Magadango ordua"}
@@ -835,11 +812,6 @@ eu{
         }
         "meta:Mawson"{
             ls{"Mawsoneko ordua"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Mexikoko ipar-ekialdeko udako ordua"}
-            lg{"Mexikoko ipar-ekialdeko ordua"}
-            ls{"Mexikoko ipar-ekialdeko ordu estandarra"}
         }
         "meta:Mexico_Pacific"{
             ld{"Mexikoko Pazifikoko udako ordua"}
@@ -1073,7 +1045,7 @@ eu{
         "meta:Yukon"{
             ls{"Yukongo ordua"}
         }
-        hourFormat{"+HH:mm;−HH:mm"}
+        hourFormat{"+HH:mm;–HH:mm"}
         regionFormat{"{0} aldeko ordua"}
         regionFormatDaylight{"{0} (udako ordua)"}
         regionFormatStandard{"{0} aldeko ordu estandarra"}

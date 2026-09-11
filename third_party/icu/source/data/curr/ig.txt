@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ig{
     Currencies{
         AED{
@@ -437,7 +437,7 @@ ig{
         }
         PHP{
             "₱",
-            "Ego piso obodo Philippine",
+            "Ego Piso obodo Philippine",
         }
         PKR{
             "PKR",
@@ -775,8 +775,5 @@ ig{
         ZMW{
             other{"Ego kwachas obodo Zambia"}
         }
-    }
-    CurrencyUnitPatterns{
-        other{"{0} {1}"}
     }
 }

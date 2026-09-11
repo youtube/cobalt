@@ -413,6 +413,26 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "enable": true,
@@ -903,6 +923,26 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -1431,6 +1471,26 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "enable": true,
@@ -1921,6 +1981,26 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -2664,6 +2744,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3015,6 +3112,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3361,6 +3475,23 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -3734,6 +3865,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4102,6 +4250,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4448,6 +4613,23 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -4800,6 +4982,23 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -5175,6 +5374,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5539,6 +5755,23 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -5910,6 +6143,24 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -6287,6 +6538,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6640,6 +6909,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6986,6 +7272,23 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "arm64-64-Apple_M1",
+            "os": "Mac-15"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -7367,6 +7670,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7713,6 +8033,23 @@
         },
         "test": "video_engine_tests",
         "test_id_prefix": "ninja://:video_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
       },
       {
         "merge": {
@@ -8069,6 +8406,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8420,6 +8774,23 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "name": "video_timing_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8462,7 +8833,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8493,7 +8864,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8511,7 +8882,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8542,7 +8913,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8559,7 +8930,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8590,7 +8961,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8607,7 +8978,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8638,7 +9009,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8655,7 +9026,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8686,7 +9057,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8703,7 +9074,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8734,7 +9105,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8751,7 +9122,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8782,7 +9153,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8799,7 +9170,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8830,7 +9201,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8847,7 +9218,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8878,7 +9249,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8895,7 +9266,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8926,7 +9297,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8943,7 +9314,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -8974,7 +9345,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -8992,7 +9363,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9023,7 +9394,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9041,7 +9412,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9073,7 +9444,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9091,7 +9462,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9123,7 +9494,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9141,7 +9512,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9172,7 +9543,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9189,7 +9560,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9220,7 +9591,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9237,7 +9608,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9268,7 +9639,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9285,7 +9656,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9316,7 +9687,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9333,7 +9704,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9364,7 +9735,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9381,7 +9752,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9412,7 +9783,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9429,7 +9800,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9460,7 +9831,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9477,7 +9848,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9508,7 +9879,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9526,7 +9897,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9557,7 +9928,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9575,7 +9946,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9606,7 +9977,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9624,7 +9995,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9655,7 +10026,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9673,7 +10044,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9704,7 +10075,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9721,7 +10092,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9753,7 +10124,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9771,7 +10142,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9803,7 +10174,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9821,7 +10192,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9852,7 +10223,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9869,7 +10240,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9900,7 +10271,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9917,7 +10288,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9948,7 +10319,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -9965,7 +10336,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -9996,7 +10367,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -10013,7 +10384,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -10044,7 +10415,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -10061,7 +10432,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -10092,7 +10463,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -10109,7 +10480,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -10140,7 +10511,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -10158,7 +10529,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -10189,7 +10560,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -10207,7 +10578,103 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests iPhone 14 17.5",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_17_5",
+              "path": "Runtime-ios-17.5"
+            },
+            {
+              "name": "xcode_ios_17a324",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/",
+        "variant_id": "iPhone 14 17.5"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 15",
+          "--version",
+          "18.2",
+          "--xcode-build-version",
+          "17a324",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "video_timing_tests iPhone 15 18.2",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_18_2",
+              "path": "Runtime-ios-18.2"
+            },
+            {
+              "name": "xcode_ios_17a324",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_timing_tests",
+        "test_id_prefix": "ninja://video/timing:video_timing_tests/",
+        "variant_id": "iPhone 15 18.2"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 14",
+          "--version",
+          "17.5",
+          "--xcode-build-version",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -10238,7 +10705,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -10255,7 +10722,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -10286,7 +10753,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -10303,7 +10770,7 @@
           "--version",
           "17.5",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -10334,7 +10801,7 @@
               "path": "Runtime-ios-17.5"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -10351,7 +10818,7 @@
           "--version",
           "18.2",
           "--xcode-build-version",
-          "17a5305f",
+          "17a324",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xctest"
@@ -10382,7 +10849,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],

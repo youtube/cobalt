@@ -9,7 +9,6 @@
  ***********************************************************************/
 
 #include "unicode/translit.h"
-#include "unicode/rbt.h"
 #include "unicode/unistr.h"
 #include "unicode/calendar.h"
 #include "unicode/datefmt.h"
@@ -17,6 +16,8 @@
 #include <stdlib.h>
 #include "util.h"
 #include "unaccent.h"
+
+using icu::Transliterator;
 
 int main(int argc, char **argv) {
 
@@ -41,8 +42,8 @@ int main(int argc, char **argv) {
     defFmt->setCalendar(*cal);
 
     // Create a Greek-Latin Transliterator
-    greek_latin = Transliterator::createInstance("Greek-Latin");
-    if (greek_latin == 0) {
+    greek_latin = Transliterator::createInstance("Greek-Latin", UTRANS_FORWARD, status);
+    if (greek_latin == nullptr) {
         printf("ERROR: Transliterator::createInstance() failed\n");
         exit(1);
     }

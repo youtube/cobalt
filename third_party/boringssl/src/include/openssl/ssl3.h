@@ -23,46 +23,20 @@ extern "C" {
 #endif
 
 
-// These are kept to support clients that negotiates higher protocol versions
+// These are kept to support clients that negotiate higher protocol versions
 // using SSLv2 client hello records.
 #define SSL2_MT_CLIENT_HELLO 1
 #define SSL2_VERSION 0x0002
 
-// Signalling cipher suite value from RFC 5746.
-#define SSL3_CK_SCSV 0x030000FF
-// Fallback signalling cipher suite value from RFC 7507.
-#define SSL3_CK_FALLBACK_SCSV 0x03005600
-
-#define SSL3_CK_RSA_NULL_MD5 0x03000001
-#define SSL3_CK_RSA_NULL_SHA 0x03000002
-#define SSL3_CK_RSA_RC4_40_MD5 0x03000003
-#define SSL3_CK_RSA_RC4_128_MD5 0x03000004
-#define SSL3_CK_RSA_RC4_128_SHA 0x03000005
-#define SSL3_CK_RSA_RC2_40_MD5 0x03000006
-#define SSL3_CK_RSA_IDEA_128_SHA 0x03000007
-#define SSL3_CK_RSA_DES_40_CBC_SHA 0x03000008
-#define SSL3_CK_RSA_DES_64_CBC_SHA 0x03000009
+// The following constants are equal to TLS cipher suite values, OR-d with
+// 0x03000000. This is part of OpenSSL's SSL 2.0 legacy. SSL 2.0 has long since
+// been removed from BoringSSL.
+// TODO(davidben): Define these in terms of |SSL_CIPHER_*| constants. The
+// challenge is that existing code expects them to be defined in ssl3.h, so we
+// must first merge ssl3.h into ssl.h.
 #define SSL3_CK_RSA_DES_192_CBC3_SHA 0x0300000A
-
-#define SSL3_CK_DH_DSS_DES_40_CBC_SHA 0x0300000B
-#define SSL3_CK_DH_DSS_DES_64_CBC_SHA 0x0300000C
-#define SSL3_CK_DH_DSS_DES_192_CBC3_SHA 0x0300000D
-#define SSL3_CK_DH_RSA_DES_40_CBC_SHA 0x0300000E
-#define SSL3_CK_DH_RSA_DES_64_CBC_SHA 0x0300000F
-#define SSL3_CK_DH_RSA_DES_192_CBC3_SHA 0x03000010
-
-#define SSL3_CK_EDH_DSS_DES_40_CBC_SHA 0x03000011
-#define SSL3_CK_EDH_DSS_DES_64_CBC_SHA 0x03000012
-#define SSL3_CK_EDH_DSS_DES_192_CBC3_SHA 0x03000013
-#define SSL3_CK_EDH_RSA_DES_40_CBC_SHA 0x03000014
-#define SSL3_CK_EDH_RSA_DES_64_CBC_SHA 0x03000015
-#define SSL3_CK_EDH_RSA_DES_192_CBC3_SHA 0x03000016
-
-#define SSL3_CK_ADH_RC4_40_MD5 0x03000017
-#define SSL3_CK_ADH_RC4_128_MD5 0x03000018
-#define SSL3_CK_ADH_DES_40_CBC_SHA 0x03000019
-#define SSL3_CK_ADH_DES_64_CBC_SHA 0x0300001A
-#define SSL3_CK_ADH_DES_192_CBC_SHA 0x0300001B
+#define SSL3_CK_SCSV 0x030000FF
+#define SSL3_CK_FALLBACK_SCSV 0x03005600
 
 #define SSL3_TXT_RSA_NULL_MD5 "NULL-MD5"
 #define SSL3_TXT_RSA_NULL_SHA "NULL-SHA"

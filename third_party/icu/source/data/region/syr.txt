@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 syr{
     Countries{
         001{"ܬܐܒܝܠ"}
@@ -142,6 +142,7 @@ syr{
         IL{"ܐܝܣܪܐܝܠ"}
         IM{"ܓܙܪܬܐ ܕܡܐܢ"}
         IN{"ܗܢܕܘ"}
+        IO{"ܩܠܝܡܐ ܕܒܪܝܛܢܝܐ ܓܘ ܐܘܩܝܢܘܣ ܗܢܕܘܝܐ"}
         IQ{"ܥܝܪܩ"}
         IR{"ܐܝܪܐܢ"}
         IS{"ܐܝܣܠܢܕ"}

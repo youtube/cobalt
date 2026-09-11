@@ -184,6 +184,22 @@ class ComposeboxQueryController {
     size_t num_outstanding_network_requests_ = 0;
   };
 
+  // Struct containing information needed to construct a search url.
+  struct CreateSearchUrlRequestInfo {
+   public:
+    CreateSearchUrlRequestInfo();
+    ~CreateSearchUrlRequestInfo();
+
+    // The text of the query.
+    std::string query_text;
+
+    // The client-side time the query was started.
+    base::Time query_start_time;
+
+    // Additional params to attach to the search url.
+    std::map<std::string, std::string> additional_params;
+  };
+
   ComposeboxQueryController(
       signin::IdentityManager* identity_manager,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -192,7 +208,8 @@ class ComposeboxQueryController {
       TemplateURLService* template_url_service,
       variations::VariationsClient* variations_client,
       bool send_lns_surface,
-      bool enable_multi_context_input_flow);
+      bool enable_multi_context_input_flow,
+      bool enable_viewport_images);
   virtual ~ComposeboxQueryController();
 
   // Session management. Virtual for testing.
@@ -206,9 +223,8 @@ class ComposeboxQueryController {
 
   // Called when a query has been submitted. `query_start_time` is the time
   // that the user clicked the submit button.
-  GURL CreateAimUrl(const std::string& query_text,
-                    base::Time query_start_time,
-                    std::map<std::string, std::string> additional_params = {});
+  GURL CreateSearchUrl(
+      std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info);
 
   // Observer management.
   void AddObserver(FileUploadStatusObserver* obs);
@@ -436,10 +452,15 @@ class ComposeboxQueryController {
   // Whether or not to send the lns_surface parameter.
   // TODO(crbug.com/430070871): Remove this once the server supports the
   // `lns_surface` parameter.
-  bool send_lns_surface_ = false;
+  bool send_lns_surface_;
 
   // Whether or not to use the multiple-input id request generation flow.
-  bool enable_multi_context_input_flow_ = false;
+  bool enable_multi_context_input_flow_;
+
+  // Whether or not to include viewport images with page context uploads.
+  // TODO(crbug.com/448647393): Remove this once the server supports viewport
+  // images for multi-context input.
+  bool enable_viewport_images_;
 
   lens::proto::LensOverlaySuggestInputs suggest_inputs_;
 

@@ -1,9 +1,9 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 af{
     Countries{
-        001{"Wêreld"}
+        001{"wêreld"}
         002{"Afrika"}
         003{"Noord-Amerika"}
         005{"Suid-Amerika"}
@@ -76,7 +76,7 @@ af{
         CC{"Kokoseilande"}
         CD{"Demokratiese Republiek van die Kongo"}
         CF{"Sentraal-Afrikaanse Republiek"}
-        CG{"Kongo - Brazzaville"}
+        CG{"Kongo-Brazzaville"}
         CH{"Switserland"}
         CI{"Ivoorkus"}
         CK{"Cookeilande"}
@@ -305,7 +305,7 @@ af{
     }
     Countries%variant{
         CD{"Kongo (DRK)"}
-        CG{"Kongo (Republiek die)"}
+        CG{"Kongo (Republiek)"}
         CZ{"Tsjeggiese Republiek"}
     }
 }

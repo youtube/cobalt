@@ -26,10 +26,12 @@
 #include <openssl/evp_errors.h>
 #include <openssl/hkdf.h>
 #include <openssl/mem.h>
+#include <openssl/mlkem.h>
 #include <openssl/rand.h>
 #include <openssl/sha2.h>
 #include <openssl/xwing.h>
 
+#include "../fipsmodule/bcm_interface.h"
 #include "../fipsmodule/ec/internal.h"
 #include "../internal.h"
 
@@ -602,11 +604,11 @@ const EVP_HPKE_KEM *EVP_hpke_p256_hkdf_sha256(void) {
   return &kKEM;
 }
 
-#define XWING_PRIVATE_KEY_LEN 32
-#define XWING_PUBLIC_KEY_LEN 1216
-#define XWING_PUBLIC_VALUE_LEN 1120
+#define XWING_PRIVATE_KEY_LEN XWING_PRIVATE_KEY_BYTES
+#define XWING_PUBLIC_KEY_LEN XWING_PUBLIC_KEY_BYTES
+#define XWING_PUBLIC_VALUE_LEN XWING_CIPHERTEXT_BYTES
 #define XWING_SEED_LEN 64
-#define XWING_SHARED_KEY_LEN 32
+#define XWING_SHARED_KEY_LEN XWING_SHARED_SECRET_BYTES
 
 static int xwing_init_key(EVP_HPKE_KEY *key, const uint8_t *priv_key,
                           size_t priv_key_len) {
@@ -712,6 +714,240 @@ const EVP_HPKE_KEM *EVP_hpke_xwing(void) {
       xwing_decap,
       // X-Wing doesn't support authenticated encapsulation/decapsulation:
       // https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem-08#name-use-in-hpke
+      /* auth_encap_with_seed= */ nullptr,
+      /* auth_decap= */ nullptr,
+  };
+  return &kKEM;
+}
+
+#define MLKEM768_PRIVATE_KEY_LEN MLKEM_SEED_BYTES
+#define MLKEM768_PUBLIC_KEY_LEN MLKEM768_PUBLIC_KEY_BYTES
+#define MLKEM768_PUBLIC_VALUE_LEN MLKEM768_CIPHERTEXT_BYTES
+#define MLKEM768_SEED_LEN BCM_MLKEM_ENCAP_ENTROPY
+#define MLKEM768_SHARED_KEY_LEN MLKEM_SHARED_SECRET_BYTES
+
+static int mlkem768_init_key(EVP_HPKE_KEY *key, const uint8_t *priv_key,
+                             size_t priv_key_len) {
+  MLKEM768_private_key expanded_private_key;
+  if (!MLKEM768_private_key_from_seed(&expanded_private_key, priv_key,
+                                      priv_key_len)) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+  MLKEM768_public_key public_key;
+  MLKEM768_public_from_private(&public_key, &expanded_private_key);
+  CBB cbb;
+  static_assert(sizeof(key->public_key) >= MLKEM768_PUBLIC_KEY_LEN,
+                "EVP_HPKE_KEY public_key is too small for ML-KEM-768.");
+  if (!CBB_init_fixed(&cbb, key->public_key, MLKEM768_PUBLIC_KEY_LEN) ||
+      !MLKEM768_marshal_public_key(&cbb, &public_key)) {
+    return 0;
+  }
+
+  static_assert(sizeof(key->private_key) >= MLKEM768_PRIVATE_KEY_LEN,
+                "EVP_HPKE_KEY private_key is too small for ML-KEM-768");
+  OPENSSL_memcpy(key->private_key, priv_key, priv_key_len);
+  return 1;
+}
+
+static int mlkem768_generate_key(EVP_HPKE_KEY *key) {
+  static_assert(sizeof(key->public_key) >= MLKEM768_PUBLIC_KEY_LEN,
+                "EVP_HPKE_KEY public_key is too small for ML-KEM-768.");
+  static_assert(sizeof(key->private_key) >= MLKEM768_PRIVATE_KEY_LEN,
+                "EVP_HPKE_KEY private_key is too small for ML-KEM-768");
+  MLKEM768_private_key expanded_private_key;
+  MLKEM768_generate_key(key->public_key, key->private_key,
+                        &expanded_private_key);
+
+  return 1;
+}
+
+static int mlkem768_encap_with_seed(
+    const EVP_HPKE_KEM *kem, uint8_t *out_shared_secret,
+    size_t *out_shared_secret_len, uint8_t *out_enc, size_t *out_enc_len,
+    size_t max_enc, const uint8_t *peer_public_key, size_t peer_public_key_len,
+    const uint8_t *seed, size_t seed_len) {
+  if (max_enc < MLKEM768_PUBLIC_VALUE_LEN) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_BUFFER_SIZE);
+    return 0;
+  }
+  if (peer_public_key_len != MLKEM768_PUBLIC_KEY_LEN ||
+      seed_len != MLKEM768_SEED_LEN) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+
+  CBS cbs;
+  CBS_init(&cbs, peer_public_key, peer_public_key_len);
+  BCM_mlkem768_public_key public_key;
+  if (!bcm_success(BCM_mlkem768_parse_public_key(&public_key, &cbs))) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+  // The public ML-KEM interface doesn't support providing the encap entropy so
+  // the BCM function is used here.
+  BCM_mlkem768_encap_external_entropy(out_enc, out_shared_secret, &public_key,
+                                      seed);
+
+  *out_enc_len = MLKEM768_PUBLIC_VALUE_LEN;
+  *out_shared_secret_len = MLKEM768_SHARED_KEY_LEN;
+  return 1;
+}
+
+static int mlkem768_decap(const EVP_HPKE_KEY *key, uint8_t *out_shared_secret,
+                          size_t *out_shared_secret_len, const uint8_t *enc,
+                          size_t enc_len) {
+  if (enc_len != MLKEM768_PUBLIC_VALUE_LEN) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+
+  MLKEM768_private_key private_key;
+  if (!MLKEM768_private_key_from_seed(&private_key, key->private_key,
+                                      MLKEM768_PRIVATE_KEY_LEN)) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+
+  if (!MLKEM768_decap(out_shared_secret, enc, enc_len, &private_key)) {
+    OPENSSL_PUT_ERROR(EVP, ERR_R_INTERNAL_ERROR);
+    return 0;
+  }
+
+  *out_shared_secret_len = MLKEM768_SHARED_KEY_LEN;
+  return 1;
+}
+
+const EVP_HPKE_KEM *EVP_hpke_mlkem768(void) {
+  static const EVP_HPKE_KEM kKEM = {
+      /*id=*/EVP_HPKE_MLKEM768,
+      /*public_key_len=*/MLKEM768_PUBLIC_KEY_LEN,
+      /*private_key_len=*/MLKEM768_PRIVATE_KEY_LEN,
+      /*seed_len=*/MLKEM768_SEED_LEN,
+      /*enc_len=*/MLKEM768_PUBLIC_VALUE_LEN,
+      mlkem768_init_key,
+      mlkem768_generate_key,
+      mlkem768_encap_with_seed,
+      mlkem768_decap,
+      // MLKEM768 doesn't support authenticated encapsulation/decapsulation:
+      // https://datatracker.ietf.org/doc/draft-ietf-hpke-pq/01/
+      /* auth_encap_with_seed= */ nullptr,
+      /* auth_decap= */ nullptr,
+  };
+  return &kKEM;
+}
+
+#define MLKEM1024_PRIVATE_KEY_LEN MLKEM_SEED_BYTES
+#define MLKEM1024_PUBLIC_KEY_LEN MLKEM1024_PUBLIC_KEY_BYTES
+#define MLKEM1024_PUBLIC_VALUE_LEN MLKEM1024_CIPHERTEXT_BYTES
+#define MLKEM1024_SEED_LEN BCM_MLKEM_ENCAP_ENTROPY
+#define MLKEM1024_SHARED_KEY_LEN MLKEM_SHARED_SECRET_BYTES
+
+static int mlkem1024_init_key(EVP_HPKE_KEY *key, const uint8_t *priv_key,
+                              size_t priv_key_len) {
+  MLKEM1024_private_key expanded_private_key;
+  if (!MLKEM1024_private_key_from_seed(&expanded_private_key, priv_key,
+                                       priv_key_len)) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+  MLKEM1024_public_key public_key;
+  MLKEM1024_public_from_private(&public_key, &expanded_private_key);
+  CBB cbb;
+  static_assert(sizeof(key->public_key) >= MLKEM1024_PUBLIC_KEY_LEN,
+                "EVP_HPKE_KEY public_key is too small for ML-KEM-1024.");
+  if (!CBB_init_fixed(&cbb, key->public_key, MLKEM1024_PUBLIC_KEY_LEN) ||
+      !MLKEM1024_marshal_public_key(&cbb, &public_key)) {
+    return 0;
+  }
+
+  static_assert(sizeof(key->private_key) >= MLKEM1024_PRIVATE_KEY_LEN,
+                "EVP_HPKE_KEY private_key is too small for ML-KEM-1024");
+  OPENSSL_memcpy(key->private_key, priv_key, priv_key_len);
+  return 1;
+}
+
+static int mlkem1024_generate_key(EVP_HPKE_KEY *key) {
+  static_assert(sizeof(key->public_key) >= MLKEM1024_PUBLIC_KEY_LEN,
+                "EVP_HPKE_KEY public_key is too small for ML-KEM-1024.");
+  static_assert(sizeof(key->private_key) >= MLKEM1024_PRIVATE_KEY_LEN,
+                "EVP_HPKE_KEY private_key is too small for ML-KEM-1024");
+  MLKEM1024_private_key expanded_private_key;
+  MLKEM1024_generate_key(key->public_key, key->private_key,
+                         &expanded_private_key);
+
+  return 1;
+}
+
+static int mlkem1024_encap_with_seed(
+    const EVP_HPKE_KEM *kem, uint8_t *out_shared_secret,
+    size_t *out_shared_secret_len, uint8_t *out_enc, size_t *out_enc_len,
+    size_t max_enc, const uint8_t *peer_public_key, size_t peer_public_key_len,
+    const uint8_t *seed, size_t seed_len) {
+  if (max_enc < MLKEM1024_PUBLIC_VALUE_LEN) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_BUFFER_SIZE);
+    return 0;
+  }
+  if (peer_public_key_len != MLKEM1024_PUBLIC_KEY_LEN ||
+      seed_len != MLKEM1024_SEED_LEN) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+
+  CBS cbs;
+  CBS_init(&cbs, peer_public_key, peer_public_key_len);
+  BCM_mlkem1024_public_key public_key;
+  if (!bcm_success(BCM_mlkem1024_parse_public_key(&public_key, &cbs))) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+  // The public ML-KEM interface doesn't support providing the encap entropy so
+  // the BCM function is used here.
+  BCM_mlkem1024_encap_external_entropy(out_enc, out_shared_secret, &public_key,
+                                       seed);
+
+  *out_enc_len = MLKEM1024_PUBLIC_VALUE_LEN;
+  *out_shared_secret_len = MLKEM1024_SHARED_KEY_LEN;
+  return 1;
+}
+
+static int mlkem1024_decap(const EVP_HPKE_KEY *key, uint8_t *out_shared_secret,
+                           size_t *out_shared_secret_len, const uint8_t *enc,
+                           size_t enc_len) {
+  if (enc_len != MLKEM1024_PUBLIC_VALUE_LEN) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+
+  MLKEM1024_private_key private_key;
+  if (!MLKEM1024_private_key_from_seed(&private_key, key->private_key,
+                                       MLKEM1024_PRIVATE_KEY_LEN)) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
+  }
+
+  if (!MLKEM1024_decap(out_shared_secret, enc, enc_len, &private_key)) {
+    OPENSSL_PUT_ERROR(EVP, ERR_R_INTERNAL_ERROR);
+    return 0;
+  }
+
+  *out_shared_secret_len = MLKEM1024_SHARED_KEY_LEN;
+  return 1;
+}
+
+const EVP_HPKE_KEM *EVP_hpke_mlkem1024(void) {
+  static const EVP_HPKE_KEM kKEM = {
+      /*id=*/EVP_HPKE_MLKEM1024,
+      /*public_key_len=*/MLKEM1024_PUBLIC_KEY_LEN,
+      /*private_key_len=*/MLKEM1024_PRIVATE_KEY_LEN,
+      /*seed_len=*/MLKEM1024_SEED_LEN,
+      /*enc_len=*/MLKEM1024_PUBLIC_VALUE_LEN,
+      mlkem1024_init_key,
+      mlkem1024_generate_key,
+      mlkem1024_encap_with_seed,
+      mlkem1024_decap,
+      // MLKEM1024 doesn't support authenticated encapsulation/decapsulation:
+      // https://datatracker.ietf.org/doc/draft-ietf-hpke-pq/01/
       /* auth_encap_with_seed= */ nullptr,
       /* auth_decap= */ nullptr,
   };

@@ -1,13 +1,10 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 to{
     zoneStrings{
         "Africa:Sao_Tome"{
             ec{"Sao Tomé"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
@@ -15,20 +12,11 @@ to{
         "America:Cancun"{
             ec{"Cancun"}
         }
-        "America:Curacao"{
-            ec{"Curaçao"}
-        }
         "America:Merida"{
             ec{"Merida"}
         }
         "America:New_York"{
             ec{"Niu ʻIoke"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
-        }
-        "America:St_Barthelemy"{
-            ec{"St. Barthélemy"}
         }
         "Asia:Hebron"{
             ec{"Hepeloni"}
@@ -47,9 +35,6 @@ to{
         }
         "Australia:Brisbane"{
             ec{"Pelisipane"}
-        }
-        "Australia:Currie"{
-            ec{"Currie"}
         }
         "Australia:Melbourne"{
             ec{"Melipoane"}
@@ -85,14 +70,8 @@ to{
         "Europe:Rome"{
             ec{"Loma"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Uzhhorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikani"}
-        }
-        "Indian:Reunion"{
-            ec{"Réunion"}
         }
         "Pacific:Auckland"{
             ec{"ʻAokalani"}
@@ -120,9 +99,6 @@ to{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-        }
-        "Pacific:Johnston"{
-            ec{"Sionesitoni"}
         }
         "Pacific:Kanton"{
             ec{"Kanitoni"}
@@ -153,6 +129,9 @@ to{
         }
         "Pacific:Norfolk"{
             ec{"Noafōki"}
+        }
+        "Pacific:Noumea"{
+            ec{"Numea"}
         }
         "Pacific:Pago_Pago"{
             ec{"Pangopango"}
@@ -364,11 +343,6 @@ to{
             lg{"houa fakasiaina"}
             ls{"houa fakasiaina taimi totonu"}
         }
-        "meta:Choibalsan"{
-            ld{"houa fakakoipalisani taimi liliu"}
-            lg{"houa fakakoipalisani"}
-            ls{"houa fakakoipalisani taimi totonu"}
-        }
         "meta:Christmas"{
             ls{"houa fakamotukilisimasi"}
         }
@@ -535,6 +509,9 @@ to{
             lg{"houa fakalūsia-petelopavilovisiki"}
             ls{"houa fakalūsia-petelopavilovisiki taimi totonu"}
         }
+        "meta:Kazakhstan"{
+            ls{"houa fakakasakitani"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"houa fakakasakitani-hahake"}
         }
@@ -573,9 +550,6 @@ to{
             lg{"houa fakamakau"}
             ls{"houa fakamakau taimi totonu"}
         }
-        "meta:Macquarie"{
-            ls{"houa fakamotumakuali"}
-        }
         "meta:Magadan"{
             ld{"houa fakalūsia-makatani taimi liliu"}
             lg{"houa fakalūsia-makatani"}
@@ -600,11 +574,6 @@ to{
         }
         "meta:Mawson"{
             ls{"houa fakamausoni"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"houa fakamekisikou-tokelauhihifo taimi liliu"}
-            lg{"houa fakamekisikou-tokelauhihifo"}
-            ls{"houa fakamekisikou-tokelauhihifo taimi totonu"}
         }
         "meta:Mexico_Pacific"{
             ld{"houa fakamekisikou-pasifika taimi liliu"}

@@ -619,6 +619,9 @@ PeerConnection::PeerConnection(
   if (call_ptr_) {
     worker_thread()->BlockingCall([this, tc = transport_controller_copy_] {
       RTC_DCHECK_RUN_ON(worker_thread());
+      if (context_->media_engine()) {
+        context_->AddRefMediaEngine();
+      }
       call_->SetPayloadTypeSuggester(tc);
     });
   }
@@ -712,6 +715,9 @@ PeerConnection::~PeerConnection() {
     RTC_DCHECK_RUN_ON(worker_thread());
     worker_thread_safety_->SetNotAlive();
     call_.reset();
+    if (context_->media_engine()) {
+      context_->ReleaseMediaEngine();
+    }
   });
 
   data_channel_controller_.PrepareForShutdown();

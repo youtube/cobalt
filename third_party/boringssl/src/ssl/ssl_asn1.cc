@@ -151,7 +151,7 @@ static int SSL_SESSION_to_bytes_full(const SSL_SESSION *in, CBB *cbb,
       !CBB_add_asn1_uint64(&session, kVersion) ||
       !CBB_add_asn1_uint64(&session, in->ssl_version) ||
       !CBB_add_asn1(&session, &child, CBS_ASN1_OCTETSTRING) ||
-      !CBB_add_u16(&child, (uint16_t)(in->cipher->id & 0xffff)) ||
+      !CBB_add_u16(&child, in->cipher->protocol_id) ||
       // The session ID is irrelevant for a session ticket.
       !CBB_add_asn1_octet_string(&session, in->session_id.data(),
                                  for_ticket ? 0 : in->session_id.size()) ||

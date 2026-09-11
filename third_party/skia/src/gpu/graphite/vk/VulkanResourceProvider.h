@@ -83,13 +83,11 @@ public:
 
 private:
     const VulkanSharedContext* vulkanSharedContext() const;
+    // VulkanSharedContext::pipelineCompileWasRequired() - which drives PipelineCache persistence
+    // - modifies the SharedContext so, when creating Pipelines, the ResourceProvider must
+    // provide a non-const SharedContext.
+    VulkanSharedContext* nonConstVulkanSharedContext();
 
-    sk_sp<GraphicsPipeline> createGraphicsPipeline(const RuntimeEffectDictionary*,
-                                                   const UniqueKey&,
-                                                   const GraphicsPipelineDesc&,
-                                                   const RenderPassDesc&,
-                                                   SkEnumBitMask<PipelineCreationFlags>,
-                                                   uint32_t compilationID) override;
     sk_sp<ComputePipeline> createComputePipeline(const ComputePipelineDesc&) override;
 
     sk_sp<Texture> createTexture(SkISize, const TextureInfo&) override;

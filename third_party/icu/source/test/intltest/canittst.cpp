@@ -60,12 +60,8 @@ nameTrans(nullptr), hexTrans(nullptr)
 CanonicalIteratorTest::~CanonicalIteratorTest()
 {
 #if !UCONFIG_NO_TRANSLITERATION
-  if(nameTrans != nullptr) {
     delete(nameTrans);
-  }
-  if(hexTrans != nullptr) {
     delete(hexTrans);
-  }
 #endif
 }
 
@@ -97,7 +93,7 @@ void CanonicalIteratorTest::TestExhaustive() {
         s = i;
         characterTest(s, i, it);
 
-        s += (UChar32)0x0345; //"\\u0345";
+        s += static_cast<UChar32>(0x0345); //"\\u0345";
         characterTest(s, i, it);
     }
 }
@@ -201,7 +197,7 @@ void CanonicalIteratorTest::characterTest(UnicodeString &s, UChar32 ch, Canonica
     }
     
     if (!gotSource || !gotDecomp || !gotComp) {
-        errln("FAIL CanonicalIterator: " + s + (int)ch);
+        errln("FAIL CanonicalIterator: " + s + static_cast<int>(ch));
     }
 }
 

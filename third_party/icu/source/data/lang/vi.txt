@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 vi{
     Keys{
         calendar{"Lịch"}
@@ -30,7 +30,7 @@ vi{
         ada{"Tiếng Adangme"}
         ady{"Tiếng Adyghe"}
         ae{"Tiếng Avestan"}
-        af{"Tiếng Afrikaans"}
+        af{"Tiếng Hà Lan (Nam Phi)"}
         afh{"Tiếng Afrihili"}
         agq{"Tiếng Aghem"}
         ain{"Tiếng Ainu"}
@@ -89,6 +89,7 @@ vi{
         bjn{"Tiếng Banjar"}
         bkm{"Tiếng Kom"}
         bla{"Tiếng Siksika"}
+        blo{"Anii"}
         bm{"Tiếng Bambara"}
         bn{"Tiếng Bangla"}
         bo{"Tiếng Tây Tạng"}
@@ -219,7 +220,6 @@ vi{
         gmh{"Tiếng Thượng Giéc-man Trung cổ"}
         gn{"Tiếng Guarani"}
         goh{"Tiếng Thượng Giéc-man cổ"}
-        gom{"Tiếng Goan Konkani"}
         gon{"Tiếng Gondi"}
         gor{"Tiếng Gorontalo"}
         got{"Tiếng Gô-tích"}
@@ -323,6 +323,7 @@ vi{
         kv{"Tiếng Komi"}
         kw{"Tiếng Cornwall"}
         kwk{"Tiếng Kwakʼwala"}
+        kxv{"Tiếng Kuvi"}
         ky{"Tiếng Kyrgyz"}
         la{"Tiếng La-tinh"}
         lad{"Tiếng Ladino"}
@@ -333,6 +334,7 @@ vi{
         lez{"Tiếng Lezghian"}
         lg{"Tiếng Ganda"}
         li{"Tiếng Limburg"}
+        lij{"Tiếng Liguria"}
         lil{"Tiếng Lillooet"}
         lkt{"Tiếng Lakota"}
         lmo{"Tiếng Lombard"}
@@ -385,7 +387,7 @@ vi{
         ms{"Tiếng Mã Lai"}
         mt{"Tiếng Malta"}
         mua{"Tiếng Mundang"}
-        mul{"Nhiều Ngôn ngữ"}
+        mul{"Nhiều ngôn ngữ"}
         mus{"Tiếng Creek"}
         mwl{"Tiếng Miranda"}
         mwr{"Tiếng Marwari"}
@@ -399,7 +401,7 @@ vi{
         naq{"Tiếng Nama"}
         nb{"Tiếng Na Uy (Bokmål)"}
         nd{"Tiếng Ndebele Miền Bắc"}
-        nds{"Tiếng Hạ Giéc-man"}
+        nds{"Tiếng Hạ Đức"}
         nds_NL{"Tiếng Hạ Saxon"}
         ne{"Tiếng Nepal"}
         new{"Tiếng Newari"}
@@ -408,7 +410,6 @@ vi{
         niu{"Tiếng Niuean"}
         njo{"Tiếng Ao Naga"}
         nl{"Tiếng Hà Lan"}
-        nl_BE{"Tiếng Flemish"}
         nmg{"Tiếng Kwasio"}
         nn{"Tiếng Na Uy (Nynorsk)"}
         nnh{"Tiếng Ngiemboon"}
@@ -444,7 +445,7 @@ vi{
         pam{"Tiếng Pampanga"}
         pap{"Tiếng Papiamento"}
         pau{"Tiếng Palauan"}
-        pcm{"Tiếng Nigeria Pidgin"}
+        pcm{"Pidgin Nigeria"}
         peo{"Tiếng Ba Tư cổ"}
         phn{"Tiếng Phoenicia"}
         pi{"Tiếng Pali"}
@@ -531,6 +532,7 @@ vi{
         swb{"Tiếng Cômo"}
         syc{"Tiếng Syriac cổ"}
         syr{"Tiếng Syriac"}
+        szl{"Tiếng Silesia"}
         ta{"Tiếng Tamil"}
         tce{"Tiếng Tutchone miền Nam"}
         te{"Tiếng Telugu"}
@@ -579,7 +581,9 @@ vi{
         uz{"Tiếng Uzbek"}
         vai{"Tiếng Vai"}
         ve{"Tiếng Venda"}
+        vec{"Tiếng Veneto"}
         vi{"Tiếng Việt"}
+        vmw{"Tiếng Makhuwa"}
         vo{"Tiếng Volapük"}
         vot{"Tiếng Votic"}
         vun{"Tiếng Vunjo"}
@@ -593,6 +597,7 @@ vi{
         wuu{"Tiếng Ngô"}
         xal{"Tiếng Kalmyk"}
         xh{"Tiếng Xhosa"}
+        xnr{"Tiếng Kangri"}
         xog{"Tiếng Soga"}
         yao{"Tiếng Yao"}
         yap{"Tiếng Yap"}
@@ -790,8 +795,8 @@ vi{
         Yiii{"Chữ Di"}
         Zinh{"Chữ Kế thừa"}
         Zmth{"Ký hiệu Toán học"}
-        Zsye{"Biểu tượng"}
-        Zsym{"Ký hiệu"}
+        Zsye{"Biểu tượng cảm xúc"}
+        Zsym{"Biểu tượng | Ký hiệu"}
         Zxxx{"Chưa có chữ viết"}
         Zyyy{"Chung"}
         Zzzz{"Chữ viết không xác định"}
@@ -869,7 +874,6 @@ vi{
             phonebook{"Thứ tự sắp xếp theo danh bạ điện thoại"}
             phonetic{"Thứ tự sắp xếp theo ngữ âm"}
             pinyin{"Thứ tự sắp xếp theo bính âm"}
-            reformed{"Thứ tự sắp xếp đã sửa đổi"}
             search{"Tìm kiếm mục đích chung"}
             searchjl{"Tìm kiếm theo Phụ âm Đầu Hangul"}
             standard{"Thứ tự sắp xếp chuẩn"}
@@ -994,6 +998,8 @@ vi{
         1959ACAD{"Hàn lâm"}
         1994{"Phép chính tả Resian Chuẩn hóa"}
         1996{"Phép chính tả Tiếng Đức năm 1996"}
+        ABL1943{"Orthographic formulation of 1943"}
+        AKUAPEM{"TIẾNG AKUAPEM"}
         ALALC97{"La Mã hóa ALA-LC, ấn bản năm 1997"}
         ALUKU{"Phương ngữ Aluku"}
         AREVELA{"Tiếng Armenia Miền Đông"}

@@ -16,10 +16,10 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.components.tabs.TabStripCollection;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.OptionalInt;
 import java.util.Set;
 
 /**
@@ -271,8 +271,11 @@ class IncognitoTabModelImpl implements IncognitoTabModelInternal {
     }
 
     @Override
-    public void pinTab(int tabId) {
-        mDelegateModel.pinTab(tabId);
+    public void pinTab(
+            int tabId,
+            boolean showUngroupDialog,
+            @Nullable TabModelActionListener tabModelActionListener) {
+        mDelegateModel.pinTab(tabId, showUngroupDialog, tabModelActionListener);
     }
 
     @Override
@@ -426,7 +429,7 @@ class IncognitoTabModelImpl implements IncognitoTabModelInternal {
     }
 
     @Override
-    public OptionalInt getNativeSessionIdForTesting() {
+    public @Nullable Integer getNativeSessionIdForTesting() {
         return mDelegateModel.getNativeSessionIdForTesting();
     }
 
@@ -438,5 +441,10 @@ class IncognitoTabModelImpl implements IncognitoTabModelInternal {
     @Override
     public boolean isMuted(Tab tab) {
         return mDelegateModel.isMuted(tab);
+    }
+
+    @Override
+    public @Nullable TabStripCollection getTabStripCollection() {
+        return mDelegateModel.getTabStripCollection();
     }
 }

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 zh{
     Currencies{
         ADP{
@@ -481,7 +481,7 @@ zh{
         }
         IDR{
             "IDR",
-            "印度尼西亚盾",
+            "印度尼西亚卢比",
         }
         IEP{
             "IEP",
@@ -564,7 +564,7 @@ zh{
             "韩元 (1945–1953)",
         }
         KRW{
-            "￦",
+            "₩",
             "韩元",
         }
         KWD{

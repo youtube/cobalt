@@ -42,7 +42,7 @@ class Point;
 namespace glic {
 class GlicInstanceCoordinatorImpl
     : public GlicWindowController,
-      public GlicInstanceImpl::AttachmentDelegate {
+      public GlicInstanceImpl::InstanceCoordinatorDelegate {
  public:
   GlicInstanceCoordinatorImpl(const GlicInstanceCoordinatorImpl&) = delete;
   GlicInstanceCoordinatorImpl& operator=(const GlicInstanceCoordinatorImpl&) =
@@ -54,10 +54,10 @@ class GlicInstanceCoordinatorImpl
                               GlicEnabling* enabling);
   ~GlicInstanceCoordinatorImpl() override;
 
-  // GlicInstanceImpl::AttachmentDelegate implementation
-  void AttachInstance(GlicInstance* instance) override;
-  void DetachInstance(GlicInstance* instance) override;
+  // GlicInstanceImpl::InstanceCoordinatorDelegate implementation
   void OnInstanceOrphaned(GlicInstance* instance) override;
+  void OnInstanceVisibilityChanged(GlicInstance* instance,
+                                   bool is_showing) override;
   void SwitchConversation(
       tabs::TabInterface* tab,
       glic::mojom::ConversationInfoPtr info,
@@ -120,6 +120,8 @@ class GlicInstanceCoordinatorImpl
 
   base::CallbackListSubscription RegisterStateChange(
       StateChangeCallback callback) override;
+  base::CallbackListSubscription RegisterLastActiveInstanceChangedCallback(
+      LastActiveInstanceChangedCallback callback) override;
 
   void FindInstanceFromGlicContentsAndBindToTab(
       content::WebContents* source_glic_web_contents,
@@ -132,11 +134,13 @@ class GlicInstanceCoordinatorImpl
   GlicInstanceImpl* CreateGlicInstance();
   void CreateWarmedInstance();
 
-  void ToggleFloaty();
-  void ToggleSidePanel(BrowserWindowInterface* browser);
+  void ToggleFloaty(bool prevent_close);
+  void ToggleSidePanel(BrowserWindowInterface* browser, bool prevent_close);
 
   void RemoveInstance(GlicInstance* instance);
   bool HasAttachedInstance(GlicInstance* instance);
+
+  void NotifyLastActiveInstanceChanged();
 
   // List of callbacks to be notified when window activation has changed.
   base::RepeatingCallbackList<void(bool)> window_activation_callback_list_;
@@ -152,6 +156,10 @@ class GlicInstanceCoordinatorImpl
   std::unique_ptr<GlicInstanceImpl> warmed_instance_;
 
   std::unique_ptr<HostManager> host_manager_;
+
+  raw_ptr<GlicInstance> last_active_instance_ = nullptr;
+  base::RepeatingCallbackList<void(GlicInstance*)>
+      last_active_instance_changed_callback_list_;
 
   base::WeakPtrFactory<GlicInstanceCoordinatorImpl> weak_ptr_factory_{this};
 };

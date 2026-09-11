@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 tr{
     zoneStrings{
         "Africa:Accra"{
@@ -54,9 +54,6 @@ tr{
         "Africa:Tunis"{
             ec{"Tunus"}
         }
-        "America:Asuncion"{
-            ec{"Asunción"}
-        }
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
         }
@@ -65,9 +62,6 @@ tr{
         }
         "America:Costa_Rica"{
             ec{"Kosta Rika"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Dominica"{
             ec{"Dominika"}
@@ -89,9 +83,6 @@ tr{
         }
         "America:Puerto_Rico"{
             ec{"Porto Riko"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:St_Barthelemy"{
             ec{"Saint Barthelemy"}
@@ -137,9 +128,6 @@ tr{
         }
         "Asia:Chita"{
             ec{"Çita"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Çoybalsan"}
         }
         "Asia:Colombo"{
             ec{"Kolombo"}
@@ -261,9 +249,6 @@ tr{
         "Atlantic:South_Georgia"{
             ec{"Güney Georgia"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Australia:Sydney"{
             ec{"Sidney"}
         }
@@ -352,9 +337,6 @@ tr{
         "Europe:Tirane"{
             ec{"Tiran"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Ujgorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikan"}
         }
@@ -363,9 +345,6 @@ tr{
         }
         "Europe:Warsaw"{
             ec{"Varşova"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporojye"}
         }
         "Europe:Zurich"{
             ec{"Zürih"}
@@ -565,11 +544,6 @@ tr{
             lg{"Çin Saati"}
             ls{"Çin Standart Saati"}
         }
-        "meta:Choibalsan"{
-            ld{"Çoybalsan Yaz Saati"}
-            lg{"Çoybalsan Saati"}
-            ls{"Çoybalsan Standart Saati"}
-        }
         "meta:Christmas"{
             ls{"Christmas Adası Saati"}
         }
@@ -736,6 +710,9 @@ tr{
             lg{"Petropavlovsk-Kamçatski Saati"}
             ls{"Petropavlovsk-Kamçatski Standart Saati"}
         }
+        "meta:Kazakhstan"{
+            ls{"Kazakistan Saati"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Doğu Kazakistan Saati"}
         }
@@ -774,9 +751,6 @@ tr{
             lg{"Makao Saati"}
             ls{"Makao Standart Saati"}
         }
-        "meta:Macquarie"{
-            ls{"Macquarie Adası Saati"}
-        }
         "meta:Magadan"{
             ld{"Magadan Yaz Saati"}
             lg{"Magadan Saati"}
@@ -801,11 +775,6 @@ tr{
         }
         "meta:Mawson"{
             ls{"Mawson Saati"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Kuzeybatı Meksika Yaz Saati"}
-            lg{"Kuzeybatı Meksika Saati"}
-            ls{"Kuzeybatı Meksika Standart Saati"}
         }
         "meta:Mexico_Pacific"{
             ld{"Meksika Pasifik Kıyısı Yaz Saati"}

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 jv{
     zoneStrings{
         "Africa:Cairo"{
@@ -117,9 +117,6 @@ jv{
         "America:Puerto_Rico"{
             ec{"Puerto Riko"}
         }
-        "America:Rainy_River"{
-            ec{"Kali Rainy"}
-        }
         "America:St_Barthelemy"{
             ec{"Santa Barthelemy"}
         }
@@ -140,9 +137,6 @@ jv{
         }
         "America:Swift_Current"{
             ec{"Arus Banter"}
-        }
-        "America:Thunder_Bay"{
-            ec{"Teluk Gludhug"}
         }
         "Asia:Calcutta"{
             ec{"Kalkuta"}
@@ -182,9 +176,6 @@ jv{
         }
         "Atlantic:St_Helena"{
             ec{"Santa Helena"}
-        }
-        "Australia:Currie"{
-            ec{"Currie"}
         }
         "Etc:UTC"{
             ls{"Wektu Universal Kakoordhinasi"}
@@ -392,11 +383,6 @@ jv{
             lg{"Wektu Cina"}
             ls{"Wektu Standar Cina"}
         }
-        "meta:Choibalsan"{
-            ld{"WEktu Ketigo Choibalsan"}
-            lg{"Wektu Choibalsan"}
-            ls{"Wektu Standar Choibalsan"}
-        }
         "meta:Christmas"{
             ls{"Wektu Pulo Natal"}
         }
@@ -555,6 +541,9 @@ jv{
             lg{"Wektu Jepang"}
             ls{"Wektu Standar Jepang"}
         }
+        "meta:Kazakhstan"{
+            ls{"Wektu Kazakhstan"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Wektu Kazakhstan Wetan"}
         }
@@ -585,9 +574,6 @@ jv{
             lg{"Wektu Lord Howe"}
             ls{"Wektu Standar Lord Howe"}
         }
-        "meta:Macquarie"{
-            ls{"Wektu Pulo Macquarie"}
-        }
         "meta:Magadan"{
             ld{"Wektu Ketigo Magadan"}
             lg{"Wektu Magadan"}
@@ -612,11 +598,6 @@ jv{
         }
         "meta:Mawson"{
             ls{"Wektu Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Wektu Ketigo Meksiko Lor-Kulon"}
-            lg{"Wektu Meksiko Lor-Kulon"}
-            ls{"Wektu Standar Meksiko Lor-Kulon"}
         }
         "meta:Mexico_Pacific"{
             ld{"Wektu Ketigo Pasifik Meksiko"}

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 sa{
     AuxExemplarCharacters{"[\u200C\u200D ऍ ऑ ॅ ॉ]"}
     ExemplarCharacters{
@@ -141,15 +141,6 @@ sa{
                         "गुरु",
                         "शुक्र",
                         "शनि",
-                    }
-                    short{
-                        "Sun",
-                        "Mon",
-                        "Tue",
-                        "Wed",
-                        "Thu",
-                        "Fri",
-                        "Sat",
                     }
                     wide{
                         "रविवासरः",

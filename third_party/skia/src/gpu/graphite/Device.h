@@ -76,6 +76,8 @@ class Clip;
 class DrawContext;
 class Geometry;
 class Image;
+class PaintParamsKeyBuilder;
+class PipelineDataGatherer;
 class PathAtlas;
 class Renderer;
 class Shape;
@@ -196,7 +198,7 @@ public:
     void drawRRect(const SkRRect& rr, const SkPaint&) override;
     void drawArc(const SkArc& arc, const SkPaint&) override;
     void drawPoints(SkCanvas::PointMode, SkSpan<const SkPoint>, const SkPaint&) override;
-    void drawPath(const SkPath& path, const SkPaint&, bool pathIsMutable = false) override;
+    void drawPath(const SkPath& path, const SkPaint&) override;
     void drawDRRect(const SkRRect& outer, const SkRRect& inner, const SkPaint&) override;
 
     // No need to specialize drawRegion or drawPatch as the default impls all route to drawPath,
@@ -340,6 +342,9 @@ private:
     // in the long-term, these scratch draw tasks will only be executed if they are referenced by
     // some other task chain that makes it to the root list.
     sk_sp<Task> fLastTask;
+
+    std::unique_ptr<PaintParamsKeyBuilder> fKeyBuilder;
+    std::unique_ptr<PipelineDataGatherer> fDataGatherer;
 
     ClipStack fClip;
 

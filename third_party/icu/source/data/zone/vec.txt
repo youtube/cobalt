@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 vec{
     zoneStrings{
         "Africa:Abidjan"{
@@ -129,9 +129,6 @@ vec{
         "America:Cuiaba"{
             ec{"Cuiabà"}
         }
-        "America:Curacao"{
-            ec{"Curaçao"}
-        }
         "America:Denver"{
             ec{"Dènver"}
         }
@@ -216,9 +213,6 @@ vec{
         "America:Panama"{
             ec{"Pànama"}
         }
-        "America:Pangnirtung"{
-            ec{"Pang"}
-        }
         "America:Port-au-Prince"{
             ec{"Porto Prìnsipe"}
         }
@@ -255,14 +249,23 @@ vec{
         "Antarctica:Macquarie"{
             ec{"Ìzola Macquarie"}
         }
+        "Asia:Almaty"{
+            ec{"Almati"}
+        }
         "Asia:Amman"{
             ec{"Aman"}
+        }
+        "Asia:Anadyr"{
+            ec{"Anàdyr"}
         }
         "Asia:Aqtau"{
             ec{"Aktàu"}
         }
         "Asia:Aqtobe"{
             ec{"Aktobe"}
+        }
+        "Asia:Ashgabat"{
+            ec{"Azgabad"}
         }
         "Asia:Atyrau"{
             ec{"Atyràu"}
@@ -273,11 +276,17 @@ vec{
         "Asia:Bahrain"{
             ec{"Barein"}
         }
+        "Asia:Bishkek"{
+            ec{"Biskek"}
+        }
         "Asia:Brunei"{
             ec{"Brunéi"}
         }
         "Asia:Calcutta"{
             ec{"Calcuta"}
+        }
+        "Asia:Chita"{
+            ec{"Cita"}
         }
         "Asia:Colombo"{
             ec{"Colonbo"}
@@ -291,14 +300,26 @@ vec{
         "Asia:Dubai"{
             ec{"Dubài"}
         }
+        "Asia:Dushanbe"{
+            ec{"Dusanbé"}
+        }
         "Asia:Famagusta"{
             ec{"Famagosta"}
         }
         "Asia:Jerusalem"{
             ec{"Jeruzaleme"}
         }
+        "Asia:Kamchatka"{
+            ec{"Kamciatka"}
+        }
         "Asia:Katmandu"{
             ec{"Katmandù"}
+        }
+        "Asia:Khandyga"{
+            ec{"Hàndiga"}
+        }
+        "Asia:Krasnoyarsk"{
+            ec{"Kraznayarsk"}
         }
         "Asia:Kuala_Lumpur"{
             ec{"Kuala Lunpur"}
@@ -311,6 +332,12 @@ vec{
         }
         "Asia:Muscat"{
             ec{"Mascate"}
+        }
+        "Asia:Novokuznetsk"{
+            ec{"Novokuznietsk"}
+        }
+        "Asia:Oral"{
+            ec{"Oural"}
         }
         "Asia:Phnom_Penh"{
             ec{"Pnom Pen"}
@@ -327,6 +354,9 @@ vec{
         "Asia:Riyadh"{
             ec{"Riad"}
         }
+        "Asia:Sakhalin"{
+            ec{"Sacalin"}
+        }
         "Asia:Samarkand"{
             ec{"Samarcanda"}
         }
@@ -336,8 +366,14 @@ vec{
         "Asia:Shanghai"{
             ec{"Shanghài"}
         }
+        "Asia:Srednekolymsk"{
+            ec{"Zrédnekolimsk"}
+        }
         "Asia:Taipei"{
             ec{"Taipéi"}
+        }
+        "Asia:Tashkent"{
+            ec{"Taskent"}
         }
         "Asia:Tbilisi"{
             ec{"Tiblisi"}
@@ -354,8 +390,14 @@ vec{
         "Asia:Urumqi"{
             ec{"Urumchi"}
         }
+        "Asia:Ust-Nera"{
+            ec{"Ust-Gnera"}
+        }
         "Asia:Vientiane"{
             ec{"Vientian"}
+        }
+        "Asia:Yekaterinburg"{
+            ec{"Yekaterinburgo"}
         }
         "Asia:Yerevan"{
             ec{"Jèrevan"}
@@ -405,6 +447,9 @@ vec{
         "Europe:Andorra"{
             ec{"Andora"}
         }
+        "Europe:Astrakhan"{
+            ec{"Astrahan"}
+        }
         "Europe:Athens"{
             ec{"Atene"}
         }
@@ -438,6 +483,9 @@ vec{
         "Europe:Istanbul"{
             ec{"Ìstanbul"}
         }
+        "Europe:Kaliningrad"{
+            ec{"Kaliningrado"}
+        }
         "Europe:Kiev"{
             ec{"Kiev"}
         }
@@ -456,6 +504,9 @@ vec{
         }
         "Europe:Monaco"{
             ec{"Mònaco"}
+        }
+        "Europe:Moscow"{
+            ec{"Mosca"}
         }
         "Europe:Oslo"{
             ec{"Ozlo"}
@@ -487,8 +538,8 @@ vec{
         "Europe:Tirane"{
             ec{"Tirana"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Ùzgorod"}
+        "Europe:Ulyanovsk"{
+            ec{"Uliànosk"}
         }
         "Europe:Vatican"{
             ec{"Vategan"}
@@ -496,11 +547,11 @@ vec{
         "Europe:Vienna"{
             ec{"Viena"}
         }
+        "Europe:Volgograd"{
+            ec{"Volgogrado"}
+        }
         "Europe:Warsaw"{
             ec{"Varsavia"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporija"}
         }
         "Europe:Zurich"{
             ec{"Zurigo"}
@@ -558,9 +609,6 @@ vec{
         }
         "Pacific:Guadalcanal"{
             ec{"Ìzola Guadalcanal"}
-        }
-        "Pacific:Johnston"{
-            ec{"Atolo Johnston"}
         }
         "Pacific:Kanton"{
             ec{"Atolo Canton"}
@@ -659,24 +707,24 @@ vec{
             ls{"Ora normale de l’Amasonia"}
         }
         "meta:America_Central"{
-            ld{"Ora d’istà de’l nord mèrega sentrale"}
-            lg{"Ora de’l nord mèrega sentrale"}
-            ls{"Ora normale de’l nord mèrega sentrale"}
+            ld{"Ora d’istà de’l nord Amèrega sentrale"}
+            lg{"Ora de’l nord Amèrega sentrale"}
+            ls{"Ora normale de’l nord Amèrega sentrale"}
         }
         "meta:America_Eastern"{
-            ld{"Ora d’istà de’l nord mèrega orientale"}
-            lg{"Ora de’l nord mèrega orientale"}
-            ls{"Ora normale de’l nord mèrega orientale"}
+            ld{"Ora d’istà de’l nord Amèrega orientale"}
+            lg{"Ora de’l nord Amèrega orientale"}
+            ls{"Ora normale de’l nord Amèrega orientale"}
         }
         "meta:America_Mountain"{
-            ld{"Ora d’istà de’l nord mèrega de le montagne"}
-            lg{"Ora de’l nord mèrega de le montagne"}
-            ls{"Ora normale de’l nord mèrega de le montagne"}
+            ld{"Ora d’istà de’l nord Amèrega de le montagne"}
+            lg{"Ora de’l nord Amèrega de le montagne"}
+            ls{"Ora normale de’l nord Amèrega de le montagne"}
         }
         "meta:America_Pacific"{
-            ld{"Ora d’istà de’l nord mèrega de’l Pasìfego"}
-            lg{"Ora de’l nord mèrega de’l Pasìfego"}
-            ls{"Ora normale de’l nord mèrega de’l Pasìfego"}
+            ld{"Ora d’istà de’l Pasìfego"}
+            lg{"Ora de’l Pasìfego"}
+            ls{"Ora normale de’l Pasìfego"}
         }
         "meta:Apia"{
             ld{"Ora d’istà de Apia"}
@@ -704,9 +752,9 @@ vec{
             ls{"Ora normale de l’Armenia"}
         }
         "meta:Atlantic"{
-            ld{"Ora d’istà de’l nord mèrega de l’Atlàntego"}
-            lg{"Ora de’l nord mèrega de l’Atlàntego"}
-            ls{"Ora normale de’l nord mèrega de l’Atlàntego"}
+            ld{"Ora d’istà de l’Atlàntego"}
+            lg{"Ora de l’Atlàntego"}
+            ls{"Ora normale de l’Atlàntego"}
         }
         "meta:Australia_Central"{
             ld{"Ora d’istà de l’Australia sentrale"}
@@ -779,11 +827,6 @@ vec{
             ld{"Ora d’istà de la Sina"}
             lg{"Ora de la Sina"}
             ls{"Ora normale de la Sina"}
-        }
-        "meta:Choibalsan"{
-            ld{"Ora d’istà de Choibalsan"}
-            lg{"Ora de Choibalsan"}
-            ls{"Ora normale de Choibalsan"}
         }
         "meta:Christmas"{
             ls{"Ora de l’Ìzola de Nadale"}
@@ -943,6 +986,9 @@ vec{
             lg{"Ora de’l Japon"}
             ls{"Ora normale de’l Japon"}
         }
+        "meta:Kazakhstan"{
+            ls{"Ora de’l Kazakistan"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Ora de’l Kazakistan orientale"}
         }
@@ -973,9 +1019,6 @@ vec{
             lg{"Ora de l’Ìzola Lord Howe"}
             ls{"Ora normale de l’Ìzola Lord Howe"}
         }
-        "meta:Macquarie"{
-            ls{"Ora de l’Ìzola Macquarie"}
-        }
         "meta:Magadan"{
             ld{"Ora d’istà de Magadan"}
             lg{"Ora de Magadan"}
@@ -1000,11 +1043,6 @@ vec{
         }
         "meta:Mawson"{
             ls{"Ora de Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Ora d’istà de’l Mèsego nord osidentale"}
-            lg{"Ora de’l Mèsego nord osidentale"}
-            ls{"Ora normale de’l Mèsego nord osidentale"}
         }
         "meta:Mexico_Pacific"{
             ld{"Ora d’istà de’l Mèsego de’l Pasìfego"}

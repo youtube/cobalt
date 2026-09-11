@@ -449,7 +449,7 @@ AC_DEFUN([AC_CHECK_64BIT_LIBS],
 AC_DEFUN([AC_CHECK_STRICT_COMPILE],
 [
     AC_MSG_CHECKING([whether strict compiling is on])
-    AC_ARG_ENABLE(strict,[  --enable-strict         compile with strict compiler options [default=yes]], [
+    AC_ARG_ENABLE(strict,[  --disable-strict        do not compile with strict compiler options], [
         if test "$enableval" = no
         then
             ac_use_strict_options=no
@@ -463,17 +463,6 @@ AC_DEFUN([AC_CHECK_STRICT_COMPILE],
     then
         if test "$GCC" = yes
         then
-            case "${host}" in
-            *-*-solaris*)
-                # Don't use -std=c11 on Solaris because of timezone check fails
-                ;;
-            *)
-                # Do not use -ansi. It limits us to C90, and it breaks some platforms.
-                # We use -std=c11 to disable the gnu99 defaults and its associated warnings
-                CFLAGS="$CFLAGS -std=c11"
-                ;;
-            esac
-            
             CFLAGS="$CFLAGS -Wall -pedantic -Wshadow -Wpointer-arith -Wmissing-prototypes -Wwrite-strings"
         else
             case "${host}" in

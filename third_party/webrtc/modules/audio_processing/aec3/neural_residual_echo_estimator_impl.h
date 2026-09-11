@@ -15,12 +15,15 @@
 #include <memory>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
 #include "api/audio/neural_residual_echo_estimator.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/neural_feature_extractor.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
+#include "third_party/tflite/src/tensorflow/lite/op_resolver.h"
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/aec3/neural_residual_echo_estimator.pb.h"
 #else
@@ -55,30 +58,38 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
     virtual ~ModelRunner() = default;
 
     virtual int StepSize() const = 0;
-    virtual webrtc::ArrayView<float> GetInput(ModelInputEnum input_enum) = 0;
-    virtual webrtc::ArrayView<const float> GetOutputEchoMask() = 0;
+    virtual ArrayView<float> GetInput(ModelInputEnum input_enum) = 0;
+    virtual ArrayView<const float> GetOutputEchoMask() = 0;
     virtual const audioproc::ReeModelMetadata& GetMetadata() const = 0;
     virtual bool Invoke() = 0;
   };
 
-  // Initializes an ML-based residual echo estimator from the tflite file path
-  // provided. Returns nullptr if any initialization step fails.
-  static std::unique_ptr<ModelRunner> LoadTfLiteModel(
-      absl::string_view ml_ree_model_path);
+  // Loads a model into a ModelRunner and creates a NeuralResidualEchoEstimator
+  // from it. Returns nullptr if any file read or initialization step fails.
+  static absl_nullable std::unique_ptr<NeuralResidualEchoEstimator> Create(
+      absl::string_view ml_ree_model_path,
+      const tflite::OpResolver& op_resolver);
 
+  // Load a TF Lite model into a ModelRunner. Exposed for testing.
+  static std::unique_ptr<ModelRunner> LoadTfLiteModel(
+      absl::string_view ml_ree_model_path,
+      const tflite::OpResolver& op_resolver);
+
+  // Constructor used for testing with a mock ModelRunner.
   explicit NeuralResidualEchoEstimatorImpl(
-      std::unique_ptr<ModelRunner> model_runner_);
+      absl_nonnull std::unique_ptr<ModelRunner> model_runner);
 
   void Estimate(
-      webrtc::ArrayView<const float> x,
-      webrtc::ArrayView<const std::array<float, kBlockSize>> y,
-      webrtc::ArrayView<const std::array<float, kBlockSize>> e,
-      webrtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
-      webrtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>> Y2,
-      webrtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
-      webrtc::ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
-      webrtc::ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded)
-      override;
+      ArrayView<const float> x,
+      ArrayView<const std::array<float, kBlockSize>> y,
+      ArrayView<const std::array<float, kBlockSize>> e,
+      ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
+      ArrayView<const std::array<float, kFftLengthBy2Plus1>> Y2,
+      ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
+      ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
+      ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) override;
+
+  EchoCanceller3Config GetConfiguration(bool multi_channel) const override;
 
  private:
   void DumpInputs();

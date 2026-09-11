@@ -79,6 +79,11 @@ void IntlTestRBNF::runIndexedTest(int32_t index, UBool exec, const char* &name, 
         TESTCASE(27, TestMinMaxIntegerDigitsIgnored);
         TESTCASE(28, TestNorwegianSpellout);
         TESTCASE(29, TestNumberingSystem);
+        TESTCASE(30, TestDFRounding);
+        TESTCASE(31, TestMemoryLeak22899);
+        TESTCASE(32, TestParseRuleDescriptorOverflow23002);
+        TESTCASE(33, TestInfiniteRecursion);
+        TESTCASE(34, testOmissionReplacementWithPluralRules);
 #else
         TESTCASE(0, TestRBNFDisabled);
 #endif
@@ -125,7 +130,7 @@ void IntlTestRBNF::TestHebrewFraction() {
         UnicodeString expected(text1);
         formatter->format(123.45, result);
         if (result != expected) {
-            errln((UnicodeString)"expected '" + TestUtility::hex(expected) + "'\nbut got: '" + TestUtility::hex(result) + "'");
+            errln(UnicodeString("expected '") + TestUtility::hex(expected) + "'\nbut got: '" + TestUtility::hex(result) + "'");
         } else {
 //            formatter->parse(result, parseResult, pp);
 //            if (parseResult.getDouble() != 123.45) {
@@ -138,7 +143,7 @@ void IntlTestRBNF::TestHebrewFraction() {
         result.remove();
         formatter->format(123.0045, result);
         if (result != expected) {
-            errln((UnicodeString)"expected '" + TestUtility::hex(expected) + "'\nbut got: '" + TestUtility::hex(result) + "'");
+            errln(UnicodeString("expected '") + TestUtility::hex(expected) + "'\nbut got: '" + TestUtility::hex(result) + "'");
         } else {
             pp.setIndex(0);
 //            formatter->parse(result, parseResult, pp);
@@ -219,7 +224,7 @@ IntlTestRBNF::TestAPI() {
         }
         
         // Jitterbug 4452, for coverage
-        RuleBasedNumberFormat nf(spelloutRules, (UnicodeString)"", Locale::getUS(), perror, status);
+        RuleBasedNumberFormat nf(spelloutRules, UnicodeString(""), Locale::getUS(), perror, status);
         if(!(nf == *formatter)) {
           errln("Formatter constructed from the original rules should be semantically equivalent to the original!");
         }
@@ -323,7 +328,7 @@ IntlTestRBNF::TestAPI() {
   }
   result.remove();
   expected = "four";
-  formatter->format((int32_t)4,result);
+  formatter->format(static_cast<int32_t>(4), result);
   if(result != expected) {
       errln("Formatted 4, expected " + expected + " got " + result);
   } else {
@@ -332,7 +337,7 @@ IntlTestRBNF::TestAPI() {
 
   result.remove();
   FieldPosition pos;
-  formatter->format((int64_t)4, result, pos, status = U_ZERO_ERROR);
+  formatter->format(static_cast<int64_t>(4), result, pos, status = U_ZERO_ERROR);
   if(result != expected) {
       errln("Formatted 4 int64_t, expected " + expected + " got " + result);
   } else {
@@ -342,7 +347,7 @@ IntlTestRBNF::TestAPI() {
   //Jitterbug 4452, for coverage
   result.remove();
   FieldPosition pos2;
-  formatter->format((int64_t)4, formatter->getRuleSetName(0), result, pos2, status = U_ZERO_ERROR);
+  formatter->format(static_cast<int64_t>(4), formatter->getRuleSetName(0), result, pos2, status = U_ZERO_ERROR);
   if(result != expected) {
       errln("Formatted 4 int64_t, expected " + expected + " got " + result);
   } else {
@@ -464,7 +469,7 @@ void IntlTestRBNF::TestFractionalRuleSet()
             change = 1; // change, but once we hit a non-space char, don't change
         } else if (ch == ' ') {
             if (change != 0) {
-                fracRules.setCharAt(i, (char16_t)0x200e);
+                fracRules.setCharAt(i, static_cast<char16_t>(0x200e));
             }
         } else {
             if (change == 1) {
@@ -1272,6 +1277,81 @@ IntlTestRBNF::TestDurations()
     delete formatter;
 }
 
+void IntlTestRBNF::TestDFRounding()
+{
+    // test for ICU-22611
+    UParseError parseError;
+    UErrorCode err = U_ZERO_ERROR;
+    
+    // no decimal places
+    LocalPointer<RuleBasedNumberFormat> nf0(new RuleBasedNumberFormat(u"1000/1000: <##K<;", Locale::getUS(), parseError, err));
+    if (U_FAILURE(err)) {
+        errcheckln(err, "FAIL: could not construct formatter - %s", u_errorName(err));
+    } else {
+        static const char* const integerTestData[][2] = {
+            { "-1400", "-1K" },
+            { "-1900", "-2K" },
+            { "1400",  "1K"  },
+            { "1900",  "2K"  },
+            { nullptr, nullptr }
+        };
+        doTest(nf0.getAlias(), integerTestData, false);
+    }
+    
+    // 1 decimal place
+    LocalPointer<RuleBasedNumberFormat> nf1(new RuleBasedNumberFormat(u"1000/1000: <##.0K<;", Locale::getUS(), parseError, err));
+    if (U_FAILURE(err)) {
+        errcheckln(err, "FAIL: could not construct formatter - %s", u_errorName(err));
+    } else {
+        static const char* const oneDecimalPlaceTestData[][2] = {
+            { "-1440", "-1.4K" },
+            { "1890",  "1.9K"  },
+            { nullptr, nullptr }
+        };
+        doTest(nf1.getAlias(), oneDecimalPlaceTestData, false);
+    }
+    
+    // with modulus substitution
+    LocalPointer<RuleBasedNumberFormat> nfMod(new RuleBasedNumberFormat(u"1000/1000: <##<K>##>; -x: ->>;", Locale::getUS(), parseError, err));
+    if (U_FAILURE(err)) {
+        errcheckln(err, "FAIL: could not construct formatter - %s", u_errorName(err));
+    } else {
+        static const char* const integerTestData[][2] = {
+            { "-1400", "-1K400" },
+            { "-1900", "-1K900" },
+            { "1400",  "1K400"  },
+            { "1900",  "1K900"  },
+            { nullptr, nullptr }
+        };
+        doTest(nfMod.getAlias(), integerTestData, false);
+    }
+
+    // no decimal places, but with rounding mode set to ROUND_FLOOR
+    LocalPointer<RuleBasedNumberFormat> nfFloor(new RuleBasedNumberFormat(u"1000/1000: <##K<;", Locale::getUS(), parseError, err));
+    nfFloor->setMaximumFractionDigits(0);
+    nfFloor->setRoundingMode(NumberFormat::kRoundFloor);
+    if (U_FAILURE(err)) {
+        errcheckln(err, "FAIL: could not construct formatter - %s", u_errorName(err));
+    } else {
+        static const char* const integerTestData[][2] = {
+            { "-1400", "-2K" },
+            { "-1900", "-2K" },
+            { "1400",  "1K"  },
+            { "1900",  "1K"  },
+            { nullptr, nullptr }
+        };
+        doTest(nfFloor.getAlias(), integerTestData, false);
+    }
+}
+
+void IntlTestRBNF::TestMemoryLeak22899()
+{
+    UErrorCode status = U_ZERO_ERROR;
+    UParseError perror;
+    icu::UnicodeString str(u"0,31,01,30,01,0,01,01,30,01,30,31,01,30,01,30,30,00,01,0:");
+    icu::RuleBasedNumberFormat rbfmt(str, icu::Locale::getEnglish(), perror, status);
+}
+
 void 
 IntlTestRBNF::TestSpanishSpellout() 
 {
@@ -1565,6 +1645,7 @@ IntlTestRBNF::TestGermanSpellout()
             { "200", "zwei\\u00ADhundert" },
             { "579", "f\\u00fcnf\\u00ADhundert\\u00ADneun\\u00ADund\\u00ADsiebzig" },
             { "1,000", "ein\\u00ADtausend" },
+            { "1,101", "ein\\u00adtausend\\u00adein\\u00adhundert\\u00adeins" },
             { "2,000", "zwei\\u00ADtausend" },
             { "3,004", "drei\\u00ADtausend\\u00ADvier" },
             { "4,567", "vier\\u00ADtausend\\u00ADf\\u00fcnf\\u00ADhundert\\u00ADsieben\\u00ADund\\u00ADsechzig" },
@@ -1583,6 +1664,30 @@ IntlTestRBNF::TestGermanSpellout()
         };
         doLenientParseTest(formatter, lpTestData);
 #endif
+        
+        static const char* testDataYear[][2] = {
+            { "101", "ein\\u00adhundert\\u00adeins" },
+            { "900", "neun\\u00adhundert" },
+            { "1,001", "ein\\u00adtausend\\u00adeins" },
+            { "1,100", "elf\\u00adhundert" },
+            { "1,101", "elf\\u00adhundert\\u00adeins" },
+            { "1,234", "zw\\u00f6lf\\u00adhundert\\u00advier\\u00adund\\u00addrei\\u00dfig" },
+            { "2,001", "zwei\\u00adtausend\\u00adeins" },
+            { "10,001", "zehn\\u00adtausend\\u00adeins" },
+            { "-100", "minus ein\\u00adhundert" },
+            { "12.34", "12,3" },
+            { nullptr, nullptr }
+        };
+
+        status = U_ZERO_ERROR;
+        formatter->setDefaultRuleSet("%spellout-numbering-year", status);
+        if (U_SUCCESS(status)) {
+            logln("testing year rules");
+            doTest(formatter, testDataYear, false);
+        }
+        else {
+            errln("Can't test year rules");
+        }
     }
     delete formatter;
 }
@@ -1928,7 +2033,7 @@ IntlTestRBNF::TestAllLocales()
 
         for (int j = 0; j < 2; ++j) {
             UErrorCode status = U_ZERO_ERROR;
-            RuleBasedNumberFormat* f = new RuleBasedNumberFormat((URBNFRuleSetTag)j, *loc, status);
+            RuleBasedNumberFormat* f = new RuleBasedNumberFormat(static_cast<URBNFRuleSetTag>(j), *loc, status);
 
             if (U_FAILURE(status)) {
                 errln(UnicodeString(loc->getName()) + names[j]
@@ -1973,7 +2078,7 @@ IntlTestRBNF::TestAllLocales()
                             + UnicodeString("ERROR could not roundtrip ") + n
                             + UnicodeString(" -> ") + str + UnicodeString(" -> ") + num.getLong());
                     }
-                    else if (num.getType() == Formattable::kDouble && (int64_t)(num.getDouble() * 1000) != (int64_t)(n*1000)) {
+                    else if (num.getType() == Formattable::kDouble && static_cast<int64_t>(num.getDouble() * 1000) != static_cast<int64_t>(n * 1000)) {
                         // The epsilon difference is too high.
                         errln(UnicodeString(loc->getName()) + names[j]
                             + UnicodeString("ERROR could not roundtrip ") + n
@@ -1995,7 +2100,7 @@ IntlTestRBNF::TestAllLocales()
                             + UnicodeString("ERROR could not roundtrip ") + n
                             + UnicodeString(" -> ") + str + UnicodeString(" -> ") + num.getLong());
                     }
-                    else if (num.getType() == Formattable::kDouble && (int64_t)(num.getDouble() * 1000) != (int64_t)(n*1000)) {
+                    else if (num.getType() == Formattable::kDouble && static_cast<int64_t>(num.getDouble() * 1000) != static_cast<int64_t>(n * 1000)) {
                         // The epsilon difference is too high.
                         errln(UnicodeString(loc->getName()) + names[j]
                             + UnicodeString("ERROR could not roundtrip ") + n
@@ -2170,7 +2275,7 @@ void IntlTestRBNF::TestPluralRules() {
 
     // Make sure there are no divide by 0 errors.
     UnicodeString result;
-    RuleBasedNumberFormat(ruRules, Locale("ru"), parseError, status).format((int32_t)21000, result);
+    RuleBasedNumberFormat(ruRules, Locale("ru"), parseError, status).format(static_cast<int32_t>(21000), result);
     if (result.compare(UNICODE_STRING_SIMPLE("twenty-one thousand")) != 0) {
         errln("Got " + result + " for 21000");
     }
@@ -2510,6 +2615,142 @@ IntlTestRBNF::TestNumberingSystem() {
         rbnf.setDefaultRuleSet(u"%ethiopic", err);
         assertEquals("Wrong result with Ethiopic rule set", u"፻፳፫", rbnf.format(123, result, err));
     }
+}
+
+void
+IntlTestRBNF::TestParseRuleDescriptorOverflow23002() {
+    UParseError perror;
+    UErrorCode status = U_ZERO_ERROR;
+    // Test int64 overflow inside parseRuleDescriptor
+    UnicodeString testStr(u"0110110/300113001103000113001103000110i/3013033:");
+    icu::RuleBasedNumberFormat rbfmt(
+        testStr,
+        Locale("as"), perror, status);
+    assertEquals("number too large", U_PARSE_ERROR, status);
+}
+
+void
+IntlTestRBNF::TestInfiniteRecursion() {
+    UnicodeString badRules[] = {
+        ">>",
+        "<<",
+        "<<<",
+        ">>>",
+        "%foo: x=%foo=",
+        "%one: x>%two>; %two: y>%one>;"
+    };
+    
+    for (int32_t i = 0; i < UPRV_LENGTHOF(badRules); i++) {
+        UErrorCode err = U_ZERO_ERROR;
+        UParseError parseErr;
+        RuleBasedNumberFormat rbnf(badRules[i], parseErr, err);
+        
+        if (U_SUCCESS(err)) {
+            UnicodeString result;
+            rbnf.format(5, result);
+            // we don't actually care about the result and the function doesn't return an error code;
+            // we just want to make sure the function returns
+            
+            Formattable pResult;
+            rbnf.parse("foo", pResult, err);
+            assertTrue("rbnf.parse() didn't return U_INVALID_FORMAT_ERROR!", err == U_INVALID_FORMAT_ERROR);
+        } else {
+            // eventually it'd be nice to statically analyze the rules for (at least) the most common
+            // causes of infinite recursion, in which case we'd end up down here and need to check
+            // the error code.  But for now, we probably won't end up here and don't care if we do
+        }
+    }
+}
+
+/**
+ * This test is a little contrived for English, but the grammar is relevant for several languages, including:
+ * Latin, Germanic, Slavic and Indic.
+ * It's pretty common, especially for ordinals, to use different words as a magnitude unit and when it's the final word.
+ * Several languages need grammatical agreement between the final and non-final magnitude unit
+ * with the numerical quantity before the unit. This test is the equivalent seen in other languages.
+ */
+void
+IntlTestRBNF::testOmissionReplacementWithPluralRules() {
+    UnicodeString rules("%cardinal:\n"
+            "-x: minus >>;\n"
+            "x.x: << point >>;\n"
+            "Inf: infinite;\n"
+            "NaN: not a number;\n"
+            "zero; one; two; three; four; five; six; seven; eight; nine;\n"
+            "ten; eleven; twelve; thirteen; fourteen; fifteen; sixteen; seventeen; eighteen; nineteen;\n"
+            "20: twenty[->>];\n"
+            "30: thirty[->>];\n"
+            "40: forty[->>];\n"
+            "50: fifty[->>];\n"
+            "60: sixty[->>];\n"
+            "70: seventy[->>];\n"
+            "80: eighty[->>];\n"
+            "90: ninety[->>];\n"
+            "100: << hundred[ >>];\n"
+            "1000: << thousand[ >>];\n"
+            "1000000: << million[ >>];\n"
+            "1000000000: << billion[ >>];\n"
+            "1000000000000: << trillion[ >>];\n"
+            "1000000000000000: =#,##0=;\n"
+            "%ordinal:\n"
+            "-x: minus >>;\n"
+            "x.x: =#,##0.#=;\n"
+            "Inf: infinitieth;\n"
+            "zeroth; first; second; third; fourth; fifth; sixth; seventh; eighth; ninth;\n"
+            "tenth; eleventh; twelfth;\n"
+            "13: =%cardinal=th;\n"
+            "20: twent[y->>|ieth];\n"
+            "30: thirt[y->>|ieth];\n"
+            "40: fort[y->>|ieth];\n"
+            "50: fift[y->>|ieth];\n"
+            "60: sixt[y->>|ieth];\n"
+            "70: sevent[y->>|ieth];\n"
+            "80: eight[y->>|ieth];\n"
+            "90: ninet[y->>|ieth];\n"
+            "100: <%cardinal< [$(cardinal,one{hundred}other{hundreds})$ >>|$(cardinal,one{hundredth}other{hundredths})$];\n"
+            "1000: <%cardinal< [$(cardinal,one{thousand}other{thousands})$ >>|$(cardinal,one{thousandth}other{thousandths})$];\n"
+            "1000000: <%cardinal< [$(cardinal,one{million}other{millions})$ >>|$(cardinal,one{millionth}other{millionths})$];\n"
+            "1000000000: <%cardinal< [$(cardinal,one{billion}other{billions})$ >>|$(cardinal,one{billionth}other{billionths})$];\n"
+            "1000000000000: <%cardinal< [$(cardinal,one{trillion}other{trillions})$ >>|$(cardinal,one{trillionth}other{trillionths})$];\n"
+            "1000000000000000: =#,##0=$(ordinal,one{st}two{nd}few{rd}other{th})$;");
+    UErrorCode status = U_ZERO_ERROR;
+    UParseError perror;
+    icu::RuleBasedNumberFormat rbnf(rules, icu::Locale::getEnglish(), perror, status);
+
+    const char * const enTestFullData[][2] = {
+            {"20", "twentieth"},
+            {"21", "twenty-first"},
+            {"29", "twenty-ninth"},
+            {"30", "thirtieth"},
+            {"31", "thirty-first"},
+            {"39", "thirty-ninth"},
+            {"100", "one hundredth"},
+            {"101", "one hundred first"},
+            {"200", "two hundredths"},
+            {"201", "two hundreds first"},
+            {"300", "three hundredths"},
+            {"301", "three hundreds first"},
+            {"1000", "one thousandth"},
+            {"1001", "one thousand first"},
+            {"1100", "one thousand one hundredth"},
+            {"1101", "one thousand one hundred first"},
+            {"1200", "one thousand two hundredths"},
+            {"1201", "one thousand two hundreds first"},
+            {"2000", "two thousandths"},
+            {"2001", "two thousands first"},
+            {"2100", "two thousands one hundredth"},
+            {"2101", "two thousands one hundred first"},
+            {"8000", "eight thousandths"},
+            {"8001", "eight thousands first"},
+            {"888000", "eight hundred eighty-eight thousandths"},
+            {"888001", "eight hundred eighty-eight thousands first"},
+            {"888100", "eight hundred eighty-eight thousands one hundredth"},
+            {"999101", "nine hundred ninety-nine thousands one hundred first"},
+            {"999200", "nine hundred ninety-nine thousands two hundredths"},
+            {"999201", "nine hundred ninety-nine thousands two hundreds first"},
+            { nullptr, nullptr }
+    };
+    doTest(&rbnf, enTestFullData, false);
 }
 
 /* U_HAVE_RBNF */

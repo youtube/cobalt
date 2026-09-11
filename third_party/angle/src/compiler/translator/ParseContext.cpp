@@ -1469,6 +1469,14 @@ bool TParseContext::declareVariable(const TSourceLoc &line,
         case EvqLastFragDepth:
         case EvqLastFragStencil:
             symbolType = SymbolType::BuiltIn;
+
+            if (mBuiltInQualified[type->getQualifier()])
+            {
+                error(
+                    line,
+                    "built-ins cannot be redeclared after being qualified as invariant or precise",
+                    identifier);
+            }
             break;
         default:
             break;
@@ -3334,10 +3342,14 @@ void TParseContext::checkGeometryShaderInputAndSetArraySize(const TSourceLoc &lo
                                                             const ImmutableString &token,
                                                             TType *type)
 {
-    if (type->getQualifier() == EvqPerVertexIn)
+    if (type->getQualifier() == EvqPerVertexIn && mShaderType == GL_GEOMETRY_SHADER)
     {
         // This is a redeclaration of gl_in, which may be unsized.
-        ASSERT(type->isArray());
+        if (!type->isArray())
+        {
+            error(location, "gl_in must be an array", "gl_in");
+            type->makeArray(0);
+        }
 
         // If the size is already determined, set the size / verify it:
         if (mGeometryShaderInputPrimitiveType != EptUndefined)
@@ -3402,6 +3414,53 @@ void TParseContext::checkTessellationShaderUnsizedArraysAndSetSize(const TSource
                                                                    TType *type)
 {
     TQualifier qualifier = type->getQualifier();
+
+    if (qualifier == EvqPerVertexIn && type->isArray() &&
+        (mShaderType == GL_TESS_CONTROL_SHADER || mShaderType == GL_TESS_EVALUATION_SHADER))
+    {
+        // gl_in in both tessellation stages should be sized as gl_MaxPatchVertices
+        if (type->getOutermostArraySize() == 0)
+        {
+            ASSERT(mMaxPatchVertices > 0);
+            type->sizeOutermostUnsizedArray(mMaxPatchVertices);
+        }
+        else if (type->getOutermostArraySize() != static_cast<unsigned int>(mMaxPatchVertices))
+        {
+            error(location,
+                  "If a size is specified for a tessellation control or evaluation gl_in "
+                  "variable, it must match the maximum patch size (gl_MaxPatchVertices).",
+                  token);
+        }
+        return;
+    }
+    if (qualifier == EvqPerVertexOut && type->isArray() && mShaderType == GL_TESS_CONTROL_SHADER)
+    {
+        if (type->getOutermostArraySize() == 0)
+        {
+            if (mTessControlShaderOutputVertices == 0)
+            {
+                error(location,
+                      "Missing a valid vertices declaration before declaring an unsized "
+                      "gl_out array",
+                      "gl_out");
+            }
+            else
+            {
+                type->sizeOutermostUnsizedArray(mTessControlShaderOutputVertices);
+            }
+        }
+        else if (type->getOutermostArraySize() !=
+                     static_cast<unsigned int>(mTessControlShaderOutputVertices) &&
+                 mTessControlShaderOutputVertices != 0)
+        {
+            error(location,
+                  "If a size is specified for a tessellation control gl_out "
+                  "variable, it must match the the number of vertices in the output patch.",
+                  token);
+        }
+        return;
+    }
+
     if (!IsTessellationControlShaderOutput(mShaderType, qualifier) &&
         !IsTessellationControlShaderInput(mShaderType, qualifier) &&
         !IsTessellationEvaluationShaderInput(mShaderType, qualifier))
@@ -3765,6 +3824,8 @@ TIntermGlobalQualifierDeclaration *TParseContext::parseGlobalQualifierDeclaratio
 
     TIntermSymbol *intermSymbol = new TIntermSymbol(variable);
     intermSymbol->setLine(identifierLoc);
+
+    mBuiltInQualified[type.getQualifier()] = true;
 
     return new TIntermGlobalQualifierDeclaration(intermSymbol, typeQualifier.precise,
                                                  identifierLoc);
@@ -4589,6 +4650,11 @@ TIntermFunctionDefinition *TParseContext::addFunctionDefinition(
         new TIntermFunctionDefinition(functionPrototype, functionBody);
     functionNode->setLine(location);
 
+    if (mDeclaringMain)
+    {
+        mIsMainDeclared = true;
+    }
+
     symbolTable.pop();
     return functionNode;
 }
@@ -4714,10 +4780,6 @@ TFunction *TParseContext::parseFunctionDeclarator(const TSourceLoc &location, TF
     }
 
     mDeclaringMain = function->isMain();
-    if (mDeclaringMain)
-    {
-        mIsMainDeclared = true;
-    }
 
     //
     // If this is a redeclaration, it could also be a definition, in which case, we want to use the
@@ -5006,10 +5068,13 @@ TIntermDeclaration *TParseContext::addInterfaceBlock(
 
             // Both inputs and outputs of tessellation control shaders must be arrays.
             // For tessellation evaluation shaders, only inputs must necessarily be arrays.
+            // Inputs of geometry shaders must be arrays too.
             const bool isTCS = mShaderType == GL_TESS_CONTROL_SHADER;
             const bool isTESIn =
                 mShaderType == GL_TESS_EVALUATION_SHADER && IsShaderIn(typeQualifier.qualifier);
-            if (arraySizes == nullptr && (isTCS || isTESIn))
+            const bool isGSIn =
+                mShaderType == GL_GEOMETRY_SHADER && IsShaderIn(typeQualifier.qualifier);
+            if (arraySizes == nullptr && (isTCS || isTESIn || isGSIn))
             {
                 error(typeQualifier.line, "type must be an array", blockName);
             }
@@ -5292,9 +5357,20 @@ TIntermDeclaration *TParseContext::addInterfaceBlock(
     SymbolType instanceSymbolType = SymbolType::UserDefined;
     if (isGLPerVertex)
     {
-        instanceSymbolType = SymbolType::BuiltIn;
-        typeQualifier.qualifier =
-            IsVaryingOut(typeQualifier.qualifier) ? EvqPerVertexOut : EvqPerVertexIn;
+        // Mark gl_PerVertex as built-in if usage is not erroneous.  If it is, there will be failure
+        // elsewhere that validates gl_PerVertex cannot be used when not a built-in.
+        if (IsVaryingOut(typeQualifier.qualifier) && mShaderType != GL_FRAGMENT_SHADER &&
+            mShaderType != GL_COMPUTE_SHADER)
+        {
+            instanceSymbolType      = SymbolType::BuiltIn;
+            typeQualifier.qualifier = EvqPerVertexOut;
+        }
+        else if (IsVaryingIn(typeQualifier.qualifier) && mShaderType != GL_VERTEX_SHADER &&
+                 mShaderType != GL_FRAGMENT_SHADER && mShaderType != GL_COMPUTE_SHADER)
+        {
+            instanceSymbolType      = SymbolType::BuiltIn;
+            typeQualifier.qualifier = EvqPerVertexIn;
+        }
     }
     TInterfaceBlock *interfaceBlock = new TInterfaceBlock(&symbolTable, blockName, fieldList,
                                                           blockLayoutQualifier, instanceSymbolType);
@@ -5308,10 +5384,48 @@ TIntermDeclaration *TParseContext::addInterfaceBlock(
     if (arraySizes)
     {
         interfaceBlockType->makeArrays(*arraySizes);
-        checkGeometryShaderInputAndSetArraySize(instanceLine, instanceName, interfaceBlockType);
-        checkTessellationShaderUnsizedArraysAndSetSize(instanceLine, instanceName,
-                                                       interfaceBlockType);
         checkDeclarationIsValidArraySize(instanceLine, instanceName, interfaceBlockType);
+    }
+    checkGeometryShaderInputAndSetArraySize(instanceLine, instanceName, interfaceBlockType);
+    checkTessellationShaderUnsizedArraysAndSetSize(instanceLine, instanceName, interfaceBlockType);
+
+    // If this is gl_PerVertex, make sure the instance name is as expected.
+    if (interfaceBlockType->getQualifier() == EvqPerVertexOut)
+    {
+        switch (mShaderType)
+        {
+            case GL_VERTEX_SHADER:
+            case GL_TESS_EVALUATION_SHADER_EXT:
+            case GL_GEOMETRY_SHADER_EXT:
+                if (!instanceName.empty())
+                {
+                    error(instanceLine,
+                          "out gl_PerVertex instance name must be empty in this shader",
+                          instanceName);
+                    instanceSymbolType = SymbolType::UserDefined;
+                }
+                break;
+            case GL_TESS_CONTROL_SHADER_EXT:
+                if (instanceName != "gl_out")
+                {
+                    error(instanceLine,
+                          "out gl_PerVertex instance name must be gl_out in this shader",
+                          instanceName);
+                    instanceSymbolType = SymbolType::UserDefined;
+                }
+                break;
+            default:
+                UNREACHABLE();
+                break;
+        }
+    }
+    else if (interfaceBlockType->getQualifier() == EvqPerVertexIn)
+    {
+        if (instanceName != "gl_in")
+        {
+            error(instanceLine, "in gl_PerVertex instance name must be gl_in", instanceName);
+            instanceSymbolType = SymbolType::UserDefined;
+        }
     }
 
     // The instance variable gets created to refer to the interface block type from the AST
@@ -5340,7 +5454,8 @@ TIntermDeclaration *TParseContext::addInterfaceBlock(
             {
                 // These builtins can be redefined only when used within a redefined gl_PerVertex
                 // block
-                if (interfaceBlock->name() != "gl_PerVertex")
+                if (interfaceBlockType->getQualifier() != EvqPerVertexIn &&
+                    interfaceBlockType->getQualifier() != EvqPerVertexOut)
                 {
                     error(field->line(), "redefinition in an invalid interface block",
                           field->name());
@@ -5358,12 +5473,17 @@ TIntermDeclaration *TParseContext::addInterfaceBlock(
     }
     else
     {
-        // gl_in is allowed to be redeclared
-        if (interfaceBlockType->getQualifier() != EvqPerVertexIn)
+        // gl_in and gl_out are allowed to be redeclared
+        bool isGlIn =
+            interfaceBlockType->getQualifier() == EvqPerVertexIn && instanceName == "gl_in";
+        bool isGlOut = interfaceBlockType->getQualifier() == EvqPerVertexOut &&
+                       instanceName == "gl_out" && mShaderType == GL_TESS_CONTROL_SHADER_EXT;
+
+        if (!isGlIn && !isGlOut)
         {
             checkIsNotReserved(instanceLine, instanceName);
         }
-        else
+        else if (isGlIn)
         {
             symbolTable.onGlInVariableRedeclaration(instanceVariable);
         }

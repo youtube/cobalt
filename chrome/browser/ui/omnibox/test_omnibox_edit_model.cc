@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/omnibox/test_omnibox_edit_model.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "components/omnibox/browser/test_omnibox_client.h"
@@ -22,13 +23,36 @@ bool TestOmniboxEditModel::PopupIsOpen() const {
   return popup_is_open_;
 }
 
-AutocompleteMatch TestOmniboxEditModel::CurrentMatch(
+AutocompleteMatch TestOmniboxEditModel::CurrentMatchAndAlternateNavUrl(
     GURL* alternate_nav_url) const {
   if (override_current_match_) {
     return *override_current_match_;
   }
 
-  return OmniboxEditModel::CurrentMatch(alternate_nav_url);
+  return OmniboxEditModel::CurrentMatchAndAlternateNavUrl(alternate_nav_url);
+}
+
+void TestOmniboxEditModel::OpenMatchForTesting(
+    AutocompleteMatch match,
+    WindowOpenDisposition disposition,
+    const GURL& alternate_nav_url,
+    const std::u16string& pasted_text,
+    size_t index,
+    base::TimeTicks match_selection_timestamp) {
+  OpenMatch(OmniboxPopupSelection(index), match, disposition, alternate_nav_url,
+            pasted_text, match_selection_timestamp);
+}
+
+const SkBitmap* TestOmniboxEditModel::GetPopupRichSuggestionBitmapForKeyword(
+    const std::u16string& keyword) const {
+  const auto& result = autocomplete_controller()->result();
+  auto it =
+      std::ranges::find_if(result, [&keyword](const AutocompleteMatch& match) {
+        return match.associated_keyword == keyword;
+      });
+  return it == result.end()
+             ? nullptr
+             : GetPopupRichSuggestionBitmap(std::distance(result.begin(), it));
 }
 
 void TestOmniboxEditModel::SetPopupIsOpen(bool open) {

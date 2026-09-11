@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 sc{
     zoneStrings{
         "Africa:Addis_Ababa"{
@@ -21,9 +21,6 @@ sc{
         "Africa:Porto-Novo"{
             ec{"Portu-Nou"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "Africa:Tripoli"{
             ec{"Trìpoli"}
         }
@@ -32,9 +29,6 @@ sc{
         }
         "America:Argentina:Tucuman"{
             ec{"Tucumán"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Havana"{
             ec{"S’Avana"}
@@ -155,9 +149,6 @@ sc{
         }
         "Atlantic:St_Helena"{
             ec{"Sant’Elene"}
-        }
-        "Australia:Currie"{
-            ec{"Currie"}
         }
         "Etc:UTC"{
             ls{"Tempus coordinadu universale"}
@@ -473,11 +464,6 @@ sc{
             lg{"Ora de sa Tzina"}
             ls{"Ora istandard de sa Tzina"}
         }
-        "meta:Choibalsan"{
-            ld{"Ora legale de Choibalsan"}
-            lg{"Ora de Choibalsan"}
-            ls{"Ora istandard de Choibalsan"}
-        }
         "meta:Christmas"{
             ls{"Ora de s’Ìsula de sa Natividade"}
         }
@@ -645,6 +631,9 @@ sc{
             lg{"Ora de Petropavlovsk-Kamchatski"}
             ls{"Ora istandard de Petropavlovsk-Kamchatski"}
         }
+        "meta:Kazakhstan"{
+            ls{"Ora de su Kazàkistan"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Ora de su Kazàkistan orientale"}
         }
@@ -683,9 +672,6 @@ sc{
             lg{"Ora de Macao"}
             ls{"Ora istandard de Macao"}
         }
-        "meta:Macquarie"{
-            ls{"Ora de s’Ìsula Macquarie"}
-        }
         "meta:Magadan"{
             ld{"Ora legale de Magadan"}
             lg{"Ora de Magadan"}
@@ -710,11 +696,6 @@ sc{
         }
         "meta:Mawson"{
             ls{"Ora de Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Ora legale de su Mèssicu nord-otzidentale"}
-            lg{"Ora de su Mèssicu nord-otzidentale"}
-            ls{"Ora istandard de su Mèssicu nord-otzidentale"}
         }
         "meta:Mexico_Pacific"{
             ld{"Ora legale de su Patzìficu (Mèssicu)"}

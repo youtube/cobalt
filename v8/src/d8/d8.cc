@@ -36,6 +36,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/fpu.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
@@ -118,6 +119,8 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -558,6 +561,11 @@ base::LazyMutex Shell::cached_code_mutex_;
 std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
     Shell::cached_code_map_;
 std::atomic<int> Shell::unhandled_promise_rejections_{0};
+
+#if V8_ENABLE_WEBASSEMBLY
+base::LazyMutex Shell::wasm_serialized_bytes_mutex_;
+std::unordered_set<size_t> Shell::wasm_serialized_bytes_hashes_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -2942,20 +2950,12 @@ void Shell::SerializerDeserialize(
 void Shell::WasmSerializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  if (i::v8_flags.fuzzing) {
-    // Serializing modules is "safe", but differential fuzzing will observe
-    // differences in the serialized bytes depending on compiler flags.
-    // Strictly speaking, guarding this block on
-    // v8_flags.correctness_fuzzer_suppressions would be enough; for symmetry
-    // with deserialization we use the more general --fuzzing flag.
-    info.GetReturnValue().Set(Undefined(isolate));
-    return;
-  }
   HandleScope handle_scope(isolate);
   if (!info[0]->IsWasmModuleObject()) {
     ThrowError(isolate, "First argument must be a WasmModuleObject");
     return;
   }
+
   i::DirectHandle<i::WasmModuleObject> module_obj =
       i::Cast<i::WasmModuleObject>(Utils::OpenHandle(*info[0]));
 
@@ -2963,26 +2963,47 @@ void Shell::WasmSerializeModule(
   DCHECK(!native_module->compilation_state()->failed());
 
   i::wasm::WasmSerializer wasm_serializer(native_module);
-  size_t byte_length = wasm_serializer.GetSerializedNativeModuleSize();
+
+  // The content of the serialized byte buffer is nondeterministic (depends
+  // e.g. on timing, but also on the platform and on enabled features).
+  // Thus, return an empty array for correctness fuzzing.
+  size_t byte_length = i::v8_flags.correctness_fuzzer_suppressions
+                           ? 0
+                           : wasm_serializer.GetSerializedNativeModuleSize();
 
   Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, byte_length);
 
-  bool serialized_successfully = wasm_serializer.SerializeNativeModule(
-      {static_cast<uint8_t*>(array_buffer->GetBackingStore()->Data()),
-       byte_length});
-  CHECK(serialized_successfully || i::v8_flags.fuzzing);
+  base::Vector<uint8_t> byte_buffer{
+      static_cast<uint8_t*>(array_buffer->GetBackingStore()->Data()),
+      byte_length};
+  if (!i::v8_flags.correctness_fuzzer_suppressions &&
+      !wasm_serializer.SerializeNativeModule(byte_buffer)) {
+    CHECK(i::v8_flags.fuzzing);
+    return;
+  }
+
+  // Remember a hash of the serialized bytes. This will be used to check that
+  // only serialized bytes are accepted when deserializing.
+  {
+    size_t hash = base::Hasher{}
+                      .AddRange(native_module->wire_bytes())
+                      .AddRange(byte_buffer)
+                      .hash();
+    base::MutexGuard mutex_guard(Shell::wasm_serialized_bytes_mutex_.Pointer());
+    Shell::wasm_serialized_bytes_hashes_.insert(hash);
+  }
+
   info.GetReturnValue().Set(array_buffer);
 }
 
 void Shell::WasmDeserializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  i::PrintF("NOTE: d8.wasm.deserializeModule() is not VRP eligible.\n");
-  if (i::v8_flags.fuzzing) {
-    // Deserializing random bytes could violate arbitrary invariants. This
-    // function is not fuzzer-safe, so just do nothing.
-    info.GetReturnValue().Set(Undefined(isolate));
-    return;
+  static std::atomic<bool> print_warning{true};
+  if (print_warning.exchange(false, std::memory_order_relaxed)) {
+    i::PrintF(
+        "NOTE: d8.wasm.deserializeModule() is not safe against manipulated "
+        "input. It's not VRP eligible.\n");
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
@@ -3017,17 +3038,46 @@ void Shell::WasmDeserializeModule(
       reinterpret_cast<uint8_t*>(buffer->backing_store()),
       buffer->byte_length()};
 
-  // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
-  // JSArrayBuffer backing store doesn't get relocated.
-  i::wasm::CompileTimeImports compile_imports{};
-  i::MaybeDirectHandle<i::WasmModuleObject> maybe_module_object =
-      i::wasm::DeserializeNativeModule(i_isolate, buffer_vec, wire_bytes_vec,
-                                       compile_imports, {});
-  i::DirectHandle<i::WasmModuleObject> module_object;
-  if (!maybe_module_object.ToHandle(&module_object)) {
-    info.GetReturnValue().Set(Undefined(isolate));
-    return;
+  // Check that we only try to deserialize bytes that we previously produced via
+  // serialization.
+  // This is prone to hash collisions, but this check sufficiently prevents
+  // fuzzers from passing manipulated bytes (or bytes that do not match the wire
+  // bytes) in regular fuzzing.
+  {
+    size_t hash =
+        base::Hasher{}.AddRange(wire_bytes_vec).AddRange(buffer_vec).hash();
+    base::MutexGuard mutex_guard(Shell::wasm_serialized_bytes_mutex_.Pointer());
+    if (!Shell::wasm_serialized_bytes_hashes_.count(hash)) {
+      ThrowError(isolate, "Trying to deserialize manipulated bytes");
+      return;
+    }
   }
+
+  i::DirectHandle<i::WasmModuleObject> module_object;
+
+  // For correctness fuzzing, the `serializeModule` function always returns an
+  // empty buffer. We thus have to accept this empty buffer again here, and
+  // produce a valid module.
+  if (i::v8_flags.correctness_fuzzer_suppressions) {
+    CHECK(buffer_vec.empty());
+    i::wasm::ErrorThrower thrower{i_isolate, "d8.wasm.deserializeModule"};
+    module_object =
+        i::wasm::GetWasmEngine()
+            ->SyncCompile(i_isolate,
+                          i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate),
+                          i::wasm::CompileTimeImports{}, &thrower,
+                          base::OwnedCopyOf(wire_bytes_vec))
+            .ToHandleChecked();
+    DCHECK(!thrower.error());
+  } else {
+    // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
+    // JSArrayBuffer backing store doesn't get relocated.
+    module_object =
+        i::wasm::DeserializeNativeModule(i_isolate, buffer_vec, wire_bytes_vec,
+                                         i::wasm::CompileTimeImports{}, {})
+            .ToHandleChecked();
+  }
+
   info.GetReturnValue().Set(Utils::ToLocal(module_object));
 }
 
@@ -5105,7 +5155,12 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   uint8_t* data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
   if (data == nullptr) {
-    ThrowError(isolate, "Error reading file");
+    std::ostringstream error_msg;
+    error_msg << "Error reading file \""
+              << std::string_view{*filename,
+                                  std::min(size_t{50}, filename.length())}
+              << (filename.length() > 50 ? "[...]" : "") << "\"";
+    ThrowError(isolate, error_msg.str());
     return;
   }
   Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, length);
@@ -5797,6 +5852,10 @@ void Worker::SetCurrentWorker(Worker* worker) {
   current_worker_ = worker;
 }
 
+namespace {
+constexpr v8::ExternalPointerTypeTag kWorkerTag = 82;
+}  // namespace
+
 // static
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
 
@@ -5847,7 +5906,7 @@ void Worker::ExecuteInThread() {
           Context::Scope context_scope(context);
 
           Local<Object> global = context->Global();
-          Local<Value> this_value = External::New(isolate_, this);
+          Local<Value> this_value = External::New(isolate_, this, kWorkerTag);
 
           Local<FunctionTemplate> postmessage_fun_template =
               FunctionTemplate::New(isolate_, Worker::PostMessageOut,
@@ -5962,7 +6021,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (data) {
     DCHECK(info.Data()->IsExternal());
     Local<External> this_value = info.Data().As<External>();
-    Worker* worker = static_cast<Worker*>(this_value->Value());
+    Worker* worker = static_cast<Worker*>(this_value->Value(kWorkerTag));
 
     worker->out_queue_.Enqueue(std::move(data));
     worker->out_semaphore_.Signal();
@@ -5982,7 +6041,7 @@ void Worker::Close(const v8::FunctionCallbackInfo<v8::Value>& info) {
   HandleScope handle_scope(isolate);
   DCHECK(info.Data()->IsExternal());
   Local<External> this_value = info.Data().As<External>();
-  Worker* worker = static_cast<Worker*>(this_value->Value());
+  Worker* worker = static_cast<Worker*>(this_value->Value(kWorkerTag));
   worker->Terminate();
 }
 

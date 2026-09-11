@@ -33,6 +33,7 @@
 <translation id="1345251407431278948">S'ha fixat. Pots tornar a accedir a la cerca d'imatges des del botó nou de la barra d'eines.</translation>
 <translation id="1356661055722410047">Novetat! Pots traduir tant el text com les imatges en pantalla</translation>
 <translation id="1383876407941801731">Cerca</translation>
+<translation id="1397530502368084401">&amp;Gestiona els perfils de Chromium</translation>
 <translation id="1414495520565016063">Teniu la sessió iniciada a Chromium.</translation>
 <translation id="141901961143729572">Comparteix què penses</translation>
 <translation id="1465192221147974788">Per compartir la finestra, permet que Chromium gravi la pantalla a Configuració del sistema.</translation>
@@ -71,8 +72,8 @@
 <translation id="1896836275755235458">Chromium estalvia bateria limitant l'activitat en segon pla i els efectes visuals, com ara el desplaçament suau i els fotogrames per segon dels vídeos. <ph name="BEGIN_LINK" />Obtén més informació sobre la funció Estalvi d'energia<ph name="END_LINK" />.</translation>
 <translation id="1898804291554630487">Pregunta sobre aquesta pàgina</translation>
 <translation id="1900969832270057921">Servei de l'actualitzador de Chromium</translation>
+<translation id="1911666947158375684">Mentre tinguis la sessió iniciada, podràs utilitzar les teves contrasenyes i altres elements del teu Compte de Google a Chromium. Pots canviar aquesta opció en qualsevol moment a la configuració.</translation>
 <translation id="1911763535808217981">En desactivar aquesta opció, pots iniciar la sessió en llocs web de Google, com ara Gmail, sense iniciar la sessió a Chromium</translation>
-<translation id="1916451563296275579">Suprimeix les dades d'aquesta aplicació de Chromium</translation>
 <translation id="1929939181775079593">Chromium no respon. Voleu tornar-lo a iniciar ara?</translation>
 <translation id="1933341829955786215">La teva organització, <ph name="MANAGER" />, requereix que iniciïs la sessió a Chromium</translation>
 <translation id="193439633299369377">Cal reiniciar Chromium OS per aplicar l'actualització.</translation>
@@ -235,6 +236,9 @@
 <translation id="379589255253486813">Chromium t'avisarà si hi ha res que hagis de revisar</translation>
 <translation id="3802055581630249637">Chromium precarrega les pàgines que és probable que visitis perquè es carreguin més ràpidament quan ho facis</translation>
 <translation id="3810973564298564668">Gestiona</translation>
+<translation id="3846683726093018685">**Resumeix**: en una sola frase de menys de 30 paraules, descriu el tema i la finalitat principals del contingut de la captura de pantalla.
+
+          **Preguntes suggerides**: genera una llista de pics d'entre 3 i 5 preguntes que facin reflexionar i que un usuari podria fer per entendre millor la captura de pantalla. Aquestes preguntes n'han d'incloure com a mínim una que sigui específicament sobre un objecte visual, el seu disseny o el seu emplaçament.</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" />: Chromium</translation>
 <translation id="3885770153807205175">Selector d'idioma</translation>
 <translation id="388648406173476553">Personalitza i controla Chromium. Cal la teva intervenció. Fes clic per obtenir més informació.</translation>
@@ -394,7 +398,7 @@
 <translation id="5924017743176219022">S'està connectant a Internet...</translation>
 <translation id="5941711191222866238">Minimitza</translation>
 <translation id="5949225980829865667">Per obtenir aquesta adreça d'interès i més en tots els dispositius, inicia la sessió a Chromium</translation>
-<translation id="5953657885167112863">Adapta Chromium a la teva personalitat</translation>
+<translation id="5953657885167112863">Personalitza Chromium al teu gust</translation>
 <translation id="5968400720580217226">Mode IA</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{La teva organització tanca Chromium automàticament quan no s'utilitza durant 1 minut.}other{La teva organització tanca Chromium automàticament quan no s'utilitza durant # minuts.}}</translation>
 <translation id="5987687638152509985">Actualitza Chromium per iniciar la sincronització</translation>
@@ -470,6 +474,7 @@
 <translation id="6669284030132180248">Si també deses les teves adreces d'interès al teu Compte de Google, pots fer un seguiment dels preus dels productes a Chromium i rebre una notificació quan baixi el preu</translation>
 <translation id="6676384891291319759">Accedeix a Internet</translation>
 <translation id="668175097507315160">Chromium OS no ha pogut sincronitzar les teves dades a causa d'un error en iniciar la sessió.</translation>
+<translation id="6691132793308828750">Suprimeix les dades d'aquesta aplicació de Chromium</translation>
 <translation id="6692797197837897398">Chromium et proporciona més control sobre els anuncis que veus i limita la informació que els llocs web poden obtenir sobre tu quan et mostren anuncis personalitzats</translation>
 <translation id="6709350901466051922">Chromium necessita permís d'accés al micròfon per a aquest lloc web</translation>
 <translation id="6712881677154121168">Error de baixada: <ph name="DOWNLOAD_ERROR" />.</translation>
@@ -490,6 +495,7 @@
 <translation id="6877155553248388166">extrem inferior dret de l'àrea de cerca: <ph name="RIGHT" /> % per la dreta i <ph name="BOTTOM" /> % per baix</translation>
 <translation id="6896758677409633944">Copia</translation>
 <translation id="6901631050894301805">Defineix Chromium com a navegador predeterminat i fixa'l a la barra de tasques</translation>
+<translation id="6909503629704372277">&amp;Gestiona els perfils de Chromium</translation>
 <translation id="6934579572334859869">Pregunta a la cerca d'imatges sobre aquesta imatge</translation>
 <translation id="6964305034639999644">Obre l'enllaç en una finestra d'incò&amp;gnit a Chromium</translation>
 <translation id="6965382102122355670">D'acord</translation>
@@ -501,6 +507,7 @@
 <translation id="7024536598735240744">Error de descompressió: <ph name="UNPACK_ERROR" /></translation>
 <translation id="7025789849649390912">La instal·lació s'ha aturat.</translation>
 <translation id="7045244423563602563">Personalitza Chromium</translation>
+<translation id="7047386856539490735">Aquests resultats són útils?</translation>
 <translation id="705851970750939768">Actualitza Chromium</translation>
 <translation id="7067091210845072982">Si una imatge no té una descripció útil, Chromium provarà d'oferir-te'n una. Per crear les descripcions, les imatges s'envien a Google.</translation>
 <translation id="7141270731789036260">Personalitza Chrome for Testing</translation>
@@ -626,7 +633,6 @@ Chromium no pot recuperar la configuració.</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" /> Els autors de Chromium. Tots els drets reservats.</translation>
 <translation id="8601359445272098721">Novetat! Pots traduir tant el text com les imatges en pantalla seleccionant el botó Tradueix la pantalla.</translation>
 <translation id="8619360774459241877">S'està iniciant Chromium...</translation>
-<translation id="8621669128220841554">La instal·lació ha fallat a causa d'un error no especificat. Torneu a baixar Chromium.</translation>
 <translation id="8648201657708811153">Google Chrome for Testing no pot definir-se com a navegador predeterminat.</translation>
 <translation id="8697124171261953979">També controla la pàgina que es mostra quan inicieu Chromium o quan feu una cerca des de l'omnibox.</translation>
 <translation id="8704119203788522458">Aquest és el vostre Chromium</translation>

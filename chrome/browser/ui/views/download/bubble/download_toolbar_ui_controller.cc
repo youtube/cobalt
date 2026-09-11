@@ -865,7 +865,7 @@ DownloadToolbarUIController::BubbleCloser::BubbleCloser(
     : download_display_(download_display) {
   CHECK(toolbar_button);
   if (toolbar_button->GetWidget() &&
-      toolbar_button->GetWidget()->GetNativeWindow()) {
+      toolbar_button->GetWidget()->GetTopLevelWidget()->GetNativeWindow()) {
     event_monitor_ = views::EventMonitor::CreateWindowMonitor(
         this,
         toolbar_button->GetWidget()->GetTopLevelWidget()->GetNativeWindow(),

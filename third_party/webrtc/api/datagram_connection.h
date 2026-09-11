@@ -10,9 +10,11 @@
 #ifndef API_DATAGRAM_CONNECTION_H_
 #define API_DATAGRAM_CONNECTION_H_
 
-#include <memory>
+#include <cstddef>
+#include <cstdint>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/ref_count.h"
@@ -29,6 +31,11 @@ namespace webrtc {
 // networking internals.
 class RTC_EXPORT DatagramConnection : public RefCountInterface {
  public:
+  enum class WireProtocol {
+    kDtls,
+    kDtlsSrtp,
+  };
+
   class Observer {
    public:
     virtual ~Observer() = default;

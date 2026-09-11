@@ -50,7 +50,7 @@ static bool serialize_features(CBB *out) {
   }
   Span<const SSL_CIPHER> all_ciphers = AllCiphers();
   for (const SSL_CIPHER &cipher : all_ciphers) {
-    if (!CBB_add_u16(&ciphers, static_cast<uint16_t>(cipher.id))) {
+    if (!CBB_add_u16(&ciphers, cipher.protocol_id)) {
       return false;
     }
   }

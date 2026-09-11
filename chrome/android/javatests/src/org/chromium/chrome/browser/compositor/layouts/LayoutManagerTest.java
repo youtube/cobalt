@@ -36,6 +36,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.chromium.base.MathUtils;
 import org.chromium.base.ThreadUtils;
@@ -59,6 +60,7 @@ import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutTestUtils;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
+import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.MockTab;
@@ -83,7 +85,6 @@ import org.chromium.chrome.test.util.browser.tabmodel.MockTabModelSelector;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.ScrollDirection;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.SwipeHandler;
 import org.chromium.ui.base.DeviceFormFactor;
-import org.chromium.ui.util.XrUtils;
 
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -104,6 +105,7 @@ public class LayoutManagerTest implements MockTabModelDelegate {
     @Mock private HubLayoutDependencyHolder mHubLayoutDependencyHolder;
     @Mock private TabWindowManager mTabWindowManager;
     @Mock private ObservableSupplier<CompositorViewHolder> mCompositorViewHolderSupplier;
+    @Mock private ObservableSupplier<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
     @Mock private ObservableSupplier<Boolean> mScrimVisibilitySupplier;
     @Mock private ToolbarManager mToolbarManager;
     @Mock private ViewGroup mContentView;
@@ -234,7 +236,8 @@ public class LayoutManagerTest implements MockTabModelDelegate {
                         mCompositorViewHolderSupplier,
                         mContentView,
                         mToolbarManager,
-                        mScrimVisibilitySupplier);
+                        mScrimVisibilitySupplier,
+                        mTopInsetCoordinatorSupplier);
 
         tabContentManagerSupplier.set(tabContentManager);
         mManager = mManagerPhone;
@@ -444,7 +447,7 @@ public class LayoutManagerTest implements MockTabModelDelegate {
     @UiThreadTest
     @Restriction(DeviceFormFactor.ONLY_TABLET)
     public void testNoShowLayoutCallOnLastTabClosed_Xr() {
-        XrUtils.setXrDeviceForTesting(true);
+        DeviceInfo.setIsXrForTesting(true);
         initializeLayoutManagerTablet(1, 0, 0, TabModel.INVALID_TAB_INDEX, false);
 
         // Verify the initial layout is BROWSING.
@@ -480,7 +483,7 @@ public class LayoutManagerTest implements MockTabModelDelegate {
     @UiThreadTest
     @Restriction(DeviceFormFactor.ONLY_TABLET)
     public void testNoShowLayoutOnAllTabsClosed_Xr() {
-        XrUtils.setXrDeviceForTesting(true);
+        DeviceInfo.setIsXrForTesting(true);
         initializeLayoutManagerTablet(2, 0, 0, TabModel.INVALID_TAB_INDEX, false);
 
         // Verify the initial layout is BROWSING.
@@ -793,7 +796,6 @@ public class LayoutManagerTest implements MockTabModelDelegate {
     @After
     public void tearDown() {
         setAccessibilityEnabledForTesting(null);
-        XrUtils.setXrDeviceForTesting(null);
     }
 
     private void launchedChromeAndEnterTabSwitcher() {

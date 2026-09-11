@@ -20,7 +20,7 @@
 namespace webnn::ort {
 
 ContextImplOrt::ContextImplOrt(
-    mojo::PendingAssociatedReceiver<mojom::WebNNContext> receiver,
+    mojo::PendingReceiver<mojom::WebNNContext> receiver,
     WebNNContextProviderImpl* context_provider,
     const EpWorkarounds& ep_workarounds,
     mojom::CreateContextOptionsPtr options,
@@ -29,7 +29,10 @@ ContextImplOrt::ContextImplOrt(
     scoped_refptr<Environment> env,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
-    scoped_refptr<gpu::SchedulerTaskRunner> task_runner)
+    scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
+    scoped_refptr<gpu::MemoryTracker> memory_tracker,
+    scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+    gpu::SharedImageManager* shared_image_manager)
     : WebNNContextImpl(
           std::move(receiver),
           context_provider,
@@ -39,10 +42,12 @@ ContextImplOrt::ContextImplOrt(
           std::move(write_tensor_producer),
           command_buffer_id,
           std::move(sequence),
-          std::move(task_runner)),
+          std::move(scheduler_task_runner),
+          std::move(memory_tracker),
+          std::move(owning_task_runner),
+          shared_image_manager),
       env_(std::move(env)),
-      session_options_(SessionOptions::Create(this->options().device, env_)),
-      is_external_data_supported_(!ep_workarounds.disable_external_data) {}
+      session_options_(SessionOptions::Create(this->options().device, env_)) {}
 
 ContextImplOrt::~ContextImplOrt() = default;
 

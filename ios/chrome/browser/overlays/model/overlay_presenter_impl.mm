@@ -13,6 +13,7 @@
 #import "ios/chrome/browser/overlays/model/public/overlay_request.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request_support.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/tabs/model/features.h"
 
 #pragma mark - Factory method
 
@@ -47,7 +48,7 @@ OverlayPresenterImpl* OverlayPresenterImpl::Container::PresenterForModality(
 OverlayPresenterImpl::OverlayPresenterImpl(Browser* browser,
                                            OverlayModality modality)
     : modality_(modality), web_state_list_(browser->GetWebStateList()) {
-  StartObserving(web_state_list_, Policy::kAccordingToFeature);
+  StartObserving(browser, Policy::kAccordingToFeature);
   browser_observation_.Observe(browser);
   DCHECK(web_state_list_);
   SetActiveWebState(web_state_list_->GetActiveWebState());
@@ -169,6 +170,11 @@ OverlayRequestQueueImpl* OverlayPresenterImpl::GetQueueForWebState(
     web::WebState* web_state) const {
   if (!web_state) {
     return nullptr;
+  }
+  if (CreateTabHelperOnlyForRealizedWebStates()) {
+    if (!web_state->IsRealized()) {
+      return nullptr;
+    }
   }
   OverlayRequestQueueImpl::Container::CreateForWebState(web_state);
   return OverlayRequestQueueImpl::Container::FromWebState(web_state)

@@ -20,6 +20,7 @@
 #include "gpu/command_buffer/service/shared_memory_region_wrapper.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gfx/buffer_types.h"
+#include "ui/gfx/buffer_usage_util.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/native_pixmap.h"
 #include "ui/gl/buildflags.h"
@@ -84,6 +85,42 @@ OzoneImageBackingFactory::OzoneImageBackingFactory(
       workarounds_(workarounds) {}
 
 OzoneImageBackingFactory::~OzoneImageBackingFactory() = default;
+
+// static
+gfx::GpuMemoryBufferHandle
+OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
+    viz::VulkanContextProvider* vulkan_context_provider,
+    const gfx::Size& size,
+    viz::SharedImageFormat format,
+    gfx::BufferUsage usage) {
+  CHECK(viz::HasEquivalentBufferFormat(format));
+  gfx::BufferFormat buffer_format = ToBufferFormat(format);
+  VulkanDeviceQueue* device_queue = nullptr;
+#if BUILDFLAG(ENABLE_VULKAN)
+  if (vulkan_context_provider) {
+    device_queue = vulkan_context_provider->GetDeviceQueue();
+  }
+#endif  // BUILDFLAG(ENABLE_VULKAN)
+  scoped_refptr<gfx::NativePixmap> pixmap =
+      ui::OzonePlatform::GetInstance()
+          ->GetSurfaceFactoryOzone()
+          ->CreateNativePixmap(gpu::kNullSurfaceHandle, device_queue, size,
+                               buffer_format, usage, size);
+
+  if (!pixmap.get()) {
+    DLOG(ERROR) << "Failed to create pixmap " << size.ToString() << ",  "
+                << format.ToString() << ", usage "
+                << gfx::BufferUsageToString(usage);
+    return gfx::GpuMemoryBufferHandle();
+  }
+
+  gfx::NativePixmapHandle native_pixmap_handle = pixmap->ExportHandle();
+  if (native_pixmap_handle.planes.empty()) {
+    return gfx::GpuMemoryBufferHandle();
+  }
+
+  return gfx::GpuMemoryBufferHandle(std::move(native_pixmap_handle));
+}
 
 std::unique_ptr<OzoneImageBacking>
 OzoneImageBackingFactory::CreateSharedImageInternal(

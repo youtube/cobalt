@@ -71,7 +71,6 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   virtual std::optional<NetworkRoute> network_route() const;
 
   // Emitted when the writable state, represented by `writable()`, changes.
-  sigslot::signal1<PacketTransportInternal*> SignalWritableState;
   void SubscribeWritableState(
       void* tag,
       absl::AnyInvocable<void(PacketTransportInternal*)> callback);
@@ -83,7 +82,6 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   //  writable, but temporarily not able to send packets. For example, the
   //  underlying transport's socket buffer may be full, as indicated by
   //  SendPacket's return code and/or GetError.
-  sigslot::signal1<PacketTransportInternal*> SignalReadyToSend;
   void SubscribeReadyToSend(
       void* tag,
       absl::AnyInvocable<void(PacketTransportInternal*)> callback);
@@ -91,7 +89,6 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   void NotifyReadyToSend(PacketTransportInternal* packet_transport);
 
   // Emitted when receiving state changes to true.
-  sigslot::signal1<PacketTransportInternal*> SignalReceivingState;
   void SubscribeReceivingState(
       absl::AnyInvocable<void(PacketTransportInternal*)> callback);
   void NotifyReceivingState(PacketTransportInternal* packet_transport);
@@ -107,7 +104,28 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   // Signalled each time a packet is sent on this channel.
   sigslot::signal2<PacketTransportInternal*, const SentPacketInfo&>
       SignalSentPacket;
-
+  void NotifySentPacket(PacketTransportInternal* transport,
+                        const SentPacketInfo& info) {
+    SignalSentPacket(transport, info);
+  }
+  // SignalSentPacket is sometimes invoked recursively, so if one were to
+  // replace all occurrences of SignalSentPacket.subscribe() with
+  // SubscribeSentPacket(), this would cause a CHECK failure in some
+  // cases because CallbackList does not support recursive invocations.
+  // The test RtpTransportTest::RecursiveOnSentPacketDoesNotCrash is
+  // an example of a test that will do a CHECK failure if CallbackList is
+  // used.
+  // TODO: bugs.webrtc.org/448409800 - use SubscribeSentPacket in a safe way.
+  // This should eventually allow removal of SignalSentPacket.
+  void SubscribeSentPacket(
+      void* tag,
+      absl::AnyInvocable<void(PacketTransportInternal*, const SentPacketInfo&)>
+          callback) {
+    sent_packet_trampoline_.Subscribe(tag, std::move(callback));
+  }
+  void UnsubscribeSentPacket(void* tag) {
+    sent_packet_trampoline_.Unsubscribe(tag);
+  }
   // Signalled when the current network route has changed.
   sigslot::signal1<std::optional<NetworkRoute>> SignalNetworkRouteChanged;
   void SubscribeNetworkRouteChanged(
@@ -130,6 +148,10 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   SequenceChecker network_checker_{SequenceChecker::kDetached};
 
  private:
+  sigslot::signal1<PacketTransportInternal*> SignalWritableState;
+  sigslot::signal1<PacketTransportInternal*> SignalReadyToSend;
+  sigslot::signal1<PacketTransportInternal*> SignalReceivingState;
+
   CallbackList<PacketTransportInternal*, const ReceivedIpPacket&>
       received_packet_callback_list_ RTC_GUARDED_BY(&network_checker_);
   absl::AnyInvocable<void() &&> on_close_;
@@ -142,6 +164,9 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   SignalTrampoline<PacketTransportInternal,
                    &PacketTransportInternal::SignalReceivingState>
       receiving_state_trampoline_;
+  SignalTrampoline<PacketTransportInternal,
+                   &PacketTransportInternal::SignalSentPacket>
+      sent_packet_trampoline_;
   SignalTrampoline<PacketTransportInternal,
                    &PacketTransportInternal::SignalNetworkRouteChanged>
       network_route_changed_trampoline_;

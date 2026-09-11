@@ -46,6 +46,7 @@
 #include "modules/video_coding/utility/frame_sampler.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/encoder_info_settings.h"
+#include "rtc_base/experiments/psnr_experiment.h"
 #include "rtc_base/logging.h"
 #include "third_party/libaom/source/libaom/aom/aom_codec.h"
 #include "third_party/libaom/source/libaom/aom/aom_encoder.h"
@@ -180,9 +181,9 @@ class LibaomAv1Encoder final : public VideoEncoder {
   const bool post_encode_frame_drop_;
 
   // Determine whether the frame should be sampled for PSNR.
-  FrameSampler psnr_frame_sampler_;
   // TODO(webrtc:388070060): Remove after rollout.
-  const bool calculate_psnr_;
+  const PsnrExperiment psnr_experiment_;
+  FrameSampler psnr_frame_sampler_;
   const bool drop_repeat_frames_on_enhancement_layers_;
   std::map<int, uint32_t> last_encoded_timestamp_by_sid_;
 };
@@ -227,8 +228,8 @@ LibaomAv1Encoder::LibaomAv1Encoder(const Environment& env,
       encoder_info_override_(env.field_trials()),
       post_encode_frame_drop_(!env.field_trials().IsDisabled(
           "WebRTC-LibaomAv1Encoder-PostEncodeFrameDrop")),
-      calculate_psnr_(
-          env.field_trials().IsEnabled("WebRTC-Video-CalculatePsnr")),
+      psnr_experiment_(env.field_trials()),
+      psnr_frame_sampler_(psnr_experiment_.SamplingInterval()),
       drop_repeat_frames_on_enhancement_layers_(env.field_trials().IsEnabled(
           "WebRTC-LibaomAv1Encoder-DropRepeatFramesOnEnhancementLayers")) {}
 
@@ -812,7 +813,8 @@ int32_t LibaomAv1Encoder::Encode(
     aom_enc_frame_flags_t flags =
         layer_frame->IsKeyframe() ? AOM_EFLAG_FORCE_KF : 0;
 #if defined(WEBRTC_ENCODER_PSNR_STATS) && defined(AOM_EFLAG_CALCULATE_PSNR)
-    if (calculate_psnr_ && psnr_frame_sampler_.ShouldBeSampled(frame)) {
+    if (psnr_experiment_.IsEnabled() &&
+        psnr_frame_sampler_.ShouldBeSampled(frame)) {
       flags |= AOM_EFLAG_CALCULATE_PSNR;
     }
 #endif

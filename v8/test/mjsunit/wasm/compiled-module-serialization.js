@@ -80,8 +80,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const invalid_buffer = new ArrayBuffer(10);
   const invalid_buffer_view = new Uint8Array(10);
 
-  module = d8.wasm.deserializeModule(invalid_buffer, invalid_buffer_view);
-  assertEquals(module, undefined);
+  assertThrows(
+      () => d8.wasm.deserializeModule(invalid_buffer, invalid_buffer_view),
+      Error, /Trying to deserialize manipulated bytes/);
 })();
 
 (function RelationBetweenModuleAndClone() {

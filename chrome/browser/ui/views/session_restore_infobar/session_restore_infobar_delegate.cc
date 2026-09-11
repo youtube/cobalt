@@ -37,10 +37,6 @@ void RecordInfoBarAction(
       base::UmaHistogramEnumeration("SessionRestore.InfoBar.TurnOffFromRestart",
                                     action);
       break;
-    case SessionRestoreInfoBarDelegate::InfobarMessageType::kTurnOffFromSession:
-      base::UmaHistogramEnumeration("SessionRestore.InfoBar.TurnOffFromSession",
-                                    action);
-      break;
     case SessionRestoreInfoBarDelegate::InfobarMessageType::
         kTurnOnSessionRestore:
       base::UmaHistogramEnumeration(
@@ -88,16 +84,10 @@ SessionRestoreInfoBarDelegate::~SessionRestoreInfoBarDelegate() {
                         SessionRestoreInfoBarDelegate::InfobarAction::kIgnored);
     if (profile_->GetPrefs()->GetInteger(
             prefs::kSessionRestoreInfoBarTimesShown) ==
-            kSessionRestoreInfoBarMaxTimesToShow &&
-        message_type_ == InfobarMessageType::kTurnOnSessionRestore) {
-      // Only the infobar with the message kTurnOnSessionRestore will be shown
+        kSessionRestoreInfoBarMaxTimesToShow) {
+      //  The session restore infobar will be shown
       // on 3 different browser sessions. And false will be recorded once if no
       // action was taken to change the setting.
-      RecordSettingChanged(false, message_type_);
-    } else {
-      // The infobars with the message to turn off session restore will only be
-      // displayed once and if no action is taken,
-      // false will be recorded for no setting changed.
       RecordSettingChanged(false, message_type_);
     }
   }
@@ -105,9 +95,6 @@ SessionRestoreInfoBarDelegate::~SessionRestoreInfoBarDelegate() {
 
 void SessionRestoreInfoBarDelegate::OnSessionRestorePrefChanged() {
   RecordSettingChanged(true, message_type_);
-  // Set the pref to true so that the infobar does not show on the next startup.
-  profile_.get().GetPrefs()->SetBoolean(prefs::kSessionRestorePrefChanged,
-                                        true);
   infobar()->RemoveSelf();
 }
 
@@ -118,10 +105,6 @@ void SessionRestoreInfoBarDelegate::RecordSettingChanged(
     case SessionRestoreInfoBarDelegate::InfobarMessageType::kTurnOffFromRestart:
       base::UmaHistogramBoolean(
           "Session.Restore.SettingChanged.TurnOffFromRestart", setting_changed);
-      break;
-    case SessionRestoreInfoBarDelegate::InfobarMessageType::kTurnOffFromSession:
-      base::UmaHistogramBoolean(
-          "Session.Restore.SettingChanged.TurnOffFromSession", setting_changed);
       break;
     case SessionRestoreInfoBarDelegate::InfobarMessageType::
         kTurnOnSessionRestore:
@@ -156,9 +139,6 @@ std::u16string SessionRestoreInfoBarDelegate::GetMessageText() const {
     case InfobarMessageType::kTurnOffFromRestart:
       return l10n_util::GetStringUTF16(
           IDS_SESSION_RESTORE_TURN_OFF_RESTORE_FROM_RESTART);
-    case InfobarMessageType::kTurnOffFromSession:
-      return l10n_util::GetStringUTF16(
-          IDS_SESSION_RESTORE_TURN_OFF_RESTORE_FROM_SESSION);
     case InfobarMessageType::kTurnOnSessionRestore:
       return l10n_util::GetStringUTF16(IDS_SESSION_RESTORE_TURN_ON);
     case InfobarMessageType::kNone:
@@ -190,10 +170,10 @@ void SessionRestoreInfoBarDelegate::InfoBarDismissed() {
                       SessionRestoreInfoBarDelegate::InfobarAction::kDismissed);
   if (close_cb_) {
     std::move(close_cb_).Run();
-    if (!UserInteractedWithSessionRestorePref(profile_.get().GetPrefs())) {
+    if (profile_->GetPrefs()
+            ->FindPreference(prefs::kRestoreOnStartup)
+            ->IsDefaultValue()) {
       RecordSettingChanged(false, message_type_);
-      profile_.get().GetPrefs()->SetBoolean(prefs::kSessionRestorePrefChanged,
-                                            true);
     }
   }
   ConfirmInfoBarDelegate::InfoBarDismissed();

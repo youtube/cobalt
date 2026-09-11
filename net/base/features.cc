@@ -133,13 +133,13 @@ BASE_FEATURE(kPrefixCookieHostHttp, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kSearchEnginePreconnectInterval,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSearchEnginePreconnect2, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSearchEnginePreconnect2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
                    kIdleTimeoutInSeconds,
                    &kSearchEnginePreconnect2,
                    "IdleTimeoutInSeconds",
-                   120);
+                   30);
 
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kShortSessionThreshold,
@@ -156,13 +156,13 @@ BASE_FEATURE_PARAM(int,
                    kPingIntervalInSeconds,
                    &kSearchEnginePreconnect2,
                    "PingIntervalInSeconds",
-                   30);
+                   27);
 
 BASE_FEATURE_PARAM(std::string,
                    kQuicConnectionOptions,
                    &kSearchEnginePreconnect2,
                    "QuicConnectionOptions",
-                   "");
+                   "ECCP");
 
 BASE_FEATURE_PARAM(bool,
                    kFallbackInLowPowerMode,
@@ -221,8 +221,6 @@ BASE_FEATURE(kCookieDomainRejectNonASCII, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables partitioning of third party storage (IndexedDB, CacheStorage, etc.)
 // by the top level site to reduce fingerprinting.
 BASE_FEATURE(kThirdPartyStoragePartitioning, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTopLevelTpcdOriginTrial, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTpcdTrialSettings,
              "TpcdSupportSettings",
@@ -655,6 +653,11 @@ BASE_FEATURE_PARAM(int,
                    &kDiskCacheBackendExperiment,
                    "SqlDiskCacheIdleCheckpointThreshold",
                    1000);
+BASE_FEATURE_PARAM(int,
+                   kSqlDiskCacheOptimisticWriteBufferSize,
+                   &kDiskCacheBackendExperiment,
+                   "SqlDiskCacheOptimisticWriteBufferSize",
+                   32 * 1024 * 1024);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 BASE_FEATURE(kIgnoreHSTSForLocalhost, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -703,6 +706,15 @@ BASE_FEATURE_PARAM(bool,
                    kHttpCacheNoVarySearchKeepNotSuitable,
                    &kHttpCacheNoVarySearch,
                    "keep_not_suitable",
+                   false);
+
+BASE_FEATURE(kHttpNoVarySearchDataUseNewAreEquivalent,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(bool,
+                   kHttpNoVarySearchDataAreEquivalentCheckResult,
+                   &kHttpNoVarySearchDataUseNewAreEquivalent,
+                   "check_result",
                    false);
 
 BASE_FEATURE(kReportingApiCorsOriginHeader, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -838,5 +850,13 @@ BASE_FEATURE_PARAM(size_t,
                    &kUpdateIsMainFrameOriginRecentlyAccessed,
                    "cache_size",
                    64);
+
+BASE_FEATURE(kTryQuicByDefault, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(std::string,
+                   kQuicOptions,
+                   &kTryQuicByDefault,
+                   "quic_options",
+                   "");
 
 }  // namespace net::features

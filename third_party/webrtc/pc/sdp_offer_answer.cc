@@ -5099,8 +5099,8 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     // If local and remote are both set, we assume that it's safe to trigger
     // CCFB.
     if (pc_->trials().IsEnabled("WebRTC-RFC8888CongestionControlFeedback")) {
-      if (type == SdpType::kAnswer && local_description() &&
-          remote_description()) {
+      if ((type == SdpType::kAnswer || type == SdpType::kPrAnswer) &&
+          local_description() && remote_description()) {
         std::optional<RtcpFeedbackType> remote_preferred_rtcp_cc_ack_type;
         // Verify that the remote agrees on congestion control feedback format.
         for (const auto& content :

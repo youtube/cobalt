@@ -733,7 +733,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     if (Tagged<WasmExportedFunctionData> data;
         TryCast(*trusted_function_data_, &data)) {
       if (!wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
-              data->sig()->index(),
+              data->internal()->sig()->index(),
               wasm::CanonicalValueType::RefNull(expected_sig->index(),
                                                 false /* ignored by callee */,
                                                 RefTypeKind::kFunction))) {
@@ -1095,6 +1095,11 @@ MaybeDirectHandle<WasmInstanceObject> InstanceBuilder::Build() {
     isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
                                                        context_id_);
   }
+
+  // Publish any delayed counter updates of the NativeModule and the import
+  // wrapper cache in the isolate.
+  native_module_->counter_updates()->Publish(isolate_);
+  GetWasmImportWrapperCache()->PublishCounterUpdates(isolate_);
 
   return direct_handle(trusted_data_->instance_object(), isolate_);
 }

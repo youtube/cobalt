@@ -335,14 +335,6 @@ void CodeGenerator::AssembleCode() {
         masm()->InitializeRootRegister();
       }
     }
-#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
-    // RVV uses VectorUnit to emit vset{i}vl{i}, reducing the static and dynamic
-    // overhead of the vset{i}vl{i} instruction. However there are some jumps
-    // back between blocks. the Rvv instruction may get an incorrect vtype. so
-    // here VectorUnit needs to be cleared to ensure that the vtype is correct
-    // within the block.
-    masm()->VU.clear();
-#endif
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL && !block->needs_frame()) {
       ConstantPoolUnavailableScope constant_pool_unavailable(masm());
       result_ = AssembleBlock(block);
@@ -424,6 +416,10 @@ void CodeGenerator::AssembleCode() {
       }
     }
   }
+
+#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
+  masm()->EndBlockPools();
+#endif  // defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
 
   offsets_info_.pools = masm()->pc_offset();
   // TODO(jgruber): Move all inlined metadata generation into a new,
@@ -1109,7 +1105,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   wasm::WasmDeoptView view(base::VectorOf(result));
   wasm::WasmDeoptData data = view.GetDeoptData();
   DCHECK_EQ(data.deopt_exit_start_offset, deopt_exit_start_offset_);
-  DCHECK_EQ(data.deopt_literals_size, deoptimization_literals_.size());
+  DCHECK_EQ(data.num_deopt_literals, deoptimization_literals_.size());
   DCHECK_EQ(data.eager_deopt_count, eager_deopt_count_);
   DCHECK_EQ(data.entry_count, deoptimization_exits_.size());
   DCHECK_EQ(data.translation_array_size, frame_translations.size());

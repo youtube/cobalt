@@ -1485,7 +1485,6 @@ DEFINE_BOOL(maglev_escape_analysis, true,
 DEFINE_BOOL(trace_maglev_escape_analysis, false, "trace maglev escape analysis")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_object_tracking,
                             "track object changes to avoid escaping them")
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_object_tracking)
 DEFINE_BOOL(trace_maglev_object_tracking, false,
             "trace load/stores from maglev virtual objects")
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building,
@@ -1746,6 +1745,13 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, size_t{1})
 
 DEFINE_BOOL(reopt_after_lazy_deopts, true,
             "Immediately re-optimize code after some lazy deopts")
+
+// This verification doesn't work for debugger tests which set breakpoints
+// into builtin functions and thus make certain core JS builtins look like
+// they are not used.
+DEFINE_BOOL(verify_get_js_builtin_state, false,
+            "Enable verification of Builtins::GetJSBuiltinState().")
+DEFINE_IMPLICATION(enable_slow_asserts, verify_get_js_builtin_state)
 
 // Flags for WebAssembly.
 #if V8_ENABLE_WEBASSEMBLY
@@ -2349,6 +2355,8 @@ DEFINE_BOOL(parallel_weak_ref_clearing, true,
             "use parallel threads to clear weak refs in the atomic pause.")
 DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
             "trigger out-of-memory failure to avoid GC storm near heap limit")
+DEFINE_BOOL(ineffective_gcs_forces_last_resort, false,
+            "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(
     ineffective_gc_size_threshold, 0.8,
     "Threshold on heap size to trigger out-of-memory failure near heap limit.")
@@ -2491,7 +2499,7 @@ DEFINE_BOOL(memory_pool_release_before_memory_pressure_gcs, true,
             "or last resort GCs")
 DEFINE_BOOL(memory_pool_release_on_malloc_failures, false,
             "discard the memory pool on malloc retries")
-DEFINE_BOOL(large_page_pool, false, "Add large pages to the page pool")
+DEFINE_BOOL(large_page_pool, true, "Add large pages to the page pool")
 DEFINE_WEAK_IMPLICATION(future, large_page_pool)
 DEFINE_SIZE_T(max_large_page_pool_size, 32,
               "Maximum size of pooled large pages in MB.")

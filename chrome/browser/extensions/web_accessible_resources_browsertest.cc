@@ -21,6 +21,7 @@
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "extensions/browser/background_script_executor.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
@@ -33,10 +34,12 @@
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
 #endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 namespace {
@@ -287,11 +290,10 @@ IN_PROC_BROWSER_TEST_F(
   }
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+// Navigate to a web page and then try to load an extension subresource.
 // TODO(crbug.com/390687767): Port to desktop Android. Currently the redirect
 // doesn't happen.
-
-// Navigate to a web page and then try to load an extension subresource.
 IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest,
                        SubresourceReachabilityAfterServerRedirect) {
   // Load extension.
@@ -370,6 +372,8 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest,
 }
 
 // Server redirect to a web accessible resource whereby `matches` doesn't match.
+// TODO(crbug.com/390687767): Port to desktop Android. Currently the redirect
+// doesn't happen.
 IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest,
                        ServerRedirectSubresource) {
   // Load extension.
@@ -437,6 +441,8 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest,
 }
 
 // Server redirect to a web accessible resource whereby `matches` doesn't match.
+// TODO(crbug.com/390687767): Port to desktop Android. Currently the redirect
+// doesn't happen.
 IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest,
                        ServerRedirectMainframe) {
   // Load extension.
@@ -469,9 +475,6 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest,
   EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, observer.last_net_error_code());
 }
 
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-#if !BUILDFLAG(IS_ANDROID)
 // DNR, WAR, and use_dynamic_url with the extension feature. DNR does not
 // currently succeed when redirecting to a resource using use_dynamic_url with
 // query parameters.
@@ -524,7 +527,7 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest,
     EXPECT_TRUE(navigation_observer.last_navigation_succeeded());
   }
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Verify setting script.src from a content script that relies on web request to
 // redirect to a web accessible resource. It's important to set `script.src`

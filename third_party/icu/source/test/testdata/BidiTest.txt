@@ -1,8 +1,8 @@
-# BidiTest-15.1.0.txt
-# Date: 2023-01-05, 20:34:27 GMT
-# © 2023 Unicode®, Inc.
+# BidiTest-16.0.0.txt
+# Date: 2024-04-30, 21:48:09 GMT
+# © 2024 Unicode®, Inc.
 # Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
-# For terms of use, see https://www.unicode.org/terms_of_use.html
+# For terms of use and license, see https://www.unicode.org/terms_of_use.html
 #
 # Unicode Character Database
 #   For documentation, see https://www.unicode.org/reports/tr44/
@@ -66,7 +66,9 @@
 #   @Reorder:    3 1
 #
 # A data line has the following format:
+
 # <input> ; <bitset>
+
 #   <input>  =      An ordered list of BIDI property values
 #   <bitset> =      A hex bitset for paragraph levels (P): 1 = auto-LTR, 2 = LTR, 4 = RTL
 #                   Auto-LTR (standard BIDI) uses the first L/R/AL character, and is LTR if none is found.

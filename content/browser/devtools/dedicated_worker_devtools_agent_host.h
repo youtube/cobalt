@@ -13,7 +13,6 @@
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include "content/browser/devtools/worker_or_worklet_devtools_agent_host.h"
-#include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 
 namespace blink {
 class StorageKey;

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 nl{
     Currencies{
         ADP{
@@ -1111,6 +1111,10 @@ nl{
             "EC$",
             "Oost-Caribische dollar",
         }
+        XCG{
+            "Cg.",
+            "Caribische gulden",
+        }
         XDR{
             "XDR",
             "Special Drawing Rights",
@@ -1228,6 +1232,7 @@ nl{
         BYN{"р."}
         RUR{"р."}
         TWD{"NT$"}
+        XCG{"Cg"}
     }
     Currencies%variant{
         GEL{"ლ"}
@@ -1305,9 +1310,5 @@ nl{
             one{"Troy ounce platina"}
             other{"Troy ounces platina"}
         }
-    }
-    CurrencyUnitPatterns{
-        one{"{0} {1}"}
-        other{"{0} {1}"}
     }
 }

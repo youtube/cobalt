@@ -17,7 +17,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -28,6 +27,7 @@
 #include "p2p/base/transport_description.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/dscp.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/socket.h"
@@ -40,14 +40,6 @@ class Connection;
 class IceMessage;
 class StunMessage;
 class StunStats;
-
-enum ProtocolType {
-  PROTO_UDP,
-  PROTO_TCP,
-  PROTO_SSLTCP,  // Pseudo-TLS.
-  PROTO_TLS,
-  PROTO_LAST = PROTO_TLS
-};
 
 // Defines the interface for a port, which represents a local communication
 // mechanism that can be used to create connections to similar mechanisms of

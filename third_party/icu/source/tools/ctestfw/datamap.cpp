@@ -107,7 +107,7 @@ const ResourceBundle *RBDataMap::getItem(const char* key, UErrorCode &status) co
   }
 
   UnicodeString hashKey(key, -1, US_INV);
-  const ResourceBundle *r = (ResourceBundle *)fData->get(hashKey);
+  const ResourceBundle* r = static_cast<ResourceBundle*>(fData->get(hashKey));
   if(r != nullptr) {
     return r;
   } else {
@@ -116,7 +116,7 @@ const ResourceBundle *RBDataMap::getItem(const char* key, UErrorCode &status) co
   }
 }
 
-const UnicodeString RBDataMap::getString(const char* key, UErrorCode &status) const
+UnicodeString RBDataMap::getString(const char* key, UErrorCode &status) const
 {
   const ResourceBundle *r = getItem(key, status);
   if(U_SUCCESS(status)) {

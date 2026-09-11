@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 es_MX{
     %%Parent{"es_419"}
     Languages{
@@ -34,7 +34,6 @@ es_MX{
         kgp{"kaingang"}
         krc{"karachái bálkaro"}
         kum{"cumuco"}
-        lo{"lao"}
         mga{"irlandés medieval"}
         nan{"min nan (Chino)"}
         nr{"ndebele meridional"}

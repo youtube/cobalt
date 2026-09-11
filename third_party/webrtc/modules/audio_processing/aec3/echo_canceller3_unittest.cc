@@ -11,6 +11,7 @@
 #include "modules/audio_processing/aec3/echo_canceller3.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <deque>
 #include <memory>
@@ -22,6 +23,7 @@
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
@@ -1186,6 +1188,10 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
     }
     bool residual_echo_estimate_requested() const {
       return residual_echo_estimate_requested_;
+    }
+
+    EchoCanceller3Config GetConfiguration(bool multi_channel) const override {
+      return EchoCanceller3Config();
     }
 
    private:

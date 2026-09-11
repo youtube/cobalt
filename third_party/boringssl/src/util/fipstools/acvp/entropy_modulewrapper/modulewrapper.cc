@@ -31,6 +31,10 @@ static bool GetConfig(const Span<const uint8_t> args[],
   static constexpr char kConfig[] =
       R"([
       {
+        "algorithm": "acvptool",
+        "features": ["batch"]
+      },
+      {
         "algorithm": "SHA2-384",
         "revision": "1.0",
         "messageLength": [{

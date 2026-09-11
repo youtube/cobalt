@@ -492,10 +492,9 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     static_assert(Code::kEndOfStrongFieldsOffset ==
                   Code::kInstructionStartOffset);
 #ifndef V8_ENABLE_SANDBOX
-    static_assert(
-        Code::kInstructionStartOffsetEnd + 1 +
-            (V8_ENABLE_LEAPTIERING_BOOL ? kJSDispatchHandleSize : 0) ==
-        Code::kFlagsOffset);
+    static_assert(Code::kInstructionStartOffsetEnd + 1 +
+                      kJSDispatchHandleSize ==
+                  Code::kFlagsOffset);
 #endif
     static_assert(Code::kFlagsOffsetEnd + 1 == Code::kInstructionSizeOffset);
     static_assert(Code::kInstructionSizeOffsetEnd + 1 ==
@@ -4534,6 +4533,14 @@ void Isolate::Deinit() {
     });
   }
 
+#ifdef DEBUG
+  // Don't run Builtins::VerifyGetJSBuiltinState() during snapshot creation.
+  if (v8_flags.verify_get_js_builtin_state && !serializer_enabled()) {
+    const bool kAllowNonInitialState = true;
+    builtins()->VerifyGetJSBuiltinState(kAllowNonInitialState);
+  }
+#endif
+
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
   heap_.StartTearDown();
@@ -4763,10 +4770,8 @@ void Isolate::Deinit() {
   IsolateGroup::current()->code_pointer_table()->TearDownSpace(
       heap()->code_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
-#ifdef V8_ENABLE_LEAPTIERING
   IsolateGroup::current()->js_dispatch_table()->TearDownSpace(
       heap()->js_dispatch_table_space());
-#endif  // V8_ENABLE_LEAPTIERING
 
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -5843,10 +5848,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
 #endif  // V8_ENABLE_SANDBOX
-#ifdef V8_ENABLE_LEAPTIERING
   IsolateGroup::current()->js_dispatch_table()->InitializeSpace(
       heap()->js_dispatch_table_space());
-#endif  // V8_ENABLE_LEAPTIERING
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);
@@ -7846,7 +7849,6 @@ void DefaultWasmAsyncResolvePromiseCallback(
 base::LazyMutex read_only_dispatch_entries_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 void Isolate::InitializeBuiltinJSDispatchTable() {
-#ifdef V8_ENABLE_LEAPTIERING
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
 
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
@@ -7908,7 +7910,6 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
     isolate_data_.builtin_dispatch_table()[idx] = handle;
   }
 #endif  // !V8_STATIC_DISPATCH_HANDLES_BOOL
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void Isolate::PrintNumberStringCacheStats(const char* comment,

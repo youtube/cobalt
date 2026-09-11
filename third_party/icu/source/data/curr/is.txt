@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 is{
     Currencies{
         ADP{
@@ -1040,6 +1040,10 @@ is{
             one{"svissneskur franki"}
             other{"svissneskir frankar"}
         }
+        CLF{
+            one{"síleskt Unidad de Fomento"}
+            other{"síleskt Unidad de Fomento"}
+        }
         CLP{
             one{"síleskur pesi"}
             other{"síleskir pesar"}
@@ -1580,9 +1584,5 @@ is{
             one{"sambísk kvaka"}
             other{"sambískar kvökur"}
         }
-    }
-    CurrencyUnitPatterns{
-        one{"{0} {1}"}
-        other{"{0} {1}"}
     }
 }

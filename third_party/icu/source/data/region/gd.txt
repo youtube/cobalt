@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 gd{
     Countries{
         001{"An Saoghal"}
@@ -103,7 +103,7 @@ gd{
         EA{"Ceuta agus Melilla"}
         EC{"Eacuador"}
         EE{"An Eastoin"}
-        EG{"An Èiphit"}
+        EG{"An Èipheit"}
         EH{"Sathara an Iar"}
         ER{"Eartra"}
         ES{"An Spàinnt"}
@@ -136,7 +136,7 @@ gd{
         GW{"Gini-Bioso"}
         GY{"Guidheàna"}
         HK{"Hong Kong"}
-        HM{"Eilean Heard is MhicDhòmhnaill"}
+        HM{"Eilean Heard is Eileanan MhicDhòmhnaill"}
         HN{"Hondùras"}
         HR{"A’ Chròthais"}
         HT{"Haidhti"}

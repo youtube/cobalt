@@ -115,6 +115,7 @@
 #include "components/domain_reliability/domain_reliability_prefs.h"
 #include "components/embedder_support/origin_trials/origin_trial_prefs.h"
 #include "components/enterprise/browser/identifiers/identifiers_prefs.h"
+#include "components/enterprise/browser/promotion/promotion_prefs.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/feature_engagement/public/pref_names.h"
@@ -1168,6 +1169,15 @@ constexpr char kLensOverlayEduActionChipShownCount[] =
 constexpr char kRendererCodeIntegrityEnabledNeedsDeletion[] =
     "renderer_code_integrity_enabled";
 
+// Deprecated 10/2025.
+constexpr char kSessionRestoreTurnOffFromRestartInfoBarTimesShown[] =
+    "browser.session_restore_turn_off_from_restart_infobar_times_shown";
+
+constexpr char kSessionRestoreTurnOffFromSessionInfoBarTimesShown[] =
+    "browser.session_restore_turn_off_from_session_infobar_times_shown";
+
+constexpr char kSessionRestorePrefChanged[] = "session.restore_pref_changed";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1692,6 +1702,17 @@ void RegisterProfilePrefsForMigration(
 
   // Deprecated 09/2025.
   registry->RegisterIntegerPref(kLensOverlayEduActionChipShownCount, 0);
+
+  // Deprecated 10/2025.
+  registry->RegisterIntegerPref(
+      kSessionRestoreTurnOffFromRestartInfoBarTimesShown, 0);
+
+  // Deprecated 10/2025.
+  registry->RegisterIntegerPref(
+      kSessionRestoreTurnOffFromSessionInfoBarTimesShown, 0);
+
+  // Deprecated 10/2025.
+  registry->RegisterBooleanPref(kSessionRestorePrefChanged, false);
 }
 
 }  // namespace
@@ -2032,6 +2053,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   cross_device::RegisterProfilePrefs(registry);
   enterprise::RegisterIdentifiersProfilePrefs(registry);
   enterprise_connectors::RegisterProfilePrefs(registry);
+  enterprise_promotion::RegisterProfilePrefs(registry);
   enterprise_reporting::RegisterProfilePrefs(registry);
   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
   DownloadPrefs::RegisterProfilePrefs(registry);
@@ -2425,6 +2447,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(
       prefs::kManagedLocalNetworkAccessRestrictionsEnabled, false);
 
+  registry->RegisterBooleanPref(
+      prefs::kManagedLocalNetworkAccessRestrictionsTemporaryOptOut, false);
+
 #if BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(prefs::kVirtualKeyboardResizesLayoutByDefault,
                                 false);
@@ -2656,6 +2681,11 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // BEGIN_MIGRATE_OBSOLETE_PROFILE_PREFS
   // Please don't delete the preceding line. It is used by PRESUBMIT.py.
+
+  // Added 10/2025.
+  profile_prefs->ClearPref(kSessionRestoreTurnOffFromRestartInfoBarTimesShown);
+  profile_prefs->ClearPref(kSessionRestoreTurnOffFromSessionInfoBarTimesShown);
+  profile_prefs->ClearPref(kSessionRestorePrefChanged);
 
   // Added 05/2025.
   profile_prefs->ClearPref(kPrivacySandboxFakeNoticePromptShownTimeSync);
@@ -3051,6 +3081,8 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Added 09/2025.
   profile_prefs->ClearPref(kLensOverlayEduActionChipShownCount);
+
+  SigninPrefs(*profile_prefs).MigrateObsoleteSigninPrefs();
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

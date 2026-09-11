@@ -1158,7 +1158,7 @@ void SkXPSDevice::drawRRect(const SkRRect& rr,
                             const SkPaint& paint) {
     SkPath path;
     path.addRRect(rr);
-    this->drawPath(path, paint, true);
+    this->drawPath(path, paint);
 }
 
 void SkXPSDevice::internalDrawRect(const SkRect& r,
@@ -1174,7 +1174,7 @@ void SkXPSDevice::internalDrawRect(const SkRect& r,
         SkPath tmp;
         tmp.addRect(r);
         tmp.setFillType(SkPathFillType::kWinding);
-        this->drawPath(tmp, paint, true);
+        this->drawPath(tmp, paint);
         return;
     }
 
@@ -1480,8 +1480,8 @@ HRESULT SkXPSDevice::shadePath(IXpsOMPath* shadedPath,
 }
 
 void SkXPSDevice::drawPath(const SkPath& platonicPath,
-                           const SkPaint& origPaint,
-                           bool pathIsMutable) {
+                           const SkPaint& origPaint) {
+    bool pathIsMutable = false;
     SkTCopyOnFirstWrite<SkPaint> paint(origPaint);
 
     // nothing to draw
@@ -1561,6 +1561,10 @@ void SkXPSDevice::drawPath(const SkPath& platonicPath,
         //[Fillable-path -> Pixel-path]
         SkPath* pixelPath = pathIsMutable ? fillablePath : &modifiedPath;
         fillablePath->transform(matrix, pixelPath);
+        auto pixelRaw = SkPathPriv::Raw(*pixelPath);
+        if (!pixelRaw) {
+            return;
+        }
 
         SkMask* mask = nullptr;
 
@@ -1571,7 +1575,7 @@ void SkXPSDevice::drawPath(const SkPath& platonicPath,
                                             : SkStrokeRec::kHairline_InitStyle;
         //[Pixel-path -> Mask]
         SkMaskBuilder rasteredMask;
-        if (skcpu::DrawToMask(SkPathPriv::Raw(*pixelPath),
+        if (skcpu::DrawToMask(*pixelRaw,
                               clipIRect,
                               filter,  //just to compute how much to draw.
                               &matrix,
@@ -1978,7 +1982,7 @@ sk_sp<SkDevice> SkXPSDevice::createDevice(const CreateInfo& info, const SkPaint*
 void SkXPSDevice::drawOval( const SkRect& o, const SkPaint& p) {
     SkPath path;
     path.addOval(o);
-    this->drawPath(path, p, true);
+    this->drawPath(path, p);
 }
 
 void SkXPSDevice::drawImageRect(const SkImage* image,

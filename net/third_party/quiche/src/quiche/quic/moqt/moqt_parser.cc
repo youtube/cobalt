@@ -469,7 +469,12 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader,
     ParseError("Invalid group order value in SUBSCRIBE_OK");
     return 0;
   }
-  subscribe_ok.expires = quic::QuicTimeDelta::FromMilliseconds(milliseconds);
+  subscribe_ok.expires =
+      (milliseconds == 0
+           ? std::nullopt
+           : quic::QuicTimeDelta::TryFromMilliseconds(milliseconds))
+          .value_or(quic::QuicTimeDelta::Infinite());
+
   subscribe_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   if (content_exists) {
     subscribe_ok.largest_location = Location();
@@ -1159,11 +1164,14 @@ bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
             static_cast<VersionSpecificParameter>(key);
         switch (parameter) {
           case VersionSpecificParameter::kDeliveryTimeout:
-            out.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(value);
+            out.delivery_timeout =
+                quic::QuicTimeDelta::TryFromMilliseconds(value).value_or(
+                    quic::QuicTimeDelta::Infinite());
             break;
           case VersionSpecificParameter::kMaxCacheDuration:
             out.max_cache_duration =
-                quic::QuicTimeDelta::FromMilliseconds(value);
+                quic::QuicTimeDelta::TryFromMilliseconds(value).value_or(
+                    quic::QuicTimeDelta::Infinite());
             break;
           case VersionSpecificParameter::kOackWindowSize:
             out.oack_window_size = quic::QuicTimeDelta::FromMicroseconds(value);
@@ -1572,6 +1580,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
         AdvanceParserState();
       }
       if (fin_read) {
+        visitor_.OnFin();
         no_more_data_ = true;
         return;
       }
@@ -1609,6 +1618,9 @@ void MoqtDataParser::ParseNextItemFromStream() {
           visitor_.OnObjectMessage(
               metadata_, peek_result.peeked_data.substr(0, chunk_size), done);
           if (done) {
+            if (no_more_data_) {
+              visitor_.OnFin();
+            }
             ++num_objects_read_;
             AdvanceParserState();
           }
@@ -1692,6 +1704,7 @@ bool MoqtDataParser::CheckForFinWithoutData() {
     metadata_.object_status = MoqtObjectStatus::kEndOfGroup;
     visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
   }
+  visitor_.OnFin();
   return stream_.SkipBytes(0);
 }
 

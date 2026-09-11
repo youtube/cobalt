@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -17,52 +18,34 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
-using quic::DiversificationNonce;
-using quic::EncryptionLevel;
-using quic::FirstSendingPacketNumber;
-using quic::GetPacketHeaderSize;
-using quic::kEthernetMTU;
-using quic::kQuicDefaultConnectionIdLength;
-using quic::NullDecrypter;
-using quic::NullEncrypter;
-using quic::PacketHeaderFormat;
-using quic::ParsedQuicVersion;
-using quic::ParsedQuicVersionVector;
-using quic::Perspective;
-using quic::QuicConnectionId;
-using quic::QuicDataReader;
-using quic::QuicDataWriter;
-using quic::QuicEncryptedPacket;
-using quic::QuicFramer;
-using quic::QuicFramerVisitorInterface;
-using quic::QuicLongHeaderType;
-using quic::QuicPacketHeader;
-using quic::QuicPacketNumber;
-using quic::QuicTime;
-using quic::QuicTransportVersion;
-using quic::test::NoOpFramerVisitor;
-using quic::test::QuicFramerPeer;
+namespace quic {
+namespace test {
+namespace {
 
 PacketHeaderFormat ConsumePacketHeaderFormat(FuzzedDataProvider* provider) {
-  return provider->ConsumeBool() ? quic::IETF_QUIC_LONG_HEADER_PACKET
-                                 : quic::IETF_QUIC_SHORT_HEADER_PACKET;
+  return provider->ConsumeBool() ? IETF_QUIC_LONG_HEADER_PACKET
+                                 : IETF_QUIC_SHORT_HEADER_PACKET;
 }
 
 ParsedQuicVersion ConsumeParsedQuicVersion(FuzzedDataProvider* provider) {
   // TODO(wub): Add support for v49+.
   const QuicTransportVersion transport_versions[] = {
-      quic::QUIC_VERSION_46,
+      QUIC_VERSION_46,
   };
 
   return ParsedQuicVersion(
-      quic::PROTOCOL_QUIC_CRYPTO,
+      PROTOCOL_QUIC_CRYPTO,
       transport_versions[provider->ConsumeIntegralInRange<uint8_t>(
           0, ABSL_ARRAYSIZE(transport_versions) - 1)]);
 }
@@ -89,13 +72,13 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
   if (receiver_perspective == Perspective::IS_SERVER) {
     header.destination_connection_id =
         QuicConnectionId(cid_bytes.c_str(), cid_bytes.size());
-    header.destination_connection_id_included = quic::CONNECTION_ID_PRESENT;
-    header.source_connection_id_included = quic::CONNECTION_ID_ABSENT;
+    header.destination_connection_id_included = CONNECTION_ID_PRESENT;
+    header.source_connection_id_included = CONNECTION_ID_ABSENT;
   } else {
     header.source_connection_id =
         QuicConnectionId(cid_bytes.c_str(), cid_bytes.size());
-    header.source_connection_id_included = quic::CONNECTION_ID_PRESENT;
-    header.destination_connection_id_included = quic::CONNECTION_ID_ABSENT;
+    header.source_connection_id_included = CONNECTION_ID_PRESENT;
+    header.destination_connection_id_included = CONNECTION_ID_ABSENT;
   }
 
   header.version_flag = receiver_perspective == Perspective::IS_SERVER;
@@ -106,24 +89,23 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
   if (header.packet_number < FirstSendingPacketNumber()) {
     header.packet_number = FirstSendingPacketNumber();
   }
-  header.packet_number_length = quic::PACKET_4BYTE_PACKET_NUMBER;
+  header.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
 
   header.remaining_packet_length = 0;
 
-  if (header.form != quic::GOOGLE_QUIC_Q043_PACKET && header.version_flag) {
+  if (header.form != GOOGLE_QUIC_Q043_PACKET && header.version_flag) {
     header.long_packet_type = static_cast<QuicLongHeaderType>(
         provider->ConsumeIntegralInRange<uint8_t>(
             // INITIAL, ZERO_RTT_PROTECTED, or HANDSHAKE.
-            static_cast<uint8_t>(quic::INITIAL),
-            static_cast<uint8_t>(quic::HANDSHAKE)));
+            static_cast<uint8_t>(INITIAL), static_cast<uint8_t>(HANDSHAKE)));
   } else {
-    header.long_packet_type = quic::INVALID_PACKET_TYPE;
+    header.long_packet_type = INVALID_PACKET_TYPE;
   }
 
-  if (header.form == quic::IETF_QUIC_LONG_HEADER_PACKET &&
-      header.long_packet_type == quic::ZERO_RTT_PROTECTED &&
+  if (header.form == IETF_QUIC_LONG_HEADER_PACKET &&
+      header.long_packet_type == ZERO_RTT_PROTECTED &&
       receiver_perspective == Perspective::IS_CLIENT &&
-      header.version.handshake_protocol == quic::PROTOCOL_QUIC_CRYPTO) {
+      header.version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
     for (size_t i = 0; i < header.nonce_storage.size(); ++i) {
       header.nonce_storage[i] = provider->ConsumeIntegral<char>();
     }
@@ -138,8 +120,8 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
 void SetupFramer(QuicFramer* framer, QuicFramerVisitorInterface* visitor) {
   framer->set_visitor(visitor);
   for (EncryptionLevel level :
-       {quic::ENCRYPTION_INITIAL, quic::ENCRYPTION_HANDSHAKE,
-        quic::ENCRYPTION_ZERO_RTT, quic::ENCRYPTION_FORWARD_SECURE}) {
+       {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE, ENCRYPTION_ZERO_RTT,
+        ENCRYPTION_FORWARD_SECURE}) {
     framer->SetEncrypter(
         level, std::make_unique<NullEncrypter>(framer->perspective()));
     if (framer->version().KnowsWhichDecrypterToUse()) {
@@ -149,9 +131,8 @@ void SetupFramer(QuicFramer* framer, QuicFramerVisitorInterface* visitor) {
   }
 
   if (!framer->version().KnowsWhichDecrypterToUse()) {
-    framer->SetDecrypter(
-        quic::ENCRYPTION_INITIAL,
-        std::make_unique<NullDecrypter>(framer->perspective()));
+    framer->SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
+                                                 framer->perspective()));
   }
 }
 
@@ -174,8 +155,8 @@ class FuzzingFramerVisitor : public NoOpFramerVisitor {
   uint64_t decrypted_packet_count_ = 0;
 };
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  FuzzedDataProvider data_provider(data, size);
+void DoesNotCrash(const std::vector<uint8_t>& data) {
+  FuzzedDataProvider data_provider(data.data(), data.size());
 
   const QuicTime creation_time =
       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(
@@ -235,8 +216,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     QUICHE_CHECK(
         writer.WriteBytes(payload_buffer.data(), payload_buffer.size()));
 
-    EncryptionLevel encryption_level =
-        quic::test::HeaderToEncryptionLevel(header);
+    EncryptionLevel encryption_level = test::HeaderToEncryptionLevel(header);
     QUICHE_CHECK(sender_framer.WriteIetfLongHeaderLength(
         header, &writer, length_field_offset, encryption_level));
 
@@ -272,5 +252,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         << ", error_detail:" << receiver_framer.detailed_error()
         << ". header:" << header;
   }
-  return 0;
 }
+FUZZ_TEST(QuicFramerProcessDataPacketFuzzer, DoesNotCrash);
+
+}  // namespace
+}  // namespace test
+}  // namespace quic

@@ -281,36 +281,56 @@ static const uint32_t kNTTRootsMontgomery[256] = {
 uint32_t reduce_once(uint32_t x) {
   declassify_assert(x < 2 * kPrime);
   // return x < kPrime ? x : x - kPrime;
-  return constant_time_select_int(constant_time_lt_w(x, kPrime), x, x - kPrime);
+  const uint32_t subtracted = x - kPrime;
+  uint32_t mask = 0u - (subtracted >> 31);
+  // Although this is a constant-time select, we omit a value barrier here.
+  // Value barriers impede auto-vectorization (likely because it forces the
+  // value to transit through a general-purpose register). This is a difference
+  // of 1.4x to 1.5x in signing performance.
+  //
+  // We usually add value barriers to selects because Clang turns consecutive
+  // selects with the same condition into a branch instead of CMOV/CSEL. This
+  // condition does not occur in ML-DSA, so omitting it seems to be generally
+  // safe. However, see |coefficient_from_nibble|.
+  return (mask & x) | (~mask & subtracted);
 }
 
-// Returns the absolute value in constant time.
+// Returns the absolute value in constant time, interpreting the high bit as a
+// sign bit.
 uint32_t abs_signed(uint32_t x) {
-  // return is_positive(x) ? x : -x;
-  // Note: MSVC doesn't like applying the unary minus operator to unsigned types
-  // (warning C4146), so we write the negation as a bitwise not plus one
-  // (assuming two's complement representation).
-  return constant_time_select_int(constant_time_lt_w(x, 0x80000000), x, 0u - x);
+  // return is_negative(x) ? -x : x;
+  uint32_t mask = 0u - (x >> 31);
+  return constant_time_select_32(mask, 0u - x, x);
 }
 
 // Returns the absolute value modulo kPrime.
 uint32_t abs_mod_prime(uint32_t x) {
   declassify_assert(x < kPrime);
-  // return x > kHalfPrime ? kPrime - x : x;
-  return constant_time_select_int(constant_time_lt_w(kHalfPrime, x), kPrime - x,
-                                  x);
+  // return x <= kHalfPrime ? x : kPrime - x;
+  uint32_t mask = x - kHalfPrime - 1;
+  mask = 0u - (mask >> 31);
+  return constant_time_select_32(mask, x, kPrime - x);
 }
 
-// Returns the maximum of two values in constant time.
-uint32_t maximum(uint32_t x, uint32_t y) {
+// Returns the maximum of two values in constant time. Each value must be less
+// than kPrime.
+uint32_t maximum_reduced(uint32_t x, uint32_t y) {
+  declassify_assert(x < kPrime);
+  declassify_assert(y < kPrime);
   // return x < y ? y : x;
-  return constant_time_select_int(constant_time_lt_w(x, y), y, x);
+  uint32_t mask = x - y;
+  mask = 0u - (mask >> 31);
+  return constant_time_select_32(mask, y, x);
 }
 
 uint32_t mod_sub(uint32_t a, uint32_t b) {
   declassify_assert(a < kPrime);
   declassify_assert(b < kPrime);
-  return reduce_once(kPrime + a - b);
+  uint32_t r = a - b;
+  // return r < 0 ? r + kPrime : r;
+  uint32_t mask = 0u - (r >> 31);
+  // See |reduce_once| for which this does not have a value barrier.
+  return (mask & (r + kPrime)) | (~mask & r);
 }
 
 void scalar_add(scalar *out, const scalar *lhs, const scalar *rhs) {
@@ -472,9 +492,9 @@ void power2_round(uint32_t *r1, uint32_t *r0, uint32_t r) {
   crypto_word_t mask =
       constant_time_lt_w((uint32_t)(1 << (kDroppedBits - 1)), *r0);
   // r0 = mask ? r0_adjusted : r0
-  *r0 = constant_time_select_int(mask, r0_adjusted, *r0);
+  *r0 = constant_time_select_32(mask, r0_adjusted, *r0);
   // r1 = mask ? r1_adjusted : r1
-  *r1 = constant_time_select_int(mask, r1_adjusted, *r1);
+  *r1 = constant_time_select_32(mask, r1_adjusted, *r1);
 }
 
 // Scale back previously rounded value.
@@ -621,14 +641,14 @@ void scalar_low_bits(scalar *out, const scalar *in) {
 void scalar_max(uint32_t *max, const scalar *s) {
   for (int i = 0; i < kDegree; i++) {
     uint32_t abs = abs_mod_prime(s->c[i]);
-    *max = maximum(*max, abs);
+    *max = maximum_reduced(*max, abs);
   }
 }
 
 void scalar_max_signed(uint32_t *max, const scalar *s) {
   for (int i = 0; i < kDegree; i++) {
     uint32_t abs = abs_signed(s->c[i]);
-    *max = maximum(*max, abs);
+    *max = maximum_reduced(*max, abs);
   }
 }
 
@@ -1133,7 +1153,9 @@ static bool coefficient_from_nibble(uint32_t nibble, uint32_t *result);
 template <>
 bool coefficient_from_nibble<4>(uint32_t nibble, uint32_t *result) {
   if (constant_time_declassify_int(nibble < 9)) {
-    *result = mod_sub(4, nibble);
+    // Knowing bounds on |nibble| seems to tempt some versions of Clang to emit
+    // a branch, if we don't have a barrier in |mod_sub|.
+    *result = mod_sub(4, value_barrier_u32(nibble));
     return true;
   }
   return false;
@@ -1142,7 +1164,9 @@ bool coefficient_from_nibble<4>(uint32_t nibble, uint32_t *result) {
 template <>
 bool coefficient_from_nibble<2>(uint32_t nibble, uint32_t *result) {
   if (constant_time_declassify_int(nibble < 15)) {
-    *result = mod_sub(2, nibble % 5);
+    // Knowing bounds on |nibble| seems to tempt some versions of Clang to emit
+    // a branch, if we don't have a barrier in |mod_sub|.
+    *result = mod_sub(2, value_barrier_u32(nibble % 5));
     return true;
   }
   return false;

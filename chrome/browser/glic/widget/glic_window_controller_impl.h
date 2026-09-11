@@ -138,6 +138,7 @@ class GlicWindowControllerImpl
   void EnableDragResize(bool enabled) override;
   void Attach() override;
   void Detach() override;
+  void ClosePanel() override;
   void SetMinimumWidgetSize(const gfx::Size& size) override;
   bool IsShowing() const override;
   void SwitchConversation(
@@ -160,6 +161,8 @@ class GlicWindowControllerImpl
   const InstanceId& id() const override;
   base::CallbackListSubscription RegisterStateChange(
       StateChangeCallback callback) override;
+  base::CallbackListSubscription RegisterLastActiveInstanceChangedCallback(
+      LastActiveInstanceChangedCallback callback) override;
 
  private:
   // Sets the floating attributes of the glic window.
@@ -342,11 +345,6 @@ class GlicWindowControllerImpl
   // This member contains the last size that glic requested. This should be
   // reset every time glic is closed but is currently cached.
   std::optional<gfx::Size> glic_size_;
-
-  // Contains the size of the draggable area zone for the glic widget.
-  // This value gets sent from the web client; if it is ever null, the draggable
-  // area will be set to a default value.
-  std::optional<gfx::Rect> draggable_area_ = std::nullopt;
 
   // Whether the widget should be user resizable, kept here in case it's
   // specified before the widget is created.

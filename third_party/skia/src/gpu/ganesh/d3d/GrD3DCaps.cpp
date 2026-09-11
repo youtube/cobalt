@@ -233,9 +233,7 @@ void GrD3DCaps::initShaderCaps(int vendorID, const D3D12_FEATURE_DATA_D3D12_OPTI
     GrShaderCaps* shaderCaps = fShaderCaps.get();
     shaderCaps->fVersionDeclString = "#version 330\n";
 
-    // Shader Model 5 supports all of the following:
-    shaderCaps->fUsesPrecisionModifiers = true;
-    shaderCaps->fFlatInterpolationSupport = true;
+    shaderCaps->fFlatInterpolationSupport = true; // Supported by Shader Model 5
     // Flat interpolation appears to be slow on Qualcomm GPUs. This was tested in GL and is assumed
     // to be true with D3D as well.
     shaderCaps->fPreferFlatInterpolation = kQualcomm_D3DVendor != vendorID;
@@ -929,7 +927,7 @@ GrCaps::SupportedWrite GrD3DCaps::supportedWritePixelsColorType(
 
     // Any buffer data needs to be aligned to 512 bytes and that of a single texel.
     size_t offsetAlignment = SkAlignTo(GrDxgiFormatBytesPerBlock(dxgiFormat),
-                                       D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+                                       (size_t) D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 
     const auto& info = this->getFormatInfo(dxgiFormat);
     for (int i = 0; i < info.fColorTypeInfoCount; ++i) {

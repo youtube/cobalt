@@ -25,6 +25,7 @@
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position.h"
 #include "src/handles/handles.h"
+#include "src/logging/counters.h"
 #include "src/sandbox/sandbox-malloc.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
@@ -40,8 +41,8 @@ namespace v8 {
 class CFunctionInfo;
 namespace internal {
 
-class InstructionStream;
 class CodeDesc;
+class InstructionStream;
 class Isolate;
 
 namespace wasm {
@@ -529,13 +530,19 @@ struct UnpublishedWasmCode {
   static constexpr AssumptionsJournal* kNoAssumptions = nullptr;
 };
 
-// Manages the code reservations and allocations of a single {NativeModule}.
+// Manages the code reservations and allocations of a single {NativeModule} or
+// the {WasmImportWrapperCache}.
 class WasmCodeAllocator {
  public:
-  explicit WasmCodeAllocator(std::shared_ptr<Counters> async_counters);
+  // The passed {DelayedCounterUpdates} object must outlive the
+  // {WasmCodeAllocator}. It's typically a field in the class which also holds
+  // the code allocator.
+  explicit WasmCodeAllocator(DelayedCounterUpdates*);
+
   ~WasmCodeAllocator();
 
-  // Call before use, after the {NativeModule} is set up completely.
+  // Call before use, after the {NativeModule} / {WasmImportWrapperCache} is set
+  // up completely.
   void Init(VirtualMemory code_space);
 
   // Call on newly allocated code ranges, to write platform-specific headers.
@@ -572,8 +579,6 @@ class WasmCodeAllocator {
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   size_t GetNumCodeSpaces() const;
 
-  Counters* counters() const { return async_counters_.get(); }
-
  private:
   //////////////////////////////////////////////////////////////////////////////
   // These fields are protected by the mutex in {NativeModule}.
@@ -594,7 +599,7 @@ class WasmCodeAllocator {
   std::atomic<size_t> generated_code_size_{0};
   std::atomic<size_t> freed_code_size_{0};
 
-  std::shared_ptr<Counters> async_counters_;
+  DelayedCounterUpdates* counter_updates_;
 };
 
 class V8_EXPORT_PRIVATE NativeModule final {
@@ -629,18 +634,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t DisassembleForLcov(
       std::ostream& out, std::vector<int>& function_body_offsets,
       std::map<uint32_t, uint32_t>& bytecode_disasm_offsets);
-
-  // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
-  // code below, i.e. it can be called concurrently from background threads.
-  // The returned code still needs to be published via {PublishCode}.
-  std::unique_ptr<WasmCode> AddCode(
-      int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
-      uint32_t tagged_parameter_slots,
-      base::Vector<const uint8_t> protected_instructions,
-      base::Vector<const uint8_t> source_position_table,
-      base::Vector<const uint8_t> inlining_positions,
-      base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-      ExecutionTier tier, ForDebugging for_debugging);
 
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
@@ -884,8 +877,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return tiering_budgets_.get();
   }
 
-  Counters* counters() const { return code_allocator_.counters(); }
-
   // Returns an approximation of current off-heap memory used by this module.
   size_t EstimateCurrentMemoryConsumption() const;
   // Print the current memory consumption estimate to standard output.
@@ -969,6 +960,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return continuation_wrapper_;
   }
 
+  DelayedCounterUpdates* counter_updates() { return &counter_updates_; }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -986,7 +979,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
                WasmDetectedFeatures detected_features,
                CompileTimeImports compile_imports, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
-               std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
 
   std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
@@ -1181,6 +1173,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // TODO(thibaudm): Share the wrappers across modules, and cache them per
   // signature once we support arguments and return values.
   WasmCode* continuation_wrapper_{nullptr};
+
+  // The native module does not belong to an isolate, so we cannot immediately
+  // update counters in an isolate. Store them here instead and publish them the
+  // next time we get hold of an isolate.
+  DelayedCounterUpdates counter_updates_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
@@ -1243,7 +1240,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class WasmImportWrapperCache;
 
   std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, WasmEnabledFeatures enabled_features,
+      WasmEnabledFeatures enabled_features,
       WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports, size_t code_size_estimate,
       std::shared_ptr<const WasmModule> module);

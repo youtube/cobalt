@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
@@ -18,39 +19,43 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 
 namespace moqt::moq_chat {
 
-std::optional<MoqtPublishNamespaceErrorReason>
-ChatServer::ChatServerSessionHandler::OnIncomingPublishNamespace(
+void ChatServer::ChatServerSessionHandler::OnIncomingPublishNamespace(
     const moqt::TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters> parameters) {
+    std::optional<VersionSpecificParameters> parameters,
+    MoqtResponseCallback callback) {
   if (track_name_.has_value() &&
       GetUserNamespace(*track_name_) != track_namespace) {
     // ChatServer only supports one track per client session at a time. Return
     // PUBLISH_NAMESPACE_OK and exit.
-    return std::nullopt;
+    std::move(callback)(std::nullopt);
+    return;
   }
   // Accept the PUBLISH_NAMESPACE regardless of the chat_id.
   track_name_ = ConstructTrackNameFromNamespace(track_namespace,
                                                 GetChatId(track_namespace));
   if (!track_name_.has_value()) {
     std::cout << "Malformed PUBLISH_NAMESPACE namespace\n";
-    return MoqtPublishNamespaceErrorReason(
+    std::move(callback)(MoqtPublishNamespaceErrorReason(
         RequestErrorCode::kTrackDoesNotExist,
-        "Not a valid namespace for this chat.");
+        "Not a valid namespace for this chat."));
+    return;
   }
   if (!parameters.has_value()) {
     std::cout << "Received PUBLISH_NAMESPACE_DONE for "
               << track_namespace.ToString() << "\n";
     server_->DeleteUser(*track_name_);
     track_name_.reset();
-    return std::nullopt;
+    return;
   }
   std::cout << "Received PUBLISH_NAMESPACE for " << track_namespace.ToString()
             << "\n";
@@ -58,7 +63,7 @@ ChatServer::ChatServerSessionHandler::OnIncomingPublishNamespace(
                                    server_->remote_track_visitor(),
                                    moqt::VersionSpecificParameters());
   server_->AddUser(*track_name_);
-  return std::nullopt;
+  std::move(callback)(std::nullopt);
 }
 
 void ChatServer::ChatServerSessionHandler::OnOutgoingPublishNamespaceReply(
@@ -141,11 +146,11 @@ ChatServer::RemoteTrackVisitor::RemoteTrackVisitor(ChatServer* server)
 
 void ChatServer::RemoteTrackVisitor::OnReply(
     const moqt::FullTrackName& full_track_name,
-    std::optional<Location> /*largest_id*/,
-    std::optional<absl::string_view> reason_phrase) {
+    std::variant<SubscribeOkData, MoqtRequestError> response) {
   std::cout << "Subscription to " << full_track_name.ToString();
-  if (reason_phrase.has_value()) {
-    std::cout << " REJECTED, reason = " << *reason_phrase << "\n";
+  if (std::holds_alternative<MoqtRequestError>(response)) {
+    std::cout << " REJECTED, reason = "
+              << std::get<MoqtRequestError>(response).reason_phrase << "\n";
     server_->DeleteUser(full_track_name);
   } else {
     std::cout << " ACCEPTED\n";

@@ -55,6 +55,8 @@ class ConnectionContext final : public RefCountedNonVirtual<ConnectionContext> {
     return sctp_factory_.get();
   }
 
+  // PeerConnection instances must register usage via AddRefMediaEngine
+  // and call ReleaseMediaEngine to unregister.
   MediaEngineInterface* media_engine() const { return media_engine_.get(); }
 
   Thread* signaling_thread() { return signaling_thread_; }
@@ -87,6 +89,14 @@ class ConnectionContext final : public RefCountedNonVirtual<ConnectionContext> {
   // For use by tests.
   void set_use_rtx(bool use_rtx) { use_rtx_ = use_rtx; }
 
+  // Registers a media engine usage. Calls Init() to initialize the media engine
+  // on the first reference. Must be called on the worker thread.
+  void AddRefMediaEngine();
+
+  // Unregisters a media engine usage. Calls Terminate() to uninitialize the
+  // media engine on the last reference. Must be called on the worker thread.
+  void ReleaseMediaEngine();
+
  protected:
   ConnectionContext(const Environment& env,
                     PeerConnectionFactoryDependencies* dependencies);
@@ -109,6 +119,7 @@ class ConnectionContext final : public RefCountedNonVirtual<ConnectionContext> {
   // This object is const over the lifetime of the ConnectionContext, and is
   // only altered in the destructor.
   std::unique_ptr<MediaEngineInterface> media_engine_;
+  int media_engine_reference_count_ RTC_GUARDED_BY(worker_thread()) = 0;
 
   // This object should be used to generate any SSRC that is not explicitly
   // specified by the user (or by the remote party).

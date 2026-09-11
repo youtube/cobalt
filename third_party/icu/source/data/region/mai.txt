@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 mai{
     Countries{
         001{"विश्व"}
@@ -146,6 +146,7 @@ mai{
         IL{"इजरायल"}
         IM{"आइल ऑफ मैन"}
         IN{"भारत"}
+        IO{"ब्रिटिश हिंद महासागरीय क्षेत्र"}
         IQ{"इराक"}
         IR{"ईरान"}
         IS{"आइसलैंड"}

@@ -9,15 +9,27 @@ source_set("internal") {
   ]
 
   sources = [
+    "ai_thread_sync_bridge.cc",
+    "ai_thread_sync_bridge.h",
+    "composite_context_decorator.cc",
+    "composite_context_decorator.h",
+    "contextual_task_sync_bridge.cc",
+    "contextual_task_sync_bridge.h",
     "contextual_tasks_service_impl.cc",
     "contextual_tasks_service_impl.h",
+    "fallback_title_context_decorator.cc",
+    "fallback_title_context_decorator.h",
   ]
 
   deps = [
     "//base",
+    "//components/contextual_tasks/internal/proto",
     "//components/contextual_tasks/public",
     "//components/keyed_service/core",
     "//components/sessions:session_id",
+    "//components/sync/model",
+    "//components/url_formatter",
+    "//ui/gfx",
     "//url",
   ]
 }
@@ -25,13 +37,22 @@ source_set("internal") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "contextual_tasks_service_impl_unittest.cc" ]
+  sources = [
+    "ai_thread_sync_bridge_unittest.cc",
+    "composite_context_decorator_unittest.cc",
+    "contextual_task_sync_bridge_unittest.cc",
+    "contextual_tasks_service_impl_unittest.cc",
+    "fallback_title_context_decorator_unittest.cc",
+  ]
 
   deps = [
     ":internal",
+    "//base",
     "//base/test:test_support",
     "//components/contextual_tasks/public",
     "//components/sessions:session_id",
+    "//components/sync:test_support",
+    "//components/sync/model",
     "//testing/gmock",
     "//testing/gtest",
     "//url",

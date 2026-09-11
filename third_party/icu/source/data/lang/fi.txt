@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 fi{
     Keys{
         calendar{"kalenteri"}
@@ -35,7 +35,6 @@ fi{
         afh{"afrihili"}
         agq{"aghem"}
         ain{"ainu"}
-        ajp{"urduni"}
         ak{"akan"}
         akk{"akkadi"}
         akz{"alabama"}
@@ -47,6 +46,7 @@ fi{
         ang{"muinaisenglanti"}
         ann{"obolo"}
         anp{"angika"}
+        apc{"urduni"}
         ar{"arabia"}
         ar_001{"yleisarabia"}
         arc{"valtakunnanaramea"}
@@ -234,7 +234,6 @@ fi{
         gmh{"keskiyläsaksa"}
         gn{"guarani"}
         goh{"muinaisyläsaksa"}
-        gom{"goankonkani"}
         gon{"gondi"}
         gor{"gorontalo"}
         got{"gootti"}
@@ -361,6 +360,7 @@ fi{
         lil{"lillooet"}
         liv{"liivi"}
         lkt{"lakota"}
+        lld{"ladin"}
         lmo{"lombardi"}
         ln{"lingala"}
         lo{"lao"}
@@ -375,7 +375,6 @@ fi{
         lua{"luluanluba"}
         lui{"luiseño"}
         lun{"lunda"}
-        luo{"luo"}
         lus{"lusai"}
         luy{"luhya"}
         lv{"latvia"}
@@ -637,7 +636,6 @@ fi{
         und{"tuntematon kieli"}
         ur{"urdu"}
         uz{"uzbekki"}
-        vai{"vai"}
         ve{"venda"}
         vec{"venetsia"}
         vep{"vepsä"}
@@ -992,7 +990,6 @@ fi{
             phonebook{"puhelinluettelojärjestys"}
             phonetic{"äänteellinen järjestys"}
             pinyin{"pinyin-järjestys"}
-            reformed{"uudistettu järjestys"}
             search{"yleishakujärjestys"}
             searchjl{"haku hangul-alkukonsonantin mukaan"}
             standard{"normaalijärjestys"}

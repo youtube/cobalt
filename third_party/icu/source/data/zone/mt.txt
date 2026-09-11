@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 mt{
     zoneStrings{
         "Africa:Algiers"{
@@ -35,9 +35,6 @@ mt{
         }
         "Atlantic:South_Georgia"{
             ec{"il-Georgia tan-Nofsinhar"}
-        }
-        "Australia:Currie"{
-            ec{"Currie"}
         }
         "Etc:Unknown"{
             ec{"Belt Mhux Magħruf"}

@@ -156,7 +156,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
@@ -389,6 +388,7 @@ public class AwContents implements SmartClipProvider {
     private final AwScrollOffsetManager mScrollOffsetManager;
     private OverScrollGlow mOverScrollGlow;
     private final DisplayAndroidObserver mDisplayObserver;
+    private final AwPasswordEchoSettingController mPasswordEchoSettingController;
     // This can be accessed on any thread after construction. See AwContentsIoThreadClient.
     private final AwSettings mSettings;
     private final ScrollAccessibilityHelper mScrollAccessibilityHelper;
@@ -1051,6 +1051,8 @@ public class AwContents implements SmartClipProvider {
                             () -> mBrowserContext.getCookieManager().acceptCookie());
             mInterceptNavigationDelegate = new InterceptNavigationDelegateImpl();
             mDisplayObserver = new AwDisplayAndroidObserver();
+            mPasswordEchoSettingController =
+                    new AwPasswordEchoSettingController(mSettings, mContext);
             mUpdateVisibilityRunnable = () -> updateWebContentsVisibility();
 
             AwSettings.ZoomSupportChangeListener zoomListener =
@@ -1851,11 +1853,11 @@ public class AwContents implements SmartClipProvider {
             @NonNull Callback<Throwable> errorCallback) {
         if (isDestroyed(NO_WARN)) return;
         if (prefetchParameters != null) {
-            Optional<IllegalArgumentException> exception =
+            IllegalArgumentException exception =
                     AwBrowserContext.validateAdditionalHeaders(
                             prefetchParameters.getAdditionalHeaders());
-            if (exception.isPresent()) {
-                throw exception.get();
+            if (exception != null) {
+                throw exception;
             }
         }
         // `errorCallback` support is still under development. Ideally, an error message should be
@@ -2225,10 +2227,10 @@ public class AwContents implements SmartClipProvider {
 
         LoadUrlParams params = new LoadUrlParams(url, PageTransition.TYPED);
         if (additionalHttpHeaders != null) {
-            Optional<IllegalArgumentException> exception =
+            IllegalArgumentException exception =
                     AwBrowserContext.validateAdditionalHeaders(additionalHttpHeaders);
-            if (exception.isPresent()) {
-                throw exception.get();
+            if (exception != null) {
+                throw exception;
             }
             params.setExtraHeaders(new HashMap<String, String>(additionalHttpHeaders));
         }
@@ -4519,6 +4521,8 @@ public class AwContents implements SmartClipProvider {
             mDisplayObserver.onDIPScaleChanged(display.getDipScale());
             display.addObserver(mDisplayObserver);
 
+            mPasswordEchoSettingController.onAttachedToWindow();
+
             mViewEventSink.onAttachedToWindow();
             AwContentsJni.get()
                     .onAttachedToWindow(
@@ -4562,6 +4566,8 @@ public class AwContents implements SmartClipProvider {
                 Log.w(TAG, "onDetachedFromWindow called when already detached. Ignoring");
                 return;
             }
+
+            mPasswordEchoSettingController.onDetachedFromWindow();
 
             mWindowAndroid.getWindowAndroid().getDisplay().removeObserver(mDisplayObserver);
             detachWindowCoverageTracker();

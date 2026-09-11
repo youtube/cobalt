@@ -111,19 +111,19 @@ static bool ssl_write_client_cipher_list(const SSL_HANDSHAKE *hs, CBB *out,
   // hardware support.
   if (hs->max_version >= TLS1_3_VERSION) {
     static const uint16_t kCiphersNoAESHardware[] = {
-        TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
-        TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff,
-        TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff,
+        SSL_CIPHER_CHACHA20_POLY1305_SHA256,
+        SSL_CIPHER_AES_128_GCM_SHA256,
+        SSL_CIPHER_AES_256_GCM_SHA384,
     };
     static const uint16_t kCiphersAESHardware[] = {
-        TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff,
-        TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff,
-        TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
+        SSL_CIPHER_AES_128_GCM_SHA256,
+        SSL_CIPHER_AES_256_GCM_SHA384,
+        SSL_CIPHER_CHACHA20_POLY1305_SHA256,
     };
     static const uint16_t kCiphersCNSA[] = {
-        TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff,
-        TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff,
-        TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
+        SSL_CIPHER_AES_256_GCM_SHA384,
+        SSL_CIPHER_AES_128_GCM_SHA256,
+        SSL_CIPHER_CHACHA20_POLY1305_SHA256,
     };
 
     const bool has_aes_hw = ssl->config->aes_hw_override
@@ -169,7 +169,7 @@ static bool ssl_write_client_cipher_list(const SSL_HANDSHAKE *hs, CBB *out,
   }
 
   if (ssl->mode & SSL_MODE_SEND_FALLBACK_SCSV) {
-    if (!CBB_add_u16(&child, SSL3_CK_FALLBACK_SCSV & 0xffff)) {
+    if (!CBB_add_u16(&child, SSL_CIPHER_FALLBACK_SCSV)) {
       return false;
     }
   }

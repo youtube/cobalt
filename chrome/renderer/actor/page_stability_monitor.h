@@ -5,6 +5,8 @@
 #ifndef CHROME_RENDERER_ACTOR_PAGE_STABILITY_MONITOR_H_
 #define CHROME_RENDERER_ACTOR_PAGE_STABILITY_MONITOR_H_
 
+#include <string_view>
+
 #include "base/cancelable_callback.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
@@ -47,7 +49,8 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
   // RenderFrameObserver
   void DidCommitProvisionalLoad(ui::PageTransition transition) override;
   void DidFailProvisionalLoad() override;
-  void DidSetPageLifecycleState(bool restoring_from_bfcache) override;
+  void DidSetPageLifecycleState(
+      blink::BFCacheStateChange bfcache_change) override;
   void OnDestruct() override;
 
   // mojom::PageStabilityMonitor:
@@ -82,10 +85,6 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
     // Wait until the main thread is settled.
     kWaitForMainThreadIdle,
 
-    // Wait until a new frame has been submitted to and presented by the display
-    // compositor.
-    kWaitForVisualStateRequest,
-
     // Timeout states - these just log and and move to invoke callback state.
     kTimeoutGlobal,
     kTimeoutMainThread,
@@ -93,10 +92,6 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
     // If `kGlicActorPageStabilityInvokeCallbackDelay` is set, the callback
     // passed to NotifyWhenStable() will be delayed by said amount of time.
     kMaybeDelayCallback,
-
-    // The monitor wants to invoke the callback but the client hasn't yet
-    // requested to wait for the notification.
-    kInvokedBeforeNotify,
 
     // Invoke the callback passed to NotifyWhenStable and cleanup.
     kInvokeCallback,
@@ -111,6 +106,8 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
 
     kDone
   } state_ = State::kInitial;
+  static std::string_view StateToString(State state);
+
   friend std::ostream& operator<<(std::ostream& o,
                                   const PageStabilityMonitor::State& state);
 
@@ -137,7 +134,7 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
   void DCheckStateTransition(State old_state, State new_state);
 
   void OnPaintStabilityReached();
-
+  void OnRenderFrameGoingAway();
   void OnMojoDisconnected();
 
   void Cleanup();
@@ -167,14 +164,16 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
   // and don't move to `kStartMonitoring` when the delay expires in this case.
   base::DelayedTaskHandle start_monitoring_delayed_handle_;
 
+  TaskId task_id_;
+
+  base::raw_ref<Journal> journal_;
+
   // This will be null if paint stability monitoring is disabled, or if we're
   // monitoring an unsupported interaction. This must be destroyed before
   // `journal_entry_` to avoid a dangling pointer.
   std::unique_ptr<PaintStabilityMonitor> paint_stability_monitor_;
 
-  TaskId task_id_;
-
-  base::raw_ref<Journal> journal_;
+  bool render_frame_did_go_away_ = false;
 
   mojo::Receiver<mojom::PageStabilityMonitor> receiver_{this};
 

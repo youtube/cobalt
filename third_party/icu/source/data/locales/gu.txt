@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 gu{
     AuxExemplarCharacters{"[\u200C\u200D ૰]"}
     ExemplarCharacters{
@@ -11,7 +11,6 @@ gu{
         "[અ {અં} {અઃ} આ ઇ ઈ ઉ ઊ ઋ ઍ એ ઐ ઑ ઓ ઔ ક {ક્ષ} ખ ગ ઘ ઙ ચ છ જ {જ્ઞ} ઝ ઞ ટ ઠ ડ ઢ"
         " ણ ત {ત્ર} થ દ ધ ન પ ફ બ ભ મ ય ર લ વ શ ષ સ હ ળ]"
     }
-    ExemplarCharactersNumbers{"[\\- ‑ , . % ‰ + 0૦ 1૧ 2૨ 3૩ 4૪ 5૫ 6૬ 7૭ 8૮ 9૯]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
         gujr{

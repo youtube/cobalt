@@ -12,7 +12,14 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/string_view.h"
+#include "api/datagram_connection.h"
+#include "api/environment/environment.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "p2p/base/port_allocator.h"
 #include "pc/datagram_connection_internal.h"
+#include "rtc_base/rtc_certificate.h"
 
 namespace webrtc {
 
@@ -23,9 +30,10 @@ scoped_refptr<DatagramConnection> CreateDatagramConnection(
     absl::string_view transport_name,
     bool ice_controlling,
     scoped_refptr<RTCCertificate> certificate,
-    std::unique_ptr<DatagramConnection::Observer> observer) {
+    std::unique_ptr<DatagramConnection::Observer> observer,
+    DatagramConnection::WireProtocol wire_protocol) {
   return make_ref_counted<DatagramConnectionInternal>(
       env, std::move(port_allocator), transport_name, ice_controlling,
-      certificate, std::move(observer));
+      certificate, std::move(observer), wire_protocol);
 }
 }  // namespace webrtc

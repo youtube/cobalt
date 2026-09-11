@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 kn{
     Countries{
         001{"ಪ್ರಪಂಚ"}
@@ -314,6 +314,5 @@ kn{
         NZ{"ಔಟೆರೋವಾ ನ್ಯೂಜಿಲೆಂಡ್"}
         SZ{"ಸ್ವಾಜಿಲ್ಯಾಂಡ್‌"}
         TL{"ಪೂರ್ವ ಟಿಮೋರ್"}
-        TR{"ಟರ್ಕಿ"}
     }
 }

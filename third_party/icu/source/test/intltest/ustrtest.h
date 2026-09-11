@@ -99,6 +99,8 @@ public:
     void TestNullPointers();
     void TestUnicodeStringInsertAppendToSelf();
     void TestLargeAppend();
+    void TestU16StringView();
+    void TestWStringView();
 };
 
 #endif

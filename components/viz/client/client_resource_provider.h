@@ -101,8 +101,7 @@ class VIZ_CLIENT_EXPORT ClientResourceProvider {
   // have been evicted. When `evicted_callback` is called the client should
   // invoke `RemoveImportedResources` to unlock the resource. Allowing the
   // resource to be released when it is returned from the parent. When
-  // `main_thread_release_callback` is provided, and
-  // `features::kBatchMainThreadReleaseCallbacks` is enabled, the callback will
+  // `main_thread_release_callback` is provided, the callback will
   // be invoked on `main_thread_task_runner_` when it has been returned.
   ResourceId ImportResource(const TransferableResource& resource,
                             ReleaseCallback impl_release_callback,
@@ -151,12 +150,6 @@ class VIZ_CLIENT_EXPORT ClientResourceProvider {
 
  private:
   struct ImportedResource;
-
-  void PrepareSendToParentInternal(
-      const std::vector<ResourceId>& export_ids,
-      std::vector<TransferableResource>* list,
-      base::OnceCallback<void(std::vector<GLbyte*>* tokens)>
-          verify_sync_tokens);
 
   // Validates the memory impact of resources that are locked once we are both
   // evicted and no longer visible. This will also notify clients of eviction

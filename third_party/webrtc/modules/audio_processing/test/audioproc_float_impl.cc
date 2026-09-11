@@ -29,17 +29,19 @@
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_detector_creator.h"
+#include "api/audio/neural_residual_echo_estimator.h"
+#include "api/audio/neural_residual_echo_estimator_creator.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/scoped_refptr.h"
 #include "common_audio/wav_file.h"
-#include "modules/audio_processing/aec3/neural_residual_echo_estimator_impl.h"
 #include "modules/audio_processing/test/aec_dump_based_simulator.h"
 #include "modules/audio_processing/test/audio_processing_simulator.h"
 #include "modules/audio_processing/test/echo_canceller3_config_json.h"
 #include "modules/audio_processing/test/wav_based_simulator.h"
 #include "rtc_base/checks.h"
+#include "third_party/tflite/src/tensorflow/lite/kernels/register.h"
 
 constexpr int kParameterNotSpecifiedValue = -10000;
 
@@ -810,12 +812,12 @@ void SetDependencies(const SimulationSettings& settings,
       aec3_config, /*echo_canceller_multichannel_config=*/std::nullopt);
 
   if (settings.neural_echo_residual_estimator_model) {
-    auto model_runner = NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
-        *settings.neural_echo_residual_estimator_model);
-    RTC_CHECK(model_runner);
-    builder.SetNeuralResidualEchoEstimator(
-        std::make_unique<NeuralResidualEchoEstimatorImpl>(
-            std::move(model_runner)));
+    tflite::ops::builtin::BuiltinOpResolver op_resolver;
+    std::unique_ptr<NeuralResidualEchoEstimator> estimator =
+        CreateNeuralResidualEchoEstimator(
+            *settings.neural_echo_residual_estimator_model, &op_resolver);
+    RTC_CHECK(estimator);
+    builder.SetNeuralResidualEchoEstimator(std::move(estimator));
   }
 
   if (settings.use_ed && *settings.use_ed) {

@@ -2204,18 +2204,38 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
     return false;
   }
 
-  InplaceVector<uint16_t, 2> default_key_shares;
+  std::optional<Span<const uint16_t>> selected_key_shares;
 
-  Span<const uint16_t> selected_key_shares;
-
-  // Determine the key shares to send.
+  // This is used for HelloRetryRequest, where we have already been given the
+  // correct group to use.
   if (override_group_id != 0) {
     assert(std::find(supported_group_list.begin(), supported_group_list.end(),
                      override_group_id) != supported_group_list.end());
-    selected_key_shares = Span(&override_group_id, 1u);
-  } else if (ssl->config->client_key_share_selections.has_value()) {
-    selected_key_shares = *(ssl->config->client_key_share_selections);
-  } else {
+    selected_key_shares.emplace(&override_group_id, 1u);
+  }
+
+  // First try to predict the most preferred (by our preference order) group
+  // that was hinted by the server.
+  const auto &server_hint_list = ssl->config->server_supported_groups_hint;
+  if (!selected_key_shares.has_value() && !server_hint_list.empty()) {
+    for (const uint16_t &supported_group : supported_group_list) {
+      if (std::find(server_hint_list.begin(), server_hint_list.end(),
+                    supported_group) != server_hint_list.end()) {
+        selected_key_shares.emplace(&supported_group, 1u);
+        break;
+      }
+    }
+  }
+
+  // Otherwise, try to use explicitly configured key shares from the caller.
+  if (!selected_key_shares.has_value() &&
+      ssl->config->client_key_share_selections.has_value()) {
+    selected_key_shares.emplace(*ssl->config->client_key_share_selections);
+  }
+
+  // Run the default selection if we don't have anything better.
+  InplaceVector<uint16_t, 2> default_key_shares;
+  if (!selected_key_shares.has_value()) {
     // By default, predict the most preferred group.
     if (!default_key_shares.TryPushBack(supported_group_list[0])) {
       return false;
@@ -2233,8 +2253,10 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
       assert(default_key_shares[1] != default_key_shares[0]);
       break;
     }
-    selected_key_shares = default_key_shares;
+    selected_key_shares.emplace(default_key_shares);
   }
+
+  assert(selected_key_shares.has_value());
 
   bssl::ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 64)) {
@@ -2251,7 +2273,7 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
   }
 
   CBB key_exchange;
-  for (const uint16_t group_id : selected_key_shares) {
+  for (const uint16_t group_id : *selected_key_shares) {
     UniquePtr<SSLKeyShare> key_share = SSLKeyShare::Create(group_id);
     if (key_share == nullptr ||                                    //
         !CBB_add_u16(cbb.get(), group_id) ||                       //
@@ -4072,8 +4094,8 @@ static bool ssl_scan_clienthello_tlsext(SSL_HANDSHAKE *hs,
     CBS *contents = NULL, fake_contents;
     static const uint8_t kFakeRenegotiateExtension[] = {0};
     if (kExtensions[i].value == TLSEXT_TYPE_renegotiate &&
-        ssl_client_cipher_list_contains_cipher(client_hello,
-                                               SSL3_CK_SCSV & 0xffff)) {
+        ssl_client_cipher_list_contains_cipher(
+            client_hello, SSL_CIPHER_EMPTY_RENEGOTIATION_INFO_SCSV)) {
       // The renegotiation SCSV was received so pretend that we received a
       // renegotiation extension.
       CBS_init(&fake_contents, kFakeRenegotiateExtension,

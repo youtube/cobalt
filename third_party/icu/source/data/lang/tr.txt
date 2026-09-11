@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 tr{
     Keys{
         calendar{"Takvim"}
@@ -93,6 +93,7 @@ tr{
         bjn{"Banjar Dili"}
         bkm{"Kom"}
         bla{"Karaayak dili"}
+        blo{"Aniice"}
         bm{"Bambara"}
         bn{"Bengalce"}
         bo{"Tibetçe"}
@@ -231,7 +232,6 @@ tr{
         gmh{"Ortaçağ Yüksek Almancası"}
         gn{"Guarani dili"}
         goh{"Eski Yüksek Almanca"}
-        gom{"Goa Konkanicesi"}
         gon{"Gondi dili"}
         gor{"Gorontalo dili"}
         got{"Gotça"}
@@ -341,6 +341,7 @@ tr{
         kv{"Komi"}
         kw{"Kernevekçe"}
         kwk{"Kwakʼwala dili"}
+        kxv{"Kuvi"}
         ky{"Kırgızca"}
         la{"Latince"}
         lad{"Ladino"}
@@ -637,6 +638,7 @@ tr{
         vi{"Vietnamca"}
         vls{"Batı Flamanca"}
         vmf{"Main Frankonya Dili"}
+        vmw{"Makuaca"}
         vo{"Volapük"}
         vot{"Votça"}
         vro{"Võro"}
@@ -652,6 +654,7 @@ tr{
         xal{"Kalmıkça"}
         xh{"Zosa dili"}
         xmf{"Megrelce"}
+        xnr{"Kangrice"}
         xog{"Soga"}
         yao{"Yao"}
         yap{"Yapça"}
@@ -716,7 +719,6 @@ tr{
         Cakm{"Chakma"}
         Cans{"UCAS"}
         Cari{"Karya"}
-        Cham{"Cham"}
         Cher{"Çeroki"}
         Cirt{"Cirth"}
         Copt{"Kıpti"}
@@ -753,7 +755,6 @@ tr{
         Hung{"Eski Macar"}
         Inds{"Indus"}
         Ital{"Eski İtalyan"}
-        Jamo{"Jamo"}
         Java{"Cava Dili"}
         Jpan{"Japon"}
         Jurc{"Jurchen"}
@@ -787,7 +788,6 @@ tr{
         Merc{"Meroitik El Yazısı"}
         Mero{"Meroitik"}
         Mlym{"Malayalam"}
-        Modi{"Modi"}
         Mong{"Moğol"}
         Moon{"Moon"}
         Mroo{"Mro"}
@@ -886,6 +886,7 @@ tr{
             indian{"Ulusal Hint Takvimi"}
             islamic{"Hicri Takvim"}
             islamic-civil{"Hicri Takvim (16 Temmuz 622)"}
+            islamic-rgsa{"Hicri Takvim (Suudi)"}
             islamic-tbla{"Hicri Takvim (15 Temmuz 622)"}
             islamic-umalqura{"Hicri Takvim (Ümmü-l Kurra Takvimi)"}
             iso8601{"ISO-8601 Takvimi"}
@@ -940,7 +941,6 @@ tr{
             phonebook{"Telefon Defteri Sıralama Düzeni"}
             phonetic{"Fonetik Sıralama Düzeni"}
             pinyin{"Pinyin Sıralama Düzeni"}
-            reformed{"Yeni Sıralama Düzeni"}
             search{"Genel Amaçlı Arama"}
             searchjl{"Hangul İlk Sessiz Harfe Göre Arama"}
             standard{"Standart Sıralama Düzeni"}

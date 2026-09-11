@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 syr{
     zoneStrings{
         "Africa:Abidjan"{
@@ -465,9 +465,6 @@ syr{
         "America:New_York"{
             ec{"ܢܝܘ ܝܘܪܟ"}
         }
-        "America:Nipigon"{
-            ec{"ܢܝܦܝܓܘܢ"}
-        }
         "America:Nome"{
             ec{"ܢܘܡ"}
         }
@@ -489,9 +486,6 @@ syr{
         "America:Panama"{
             ec{"ܦܢܡܐ"}
         }
-        "America:Pangnirtung"{
-            ec{"ܦܐܢܓܢܝܪܬܘܢܓ"}
-        }
         "America:Paramaribo"{
             ec{"ܦܐܪܐܡܐܪܝܒܘ"}
         }
@@ -512,9 +506,6 @@ syr{
         }
         "America:Punta_Arenas"{
             ec{"ܦܘܢܬܐ ܥܪܝܢܣ"}
-        }
-        "America:Rainy_River"{
-            ec{"ܢܗܪܐ ܕܪܥܢܝ"}
         }
         "America:Rankin_Inlet"{
             ec{"ܪܐܢܟܢ ܐܢܠܝܬ"}
@@ -576,9 +567,6 @@ syr{
         "America:Thule"{
             ec{"ܬܘܠ"}
         }
-        "America:Thunder_Bay"{
-            ec{"ܬܐܢܕܐܪ ܒܐܝ"}
-        }
         "America:Tijuana"{
             ec{"ܬܝܐܘܐܢܐ"}
         }
@@ -599,9 +587,6 @@ syr{
         }
         "America:Yakutat"{
             ec{"ܝܩܘܬܐܬ"}
-        }
-        "America:Yellowknife"{
-            ec{"ܝܠܘܢܝܦ"}
         }
         "Antarctica:Casey"{
             ec{"ܟܐܝܣܝ"}
@@ -692,9 +677,6 @@ syr{
         }
         "Asia:Chita"{
             ec{"ܬܫܝܬܐ"}
-        }
-        "Asia:Choibalsan"{
-            ec{"ܟܘܝܒܠܣܢ"}
         }
         "Asia:Colombo"{
             ec{"ܟܘܠܘܡܒܘ"}
@@ -1109,9 +1091,6 @@ syr{
         "Europe:Ulyanovsk"{
             ec{"ܐܘܠܝܢܘܒܣܟ"}
         }
-        "Europe:Uzhgorod"{
-            ec{"ܐܘܙܓܘܪܘܕ"}
-        }
         "Europe:Vaduz"{
             ec{"ܒܕܘܙ"}
         }
@@ -1132,9 +1111,6 @@ syr{
         }
         "Europe:Zagreb"{
             ec{"ܙܐܓܪܒ"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"ܙܐܦܘܪܝܓܝ"}
         }
         "Europe:Zurich"{
             ec{"ܙܝܘܪܚ"}
@@ -1210,9 +1186,6 @@ syr{
         }
         "Pacific:Guam"{
             ec{"ܓܘܐܡ"}
-        }
-        "Pacific:Johnston"{
-            ec{"ܓܘܢܣܬܘܢ"}
         }
         "Pacific:Kanton"{
             ec{"ܟܐܢܬܘܢ"}
@@ -1458,11 +1431,6 @@ syr{
             lg{"ܥܕܢܐ ܕܨܝܢ"}
             ls{"ܥܕܢܐ ܡܫܘܚܬܢܝܬܐ ܕܨܝܢ"}
         }
-        "meta:Choibalsan"{
-            ld{"ܥܕܢܐ ܕܒܗܪ ܝܘܡܐ ܕܟܘܝܒܠܣܢ"}
-            lg{"ܥܕܢܐ ܕܟܘܝܒܠܣܢ"}
-            ls{"ܥܕܢܐ ܡܫܘܚܬܢܝܬܐ ܕܟܘܝܒܠܣܢ"}
-        }
         "meta:Christmas"{
             ls{"ܥܕܢܐ ܕܓܙܪܬܐ ܕܟܪܝܣܬܡܣ"}
         }
@@ -1664,9 +1632,6 @@ syr{
             lg{"ܥܕܢܐ ܕܡܐܟܐܘ"}
             ls{"ܥܕܢܐ ܡܫܘܚܬܢܝܬܐ ܕܡܐܟܐܘ"}
         }
-        "meta:Macquarie"{
-            ls{"ܥܕܢܐ ܕܓܙܪܬܐ ܡܐܟܐܘܪܝ"}
-        }
         "meta:Magadan"{
             ld{"ܥܕܢܐ ܕܒܗܪ ܝܘܡܐ ܕܡܐܓܕܐܢ"}
             lg{"ܥܕܢܐ ܕܡܐܓܐܕܐܢ"}
@@ -1691,11 +1656,6 @@ syr{
         }
         "meta:Mawson"{
             ls{"ܥܕܢܐ ܕܡܐܘܣܘܢ"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"ܥܕܢܐ ܕܒܗܪ ܝܘܡܐ ܓܪܒܝ ܡܥܪܒ ܡܟܣܝܩܘ"}
-            lg{"ܥܕܢܐ ܓܪܒܝ ܡܥܪܒ ܡܟܣܝܩܘ"}
-            ls{"ܥܕܢܐ ܡܫܘܚܬܢܝܬܐ ܓܪܒܝ ܡܥܪܒ ܡܟܣܝܩܘ"}
         }
         "meta:Mexico_Pacific"{
             ld{"ܥܕܢܐ ܕܒܗܪ ܝܘܡܐ ܕܡܟܣܝܩܘ ܫܝܢܝܬܐ"}

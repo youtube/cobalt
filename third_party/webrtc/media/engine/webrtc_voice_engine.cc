@@ -519,15 +519,7 @@ WebRtcVoiceEngine::WebRtcVoiceEngine(
 WebRtcVoiceEngine::~WebRtcVoiceEngine() {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   RTC_LOG(LS_INFO) << "WebRtcVoiceEngine::~WebRtcVoiceEngine";
-  if (initialized_) {
-    StopAecDump();
-
-    // Stop AudioDevice.
-    adm()->StopPlayout();
-    adm()->StopRecording();
-    adm()->RegisterAudioCallback(nullptr);
-    adm()->Terminate();
-  }
+  RTC_DCHECK(!initialized_);
 }
 
 void WebRtcVoiceEngine::Init() {
@@ -563,6 +555,25 @@ void WebRtcVoiceEngine::Init() {
     ApplyOptions(options);
   }
   initialized_ = true;
+}
+
+void WebRtcVoiceEngine::Terminate() {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  RTC_LOG(LS_INFO) << "WebRtcVoiceEngine::Terminate";
+
+  if (!initialized_)
+    return;
+
+  StopAecDump();
+
+  // Stop AudioDevice.
+  adm()->StopPlayout();
+  adm()->StopRecording();
+  adm()->RegisterAudioCallback(nullptr);
+  adm()->Terminate();
+  low_priority_worker_queue_ = nullptr;
+
+  initialized_ = false;
 }
 
 scoped_refptr<AudioState> WebRtcVoiceEngine::GetAudioState() const {

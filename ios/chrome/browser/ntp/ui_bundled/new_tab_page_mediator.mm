@@ -503,7 +503,7 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 }
 
 - (void)onExtendedAccountInfoUpdated:(const AccountInfo&)info {
-  if (info.gaia != GaiaId(_signedInIdentity.gaiaID)) {
+  if (info.gaia != _signedInIdentity.gaiaId) {
     return;
   }
   [self updateAccountImage];
@@ -735,12 +735,17 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
       __weak __typeof(self) weakSelf = self;
       _userUploadedImageManager->LoadUserUploadedImage(
           base::FilePath(userBackground.image_path),
-          base::BindOnce(^(UIImage* image) {
+          base::BindOnce(^(UIImage* image, UserUploadedImageError error) {
             [weakSelf handleUserUploadedImage:image
                            framingCoordinates:framingCoordinates];
             [traitAccessor setBoolForNewTabPageImageBackgroundTrait:YES];
             [traitAccessor
                 setObjectForNewTabPageTrait:[NewTabPageTrait defaultValue]];
+            if (!image) {
+              base::UmaHistogramEnumeration("IOS.HomeCustomization.Background."
+                                            "Ntp.ImageUserUploadedFetchError",
+                                            error);
+            }
           }));
       if (initialLoad) {
         base::UmaHistogramEnumeration(

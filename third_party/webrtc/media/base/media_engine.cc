@@ -317,9 +317,12 @@ CompositeMediaEngine::CompositeMediaEngine(
 
 CompositeMediaEngine::~CompositeMediaEngine() = default;
 
-bool CompositeMediaEngine::Init() {
+void CompositeMediaEngine::Init() {
   voice().Init();
-  return true;
+}
+
+void CompositeMediaEngine::Terminate() {
+  voice().Terminate();
 }
 
 VoiceEngineInterface& CompositeMediaEngine::voice() {

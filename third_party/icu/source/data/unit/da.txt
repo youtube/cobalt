@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 da{
     durationUnits{
         hm{"h.mm"}
@@ -248,7 +248,6 @@ da{
                     }
                 }
             }
-            times{"{0} gange {1}"}
         }
         concentr{
             item{
@@ -275,7 +274,14 @@ da{
                 other{"{0} karat"}
             }
             milligram-ofglucose-per-deciliter{
+                case{
+                    genitive{
+                        one{"{0} milligram pr. deciliters"}
+                        other{"{0} milligram pr. deciliters"}
+                    }
+                }
                 dnam{"milligram pr. deciliter"}
+                gender{"neuter"}
                 one{"{0} milligram pr. deciliter"}
                 other{"{0} milligram pr. deciliter"}
             }
@@ -340,6 +346,18 @@ da{
             }
             permyriad{
                 gender{"common"}
+            }
+            portion-per-1e9{
+                case{
+                    genitive{
+                        one{"{0} milliardtedels"}
+                        other{"{0} milliardtedeles"}
+                    }
+                }
+                dnam{"milliardtedele"}
+                gender{"common"}
+                one{"{0} milliardtedel"}
+                other{"{0} milliardtedele"}
             }
         }
         consumption{
@@ -632,6 +650,19 @@ da{
                 one{"{0} nanosekund"}
                 other{"{0} nanosekunder"}
             }
+            night{
+                case{
+                    genitive{
+                        one{"{0} nats"}
+                        other{"{0} nætters"}
+                    }
+                }
+                dnam{"nætter"}
+                gender{"common"}
+                one{"{0} nat"}
+                other{"{0} nætter"}
+                per{"{0} pr. nat"}
+            }
             quarter{
                 case{
                     genitive{
@@ -766,6 +797,12 @@ da{
                 other{"{0} joule"}
             }
             kilocalorie{
+                case{
+                    genitive{
+                        one{"{0} kilokalories"}
+                        other{"{0} kilokaloriers"}
+                    }
+                }
                 dnam{"kilokalorier"}
                 gender{"common"}
                 one{"{0} kilokalorie"}
@@ -825,8 +862,8 @@ da{
             gigahertz{
                 case{
                     genitive{
-                        one{"{0} gigahertz'"}
-                        other{"{0} gigahertz'"}
+                        one{"{0} gigahertz’"}
+                        other{"{0} gigahertz’"}
                     }
                 }
                 dnam{"gigahertz"}
@@ -837,8 +874,8 @@ da{
             hertz{
                 case{
                     genitive{
-                        one{"{0} hertz'"}
-                        other{"{0} hertz'"}
+                        one{"{0} hertz’"}
+                        other{"{0} hertz’"}
                     }
                 }
                 dnam{"hertz"}
@@ -849,8 +886,8 @@ da{
             kilohertz{
                 case{
                     genitive{
-                        one{"{0} kilohertz'"}
-                        other{"{0} kilohertz'"}
+                        one{"{0} kilohertz’"}
+                        other{"{0} kilohertz’"}
                     }
                 }
                 dnam{"kilohertz"}
@@ -861,8 +898,8 @@ da{
             megahertz{
                 case{
                     genitive{
-                        one{"{0} megahertz'"}
-                        other{"{0} megahertz'"}
+                        one{"{0} megahertz’"}
+                        other{"{0} megahertz’"}
                     }
                 }
                 dnam{"megahertz"}
@@ -1032,7 +1069,7 @@ da{
             }
             mile{
                 gender{"common"}
-                one{"{0} engelsk mil"}
+                one{"{0} mile"}
                 other{"{0} miles"}
             }
             mile-scandinavian{
@@ -1094,7 +1131,14 @@ da{
                 other{"{0} pikometer"}
             }
             point{
+                case{
+                    genitive{
+                        one{"{0} punkts"}
+                        other{"{0} punkts"}
+                    }
+                }
                 dnam{"punkt"}
+                gender{"neuter"}
                 one{"{0} punkt"}
                 other{"{0} punkt"}
             }
@@ -1415,7 +1459,14 @@ da{
                 other{"{0} millibar"}
             }
             millimeter-ofhg{
+                case{
+                    genitive{
+                        one{"{0} millimeter kviksølvs"}
+                        other{"{0} millimeter kviksølvs"}
+                    }
+                }
                 dnam{"millimeter kviksølv"}
+                gender{"common"}
                 one{"{0} millimeter kviksølv"}
                 other{"{0} millimeter kviksølv"}
             }
@@ -1757,7 +1808,7 @@ da{
                 case{
                     genitive{
                         one{"{0} metrisk pints"}
-                        other{"{0} metriske pints'"}
+                        other{"{0} metriske pints’"}
                     }
                 }
                 dnam{"metriske pints"}
@@ -1829,9 +1880,6 @@ da{
                 other{"{0}m²"}
             }
         }
-        compound{
-            times{"{0}⋅{1}"}
-        }
         concentr{
             millimole-per-liter{
                 dnam{"mmol/L"}
@@ -1901,6 +1949,12 @@ da{
                 one{"{0}ns"}
                 other{"{0}ns"}
             }
+            night{
+                dnam{"nætter"}
+                one{"{0}nat"}
+                other{"{0}nætter"}
+                per{"{0}/nat"}
+            }
             quarter{
                 dnam{"kvartal"}
                 per{"{0}/kvt."}
@@ -1927,7 +1981,7 @@ da{
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh/100 km"}
                 one{"{0}kWh/100km"}
-                other{"{0}kWh/100km"}
+                other{"{0} kWh/100 km"}
             }
             newton{
                 dnam{"N"}
@@ -2014,8 +2068,8 @@ da{
                 other{"{0}hPa"}
             }
             inch-ofhg{
-                one{"{0}\u0022 Hg"}
-                other{"{0}\u0022 Hg"}
+                one{"{0}″ Hg"}
+                other{"{0}″ Hg"}
             }
             millibar{
                 one{"{0} mb"}
@@ -2115,9 +2169,6 @@ da{
                 other{"{0} kvadratfod"}
             }
         }
-        compound{
-            times{"{0} ⋅ {1}"}
-        }
         concentr{
             item{
                 dnam{"enhed"}
@@ -2151,6 +2202,9 @@ da{
             permyriad{
                 one{"{0} ‱"}
                 other{"{0} ‱"}
+            }
+            portion-per-1e9{
+                dnam{"dele/milliard"}
             }
         }
         consumption{
@@ -2244,6 +2298,12 @@ da{
                 one{"{0} md."}
                 other{"{0} mdr."}
                 per{"{0}/md."}
+            }
+            night{
+                dnam{"nætter"}
+                one{"{0} nat"}
+                other{"{0} nætter"}
+                per{"{0}/nat"}
             }
             quarter{
                 dnam{"kvartaler"}
@@ -2384,9 +2444,9 @@ da{
         }
         pressure{
             inch-ofhg{
-                dnam{"# Hg"}
-                one{"{0} # Hg"}
-                other{"{0} # Hg"}
+                dnam{"″ Hg"}
+                one{"{0} ″ Hg"}
+                other{"{0} ″ Hg"}
             }
             millimeter-ofhg{
                 dnam{"mmHg"}

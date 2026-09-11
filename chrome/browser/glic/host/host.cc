@@ -11,6 +11,7 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom-data-view.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -75,6 +76,15 @@ void Host::Shutdown() {
   contents_.reset();
 }
 
+void Host::Reload() {
+  auto* contents = webui_contents();
+  if (!contents) {
+    return;
+  }
+  contents->GetController().Reload(content::ReloadType::BYPASSING_CACHE,
+                                   /*check_for_repost=*/false);
+}
+
 void Host::CreateContents(bool initially_hidden) {
   if (!contents_) {
     contents_ = std::make_unique<WebUIContentsContainer>(
@@ -116,6 +126,14 @@ void Host::PanelWasClosed() {
   if (handler_info_ && handler_info_->web_client) {
     handler_info_->web_client->PanelWasClosed(base::DoNothing());
     handler_info_->open_complete = false;
+  }
+}
+
+void Host::PanelStateChanged(const glic::mojom::PanelState& panel_state) {
+  if (handler_info_ && handler_info_->web_client) {
+    handler_info_->web_client->PanelStateChanged(panel_state);
+  } else {
+    pending_panel_state_ = std::move(panel_state);
   }
 }
 
@@ -263,6 +281,12 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
             base::Unretained(this),
             // Unretained is safe because web_client is calling us.
             base::Unretained(web_client)));
+
+    if (pending_panel_state_) {
+      mojom::PanelState panel_state = pending_panel_state_.value();
+      pending_panel_state_.reset();
+      handler_info_->web_client->PanelStateChanged(panel_state);
+    }
   }
 }
 
@@ -418,6 +442,11 @@ void Host::DetachPanel(GlicPageHandler* page_handler) {
   if (handler_info_ && handler_info_->page_handler == page_handler) {
     delegate_->Detach();
   }
+}
+
+void Host::ClosePanel(GlicPageHandler* page_handler) {
+  delegate_->ClosePanel();
+  glic_service().GetScreenshotCapturer().CloseScreenPicker();
 }
 
 void Host::SetPanelDraggableAreas(

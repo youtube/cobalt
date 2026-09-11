@@ -31,7 +31,12 @@
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
 
+class CookieEncryptionProviderImpl;
 class PrefService;
+
+namespace os_crypt_async {
+class OSCryptAsync;
+}  // namespace os_crypt_async
 
 namespace content {
 class BrowserMainParts;
@@ -168,6 +173,15 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   bool is_visible_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
+
+  // Backs the cookie encryption provider handed to every NetworkContext. It is
+  // created without key providers, so the Encryptor falls back to the legacy
+  // OSCrypt path that Cobalt's cookie store already used.
+  // As of M142, the legacy code path is the synchronous OSCrypt one that is
+  // being deprecated.
+  // Note that Android and tvOS do not use this at the moment.
+  std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
+  std::unique_ptr<CookieEncryptionProviderImpl> cookie_encryption_provider_;
 
   uint64_t cached_sb_window_ = 0;
   std::vector<

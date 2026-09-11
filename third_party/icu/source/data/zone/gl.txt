@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 gl{
     zoneStrings{
         "Africa:Accra"{
@@ -66,9 +66,6 @@ gl{
         "America:Argentina:Tucuman"{
             ec{"Tucumán"}
         }
-        "America:Asuncion"{
-            ec{"Asunción"}
-        }
         "America:Bahia"{
             ec{"Baía"}
         }
@@ -89,9 +86,6 @@ gl{
         }
         "America:Cuiaba"{
             ec{"Cuiabá"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Eirunepe"{
             ec{"Eirunepé"}
@@ -161,9 +155,6 @@ gl{
         }
         "America:Rio_Branco"{
             ec{"Río Branco"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:Santarem"{
             ec{"Santarém"}
@@ -318,9 +309,6 @@ gl{
         "Australia:Adelaide"{
             ec{"Adelaida"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Australia:Sydney"{
             ec{"Sidney"}
         }
@@ -419,9 +407,6 @@ gl{
         "Europe:Ulyanovsk"{
             ec{"Ulianovsk"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Uzghorod"}
-        }
         "Europe:Vatican"{
             ec{"Vaticano"}
         }
@@ -433,9 +418,6 @@ gl{
         }
         "Europe:Warsaw"{
             ec{"Varsovia"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporizhia"}
         }
         "Europe:Zurich"{
             ec{"Zürich"}
@@ -475,6 +457,9 @@ gl{
         }
         "Pacific:Tahiti"{
             ec{"Tahití"}
+        }
+        "meta:Acre"{
+            lg{"hora de Acre"}
         }
         "meta:Afghanistan"{
             ls{"hora de Afganistán"}
@@ -525,7 +510,7 @@ gl{
         }
         "meta:Anadyr"{
             ld{"Horario de verán de Anadir"}
-            lg{"Horario de Anadir"}
+            lg{"hora de Anadyr"}
             ls{"Horario estándar de Anadir"}
         }
         "meta:Apia"{
@@ -629,11 +614,6 @@ gl{
             ld{"hora de verán da China"}
             lg{"hora da China"}
             ls{"hora estándar da China"}
-        }
-        "meta:Choibalsan"{
-            ld{"hora de verán de Choibalsan"}
-            lg{"hora de Choibalsan"}
-            ls{"hora estándar de Choibalsan"}
         }
         "meta:Christmas"{
             ls{"hora da Illa Christmas"}
@@ -805,8 +785,11 @@ gl{
         }
         "meta:Kamchatka"{
             ld{"Horario de verán de Petropávlovsk-Kamchatski"}
-            lg{"Horario de Petropávlovsk-Kamchatski"}
+            lg{"hora estándar de Petropavlovsk-Kamchatski"}
             ls{"Horario estándar de Petropávlovsk-Kamchatski"}
+        }
+        "meta:Kazakhstan"{
+            ls{"hora de Kazakistán"}
         }
         "meta:Kazakhstan_Eastern"{
             ls{"hora de Kazakistán Oriental"}
@@ -838,9 +821,6 @@ gl{
             lg{"hora de Lord Howe"}
             ls{"hora estándar de Lord Howe"}
         }
-        "meta:Macquarie"{
-            ls{"hora da Illa Macquarie"}
-        }
         "meta:Magadan"{
             ld{"hora de verán de Magadan"}
             lg{"hora de Magadan"}
@@ -865,11 +845,6 @@ gl{
         }
         "meta:Mawson"{
             ls{"hora de Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"hora de verán do noroeste de México"}
-            lg{"hora do noroeste de México"}
-            ls{"hora estándar do noroeste de México"}
         }
         "meta:Mexico_Pacific"{
             ld{"hora de verán do Pacífico mexicano"}
@@ -989,7 +964,7 @@ gl{
         }
         "meta:Samara"{
             ld{"Horario de verán de Samara"}
-            lg{"Horario de Samara"}
+            lg{"hora de Samara"}
             ls{"Horario estándar de Samara"}
         }
         "meta:Samoa"{

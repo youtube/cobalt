@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 yue{
     Keys{
         calendar{"曆法"}
@@ -92,6 +92,7 @@ yue{
         bjn{"班亞爾文"}
         bkm{"康姆文"}
         bla{"錫克錫卡文"}
+        blo{"阿尼文"}
         bm{"班巴拉文"}
         bn{"孟加拉文"}
         bo{"藏文"}
@@ -220,7 +221,6 @@ yue{
         gmh{"中古高地德文"}
         gn{"瓜拉尼文"}
         goh{"古高地日耳曼文"}
-        gom{"孔卡尼文"}
         gon{"岡德文"}
         gor{"科隆達羅文"}
         got{"哥德文"}
@@ -330,6 +330,7 @@ yue{
         kv{"科米文"}
         kw{"康瓦耳文"}
         kwk{"誇誇瓦拉文"}
+        kxv{"庫維文"}
         ky{"吉爾吉斯文"}
         la{"拉丁文"}
         lad{"拉迪諾文"}
@@ -624,6 +625,7 @@ yue{
         vi{"越南文"}
         vls{"西佛蘭德文"}
         vmf{"美茵-法蘭克尼亞文"}
+        vmw{"馬庫瓦文"}
         vo{"沃拉普克文"}
         vot{"沃提克文"}
         vro{"佛羅文"}
@@ -639,6 +641,7 @@ yue{
         xal{"卡爾梅克文"}
         xh{"科薩文"}
         xmf{"明格列爾文"}
+        xnr{"康格里文"}
         xog{"索加文"}
         yao{"瑤文"}
         yap{"雅浦文"}
@@ -910,7 +913,6 @@ yue{
             phonebook{"電話簿排序"}
             phonetic{"發音排序"}
             pinyin{"拼音排序"}
-            reformed{"改良排序"}
             search{"一般用途搜尋"}
             searchjl{"韓文子音排序"}
             standard{"標準排序"}

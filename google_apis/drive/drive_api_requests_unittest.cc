@@ -489,9 +489,9 @@ class DriveApiRequestsTest : public testing::Test {
 
     const GURL absolute_url = test_server_.GetURL(request.relative_url);
     std::string id;
-    if (!test_util::RemovePrefix(absolute_url.path(), kTestDownloadPathPrefix,
-                                 &id) ||
-        absolute_url.query() != kTestDownloadFileQuery) {
+    if (!test_util::RemovePrefix(absolute_url.GetPath(),
+                                 kTestDownloadPathPrefix, &id) ||
+        absolute_url.GetQuery() != kTestDownloadFileQuery) {
       return nullptr;
     }
 
@@ -510,8 +510,9 @@ class DriveApiRequestsTest : public testing::Test {
 
     const GURL absolute_url = test_server_.GetURL(request.relative_url);
     std::string id;
-    if (absolute_url.path() != "/upload/drive")
+    if (absolute_url.GetPath() != "/upload/drive") {
       return nullptr;
+    }
 
     std::unique_ptr<net::test_server::BasicHttpResponse> response(
         new net::test_server::BasicHttpResponse);
@@ -1216,7 +1217,7 @@ TEST_F(DriveApiRequestsTest, UploadNewFileRequest) {
   }
 
   EXPECT_EQ(HTTP_SUCCESS, error);
-  EXPECT_EQ(kTestUploadNewFilePath, upload_url.path());
+  EXPECT_EQ(kTestUploadNewFilePath, upload_url.GetPath());
   EXPECT_EQ(kTestContentType, http_request_.headers["X-Upload-Content-Type"]);
   EXPECT_EQ(base::NumberToString(kTestContent.size()),
             http_request_.headers["X-Upload-Content-Length"]);
@@ -1263,7 +1264,7 @@ TEST_F(DriveApiRequestsTest, UploadNewFileRequest) {
   // METHOD_PUT should be used to upload data.
   EXPECT_EQ(net::test_server::METHOD_PUT, http_request_.method);
   // Request should go to the upload URL.
-  EXPECT_EQ(upload_url.path(), http_request_.relative_url);
+  EXPECT_EQ(upload_url.GetPath(), http_request_.relative_url);
   // Content-Range header should be added.
   EXPECT_EQ("bytes 0-" + base::NumberToString(kTestContent.size() - 1) + "/" +
                 base::NumberToString(kTestContent.size()),
@@ -1308,7 +1309,7 @@ TEST_F(DriveApiRequestsTest, UploadNewEmptyFileRequest) {
   }
 
   EXPECT_EQ(HTTP_SUCCESS, error);
-  EXPECT_EQ(kTestUploadNewFilePath, upload_url.path());
+  EXPECT_EQ(kTestUploadNewFilePath, upload_url.GetPath());
   EXPECT_EQ(kTestContentType, http_request_.headers["X-Upload-Content-Type"]);
   EXPECT_EQ("0", http_request_.headers["X-Upload-Content-Length"]);
 
@@ -1351,7 +1352,7 @@ TEST_F(DriveApiRequestsTest, UploadNewEmptyFileRequest) {
   // METHOD_PUT should be used to upload data.
   EXPECT_EQ(net::test_server::METHOD_PUT, http_request_.method);
   // Request should go to the upload URL.
-  EXPECT_EQ(upload_url.path(), http_request_.relative_url);
+  EXPECT_EQ(upload_url.GetPath(), http_request_.relative_url);
   // Content-Range header should NOT be added.
   EXPECT_EQ(0U, http_request_.headers.count("Content-Range"));
   // The upload content should be set in the HTTP request.
@@ -1396,7 +1397,7 @@ TEST_F(DriveApiRequestsTest, UploadNewLargeFileRequest) {
   }
 
   EXPECT_EQ(HTTP_SUCCESS, error);
-  EXPECT_EQ(kTestUploadNewFilePath, upload_url.path());
+  EXPECT_EQ(kTestUploadNewFilePath, upload_url.GetPath());
   EXPECT_EQ(kTestContentType, http_request_.headers["X-Upload-Content-Type"]);
   EXPECT_EQ(base::NumberToString(kTestContent.size()),
             http_request_.headers["X-Upload-Content-Length"]);
@@ -1438,7 +1439,7 @@ TEST_F(DriveApiRequestsTest, UploadNewLargeFileRequest) {
     // METHOD_PUT should be used to upload data.
     EXPECT_EQ(net::test_server::METHOD_PUT, http_request_.method);
     // Request should go to the upload URL.
-    EXPECT_EQ(upload_url.path(), http_request_.relative_url);
+    EXPECT_EQ(upload_url.GetPath(), http_request_.relative_url);
     // Content-Range header should be added.
     EXPECT_EQ("bytes */" + base::NumberToString(kTestContent.size()),
               http_request_.headers["Content-Range"]);
@@ -1480,7 +1481,7 @@ TEST_F(DriveApiRequestsTest, UploadNewLargeFileRequest) {
     // METHOD_PUT should be used to upload data.
     EXPECT_EQ(net::test_server::METHOD_PUT, http_request_.method);
     // Request should go to the upload URL.
-    EXPECT_EQ(upload_url.path(), http_request_.relative_url);
+    EXPECT_EQ(upload_url.GetPath(), http_request_.relative_url);
     // Content-Range header should be added.
     EXPECT_EQ("bytes " + base::NumberToString(start_position) + "-" +
                   base::NumberToString(end_position - 1) + "/" +
@@ -1522,7 +1523,7 @@ TEST_F(DriveApiRequestsTest, UploadNewLargeFileRequest) {
     // METHOD_PUT should be used to upload data.
     EXPECT_EQ(net::test_server::METHOD_PUT, http_request_.method);
     // Request should go to the upload URL.
-    EXPECT_EQ(upload_url.path(), http_request_.relative_url);
+    EXPECT_EQ(upload_url.GetPath(), http_request_.relative_url);
     // Content-Range header should be added.
     EXPECT_EQ("bytes */" + base::NumberToString(kTestContent.size()),
               http_request_.headers["Content-Range"]);
@@ -1589,7 +1590,7 @@ TEST_F(DriveApiRequestsTest, UploadNewFileWithMetadataRequest) {
   }
 
   EXPECT_EQ(HTTP_SUCCESS, error);
-  EXPECT_EQ(kTestUploadNewFilePath, upload_url.path());
+  EXPECT_EQ(kTestUploadNewFilePath, upload_url.GetPath());
   EXPECT_EQ(kTestContentType, http_request_.headers["X-Upload-Content-Type"]);
   EXPECT_EQ(base::NumberToString(kTestContent.size()),
             http_request_.headers["X-Upload-Content-Length"]);
@@ -1641,7 +1642,7 @@ TEST_F(DriveApiRequestsTest, UploadExistingFileRequest) {
   }
 
   EXPECT_EQ(HTTP_SUCCESS, error);
-  EXPECT_EQ(kTestUploadExistingFilePath, upload_url.path());
+  EXPECT_EQ(kTestUploadExistingFilePath, upload_url.GetPath());
   EXPECT_EQ(kTestContentType, http_request_.headers["X-Upload-Content-Type"]);
   EXPECT_EQ(base::NumberToString(kTestContent.size()),
             http_request_.headers["X-Upload-Content-Length"]);
@@ -1683,7 +1684,7 @@ TEST_F(DriveApiRequestsTest, UploadExistingFileRequest) {
   // METHOD_PUT should be used to upload data.
   EXPECT_EQ(net::test_server::METHOD_PUT, http_request_.method);
   // Request should go to the upload URL.
-  EXPECT_EQ(upload_url.path(), http_request_.relative_url);
+  EXPECT_EQ(upload_url.GetPath(), http_request_.relative_url);
   // Content-Range header should be added.
   EXPECT_EQ("bytes 0-" + base::NumberToString(kTestContent.size() - 1) + "/" +
                 base::NumberToString(kTestContent.size()),
@@ -1729,7 +1730,7 @@ TEST_F(DriveApiRequestsTest, UploadExistingFileRequestWithETag) {
   }
 
   EXPECT_EQ(HTTP_SUCCESS, error);
-  EXPECT_EQ(kTestUploadExistingFilePath, upload_url.path());
+  EXPECT_EQ(kTestUploadExistingFilePath, upload_url.GetPath());
   EXPECT_EQ(kTestContentType, http_request_.headers["X-Upload-Content-Type"]);
   EXPECT_EQ(base::NumberToString(kTestContent.size()),
             http_request_.headers["X-Upload-Content-Length"]);
@@ -1767,7 +1768,7 @@ TEST_F(DriveApiRequestsTest, UploadExistingFileRequestWithETag) {
   // METHOD_PUT should be used to upload data.
   EXPECT_EQ(net::test_server::METHOD_PUT, http_request_.method);
   // Request should go to the upload URL.
-  EXPECT_EQ(upload_url.path(), http_request_.relative_url);
+  EXPECT_EQ(upload_url.GetPath(), http_request_.relative_url);
   // Content-Range header should be added.
   EXPECT_EQ("bytes 0-" + base::NumberToString(kTestContent.size() - 1) + "/" +
                 base::NumberToString(kTestContent.size()),
@@ -1860,7 +1861,7 @@ TEST_F(DriveApiRequestsTest,
   }
 
   EXPECT_EQ(HTTP_SUCCESS, error);
-  EXPECT_EQ(kTestUploadExistingFilePath, upload_url.path());
+  EXPECT_EQ(kTestUploadExistingFilePath, upload_url.GetPath());
   EXPECT_EQ(kTestContentType, http_request_.headers["X-Upload-Content-Type"]);
   EXPECT_EQ(base::NumberToString(kTestContent.size()),
             http_request_.headers["X-Upload-Content-Length"]);
@@ -1903,7 +1904,7 @@ TEST_F(DriveApiRequestsTest,
   // METHOD_PUT should be used to upload data.
   EXPECT_EQ(net::test_server::METHOD_PUT, http_request_.method);
   // Request should go to the upload URL.
-  EXPECT_EQ(upload_url.path(), http_request_.relative_url);
+  EXPECT_EQ(upload_url.GetPath(), http_request_.relative_url);
   // Content-Range header should be added.
   EXPECT_EQ("bytes 0-" + base::NumberToString(kTestContent.size() - 1) + "/" +
                 base::NumberToString(kTestContent.size()),
@@ -1976,7 +1977,7 @@ TEST_F(DriveApiRequestsTest, UploadExistingFileWithMetadataRequest) {
   }
 
   EXPECT_EQ(HTTP_SUCCESS, error);
-  EXPECT_EQ(kTestUploadExistingFilePath, upload_url.path());
+  EXPECT_EQ(kTestUploadExistingFilePath, upload_url.GetPath());
   EXPECT_EQ(kTestContentType, http_request_.headers["X-Upload-Content-Type"]);
   EXPECT_EQ(base::NumberToString(kTestContent.size()),
             http_request_.headers["X-Upload-Content-Length"]);

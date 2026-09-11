@@ -42,15 +42,13 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/random.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
 class DcSctpTransport : public SctpTransportInternal,
-                        public dcsctp::DcSctpSocketCallbacks,
-                        public sigslot::has_slots<> {
+                        public dcsctp::DcSctpSocketCallbacks {
  public:
   DcSctpTransport(const Environment& env,
                   Thread* network_thread,

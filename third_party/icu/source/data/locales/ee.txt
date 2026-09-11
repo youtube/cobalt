@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ee{
     AuxExemplarCharacters{"[ăâåäā æ cç ĕêë ĭîï j ñ ŏôöø œ q ŭûü ÿ]"}
     ExemplarCharacters{
@@ -522,7 +522,7 @@ ee{
                         "dzodze",
                         "tedoxe",
                         "afɔfĩe",
-                        "dama",
+                        "dame",
                         "masa",
                         "siamlɔm",
                         "deasiamime",
@@ -796,6 +796,6 @@ ee{
     measurementSystemNames{
         UK{"uk"}
         US{"us"}
-        metric{"metric"}
+        metric{"dzidzeti"}
     }
 }

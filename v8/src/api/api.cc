@@ -4645,13 +4645,6 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   return api_scope.Escape(Utils::ToLocal(desc.ToObject(i_isolate)));
 }
 
-Local<Value> v8::Object::GetPrototype() {
-  auto self = Utils::OpenDirectHandle(this);
-  auto i_isolate = i::Isolate::Current();
-  i::PrototypeIterator iter(i_isolate, self);
-  return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
-}
-
 Local<Value> v8::Object::GetPrototypeV2() {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = i::Isolate::Current();
@@ -7503,7 +7496,8 @@ void FunctionTemplate::SealAndPrepareForPromotionToReadOnly() {
                                                                 self);
 }
 
-Local<External> v8::External::New(Isolate* v8_isolate, void* value) {
+Local<External> v8::External::New(Isolate* v8_isolate, void* value,
+                                  ExternalPointerTypeTag api_tag) {
   static_assert(sizeof(value) == sizeof(i::Address));
   // Nullptr is not allowed here because serialization/deserialization of
   // nullptr external api references is not possible as nullptr is used as an
@@ -7513,15 +7507,23 @@ Local<External> v8::External::New(Isolate* v8_isolate, void* value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_External_New);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  i::DirectHandle<i::JSObject> external =
-      i_isolate->factory()->NewExternal(value);
+  uint16_t tag_value = static_cast<uint16_t>(i::kFirstExternalTypeTag) +
+                       static_cast<uint16_t>(api_tag);
+  Utils::ApiCheck(tag_value <= i::kLastExternalTypeTag, "v8::External::New",
+                  "The provided tag is outside the allowed range");
+  i::DirectHandle<i::JSObject> external = i_isolate->factory()->NewExternal(
+      value, static_cast<i::ExternalPointerTag>(tag_value));
   return Utils::ExternalToLocal(external);
 }
 
-void* External::Value() const {
+void* External::Value(ExternalPointerTypeTag api_tag) const {
   i::IsolateForSandbox isolate = i::GetCurrentIsolateForSandbox();
+  uint16_t tag_value = static_cast<uint16_t>(i::kFirstExternalTypeTag) +
+                       static_cast<uint16_t>(api_tag);
+  Utils::ApiCheck(tag_value <= i::kLastExternalTypeTag, "v8::External::Value",
+                  "The provided tag is outside the allowed range");
   return i::Cast<i::JSExternalObject>(*Utils::OpenDirectHandle(this))
-      ->value(isolate);
+      ->value(isolate, static_cast<i::ExternalPointerTag>(tag_value));
 }
 
 Local<CppHeapExternal> v8::CppHeapExternal::NewImpl(Isolate* v8_isolate,

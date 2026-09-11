@@ -236,7 +236,8 @@ RTCError IceConfig::IsValid() const {
 }
 
 IceTransportInternal::IceTransportInternal()
-    : role_conflict_trampoline_(this),
+    : candidate_gathered_trampoline_(this),
+      role_conflict_trampoline_(this),
       ice_transport_state_changed_trampoline_(this),
       destroyed_trampoline_(this) {}
 
@@ -265,7 +266,7 @@ void IceTransportInternal::RemoveGatheringStateCallback(
 void IceTransportInternal::SubscribeCandidateGathered(
     absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
         callback) {
-  candidate_gathered_callbacks_.AddReceiver(std::move(callback));
+  candidate_gathered_trampoline_.Subscribe(std::move(callback));
 }
 
 void IceTransportInternal::SubscribeRoleConflict(

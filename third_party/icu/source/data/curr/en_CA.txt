@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 en_CA{
     Currencies{
         BMD{
@@ -10,10 +10,6 @@ en_CA{
         BYB{
             "BYB",
             "Belarusian New Rouble (1994–1999)",
-        }
-        BYN{
-            "BYN",
-            "Belarusian Rouble",
         }
         BYR{
             "BYR",
@@ -30,10 +26,6 @@ en_CA{
         LVR{
             "LVR",
             "Latvian Rouble",
-        }
-        RUB{
-            "RUB",
-            "Russian Rouble",
         }
         RUR{
             "RUR",
@@ -64,9 +56,6 @@ en_CA{
             "unknown currency",
         }
     }
-    Currencies%narrow{
-        USD{"US$"}
-    }
     CurrencyPlurals{
         AFN{
             one{"Afghan afghani"}
@@ -80,10 +69,6 @@ en_CA{
             one{"Belarusian new rouble (1994–1999)"}
             other{"Belarusian new roubles (1994–1999)"}
         }
-        BYN{
-            one{"Belarusian rouble"}
-            other{"Belarusian roubles"}
-        }
         BYR{
             one{"Belarusian rouble (2000–2016)"}
             other{"Belarusian roubles (2000–2016)"}
@@ -91,10 +76,6 @@ en_CA{
         LVR{
             one{"Latvian rouble"}
             other{"Latvian roubles"}
-        }
-        RUB{
-            one{"Russian rouble"}
-            other{"Russian roubles"}
         }
         RUR{
             one{"Russian rouble (1991–1998)"}

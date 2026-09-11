@@ -20,6 +20,7 @@
 
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
+#include <openssl/bytestring.h>
 #include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>

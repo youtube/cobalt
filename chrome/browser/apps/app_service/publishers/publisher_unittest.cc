@@ -66,7 +66,7 @@ scoped_refptr<extensions::Extension> MakeExtensionApp(
     const std::string& version,
     const std::string& url,
     const std::string& id) {
-  std::string err;
+  std::u16string err;
   base::Value::Dict value;
   value.Set("name", name);
   value.Set("version", version);
@@ -76,7 +76,7 @@ scoped_refptr<extensions::Extension> MakeExtensionApp(
   scoped_refptr<extensions::Extension> app = extensions::Extension::Create(
       base::FilePath(), extensions::mojom::ManifestLocation::kInternal, value,
       extensions::Extension::WAS_INSTALLED_BY_DEFAULT, id, &err);
-  EXPECT_EQ(err, "");
+  EXPECT_EQ(err, u"");
   return app;
 }
 
@@ -128,7 +128,7 @@ apps::IntentFilters CreateIntentFilters() {
 
   apps::ConditionValues values2;
   values2.push_back(std::make_unique<apps::ConditionValue>(
-      url.scheme(), apps::PatternMatchType::kLiteral));
+      url.GetScheme(), apps::PatternMatchType::kLiteral));
   filter->conditions.push_back(std::make_unique<apps::Condition>(
       apps::ConditionType::kScheme, std::move(values2)));
 
@@ -140,7 +140,7 @@ apps::IntentFilters CreateIntentFilters() {
 
   apps::ConditionValues values4;
   values4.push_back(std::make_unique<apps::ConditionValue>(
-      url.path(), apps::PatternMatchType::kPrefix));
+      url.GetPath(), apps::PatternMatchType::kPrefix));
   filter->conditions.push_back(std::make_unique<apps::Condition>(
       apps::ConditionType::kPath, std::move(values4)));
 
@@ -463,6 +463,11 @@ TEST_F(PublisherTest, ArcAppsOnApps) {
       AppServiceProxyFactory::GetForProfile(profile()));
   ASSERT_TRUE(arc_apps.get());
   arc_apps->Initialize();
+  // Call `OnInitialized` manually as ArcSessionManager is already initialized.
+  // TODO(crbug.com/446582547): Fix this test and avoid this call. We should
+  // destroy/reinitialize objects to simulate a restart instead of just
+  // recreating another ArcApps. Do not copy & paste this pattern.
+  arc_apps->OnInitialized();
 
   for (const auto& app_id : prefs->GetAppIds()) {
     std::unique_ptr<ArcAppListPrefs::AppInfo> app_info = prefs->GetApp(app_id);
@@ -497,7 +502,11 @@ TEST_F(PublisherTest, ArcAppsOnApps) {
     }
   }
 
-  arc_apps->Shutdown();
+  // TODO(crbug.com/446582547): Fix this test and avoid this call.
+  arc_apps->OnShutdown();
+  arc_apps.reset();
+
+  arc_test.TearDown();
 }
 
 TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
@@ -580,7 +589,7 @@ TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
                            /*accessing_microphone=*/false);
   }
 
-  arc_apps->Shutdown();
+  arc_test.TearDown();
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

@@ -308,10 +308,11 @@ class ExceptionHandlerInfo;
   V(CheckedNumberOrOddballToHoleyFloat64)                             \
   V(CheckedHoleyFloat64ToFloat64)                                     \
   V(HoleyFloat64ToMaybeNanFloat64)                                    \
-  IF_UD(V, Float64ToHoleyFloat64)                                     \
+  V(Float64ToHoleyFloat64)                                            \
   IF_UD(V, ConvertHoleNanToUndefinedNan)                              \
   IF_UD(V, HoleyFloat64IsUndefinedOrHole)                             \
   IF_NOT_UD(V, HoleyFloat64IsHole)                                    \
+  V(HoleyFloat64SilenceNumberNans)                                    \
   V(LogicalNot)                                                       \
   V(SetPendingMessage)                                                \
   V(StringAt)                                                         \
@@ -850,6 +851,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
+  V(NumberOrUndefined, kNumber | kUndefined)                              \
   V(NumberOrOddball, kNumber | kOddball)                                  \
   V(InternalizedString, kROSeqInternalizedOneByteString |                 \
                             kOtherSeqInternalizedOneByteString |          \
@@ -4896,9 +4898,12 @@ class CheckedNumberOrOddballToHoleyFloat64
 
  public:
   explicit CheckedNumberOrOddballToHoleyFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {}
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type,
+      bool silence_number_nans)
+      : Base(TaggedToFloat64SilenceNumberNansOffset::update(
+            TaggedToFloat64ConversionTypeOffset::update(bitfield,
+                                                        conversion_type),
+            silence_number_nans)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::HoleyFloat64() |
@@ -4910,6 +4915,9 @@ class CheckedNumberOrOddballToHoleyFloat64
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
+  }
+  bool silence_number_nans() const {
+    return TaggedToFloat64SilenceNumberNansOffset::decode(Base::bitfield());
   }
 
   DeoptimizeReason deoptimize_reason() const {
@@ -4929,11 +4937,15 @@ class CheckedNumberOrOddballToHoleyFloat64
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
 
-  auto options() const { return std::tuple{conversion_type()}; }
+  auto options() const {
+    return std::tuple{conversion_type(), silence_number_nans()};
+  }
 
  private:
   using TaggedToFloat64ConversionTypeOffset =
       Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
+  using TaggedToFloat64SilenceNumberNansOffset =
+      TaggedToFloat64ConversionTypeOffset::Next<bool, 1>;
 };
 
 class CheckedNumberToInt32
@@ -5028,7 +5040,25 @@ class HoleyFloat64ToMaybeNanFloat64
   void PrintParams(std::ostream&) const {}
 };
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+class HoleyFloat64SilenceNumberNans
+    : public FixedInputValueNodeT<1, HoleyFloat64SilenceNumberNans> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64SilenceNumberNans>;
+
+ public:
+  explicit HoleyFloat64SilenceNumberNans(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+
 class Float64ToHoleyFloat64
     : public FixedInputValueNodeT<1, Float64ToHoleyFloat64> {
   using Base = FixedInputValueNodeT<1, Float64ToHoleyFloat64>;
@@ -5048,6 +5078,7 @@ class Float64ToHoleyFloat64
   void PrintParams(std::ostream&) const {}
 };
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 class ConvertHoleNanToUndefinedNan
     : public FixedInputValueNodeT<1, ConvertHoleNanToUndefinedNan> {
   using Base = FixedInputValueNodeT<1, ConvertHoleNanToUndefinedNan>;
@@ -6103,7 +6134,6 @@ namespace vobj {
 enum class ObjectType {
   kDefault,
   kConsString,
-  kFixedDoubleArray,
   kHeapNumber,
 };
 
@@ -6327,7 +6357,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   ValueNode* get(uint32_t offset) const {
-    return slots_[object_layout_->SlotAtOffset(offset)];
+    uint32_t slot_index = object_layout_->SlotAtOffset(offset);
+    SBXCHECK_LT(slot_index, slot_count());
+    return slots_[slot_index];
   }
 
   void set(uint32_t offset, ValueNode* value) {
@@ -6379,31 +6411,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   };
 
   template <typename Function>
-  inline void ForEachSlot(
-      Function&& callback,
-      ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault) {
-    if (mode == ForEachSlotIterationMode::kForDeopt) {
-      if (object_type() == vobj::ObjectType::kConsString) {
-        // ConsString materialization uses a custom opcode that only cares about
-        // these two fields.
-        vobj::Field fst = FieldForOffset(ConsString::kFirstOffset);
-        callback(slots_[fst.slot_index], fst);
-        vobj::Field snd = FieldForOffset(ConsString::kSecondOffset);
-        callback(slots_[snd.slot_index], snd);
-        return;
-      }
-      if (object_type() == vobj::ObjectType::kHeapNumber) {
-        // HeapNumber materialization creates a literal object instead of
-        // slot traversal.
-        return;
-      }
-    }
-    for (int i = 0; i < slot_count(); i++) {
-      callback(slots_[i], FieldForSlot(i));
-    }
-  }
-
-  template <typename Function>
   inline void ForEachSlot(Function&& callback,
                           ForEachSlotIterationMode mode =
                               ForEachSlotIterationMode::kDefault) const {
@@ -6426,6 +6433,13 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     for (int i = 0; i < slot_count(); i++) {
       callback(slots_[i], FieldForSlot(i));
     }
+  }
+
+  template <typename Function>
+  inline void ForEachSlot(
+      Function&& callback,
+      ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault) {
+    static_cast<const VirtualObject*>(this)->ForEachSlot(callback, mode);
   }
 
   // A runtime input is an input to the virtual object that has runtime
@@ -6526,6 +6540,11 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     // Values set here can leak to the interpreter. Conversions should be stored
     // in known_node_aspects/NodeInfo.
     DCHECK(!value->properties().is_conversion());
+    // TODO(jgruber): Indices are commonly passed in from places that read
+    // potentially attacker-corrupted heap objects. Either we catch all such
+    // usages with CHECKs, or we add one here. Honestly I like neither option
+    // that much, but doing so in this chokepoint is safer.
+    SBXCHECK_LT(i, slot_count());
     slots_[i] = value;
   }
 
@@ -6727,9 +6746,6 @@ struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
   using Base = VirtualHeapObjectShape;
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kFloat64;
-  // Special handling needed; hole translation for deopt materialization.
-  static constexpr vobj::ObjectType kObjectType =
-      vobj::ObjectType::kFixedDoubleArray;
   // TODO(jgruber): Support other node kinds for elements.
   static constexpr bool kElementsAreFloat64Constant = true;
 #define FIELD_LIST(V) \
@@ -6954,48 +6970,6 @@ void ValueNode::remove_use() {
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f,
-    ForEachSlotIterationMode mode) {
-  ForEachSlot(
-      [&](ValueNode*& value, const vobj::Field& desc) {
-        value = value->UnwrapIdentities();
-        if (IsConstantNode(value->opcode())) {
-          // No location assigned to constants.
-          return;
-        }
-        // Special nodes.
-        switch (value->opcode()) {
-          case Opcode::kArgumentsElements:
-          case Opcode::kArgumentsLength:
-          case Opcode::kRestLength:
-            // No location assigned to these opcodes.
-            break;
-          case Opcode::kVirtualObject:
-            UNREACHABLE();
-          case Opcode::kInlinedAllocation: {
-            InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
-            VirtualObject* inner_vobject =
-                virtual_objects.FindAllocatedWith(alloc);
-            // Check if it has escaped.
-            if (inner_vobject &&
-                (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
-              inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f,
-                                                       mode);
-            } else {
-              f(value);
-            }
-            break;
-          }
-          default:
-            f(value);
-            break;
-        }
-      },
-      mode);
-}
-
-template <typename Function>
-inline void VirtualObject::ForEachNestedRuntimeInput(
-    VirtualObjectList virtual_objects, Function&& f,
     ForEachSlotIterationMode mode) const {
   ForEachSlot(
       [&](ValueNode* value, const vobj::Field& desc) {
@@ -7033,6 +7007,14 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
         }
       },
       mode);
+}
+
+template <typename Function>
+void VirtualObject::ForEachNestedRuntimeInput(VirtualObjectList virtual_objects,
+                                              Function&& f,
+                                              ForEachSlotIterationMode mode) {
+  static_cast<const VirtualObject*>(this)->ForEachNestedRuntimeInput(
+      virtual_objects, f, mode);
 }
 
 class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
@@ -9314,7 +9296,7 @@ class StoreFixedDoubleArrayElement
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kFloat64};
+      ValueRepresentation::kHoleyFloat64};
 
   static constexpr int kElementsIndex = 0;
   static constexpr int kIndexIndex = 1;

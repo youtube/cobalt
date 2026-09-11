@@ -47,9 +47,9 @@ namespace {
 // same domain but with "www.", this returns true if |page_url| is secure and in
 // the same origin as |app_url| with "www.".
 bool IsSameHostAndPort(const GURL& app_url, const GURL& page_url) {
-  return (app_url.host_piece() == page_url.host_piece() ||
-          std::string("www.") + app_url.host() == page_url.host_piece()) &&
-         app_url.port() == page_url.port();
+  return (app_url.host() == page_url.host() ||
+          std::string("www.") + app_url.GetHost() == page_url.host()) &&
+         app_url.GetPort() == page_url.GetPort();
 }
 
 }  // namespace

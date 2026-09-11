@@ -24,7 +24,7 @@ class FormattedStringBuilderTest : public IntlTest {
     void testCodePoints();
     void testInsertOverflow();
 
-    void runIndexedTest(int32_t index, UBool exec, const char *&name, char *par = 0) override;
+    void runIndexedTest(int32_t index, UBool exec, const char *&name, char *par = nullptr) override;
 
   private:
     void assertEqualsImpl(const UnicodeString &a, const FormattedStringBuilder &b);
@@ -165,7 +165,7 @@ void FormattedStringBuilderTest::testInsertAppendCodePoint() {
         assertEquals("Code point count of sb3", 1, sb3.codePointCount());
         assertEquals(
                 "First code unit in sb3",
-                !U_IS_SUPPLEMENTARY(cas) ? (char16_t) cas : U16_LEAD(cas),
+                !U_IS_SUPPLEMENTARY(cas) ? static_cast<char16_t>(cas) : U16_LEAD(cas),
                 sb3.charAt(0));
 
         UnicodeString sb4;

@@ -63,6 +63,8 @@ public:
 
     VkPipelineCache getPipelineCache() const { return fPipelineCache; }
 
+    void pipelineCompileWasRequired() { fHasNewVkPipelineCacheData = true; }
+
 private:
     VulkanSharedContext(const VulkanBackendContext&,
                         sk_sp<const skgpu::VulkanInterface>,
@@ -72,6 +74,13 @@ private:
                         SkSpan<sk_sp<SkRuntimeEffect>> userDefinedKnownRuntimeEffects);
 
     VkPipelineCache createPipelineCache();
+
+    sk_sp<GraphicsPipeline> createGraphicsPipeline(const RuntimeEffectDictionary*,
+                                                   const UniqueKey&,
+                                                   const GraphicsPipelineDesc&,
+                                                   const RenderPassDesc&,
+                                                   SkEnumBitMask<PipelineCreationFlags>,
+                                                   uint32_t compilationID) override;
 
     sk_sp<const skgpu::VulkanInterface> fInterface;
     sk_sp<skgpu::VulkanMemoryAllocator> fMemoryAllocator;
@@ -87,6 +96,7 @@ private:
     skgpu::VulkanDeviceLostProc fDeviceLostProc;
 
     VkPipelineCache fPipelineCache = VK_NULL_HANDLE;
+    bool fHasNewVkPipelineCacheData = false;
 };
 
 } // namespace skgpu::graphite

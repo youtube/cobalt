@@ -76,6 +76,19 @@ rtc_library("mock_file_based_encoder") {
   ]
 }
 
+rtc_library("mock_file_based_encoder_with_ivf_transform") {
+  testonly = true
+  sources = [ "mock_file_based_encoder_with_ivf_transform.h" ]
+  deps = [
+    ":file_based_encoder_with_ivf_transform",
+    ":test_clip",
+    "../../../api:rtc_error",
+    "../../../api/units:data_rate",
+    "../../../api/video:video_frame",
+    "../../../test:test_support",
+  ]
+}
+
 rtc_library("picture_pair_provider") {
   testonly = true
   sources = [ "picture_pair_provider.h" ]

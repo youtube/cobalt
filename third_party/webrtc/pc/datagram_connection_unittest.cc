@@ -9,35 +9,38 @@
  */
 #include "api/datagram_connection.h"
 
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
-#include "api/ice_transport_interface.h"
-#include "api/rtc_error.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
 #include "api/test/mock_datagram_connection_observer.h"
+#include "api/transport/enums.h"
+#include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
-#include "p2p/base/fake_port_allocator.h"
+#include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
-#include "p2p/base/p2p_transport_channel.h"
-#include "p2p/base/port_interface.h"
-#include "p2p/base/transport_description.h"
 #include "p2p/test/fake_ice_transport.h"
 #include "pc/datagram_connection_internal.h"
 #include "pc/test/fake_rtc_certificate_generator.h"
 #include "rtc_base/event.h"
 #include "rtc_base/gunit.h"
+#include "rtc_base/rtc_certificate.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/ssl_adapter.h"
 #include "rtc_base/ssl_fingerprint.h"
-#include "rtc_base/ssl_identity.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 namespace {
@@ -58,7 +61,8 @@ class DatagramConnectionTest : public ::testing::Test,
     conn2_->Terminate([] {});
   }
 
-  void CreateConnections() {
+  void CreateConnections(DatagramConnection::WireProtocol wire_protocol =
+                             DatagramConnection::WireProtocol::kDtlsSrtp) {
     auto observer1 =
         std::make_unique<NiceMock<MockDatagramConnectionObserver>>();
     observer1_ptr_ = observer1.get();
@@ -82,11 +86,11 @@ class DatagramConnectionTest : public ::testing::Test,
 
     conn1_ = make_ref_counted<DatagramConnectionInternal>(
         env_, /*port_allocator=*/nullptr, transport_name1, true, cert1_,
-        std::move(observer1), std::move(ice1));
+        std::move(observer1), wire_protocol, std::move(ice1));
 
     conn2_ = make_ref_counted<DatagramConnectionInternal>(
         env_, /*port_allocator=*/nullptr, transport_name2, false, cert2_,
-        std::move(observer2), std::move(ice2));
+        std::move(observer2), wire_protocol, std::move(ice2));
   }
 
   void Connect() {
@@ -257,6 +261,38 @@ TEST_F(DatagramConnectionTest, ObserverNotifiedOnConnectionError) {
                              webrtc::IceTransportStateInternal::STATE_FAILED);
   });
 
+  ASSERT_TRUE(event.Wait(TimeDelta::Millis(1000)));
+}
+
+TEST_F(DatagramConnectionTest, DirectDtlsPacketsAreSent) {
+  CreateConnections(DatagramConnection::WireProtocol::kDtls);
+  Connect();
+  WAIT(conn1_->Writable() && conn2_->Writable(), 1000);
+
+  std::vector<uint8_t> data = {1, 2, 3, 4, 5};
+  EXPECT_TRUE(conn1_->SendPacket(data));
+  // For direct DTLS, the sent packet should be larger than the data due to
+  // DTLS overhead.
+  EXPECT_GT(ice1_->last_sent_packet().size(), data.size());
+}
+
+TEST_F(DatagramConnectionTest, DirectDtlsPacketsAreReceived) {
+  CreateConnections(DatagramConnection::WireProtocol::kDtls);
+  Connect();
+  WAIT(conn1_->Writable() && conn2_->Writable(), 1000);
+
+  std::vector<uint8_t> data = {1, 2, 3, 4, 5};
+  Event event;
+  EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_))
+      .WillOnce([&](ArrayView<const uint8_t> received_data) {
+        EXPECT_EQ(received_data.size(), data.size());
+        EXPECT_EQ(memcmp(received_data.data(), data.data(), data.size()), 0);
+        event.Set();
+      });
+
+  EXPECT_TRUE(conn1_->SendPacket(data));
+  // Process the message queue to ensure the packet is sent.
+  Thread::Current()->ProcessMessages(0);
   ASSERT_TRUE(event.Wait(TimeDelta::Millis(1000)));
 }
 

@@ -3269,6 +3269,18 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
                      FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
+
+  // Increment the total invocation count of the function.
+  __ LoadTaggedField(scratch,
+                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  if (SmiValuesAre31Bits()) {
+    __ Add32(scratch, scratch, Operand(Smi::FromInt(1)));
+  } else {
+    __ AddWord(scratch, scratch, Operand(Smi::FromInt(1)));
+  }
+  __ StoreTaggedField(
+      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+
   __ Push(vector);
   __ Ret();
 
@@ -3380,7 +3392,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
                                      Register argv_input) {
   using ER = ExternalReference;
 
-  __ li(kSwitchFlagRegister, 0);
+  __ mv(kSwitchFlagRegister, zero_reg);
   __ mv(kOldSPRegister, sp);
 
   // Using x2-x4 as temporary registers, because they will be rewritten

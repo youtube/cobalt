@@ -80,6 +80,7 @@ rtc_library("libaom_av1_encoder") {
     "../../../../rtc_base:logging",
     "../../../../rtc_base:rtc_numerics",
     "../../../../rtc_base/experiments:encoder_info_settings",
+    "../../../../rtc_base/experiments:psnr_experiment",
     "../../svc:scalability_structures",
     "../../svc:scalable_video_controller",
     "//third_party/abseil-cpp/absl/algorithm:container",

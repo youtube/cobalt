@@ -707,7 +707,7 @@ void AutocompleteResult::SortAndCull(
         u", input=" + input.text();
 
     const std::string& in_scheme = base::UTF16ToUTF8(input.scheme());
-    const std::string& dest_scheme = default_match->destination_url.scheme();
+    const std::string& dest_scheme = default_match->destination_url.GetScheme();
     DCHECK(url_formatter::IsEquivalentScheme(in_scheme, dest_scheme))
         << debug_info;
   }
@@ -1031,9 +1031,13 @@ void AutocompleteResult::ConvertOpenTabMatches(
                   omnibox::
                       SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH);
               template_action.set_action_uri(match.destination_url.spec());
-              match.actions.push_back(
+              auto action_in_suggest =
                   base::MakeRefCounted<OmniboxActionInSuggest>(
-                      std::move(template_action), std::nullopt));
+                      std::move(template_action), std::nullopt);
+#if BUILDFLAG(IS_ANDROID)
+              action_in_suggest->tab_id = tab_info->second.android_tab_id;
+#endif
+              match.actions.push_back(action_in_suggest);
 #if BUILDFLAG(IS_ANDROID)
             }
 #endif

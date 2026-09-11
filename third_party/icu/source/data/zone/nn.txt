@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 nn{
     %%Parent{"no"}
     zoneStrings{
@@ -18,9 +18,6 @@ nn{
         }
         "Asia:Ashgabat"{
             ec{"Asjgabat"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Tsjojbalsan"}
         }
         "Asia:Hovd"{
             ec{"Khovd"}
@@ -82,7 +79,7 @@ nn{
             ls{"normaltid for sentrale Nord-Amerika"}
         }
         "meta:America_Eastern"{
-            ld{"sommartid for den nordamerikansk austkysten"}
+            ld{"sommartid for den nordamerikanske austkysten"}
             lg{"tidssone for den nordamerikanske austkysten"}
             ls{"normaltid for den nordamerikanske austkysten"}
         }
@@ -185,11 +182,6 @@ nn{
             ld{"kinesisk sommartid"}
             lg{"kinesisk tid"}
             ls{"kinesisk normaltid"}
-        }
-        "meta:Choibalsan"{
-            ld{"sommartid for Tsjojbalsan"}
-            lg{"tidssone for Tsjojbalsan"}
-            ls{"normaltid for Tsjojbalsan"}
         }
         "meta:Cocos"{
             ls{"tidssone for Kokosøyane"}
@@ -343,11 +335,6 @@ nn{
             ld{"mauritisk sommartid"}
             lg{"mauritisk tid"}
             ls{"mauritisk normaltid"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"sommartid for nordvestlege Mexico"}
-            lg{"tidssone for nordvestlege Mexico"}
-            ls{"normaltid for nordvestlege Mexico"}
         }
         "meta:Mexico_Pacific"{
             ld{"sommartid for den meksikanske stillehavskysten"}

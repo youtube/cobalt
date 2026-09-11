@@ -14,7 +14,9 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_ISSUER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_HEADER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_TOS_TEXT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.CREDIT_CARD;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.ERROR_DESCRIPTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.FILL_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.FOOTER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.HEADER;
@@ -128,6 +130,11 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
     }
 
     @Override
+    public void showErrorScreen(String title, String description) {
+        mMediator.showErrorScreen(title, description);
+    }
+
+    @Override
     public void hideSheet() {
         mMediator.hideSheet();
     }
@@ -198,6 +205,14 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
                 BNPL_ISSUER,
                 TouchToFillPaymentMethodViewBinder::createBnplIssuerItemView,
                 TouchToFillPaymentMethodViewBinder::bindBnplIssuerItemView);
+        adapter.registerType(
+                ERROR_DESCRIPTION,
+                TouchToFillPaymentMethodViewBinder::createErrorDescriptionView,
+                TouchToFillPaymentMethodViewBinder::bindErrorDescriptionView);
+        adapter.registerType(
+                BNPL_TOS_TEXT,
+                TouchToFillPaymentMethodViewBinder::createBnplIssuerTosItemView,
+                TouchToFillPaymentMethodViewBinder::bindBnplIssuerTosItemView);
         view.setSheetItemListAdapter(adapter);
     }
 

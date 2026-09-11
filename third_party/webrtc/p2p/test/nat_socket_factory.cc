@@ -252,7 +252,7 @@ class NATSocket : public Socket, public sigslot::has_slots<> {
     RTC_DCHECK(socket == socket_);
     if (server_addr_.IsNil()) {
       connected_ = true;
-      SignalConnectEvent(this);
+      NotifyConnectEvent(this);
     } else {
       SendConnectRequest();
     }
@@ -272,7 +272,7 @@ class NATSocket : public Socket, public sigslot::has_slots<> {
   }
   void OnCloseEvent(Socket* socket, int error) {
     RTC_DCHECK(socket == socket_);
-    SignalCloseEvent(this, error);
+    NotifyCloseEvent(this, error);
   }
 
  private:
@@ -283,10 +283,13 @@ class NATSocket : public Socket, public sigslot::has_slots<> {
     socket_ = sf_->CreateInternalSocket(family_, type_, addr, &server_addr_);
     result = (socket_) ? socket_->Bind(addr) : -1;
     if (result >= 0) {
-      socket_->SignalConnectEvent.connect(this, &NATSocket::OnConnectEvent);
+      socket_->SubscribeConnectEvent(
+          [this](Socket* socket) { OnConnectEvent(socket); });
       socket_->SignalReadEvent.connect(this, &NATSocket::OnReadEvent);
       socket_->SignalWriteEvent.connect(this, &NATSocket::OnWriteEvent);
-      socket_->SignalCloseEvent.connect(this, &NATSocket::OnCloseEvent);
+      socket_->SubscribeCloseEvent(this, [this](Socket* socket, int error) {
+        OnCloseEvent(socket, error);
+      });
     } else {
       server_addr_.Clear();
       delete socket_;
@@ -309,10 +312,10 @@ class NATSocket : public Socket, public sigslot::has_slots<> {
     socket_->Recv(&code, sizeof(code), nullptr);
     if (code == 0) {
       connected_ = true;
-      SignalConnectEvent(this);
+      NotifyConnectEvent(this);
     } else {
       Close();
-      SignalCloseEvent(this, code);
+      NotifyCloseEvent(this, code);
     }
   }
 

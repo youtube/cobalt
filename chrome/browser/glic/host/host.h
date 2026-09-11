@@ -58,6 +58,7 @@ class Host : public GlicSharingManagerProvider {
     // Attaches glic to the last focused Chrome window.
     virtual void Attach() = 0;
     virtual void Detach() = 0;
+    virtual void ClosePanel() = 0;
     // Sets the minimum widget size that the widget will allow the user to
     // resize
     // to.
@@ -164,6 +165,8 @@ class Host : public GlicSharingManagerProvider {
 
   void PanelWasClosed();
 
+  void PanelStateChanged(const glic::mojom::PanelState& panel_state);
+
   void SwitchConversation(
       glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback);
@@ -174,6 +177,9 @@ class Host : public GlicSharingManagerProvider {
 
   // Delete the owned web contents and prepare for destruction.
   void Shutdown();
+
+  // Reload the web contents, if it is present.
+  void Reload();
 
   // Creates the web contents that will own the Glic WebUI.
   // `initially_hidden` value is only relevant when
@@ -277,6 +283,7 @@ class Host : public GlicSharingManagerProvider {
 
   void AttachPanel(GlicPageHandler* page_handler);
   void DetachPanel(GlicPageHandler* page_handler);
+  void ClosePanel(GlicPageHandler* page_handler);
   // Sets the areas of the view from which it should be draggable.
   void SetPanelDraggableAreas(GlicPageHandler* page_handler,
                               const std::vector<gfx::Rect>& draggable_areas);
@@ -289,6 +296,8 @@ class Host : public GlicSharingManagerProvider {
   bool IsWidgetShowing(GlicWebClientAccess* client) const;
   // Returns the current panel state.
   const mojom::PanelState& GetPanelState(GlicWebClientAccess* client) const;
+
+  base::WeakPtr<Host> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 
  private:
   friend class HostManager;
@@ -341,17 +350,19 @@ class Host : public GlicSharingManagerProvider {
   std::optional<mojom::InvocationSource> invocation_source_;
   std::optional<PanelWillOpenOptions> pending_panel_open_options_;
   mojom::WebUiState primary_webui_state_ = mojom::WebUiState::kUninitialized;
+  std::optional<mojom::PanelState> pending_panel_state_;
 
-  std::optional<PageHandlerInfo> handler_info_;
   // Owns the WebUI contents. May be null for glic hosts in chrome://glic tabs.
   // Keep profile alive as long as the glic web contents. This object should be
   // destroyed when the profile needs to be destroyed.
   std::unique_ptr<WebUIContentsContainer> contents_;
+  std::optional<PageHandlerInfo> handler_info_;
 
   raw_ptr<GlicSharingManagerProvider> sharing_manager_provider_;
 
   // The current view in the primary page handler.
   mojom::CurrentView primary_current_view_ = mojom::CurrentView::kConversation;
+  base::WeakPtrFactory<Host> weak_ptr_factory_{this};
 };
 
 // A Host::Delegate which does nothing. For chrome://glic tabs or inactive
@@ -368,6 +379,7 @@ class EmptyEmbedderDelegate : public Host::EmbedderDelegate {
   void EnableDragResize(bool enabled) override {}
   void Attach() override {}
   void Detach() override {}
+  void ClosePanel() override {}
   void SetMinimumWidgetSize(const gfx::Size& size) override {}
   bool IsShowing() const override;
   void SwitchConversation(

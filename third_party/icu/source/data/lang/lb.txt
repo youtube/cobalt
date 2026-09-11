@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 lb{
     Keys{
         calendar{"Kalenner"}
@@ -200,7 +200,6 @@ lb{
         gmh{"Mëttelhéichdäitsch"}
         gn{"Guarani"}
         goh{"Alhéichdäitsch"}
-        gom{"Goan-Konkani"}
         gon{"Gondi-Sprooch"}
         gor{"Mongondou"}
         got{"Gotesch"}
@@ -770,7 +769,6 @@ lb{
             gb2312han{"Vereinfacht Chinesesch - GB2312"}
             phonebook{"Telefonsbuch-Zortéierung"}
             pinyin{"Pinyin-Zortéierregelen"}
-            reformed{"Reforméiert Zortéierreiefolleg"}
             search{"Allgemeng Sich"}
             searchjl{"Sich no Ufanksbuschtawen aus dem koreaneschen Alphabet"}
             standard{"Standard Zortéierreiefolleg"}

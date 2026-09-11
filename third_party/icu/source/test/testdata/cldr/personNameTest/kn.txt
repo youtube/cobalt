@@ -1,9 +1,8 @@
-# Test data for unit conversions
-#  Copyright © 1991-2023 Unicode, Inc.
+# Test data for Person Name Data
+#  Copyright © 1991-2025 Unicode, Inc.
 #  For terms of use, see http://www.unicode.org/copyright.html
-#  SPDX-License-Identifier: Unicode-DFS-2016
+#  SPDX-License-Identifier: Unicode-3.0
 #  CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
-#
 # CLDR person name formatting test data for: kn
 #
 # Test lines have the following structure:
@@ -439,7 +438,7 @@ endName
 
 # foreignG
 name ; given; ಸಿನ್‍ಬಾದ್
-name ; locale; ko_AQ
+name ; locale; ja_AQ
 
 expectedResult; ಸಿನ್‍ಬಾದ್
 
@@ -494,7 +493,7 @@ endName
 # foreignGS
 name ; given; ಕ್ಯಾಥಿ
 name ; surname; ಮಲ್ಲರ್
-name ; locale; ko_AQ
+name ; locale; ja_AQ
 
 expectedResult; ಮಲ್ಲರ್, ಕ್ಯಾಥಿ
 
@@ -583,7 +582,7 @@ endName
 name ; given; ಝಝಿಲಿಯಾ
 name ; given2; ಹಮಿಶ್
 name ; surname; ಸ್ಟೋಬರ್
-name ; locale; ko_AQ
+name ; locale; ja_AQ
 
 expectedResult; ಸ್ಟೋಬರ್, ಝಝಿಲಿಯಾ ಹಮಿಶ್
 
@@ -705,7 +704,7 @@ name ; surname-core; ಬ್ರಾಲ್
 name ; surname2; ಗೊನ್ಸಾಲೀಸ್ ಡೊಮಿಂಗೊ
 name ; generation; ಜೂನಿಯರ್
 name ; credentials; ಎಂ.ಡಿ ಡಿ.ಡಿ.ಎಸ್
-name ; locale; ko_AQ
+name ; locale; ja_AQ
 
 expectedResult; ಪ್ರೊ. ಡಾ. ಅಡಾ ಕಾರ್ನೆಲಿಯಾ ಸಿಸಾರ್ ಮಾರ್ಟಿನ್ ವಾನ್ ಬ್ರಾಲ್ ಜೂನಿಯರ್, ಎಂ.ಡಿ ಡಿ.ಡಿ.ಎಸ್
 

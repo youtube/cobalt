@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/functional/bind_front.h"
@@ -23,10 +24,10 @@
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
-#include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
@@ -40,13 +41,14 @@
 
 namespace moqt::moq_chat {
 
-std::optional<MoqtPublishNamespaceErrorReason>
-ChatClient::OnIncomingPublishNamespace(
+void ChatClient::OnIncomingPublishNamespace(
     const moqt::TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters> parameters) {
+    std::optional<VersionSpecificParameters> parameters,
+    moqt::MoqtResponseCallback callback) {
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
-    return std::optional<MoqtPublishNamespaceErrorReason>();
+    std::move(callback)(std::nullopt);
+    return;
   }
   std::optional<FullTrackName> track_name = ConstructTrackNameFromNamespace(
       track_namespace, GetChatId(my_track_name_));
@@ -57,22 +59,25 @@ ChatClient::OnIncomingPublishNamespace(
       session_->Unsubscribe(*track_name);
       other_users_.erase(*track_name);
     }
-    return std::nullopt;
+    return;
   }
   std::cout << "PUBLISH_NAMESPACE for " << track_namespace.ToString() << "\n";
   if (!track_name.has_value()) {
     std::cout << "PUBLISH_NAMESPACE rejected, invalid namespace\n";
-    return std::make_optional<MoqtPublishNamespaceErrorReason>(
-        RequestErrorCode::kTrackDoesNotExist, "Not a subscribed namespace");
+    std::move(callback)(std::make_optional<MoqtPublishNamespaceErrorReason>(
+        RequestErrorCode::kTrackDoesNotExist, "Not a subscribed namespace"));
+    return;
   }
   if (other_users_.contains(*track_name)) {
     std::cout << "Duplicate PUBLISH_NAMESPACE, send OK and ignore\n";
-    return std::nullopt;
+    std::move(callback)(std::nullopt);
+    return;
   }
   if (GetUsername(my_track_name_) == GetUsername(*track_name)) {
     std::cout << "PUBLISH_NAMESPACE for a previous instance of my track, "
                  "do not subscribe\n";
-    return std::nullopt;
+    std::move(callback)(std::nullopt);
+    return;
   }
   VersionSpecificParameters subscribe_parameters(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
@@ -81,7 +86,7 @@ ChatClient::OnIncomingPublishNamespace(
     ++subscribes_to_make_;
     other_users_.emplace(*track_name);
   }
-  return std::nullopt;  // Send PUBLISH_NAMESPACE_OK.
+  std::move(callback)(std::nullopt);  // Send PUBLISH_NAMESPACE_OK.
 }
 
 ChatClient::ChatClient(const quic::QuicServerId& server_id,
@@ -170,8 +175,7 @@ void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
 
 void ChatClient::RemoteTrackVisitor::OnReply(
     const FullTrackName& full_track_name,
-    std::optional<Location> /*largest_id*/,
-    std::optional<absl::string_view> reason_phrase) {
+    std::variant<SubscribeOkData, MoqtRequestError> response) {
   auto it = client_->other_users_.find(full_track_name);
   if (it == client_->other_users_.end()) {
     std::cout << "Error: received reply for unknown user "
@@ -180,11 +184,13 @@ void ChatClient::RemoteTrackVisitor::OnReply(
   }
   --client_->subscribes_to_make_;
   std::cout << "Subscription to user " << GetUsername(*it) << " ";
-  if (reason_phrase.has_value()) {
-    std::cout << "REJECTED, reason = " << *reason_phrase << "\n";
-    client_->other_users_.erase(it);
-  } else {
+  if (std::holds_alternative<SubscribeOkData>(response)) {
     std::cout << "ACCEPTED\n";
+  } else {
+    auto request_error = std::get<MoqtRequestError>(response);
+    std::cout << "REJECTED, reason = "
+              << std::get<MoqtRequestError>(response).reason_phrase << "\n";
+    client_->other_users_.erase(it);
   }
 }
 

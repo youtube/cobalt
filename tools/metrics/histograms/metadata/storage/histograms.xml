@@ -324,7 +324,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.ClientKeepActiveRemotesCount" units="count"
-    expires_after="2026-03-22">
+    expires_after="2026-03-29">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -334,8 +334,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.ContextShutdownDuration" units="ms"
-    expires_after="2025-10-12">
-  <owner>estade@chromium.org</owner>
+    expires_after="2026-10-02">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Logs the time it takes to completely shut down `IndexedDBContextImpl`,
@@ -387,8 +388,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.GetUnacquirableLocksRequestQueueSize" units="count"
-    expires_after="2025-11-09">
-  <owner>estade@chromium.org</owner>
+    expires_after="2026-10-02">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Logs the number of queued lock requests that exist in the
@@ -500,8 +502,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.LockRequestCancelledLongTimes" units="ms"
-    expires_after="2025-11-09">
-  <owner>estade@chromium.org</owner>
+    expires_after="2026-10-02">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Logs the duration of PartitionedLockManager::LockRequestCancelled, but only
@@ -511,8 +514,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.LockRequestCancelledRequestQueueSize" units="count"
-    expires_after="2025-11-09">
-  <owner>estade@chromium.org</owner>
+    expires_after="2026-10-02">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Logs the number of queued lock requests that exist in the
@@ -670,7 +674,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.TransactionTimeout.{TransactionCount}TaskRunQueued"
-    enum="IDBTransactionMode" expires_after="2026-03-30">
+    enum="Boolean" expires_after="2026-03-30">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -846,7 +850,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoSizeInKB" units="KB"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -856,7 +860,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoTimeToPrime" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -876,7 +880,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoTimeToPrimeFor{LocalStorageSizes}" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>

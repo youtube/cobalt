@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ee{
     zoneStrings{
         "America:Bahia_Banderas"{
@@ -17,9 +17,6 @@ ee{
         }
         "Asia:Macau"{
             ec{"Macau"}
-        }
-        "Australia:Currie"{
-            ec{"Currie"}
         }
         "Etc:UTC"{
             ls{"Xexeme gaƒoƒoɖoanyi me"}
@@ -59,7 +56,7 @@ ee{
         }
         "meta:Africa_Western"{
             ld{"West Africa dzomeŋɔli gaƒoƒo me"}
-            lg{"West Africa gaƒoƒo me"}
+            lg{"West Africa game"}
             ls{"West Africa nutome gaƒoƒo me"}
             sd{"WAST"}
             sg{"WAT"}
@@ -196,11 +193,6 @@ ee{
             ld{"China kele gaƒoƒo me"}
             lg{"China gaƒoƒo me"}
             ls{"China nutome gaƒoƒo me"}
-        }
-        "meta:Choibalsan"{
-            ld{"Choibalsan dzomeŋɔli gaƒoƒo me"}
-            lg{"Choibalsan gaƒoƒo me"}
-            ls{"Choibalsan nutome gaƒoƒo me"}
         }
         "meta:Christmas"{
             ls{"Christmas Island gaƒoƒo me"}
@@ -387,9 +379,6 @@ ee{
             lg{"Lord Howe gaƒoƒo me"}
             ls{"Lord Howe nutome gaƒoƒo me"}
         }
-        "meta:Macquarie"{
-            ls{"Macquarie Island gaƒoƒo me"}
-        }
         "meta:Magadan"{
             ld{"Magadan dzomeŋɔli gaƒoƒo me"}
             lg{"Magadan gaƒoƒo me"}
@@ -414,11 +403,6 @@ ee{
         }
         "meta:Mawson"{
             ls{"Mawson gaƒoƒo me"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Northwest Mexico kele gaƒoƒo me"}
-            lg{"Northwest Mexico gaƒoƒo me"}
-            ls{"Northwest Mexico nutome gaƒoƒo me"}
         }
         "meta:Mexico_Pacific"{
             ld{"Mexican Pacific kele gaƒoƒome"}
@@ -637,8 +621,8 @@ ee{
             ls{"Yekaterinburg nutome gaƒoƒo me"}
         }
         gmtFormat{"{0} GMT"}
-        regionFormat{"{0} gaƒoƒo me"}
-        regionFormatDaylight{"{0} kele gaƒoƒo me"}
-        regionFormatStandard{"{0} nutome gaƒoƒo me"}
+        regionFormat{"{0} game"}
+        regionFormatDaylight{"{0} ŋkekemeɣeyiɣi"}
+        regionFormatStandard{"{0} game ɖoɖoea"}
     }
 }

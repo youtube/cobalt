@@ -33,6 +33,7 @@
 #include "dtfmapts.h"       // DateFormatAPI
 #include "dtfmttst.h"       // DateFormatTest
 #include "tmsgfmt.h"        // TestMessageFormat
+#include "messageformat2test.h" // TestMessageFormat2
 #include "dtfmrgts.h"       // DateFormatRegressionTest
 #include "msfmrgts.h"       // MessageFormatRegressionTest
 #include "miscdtfm.h"       // DateFormatMiscTests
@@ -153,7 +154,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "TimeUnitTest";
           if (exec) {
             logln("TimeUnitTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createTimeUnitTest());
             callTest(*test, par);
           }
@@ -168,7 +169,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "GenderInfoTest";
           if (exec) {
             logln("GenderInfoTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createGenderInfoTest());
             callTest(*test, par);
           }
@@ -177,7 +178,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "CompactDecimalFormatTest";
           if (exec) {
             logln("CompactDecimalFormatTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createCompactDecimalFormatTest());
             callTest(*test, par);
           }
@@ -188,7 +189,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "RelativeDateTimeFormatterTest";
           if (exec) {
             logln("RelativeDateTimeFormatterTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createRelativeDateTimeFormatterTest());
             callTest(*test, par);
           }
@@ -198,7 +199,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "MeasureFormatTest";
           if (exec) {
             logln("MeasureFormatTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createMeasureFormatTest());
             callTest(*test, par);
           }
@@ -207,7 +208,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "NumberFormatSpecificationTest";
           if (exec) {
             logln("NumberFormatSpecificationTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createNumberFormatSpecificationTest());
             callTest(*test, par);
           }
@@ -216,7 +217,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "ScientificNumberFormatterTest";
           if (exec) {
             logln("ScientificNumberFormatterTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createScientificNumberFormatterTest());
             callTest(*test, par);
           }
@@ -228,7 +229,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "FormattedValueTest";
           if (exec) {
             logln("FormattedValueTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createFormattedValueTest());
             callTest(*test, par);
           }
@@ -237,7 +238,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "FormattedStringBuilderTest";
           if (exec) {
             logln("FormattedStringBuilderTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createFormattedStringBuilderTest());
             callTest(*test, par);
           }
@@ -246,7 +247,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "StringSegmentTest";
           if (exec) {
             logln("StringSegmentTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createStringSegmentTest());
             callTest(*test, par);
           }
@@ -255,7 +256,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "UnitsTest";
           if (exec) {
             logln("UnitsTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createUnitsTest());
             callTest(*test, par);
           }
@@ -264,7 +265,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "UnitsDataTest";
           if (exec) {
             logln("UnitsDataTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createUnitsDataTest());
             callTest(*test, par);
           }
@@ -273,7 +274,7 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "UnitsRouterTest";
           if (exec) {
             logln("UnitsRouterTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createUnitsRouterTest());
             callTest(*test, par);
           }
@@ -282,11 +283,16 @@ void IntlTestFormat::runIndexedTest( int32_t index, UBool exec, const char* &nam
           name = "DisplayOptionsTest";
           if (exec) {
             logln("DisplayOptionsTest test---");
-            logln((UnicodeString)"");
+            logln(UnicodeString(""));
             LocalPointer<IntlTest> test(createDisplayOptionsTest());
             callTest(*test, par);
           }
           break;
+#if !UCONFIG_NO_NORMALIZATION
+#if !UCONFIG_NO_MF2
+        TESTCLASS(60,TestMessageFormat2);
+#endif
+#endif
         default: name = ""; break; //needed to end loop
     }
     if (exec) {

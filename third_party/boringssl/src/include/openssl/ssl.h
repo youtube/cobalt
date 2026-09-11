@@ -1454,17 +1454,44 @@ OPENSSL_EXPORT int SSL_can_release_private_key(const SSL *ssl);
 
 DEFINE_CONST_STACK_OF(SSL_CIPHER)
 
+// The following constants are TLS cipher suite protocol IDs, as returned from
+// |SSL_CIPHER_get_protocol_id|.
+#define SSL_CIPHER_AES_128_GCM_SHA256 0x1301
+#define SSL_CIPHER_AES_256_GCM_SHA384 0x1302
+#define SSL_CIPHER_CHACHA20_POLY1305_SHA256 0x1303
+#define SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 0xc02b
+#define SSL_CIPHER_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 0xc02c
+#define SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256 0xc02f
+#define SSL_CIPHER_ECDHE_RSA_WITH_AES_256_GCM_SHA384 0xc030
+#define SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 0xcca8
+#define SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 0xcca9
+#define SSL_CIPHER_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 0xccac
+#define SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_CBC_SHA 0xc009
+#define SSL_CIPHER_ECDHE_ECDSA_WITH_AES_256_CBC_SHA 0xc00a
+#define SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA 0xc013
+#define SSL_CIPHER_ECDHE_RSA_WITH_AES_256_CBC_SHA 0xc014
+#define SSL_CIPHER_ECDHE_PSK_WITH_AES_128_CBC_SHA 0xc035
+#define SSL_CIPHER_ECDHE_PSK_WITH_AES_256_CBC_SHA 0xc036
+#define SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA256 0xc027
+#define SSL_CIPHER_RSA_WITH_AES_128_GCM_SHA256 0x009c
+#define SSL_CIPHER_RSA_WITH_AES_256_GCM_SHA384 0x009d
+#define SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA 0x002f
+#define SSL_CIPHER_RSA_WITH_AES_256_CBC_SHA 0x0035
+#define SSL_CIPHER_PSK_WITH_AES_128_CBC_SHA 0x008c
+#define SSL_CIPHER_PSK_WITH_AES_256_CBC_SHA 0x008d
+#define SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA 0x000a
+
+// The following constants are not cipher suites, but are used in the protocol
+// as signalling values.
+#define SSL_CIPHER_EMPTY_RENEGOTIATION_INFO_SCSV 0x00ff
+#define SSL_CIPHER_FALLBACK_SCSV 0x5600
+
 // SSL_get_cipher_by_value returns the structure representing a TLS cipher
 // suite based on its assigned number, or NULL if unknown. See
 // https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4.
 OPENSSL_EXPORT const SSL_CIPHER *SSL_get_cipher_by_value(uint16_t value);
 
-// SSL_CIPHER_get_id returns |cipher|'s non-IANA id. This is not its
-// IANA-assigned number, which is called the "value" here, although it may be
-// cast to a |uint16_t| to get it.
-OPENSSL_EXPORT uint32_t SSL_CIPHER_get_id(const SSL_CIPHER *cipher);
-
-// SSL_CIPHER_get_protocol_id returns |cipher|'s IANA-assigned number.
+// SSL_CIPHER_get_protocol_id returns |cipher|'s two-byte protocol ID.
 OPENSSL_EXPORT uint16_t SSL_CIPHER_get_protocol_id(const SSL_CIPHER *cipher);
 
 // SSL_CIPHER_is_aead returns one if |cipher| uses an AEAD cipher.
@@ -2644,6 +2671,27 @@ OPENSSL_EXPORT int SSL_get_negotiated_group(const SSL *ssl);
 OPENSSL_EXPORT int SSL_set1_client_key_shares(SSL *ssl,
                                               const uint16_t *group_ids,
                                               size_t num_group_ids);
+
+// SSL_set1_server_supported_groups_hint, when |ssl| is a client, indicates that
+// the server is likely to support groups listed in |server_groups|, in order of
+// decreasing server preference. This function returns one on success and zero
+// on error. This may be used when receiving a server hint, such as described in
+// draft-ietf-tls-key-share-prediction.
+//
+// If called, |ssl| will try to predict the server's selected named group based
+// on |ssl|'s local preferences and |server_groups|. If it predicts a group, it
+// will then send an initial ClientHello with key_share extension containing
+// only this prediction. In this case, the prediction will supersede any
+// configuration from |SSL_set1_client_key_shares|. This is a convenience
+// function so that callers do not need to process the server preference list
+// themselves.
+//
+// Groups listed in |server_groups| should be identified by their TLS group IDs,
+// such as the |SSL_GROUP_*| constants. A server may implement groups not known
+// to BoringSSL, so |server_groups| may contain unrecognized group IDs. If so,
+// this function will ignore them.
+OPENSSL_EXPORT int SSL_set1_server_supported_groups_hint(
+    SSL *ssl, const uint16_t *server_groups, size_t num_server_groups);
 
 
 // Certificate verification.
@@ -5248,6 +5296,11 @@ OPENSSL_EXPORT const char *SSL_CIPHER_description(const SSL_CIPHER *cipher,
 
 // SSL_CIPHER_get_version returns the string "TLSv1/SSLv3".
 OPENSSL_EXPORT const char *SSL_CIPHER_get_version(const SSL_CIPHER *cipher);
+
+// SSL_CIPHER_get_id returns |cipher|'s IANA-assigned number, OR-d with
+// 0x03000000. This is part of OpenSSL's SSL 2.0 legacy. SSL 2.0 has long since
+// been removed from BoringSSL. Use |SSL_CIPHER_get_protocol_id| instead.
+OPENSSL_EXPORT uint32_t SSL_CIPHER_get_id(const SSL_CIPHER *cipher);
 
 typedef void COMP_METHOD;
 typedef struct ssl_comp_st SSL_COMP;

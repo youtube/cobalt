@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 kgp{
     Keys{
         calendar{"Kurã-kar"}
@@ -766,7 +766,6 @@ kgp{
             phonebook{"Terefonĩ Risita to ke"}
             phonetic{"Fonẽtika to ke kuprãg"}
             pinyin{"Pin-yin to nỹtĩ"}
-            reformed{"Hár tãg nỹtĩ"}
             search{"Jẽnfĩn to ke Kar"}
             searchjl{"Hangul kãsonỹte ve jãnfĩn"}
             standard{"to ke pẽ"}

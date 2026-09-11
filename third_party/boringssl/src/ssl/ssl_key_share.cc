@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include <iterator>
 #include <utility>
 
 #include <openssl/bn.h>

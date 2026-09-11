@@ -888,6 +888,15 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "non-gce",
+    swarming = targets.swarming(
+        dimensions = {
+            "gce": "0",
+        },
+    ),
+)
+
+targets.mixin(
     name = "gpu_gtest_common_args",
     android_args = [
         targets.magic_args.ANDROID_DESKTOP_FORCE_MAIN_USER,
@@ -1382,6 +1391,19 @@ targets.mixin(
             swarming.cache(
                 name = "runtime_ios_26_0",
                 path = "Runtime-ios-26.0",
+            ),
+        ],
+    ),
+)
+
+targets.mixin(
+    name = "ios_runtime_cache_26_1",
+    generate_pyl_entry = False,
+    swarming = targets.swarming(
+        named_caches = [
+            swarming.cache(
+                name = "runtime_ios_26_1",
+                path = "Runtime-ios-26.1",
             ),
         ],
     ),

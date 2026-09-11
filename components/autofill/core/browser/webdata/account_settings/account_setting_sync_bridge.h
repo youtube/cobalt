@@ -17,7 +17,13 @@ class AccountSettingSyncBridge : public syncer::DataTypeSyncBridge {
   explicit AccountSettingSyncBridge(
       std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor,
       syncer::OnceDataTypeStoreFactory store_factory);
-  ~AccountSettingSyncBridge() override = default;
+  ~AccountSettingSyncBridge() override;
+
+  // Returns the specifics for the setting of the given `name` if the bridge
+  // is aware of any such setting. Otherwise, nullopt is returned.
+  // Virtual for testing.
+  virtual std::optional<sync_pb::AccountSettingSpecifics> GetSetting(
+      std::string_view name) const;
 
   // syncer::DataTypeSyncBridge:
   std::unique_ptr<syncer::MetadataChangeList> CreateMetadataChangeList()
@@ -28,6 +34,8 @@ class AccountSettingSyncBridge : public syncer::DataTypeSyncBridge {
   std::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_changes) override;
+  void ApplyDisableSyncChanges(std::unique_ptr<syncer::MetadataChangeList>
+                                   delete_metadata_change_list) override;
   std::unique_ptr<syncer::DataBatch> GetDataForCommit(
       StorageKeyList storage_keys) override;
   std::unique_ptr<syncer::DataBatch> GetAllDataForDebugging() override;
@@ -36,6 +44,31 @@ class AccountSettingSyncBridge : public syncer::DataTypeSyncBridge {
       const syncer::EntityData& entity_data) const override;
   std::string GetStorageKey(
       const syncer::EntityData& entity_data) const override;
+
+ private:
+  // Callbacks for various asynchronous operations of the `store_`.
+  void OnStoreCreated(const std::optional<syncer::ModelError>& error,
+                      std::unique_ptr<syncer::DataTypeStore> store);
+  void StartSyncingWithDataAndMetadata(
+      const std::optional<syncer::ModelError>& error,
+      std::unique_ptr<syncer::DataTypeStore::RecordList> data,
+      std::unique_ptr<syncer::MetadataBatch> metadata_batch);
+  void ReportErrorIfSet(const std::optional<syncer::ModelError>& error);
+
+  // Storage layer used by this sync bridge. Asynchronously created through the
+  // `store_factory` injected through the constructor. Non-null if creation
+  // finished without an error.
+  std::unique_ptr<syncer::DataTypeStore> store_;
+
+  // A copy of the settings from the `store_`, used for synchronous access.
+  // Keyed by `AccountSettingSpecifics::name`.
+  base::flat_map<std::string, sync_pb::AccountSettingSpecifics> settings_;
+
+  // Sequence checker ensuring that callbacks from the `store_` happen on the
+  // bridge's thread.
+  SEQUENCE_CHECKER(sequence_checker_);
+
+  base::WeakPtrFactory<AccountSettingSyncBridge> weak_factory_{this};
 };
 
 }  // namespace autofill

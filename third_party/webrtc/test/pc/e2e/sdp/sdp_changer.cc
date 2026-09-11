@@ -20,7 +20,6 @@
 
 #include "api/array_view.h"
 #include "api/jsep.h"
-#include "api/jsep_session_description.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"

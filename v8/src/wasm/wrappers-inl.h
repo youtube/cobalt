@@ -10,6 +10,9 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include "src/wasm/wrappers.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/factory-base-inl.h"
 
 namespace v8::internal::wasm {
 
@@ -237,7 +240,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
 
   V<Object> jsval;
   if (sig_->return_count() == 0) {
-    jsval = LOAD_ROOT(UndefinedValue);
+    DCHECK_NOT_NULL(isolate_);
+    jsval = __ HeapConstant(isolate_->factory()->undefined_value());
   } else if (sig_->return_count() == 1) {
     jsval =
         do_conversion ? ToJS(rets[0], sig_->GetReturn(), js_context) : rets[0];
@@ -277,7 +281,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
       if (wasmval.has_value()) {
         DCHECK_LE(sig_->return_count(), 1);
         if (sig_->return_count() == 0) {
-          return LOAD_ROOT(UndefinedValue);
+          DCHECK_NOT_NULL(isolate_);
+          return __ HeapConstant(isolate_->factory()->undefined_value());
         } else {  // sig_->return_count() == 1.
           return ToJS(wasmval.value(), sig_->GetReturn(), js_context);
         }

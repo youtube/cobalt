@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 rm{
     zoneStrings{
         "Africa:Addis_Ababa"{
@@ -180,9 +180,6 @@ rm{
         "Asia:Brunei"{
             ec{"Bandar Seri Begawan"}
         }
-        "Asia:Choibalsan"{
-            ec{"Tschoibalsan"}
-        }
         "Asia:Dushanbe"{
             ec{"Duschanbe"}
         }
@@ -313,14 +310,8 @@ rm{
         "Europe:Tirane"{
             ec{"Tirana"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Uschhorod"}
-        }
         "Europe:Warsaw"{
             ec{"Varsovia"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Saporischja"}
         }
         "Europe:Zurich"{
             ec{"Turitg"}

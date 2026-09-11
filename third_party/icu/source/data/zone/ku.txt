@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ku{
     zoneStrings{
         "Africa:Accra"{
@@ -26,9 +26,6 @@ ku{
         }
         "Africa:Djibouti"{
             ec{"Cibûtî"}
-        }
-        "Africa:Juba"{
-            ec{"Cuba"}
         }
         "Africa:Khartoum"{
             ec{"Xartûm"}
@@ -140,9 +137,6 @@ ku{
         }
         "Asia:Chita"{
             ec{"Çîta"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Çoybalsan"}
         }
         "Asia:Colombo"{
             ec{"Kolombo"}
@@ -324,7 +318,7 @@ ku{
             ld{"Saeta Standard a Îrlandayê"}
         }
         "Europe:Gibraltar"{
-            ec{"Gîbraltar"}
+            ec{"Cebelîtariq"}
         }
         "Europe:Helsinki"{
             ec{"Helsînkî"}
@@ -349,7 +343,7 @@ ku{
         }
         "Europe:London"{
             ec{"Londra"}
-            ld{"Saeta Havînê ya Birîtanyayê"}
+            ld{"Saeta Havînê ya Brîtanyayê"}
         }
         "Europe:Luxembourg"{
             ec{"Luksembûrg"}
@@ -402,9 +396,6 @@ ku{
         "Europe:Tirane"{
             ec{"Tîran"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Ujgorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatîkan"}
         }
@@ -417,9 +408,6 @@ ku{
         "Europe:Warsaw"{
             ec{"Warşova"}
         }
-        "Europe:Zaporozhye"{
-            ec{"Zaporojye"}
-        }
         "Europe:Zurich"{
             ec{"Zûrîh"}
         }
@@ -428,9 +416,6 @@ ku{
         }
         "Indian:Maldives"{
             ec{"Maldîv"}
-        }
-        "Pacific:Easter"{
-            ec{"Girava Paskalyayê"}
         }
         "Pacific:Fiji"{
             ec{"Fîjî"}
@@ -485,9 +470,9 @@ ku{
             ss{"SSR"}
         }
         "meta:America_Mountain"{
-            ld{"Saeta Havînê ya Çiyayî ya Amerîkaya Bakur"}
-            lg{"Saeta Çiyayî ya Amerîkaya Bakur"}
-            ls{"Saeta Standard a Çiyayî ya Amerîkaya Bakur"}
+            ld{"Saeta Havînê ya Çîyayî ya Amerîkaya Bakur"}
+            lg{"Saeta Çîyayî ya Amerîkaya Bakur"}
+            ls{"Saeta Standard a Çîyayî ya Amerîkaya Bakur"}
             sd{"SHÇ"}
             sg{"SÇ"}
             ss{"SSÇ"}
@@ -596,19 +581,14 @@ ku{
             ls{"Saeta Standard a Chathamê"}
         }
         "meta:Chile"{
-            ld{"Saeta Havînê ya Şîliyê"}
-            lg{"Saeta Şîliyê"}
-            ls{"Saeta Standard a Şîliyê"}
+            ld{"Saeta Havînê ya Şîlîyê"}
+            lg{"Saeta Şîlîyê"}
+            ls{"Saeta Standard a Şîlîyê"}
         }
         "meta:China"{
             ld{"Saeta Havînê ya Çînê"}
             lg{"Saeta Çînê"}
             ls{"Saeta Standard a Çînê"}
-        }
-        "meta:Choibalsan"{
-            ld{"Saeta Havînê ya Choibalsanê"}
-            lg{"Saeta Choibalsanê"}
-            ls{"Saeta Standard a Choibalsanê"}
         }
         "meta:Christmas"{
             ls{"Saeta Girava Christmasê"}
@@ -617,9 +597,9 @@ ku{
             ls{"Saeta Giravên Cocosê"}
         }
         "meta:Colombia"{
-            ld{"Saeta Havînê ya Kolombiyayê"}
-            lg{"Saeta Kolombiyayê"}
-            ls{"Saeta Standard a Kolombiyayê"}
+            ld{"Saeta Havînê ya Kolombîyayê"}
+            lg{"Saeta Kolombîyayê"}
+            ls{"Saeta Standard a Kolombîyayê"}
         }
         "meta:Cook"{
             ld{"Saeta Nîvhavînê ya Giravên Cookê"}
@@ -675,9 +655,9 @@ ku{
             ls{"Saeta Standard a Giravên Falklandê"}
         }
         "meta:Fiji"{
-            ld{"Saeta Havînê ya Fîjiyê"}
-            lg{"Saeta Fîjiyê"}
-            ls{"Saeta Standard a Fîjiyê"}
+            ld{"Saeta Havînê ya Fîjîyê"}
+            lg{"Saeta Fîjîyê"}
+            ls{"Saeta Standard a Fîjîyê"}
         }
         "meta:French_Guiana"{
             ls{"Saeta Guiyanaya Fransî"}
@@ -780,6 +760,9 @@ ku{
             lg{"Saeta Japonyayê"}
             ls{"Saeta Standard a Japonyayê"}
         }
+        "meta:Kazakhstan"{
+            ls{"Saeta Qazaxistanê"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Saeta Qazaxistana Rojhilat"}
         }
@@ -810,9 +793,6 @@ ku{
             lg{"Saeta Lord Howeyê"}
             ls{"Saeta Standard a Lord Howeyê"}
         }
-        "meta:Macquarie"{
-            ls{"Saeta Girava Macquarieyê"}
-        }
         "meta:Magadan"{
             ld{"Saeta Havînê ya Magadanê"}
             lg{"Saeta Magadanê"}
@@ -838,21 +818,10 @@ ku{
         "meta:Mawson"{
             ls{"Saeta Mawsonê"}
         }
-        "meta:Mexico_Northwest"{
-            ld{"Saeta Havînê ya Meksîkoya Bakurrojava"}
-            lg{"Saeta Meksîkoya Bakurrojava"}
-            ls{"Saeta Standard a Meksîkoya Bakurrojava"}
-            sd{"SHMBR"}
-            sg{"SMBR"}
-            ss{"SSMBR"}
-        }
         "meta:Mexico_Pacific"{
             ld{"Saeta Havînê ya Pasîfîka Meksîkayê"}
             lg{"Saeta Pasîfîka Meksîkayê"}
             ls{"Saeta Standard a Pasîfîka Meksîkayê"}
-            sd{"SHPM"}
-            sg{"SPM"}
-            ss{"SSPM"}
         }
         "meta:Mongolia"{
             ld{"Saeta Havînê ya Ûlanbatarê"}
@@ -947,9 +916,6 @@ ku{
             ld{"Saeta Havînê ya Saint Pierre û Miquelonê"}
             lg{"Saeta Saint Pierre û Miquelonê"}
             ls{"Saeta Standard a Saint Pierre û Miquelonê"}
-            sd{"SHSPM"}
-            sg{"SSPM"}
-            ss{"SSSPM"}
         }
         "meta:Pitcairn"{
             ls{"Saeta Pitcairnê"}
@@ -995,12 +961,12 @@ ku{
             ls{"Saeta Syowayê"}
         }
         "meta:Tahiti"{
-            ls{"Saeta Tahîtiyê"}
+            ls{"Saeta Tahîtîyê"}
         }
         "meta:Taipei"{
-            ld{"Saeta Havînê ya Taîpeiyê"}
-            lg{"Saeta Taîpeiyê"}
-            ls{"Saeta Standard a Taîpeiyê"}
+            ld{"Saeta Havînê ya Taîpeîyê"}
+            lg{"Saeta Taîpeîyê"}
+            ls{"Saeta Standard a Taîpeîyê"}
         }
         "meta:Tajikistan"{
             ls{"Saeta Tacikistanê"}
@@ -1077,6 +1043,6 @@ ku{
         }
         regionFormat{"Saeta {0}(y)ê"}
         regionFormatDaylight{"Saeta Havînê ya {0}(y)ê"}
-        regionFormatStandard{"Saeta Standard ya {0}(y)ê"}
+        regionFormatStandard{"Saeta Standard a {0}(y)ê"}
     }
 }

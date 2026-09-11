@@ -43,6 +43,7 @@
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/base/stack.h"
+#include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/code-range.h"
 #include "src/heap/code-stats.h"
@@ -1358,7 +1359,8 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   GCCallbackFlags gc_callback_flags =
       GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage;
 
-  if (gc_reason == GarbageCollectionReason::kLastResort) {
+  if (gc_reason == GarbageCollectionReason::kLastResort ||
+      gc_reason == GarbageCollectionReason::kExternalMemoryPressure) {
     gc_flags |= GCFlag::kLastResort;
     gc_callback_flags = static_cast<GCCallbackFlags>(
         gc_callback_flags | GCCallbackFlags::kGCCallbackFlagLastResort);
@@ -1781,6 +1783,11 @@ void Heap::CollectGarbage(AllocationSpace space,
 
 bool Heap::ReachedHeapLimit() { return !CanExpandOldGeneration(0); }
 
+bool Heap::HasConsecutiveIneffectiveMarkCompact() const {
+  return consecutive_ineffective_mark_compacts_.load(
+             std::memory_order_relaxed) > 0;
+}
+
 void Heap::CheckHeapLimitReached() {
   if (ReachedHeapLimit()) {
     InvokeNearHeapLimitCallback();
@@ -1903,7 +1910,8 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
 void Heap::StartIncrementalMarking(GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags,
-                                   GarbageCollector collector) {
+                                   GarbageCollector collector,
+                                   const char* reason) {
   DCHECK(incremental_marking()->IsStopped());
   CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
                 !isolate()->InFastCCall());
@@ -1947,7 +1955,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   current_gc_flags_ = gc_flags;
   current_gc_callback_flags_ = gc_callback_flags;
 
-  incremental_marking()->Start(collector, gc_reason);
+  incremental_marking()->Start(collector, gc_reason, reason);
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     DCHECK(incremental_marking()->IsMajorMarking());
@@ -2020,7 +2028,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
               OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
                   ? GarbageCollectionReason::kAllocationLimit
                   : GarbageCollectionReason::kGlobalAllocationLimit,
-              gc_callback_flags);
+              gc_callback_flags, GarbageCollector::MARK_COMPACTOR, reason);
         } else {
           ExecutionAccess access(isolate());
           isolate()->stack_guard()->RequestStartIncrementalMarking();
@@ -2196,6 +2204,11 @@ void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
 
     if (!ReachedHeapLimit()) {
       return;
+    }
+
+    if (v8_flags.ineffective_gcs_forces_last_resort &&
+        HasConsecutiveIneffectiveMarkCompact()) {
+      break;
     }
   }
 
@@ -2534,21 +2547,22 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   sweeper()->EnsurePageIsSwept(page);
 }
 
-Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits() {
+Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
+    LimitsComputationBoundaries boundaries, const char* caller) {
   DCHECK(!using_initial_limit());
   tracer()->RecordGCSizeCounters();
   const HeapGrowingMode mode = CurrentHeapGrowingMode();
-  std::optional<double> v8_gc_speed =
+  const std::optional<double> v8_gc_speed =
       tracer()->OldGenerationSpeedInBytesPerMillisecond();
-  double v8_mutator_speed =
+  const double v8_mutator_speed =
       tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond();
-  double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
+  const double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
       this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed, mode);
-  std::optional<double> embedder_gc_speed =
+  const std::optional<double> embedder_gc_speed =
       tracer()->EmbedderSpeedInBytesPerMillisecond();
-  double embedder_speed =
+  const double embedder_speed =
       tracer()->EmbedderAllocationThroughputInBytesPerMillisecond();
-  double embedder_growing_factor =
+  const double embedder_growing_factor =
       (embedder_gc_speed.has_value() && embedder_speed > 0)
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
                 this, max_global_memory_size_, embedder_gc_speed,
@@ -2570,24 +2584,27 @@ Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits() {
                 embedder_gc_speed.value_or(0.0));
 #endif
 
-  size_t new_old_generation_allocation_limit =
+  const size_t old_gen_consumed_bytes_at_last_gc =
+      OldGenerationConsumedBytesAtLastGC();
+  const size_t preliminary_old_generation_allocation_limit =
       MemoryController<V8HeapTrait>::BoundAllocationLimit(
-          this, OldGenerationConsumedBytesAtLastGC(),
-          OldGenerationConsumedBytesAtLastGC() * v8_growing_factor,
+          this, old_gen_consumed_bytes_at_last_gc,
+          old_gen_consumed_bytes_at_last_gc * v8_growing_factor,
           min_old_generation_size_, max_old_generation_size(),
           new_space_capacity, mode);
 
-  double global_growing_factor =
+  const double global_growing_factor =
       std::max(v8_growing_factor, embedder_growing_factor);
-  double external_growing_factor =
+  const double external_growing_factor =
       std::min(global_growing_factor,
                v8_flags.external_memory_max_growing_factor.value());
   DCHECK_GT(global_growing_factor, 0);
   DCHECK_GT(external_growing_factor, 0);
-  size_t new_global_allocation_limit =
+  const size_t global_consumed_bytes_at_last_gc = GlobalConsumedBytesAtLastGC();
+  const size_t preliminary_global_allocation_limit =
       MemoryController<GlobalMemoryTrait>::BoundAllocationLimit(
-          this, GlobalConsumedBytesAtLastGC(),
-          (OldGenerationConsumedBytesAtLastGC() + embedder_size_at_last_gc_) *
+          this, global_consumed_bytes_at_last_gc,
+          (old_gen_consumed_bytes_at_last_gc + embedder_size_at_last_gc_) *
                   global_growing_factor +
               (v8_flags.external_memory_accounted_in_global_limit
                    ? external_memory_.low_since_mark_compact() *
@@ -2596,7 +2613,57 @@ Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits() {
           min_global_memory_size_, max_global_memory_size_, new_space_capacity,
           mode);
 
-  return {new_old_generation_allocation_limit, new_global_allocation_limit};
+  // Now enforce provided boundaries on computed/preliminary limits.
+  const size_t next_old_generation_allocation_limit =
+      boundaries.bounded_old_generation_allocation_limit(
+          preliminary_old_generation_allocation_limit);
+  const size_t next_global_allocation_limit =
+      boundaries.bounded_global_allocation_limit(
+          preliminary_global_allocation_limit);
+
+  CHECK_GE(next_global_allocation_limit, next_old_generation_allocation_limit);
+
+  if (V8_UNLIKELY(v8_flags.trace_gc_verbose)) {
+    ::heap::base::UnsafeJsonEmitter json;
+
+    json.object_start()
+        .p("caller", caller)
+        .p("v8_gc_speed", v8_gc_speed.value_or(0))
+        .p("v8_mutator_speed", v8_mutator_speed)
+        .p("v8_growing_factor", v8_growing_factor)
+        .p("old_gen_allocation_limit", old_generation_allocation_limit())
+        .p("next_old_gen_allocation_limit",
+           next_old_generation_allocation_limit)
+        .p("preliminary_old_gen_allocation_limit",
+           preliminary_old_generation_allocation_limit)
+        .p("old_gen_consumed_bytes_at_last_gc",
+           old_gen_consumed_bytes_at_last_gc)
+        .p("global_gc_speed", embedder_gc_speed.value_or(0))
+        .p("global_mutator_speed", embedder_speed)
+        .p("global_growing_factor", embedder_growing_factor)
+        .p("global_allocation_limit", global_allocation_limit())
+        .p("new_global_allocation_limit", next_global_allocation_limit)
+        .p("preliminary_global_allocation_limit",
+           preliminary_global_allocation_limit)
+        .p("global_consumed_bytes_at_last_gc", global_consumed_bytes_at_last_gc)
+        .object_end();
+
+    std::string json_str = json.ToString();
+
+    isolate()->PrintWithTimestamp("UpdateAllocationLimits: %s\n",
+                                  json_str.c_str());
+
+#if defined(V8_USE_PERFETTO)
+    TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
+                         TRACE_EVENT_SCOPE_THREAD, "value",
+                         TRACE_STR_COPY(json_str.c_str()));
+#endif  // V8_USE_PERFETTO
+  }
+
+  SetOldGenerationAndGlobalAllocationLimit(next_old_generation_allocation_limit,
+                                           next_global_allocation_limit);
+
+  return {next_old_generation_allocation_limit, next_global_allocation_limit};
 }
 
 void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
@@ -2609,21 +2676,14 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     return;
   }
 
-  auto new_limits = ComputeNewAllocationLimits();
-  size_t new_old_generation_allocation_limit =
-      new_limits.old_generation_allocation_limit;
-  size_t new_global_allocation_limit = new_limits.global_allocation_limit;
-
   if (collector == GarbageCollector::MARK_COMPACTOR) {
+    const LimitsComputationResult new_limits = UpdateAllocationLimits({});
+
     if (v8_flags.memory_balancer) {
       // Now recompute the new allocation limit.
       mb_->RecomputeLimits(new_limits.global_allocation_limit -
                                new_limits.old_generation_allocation_limit,
                            time);
-    } else {
-      SetOldGenerationAndGlobalAllocationLimit(
-          new_limits.old_generation_allocation_limit,
-          new_limits.global_allocation_limit);
     }
 
     CheckIneffectiveMarkCompact(
@@ -2631,12 +2691,8 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
         tracer()->AverageMarkCompactMutatorUtilization());
   } else {
     DCHECK(HasLowYoungGenerationAllocationRate());
-    new_old_generation_allocation_limit = std::min(
-        new_old_generation_allocation_limit, old_generation_allocation_limit());
-    new_global_allocation_limit =
-        std::min(new_global_allocation_limit, global_allocation_limit());
-    SetOldGenerationAndGlobalAllocationLimit(
-        new_old_generation_allocation_limit, new_global_allocation_limit);
+    UpdateAllocationLimits(
+        LimitsComputationBoundaries::AtMostCurrentLimits(this));
   }
 
   CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
@@ -2673,19 +2729,8 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   set_using_initial_limit(false);
 
-  auto new_limits = ComputeNewAllocationLimits();
-  size_t new_old_generation_allocation_limit =
-      new_limits.old_generation_allocation_limit;
-  size_t new_global_allocation_limit = new_limits.global_allocation_limit;
-
-  new_old_generation_allocation_limit = std::max(
-      new_old_generation_allocation_limit, old_generation_allocation_limit());
-  new_global_allocation_limit =
-      std::max(new_global_allocation_limit, global_allocation_limit());
-  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
-                                           new_global_allocation_limit);
-
-  CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
+  UpdateAllocationLimits(
+      LimitsComputationBoundaries::AtLeastCurrentLimits(this));
 }
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
@@ -3199,6 +3244,11 @@ void* Heap::AllocateExternalBackingStore(
                      GarbageCollectionReason::kExternalMemoryPressure);
       result = allocate(byte_length);
       if (result) return result;
+
+      if (v8_flags.ineffective_gcs_forces_last_resort &&
+          HasConsecutiveIneffectiveMarkCompact()) {
+        break;
+      }
     }
     CollectAllAvailableGarbage(
         GarbageCollectionReason::kExternalMemoryPressure);
@@ -3557,21 +3607,26 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   if (v8_flags.enable_slow_asserts) {
     // Make sure the stack or other roots (e.g., Handles) don't contain pointers
     // to the original FixedArray (which is now the filler object).
-    std::optional<IsolateSafepointScope> safepoint_scope;
 
-    {
-      AllowGarbageCollection allow_gc;
-      safepoint_scope.emplace(this);
+    // Iterating roots forces us to safepoint here. The safepoint allows a
+    // shared GC here though, while the JSArray holding the pointer to that
+    // FixedArray is still pointing to the old object start. To fix this we only
+    // safepoint here when we can grab the lock without blocking. This means we
+    // can also only conditionally verify roots.
+    std::optional<IsolateSafepointScope> safepoint_scope =
+        safepoint()->ReachSafepointWithoutTriggeringGC();
+    CHECK_IMPLIES(!isolate()->has_shared_space(), safepoint_scope.has_value());
+
+    if (safepoint_scope.has_value()) {
+      LeftTrimmerVerifierRootVisitor root_visitor(object);
+      ReadOnlyRoots(this).Iterate(&root_visitor);
+
+      // Stale references are allowed in some locations. IterateRoots() uses
+      // ClearStaleLeftTrimmedPointerVisitor internally to clear such references
+      // beforehand.
+      IterateRoots(&root_visitor,
+                   base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
     }
-
-    LeftTrimmerVerifierRootVisitor root_visitor(object);
-    ReadOnlyRoots(this).Iterate(&root_visitor);
-
-    // Stale references are allowed in some locations. IterateRoots() uses
-    // ClearStaleLeftTrimmedPointerVisitor internally to clear such references
-    // beforehand.
-    IterateRoots(&root_visitor,
-                 base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
   }
 #endif  // ENABLE_SLOW_DCHECKS
 
@@ -3864,8 +3919,7 @@ void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
     consecutive_ineffective_mark_compacts_ = 0;
     return;
   }
-  ++consecutive_ineffective_mark_compacts_;
-  if (consecutive_ineffective_mark_compacts_ ==
+  if (++consecutive_ineffective_mark_compacts_ ==
       kMaxConsecutiveIneffectiveMarkCompacts) {
     if (InvokeNearHeapLimitCallback()) {
       // The callback increased the heap limit.
@@ -7719,10 +7773,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
   if (v8_flags.external_memory_accounted_in_global_limit) {
     if (!using_initial_limit()) {
-      auto new_limits = ComputeNewAllocationLimits();
-      SetOldGenerationAndGlobalAllocationLimit(
-          new_limits.old_generation_allocation_limit,
-          new_limits.global_allocation_limit);
+      UpdateAllocationLimits({});
     }
   }
 }

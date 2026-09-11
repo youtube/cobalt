@@ -1,5 +1,5 @@
 diff --git a/source/data/brkitr/ja.txt b/source/data/brkitr/ja.txt
-index 71f090da..b7b4b377 100644
+index f09c72444..6356d052e 100644
 --- a/source/data/brkitr/ja.txt
 +++ b/source/data/brkitr/ja.txt
 @@ -4,13 +4,6 @@ ja{
@@ -13,11 +13,11 @@ index 71f090da..b7b4b377 100644
 -        line_phrase:process(dependency){"line_phrase_cj.brk"}
 -        line_strict:process(dependency){"line.brk"}
 -        line_strict_phrase:process(dependency){"line_phrase_cj.brk"}
- 	word:process(dependency){"word_ja.brk"}
+         word:process(dependency){"word_ja.brk"}
      }
      extensions{
 diff --git a/source/data/brkitr/root.txt b/source/data/brkitr/root.txt
-index ef60ab6f..91697a40 100644
+index cb87c7ffc..24a280cc0 100644
 --- a/source/data/brkitr/root.txt
 +++ b/source/data/brkitr/root.txt
 @@ -5,11 +5,6 @@ root{

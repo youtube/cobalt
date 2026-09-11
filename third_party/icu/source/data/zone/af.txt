@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 af{
     zoneStrings{
         "Africa:Addis_Ababa"{
@@ -18,26 +18,14 @@ af{
         "Africa:Mogadishu"{
             ec{"Mogadisjoe"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
-        }
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
         }
         "America:Cambridge_Bay"{
             ec{"Cambridgebaai"}
         }
-        "America:Cancun"{
-            ec{"Cancun"}
-        }
         "America:Cayman"{
             ec{"Kaaiman"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Glace_Bay"{
             ec{"Glacebaai"}
@@ -47,9 +35,6 @@ af{
         }
         "America:Jamaica"{
             ec{"Jamaika"}
-        }
-        "America:Merida"{
-            ec{"Merida"}
         }
         "America:Mexico_City"{
             ec{"Meksikostad"}
@@ -63,14 +48,8 @@ af{
         "America:North_Dakota:New_Salem"{
             ec{"New Salem, Noord-Dakota"}
         }
-        "America:Rainy_River"{
-            ec{"Rainyrivier"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
-        }
         "America:St_Barthelemy"{
-            ec{"Sint Barthélemy"}
+            ec{"Sint Bartholomeus"}
         }
         "America:St_Johns"{
             ec{"Sint John’s"}
@@ -86,9 +65,6 @@ af{
         }
         "America:St_Vincent"{
             ec{"Sint Vincent"}
-        }
-        "America:Thunder_Bay"{
-            ec{"Thunderbaai"}
         }
         "Antarctica:Vostok"{
             ec{"Wostok"}
@@ -201,9 +177,6 @@ af{
         "Atlantic:St_Helena"{
             ec{"Sint Helena"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Etc:UTC"{
             ls{"Gekoördineerde universele tyd"}
         }
@@ -282,9 +255,6 @@ af{
         }
         "Indian:Maldives"{
             ec{"Maledive"}
-        }
-        "Indian:Reunion"{
-            ec{"Réunion"}
         }
         "Pacific:Easter"{
             ec{"Paas"}
@@ -464,11 +434,6 @@ af{
             lg{"China-tyd"}
             ls{"China-standaardtyd"}
         }
-        "meta:Choibalsan"{
-            ld{"Choibalsan-somertyd"}
-            lg{"Choibalsan-tyd"}
-            ls{"Choibalsan-standaardtyd"}
-        }
         "meta:Christmas"{
             ls{"Christmaseiland-tyd"}
         }
@@ -476,7 +441,7 @@ af{
             ls{"Kokoseilande-tyd"}
         }
         "meta:Colombia"{
-            ld{"Colombia-somertyd"}
+            ld{"Colombië-somertyd"}
             lg{"Colombië-tyd"}
             ls{"Colombië-standaardtyd"}
         }
@@ -632,6 +597,9 @@ af{
             lg{"Petropavlovsk-Kamchatski-tyd"}
             ls{"Petropavlovsk-Kamchatski-standaardtyd"}
         }
+        "meta:Kazakhstan"{
+            ls{"Kazakstan-tyd"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Oos-Kazakstan-tyd"}
         }
@@ -662,9 +630,6 @@ af{
             lg{"Lord Howe-tyd"}
             ls{"Lord Howe-standaardtyd"}
         }
-        "meta:Macquarie"{
-            ls{"Macquarie-eiland-tyd"}
-        }
         "meta:Magadan"{
             ld{"Magadan-somertyd"}
             lg{"Magadan-tyd"}
@@ -689,11 +654,6 @@ af{
         }
         "meta:Mawson"{
             ls{"Mawson-tyd"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Noordwes-Meksiko-dagligtyd"}
-            lg{"Noordwes-Meksiko-tyd"}
-            ls{"Noordwes-Meksiko-standaardtyd"}
         }
         "meta:Mexico_Pacific"{
             ld{"Meksikaanse Pasifiese dagligtyd"}

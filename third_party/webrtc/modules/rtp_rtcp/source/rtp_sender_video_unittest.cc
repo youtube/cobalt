@@ -1575,7 +1575,8 @@ class RtpSenderVideoWithFrameTransformerTest : public ::testing::Test {
             env_,
             {.outgoing_transport = &transport_,
              .retransmission_rate_limiter = &retransmission_rate_limiter_,
-             .local_media_ssrc = kSsrc}) {
+             .local_media_ssrc = kSsrc,
+             .rid = "myrid"}) {
     rtp_module_.SetSequenceNumber(kSeqNum);
     rtp_module_.SetStartTimestamp(0);
   }
@@ -1818,6 +1819,7 @@ TEST_F(RtpSenderVideoWithFrameTransformerTest,
                     transformable_frame.release()));
             ASSERT_TRUE(frame);
             auto metadata = frame->Metadata();
+            EXPECT_EQ(frame->Rid(), "myrid");
             EXPECT_EQ(metadata.GetWidth(), 1280u);
             EXPECT_EQ(metadata.GetHeight(), 720u);
             EXPECT_EQ(metadata.GetFrameId(), 10);

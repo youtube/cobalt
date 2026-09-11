@@ -3,6 +3,7 @@
 <translationbundle lang="vi">
 <translation id="1076643793026027628">Chrome tự động mở các đường liên kết ẩn danh của YouTube ở chế độ ẩn danh.</translation>
 <translation id="1086486568852410168">Tìm bằng Google Ống kính</translation>
+<translation id="1088490543924960890">Bắt đầu lưu khoá truy cập bằng Trình quản lý mật khẩu của Google</translation>
 <translation id="1143896152279775643">Mật khẩu của bạn sẽ được lưu vào Trình quản lý mật khẩu của Google cho <ph name="EMAIL" />.</translation>
 <translation id="1146503048444965320">Mở thẻ mới trong Chrome</translation>
 <translation id="1158134713295836892">Gemini trong Chrome</translation>
@@ -43,7 +44,7 @@ Những yếu tố cần xem xét:
 <translation id="1830634592642484976">Địa chỉ này hiện được lưu vào Chrome. Để sử dụng địa chỉ này trên các sản phẩm của Google, hãy lưu địa chỉ vào Tài khoản Google của bạn (<ph name="USER_EMAIL" />).</translation>
 <translation id="1891812034154776216">Ẩn thẻ ẩn danh đang mở khi bạn thoát Chrome</translation>
 <translation id="1894434821386148799">Bạn có thể tìm thấy các chế độ cài đặt của Chrome và nhiều chế độ cài đặt khác tại đây</translation>
-<translation id="1917964099031477364">Tài khoản này và mọi dữ liệu chưa lưu sẽ bị xóa khỏi Chrome cũng như các ứng dụng khác của Google trên thiết bị này.</translation>
+<translation id="1917964099031477364">Tài khoản này và mọi dữ liệu chưa lưu sẽ bị xoá khỏi Chrome cũng như các ứng dụng khác của Google trên thiết bị này.</translation>
 <translation id="1919130412786645364">Cho phép đăng nhập vào Chrome</translation>
 <translation id="1965935827552890526">Hoàn thành những việc bạn đang làm trong cửa sổ Chrome đang mở khác.</translation>
 <translation id="1966638102563776885">Mẹo dùng Chrome: Truy cập mật khẩu trong mọi ứng dụng</translation>
@@ -256,6 +257,7 @@ Dữ liệu của bạn được mã hoá bằng cụm mật khẩu. Nhập cụ
 <translation id="7371674917547846460">Luôn cập nhật các mẹo hữu ích về Chrome và nhiều thông tin khác.</translation>
 <translation id="7394108421562933108">Google Maps trên Chrome</translation>
 <translation id="7400722733683201933">Giới thiệu về Google Chrome</translation>
+<translation id="7444830584401232881">Khoá truy cập này sẽ được lưu vào Trình quản lý mật khẩu của Google cho <ph name="USER_EMAIL" /></translation>
 <translation id="7466693328838535498">Trong hộp Tiện ích Tìm kiếm, nhập Chrome</translation>
 <translation id="7477056987201678345">Đang xoá dữ liệu trên Chrome…</translation>
 <translation id="7492574581995589075">Tổ chức của bạn đã tắt tính năng sử dụng và lưu dữ liệu Chrome vào Tài khoản Google. Dấu trang, mật khẩu mới và các nội dung khác sẽ chỉ được lưu trên thiết bị này.</translation>

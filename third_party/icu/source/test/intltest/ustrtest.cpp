@@ -6,6 +6,8 @@
  * others. All Rights Reserved.
  ********************************************************************/
 
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include "ustrtest.h"
@@ -21,6 +23,13 @@
 #include "unicode/utf16.h"
 #include "cmemory.h"
 #include "charstr.h"
+
+// Makes u"literal"sv std::u16string_view literals possible.
+// https://en.cppreference.com/w/cpp/string/basic_string_view/operator%22%22sv
+using namespace std::string_view_literals;
+
+// Same for u"literal"s std::u16string literals.
+using namespace std::string_literals;
 
 #if 0
 #include "unicode/ustream.h"
@@ -69,6 +78,8 @@ void UnicodeStringTest::runIndexedTest( int32_t index, UBool exec, const char* &
     TESTCASE_AUTO(TestUnicodeStringInsertAppendToSelf);
     TESTCASE_AUTO(TestLargeAppend);
     TESTCASE_AUTO(TestLargeMemory);
+    TESTCASE_AUTO(TestU16StringView);
+    TESTCASE_AUTO(TestWStringView);
     TESTCASE_AUTO_END;
 }
 
@@ -121,28 +132,28 @@ UnicodeStringTest::TestBasicManipulation()
         errln(UnicodeString("length() failed: expected 30, got ") + test2.length());
 
     UnicodeString test3;
-    test3.append((UChar32)0x20402);
+    test3.append(static_cast<UChar32>(0x20402));
     if(test3 != CharsToUnicodeString("\\uD841\\uDC02")){
-        errln((UnicodeString)"append failed for UChar32, expected \"\\\\ud841\\\\udc02\", got " + prettify(test3));
+        errln(UnicodeString("append failed for UChar32, expected \"\\\\ud841\\\\udc02\", got ") + prettify(test3));
     }
     if(test3.length() != 2){
         errln(UnicodeString("append or length failed for UChar32, expected 2, got ") + test3.length());
     }
-    test3.append((UChar32)0x0074);
+    test3.append(static_cast<UChar32>(0x0074));
     if(test3 != CharsToUnicodeString("\\uD841\\uDC02t")){
-        errln((UnicodeString)"append failed for UChar32, expected \"\\\\uD841\\\\uDC02t\", got " + prettify(test3));
+        errln(UnicodeString("append failed for UChar32, expected \"\\\\uD841\\\\uDC02t\", got ") + prettify(test3));
     }
     if(test3.length() != 3){
-        errln((UnicodeString)"append or length failed for UChar32, expected 2, got " + test3.length());
+        errln(UnicodeString("append or length failed for UChar32, expected 2, got ") + test3.length());
     }
 
     // test some UChar32 overloads
-    if( test3.setTo((UChar32)0x10330).length() != 2 ||
-        test3.insert(0, (UChar32)0x20100).length() != 4 ||
-        test3.replace(2, 2, (UChar32)0xe0061).length() != 4 ||
-        (test3 = (UChar32)0x14001).length() != 2
+    if (test3.setTo(static_cast<UChar32>(0x10330)).length() != 2 ||
+        test3.insert(0, static_cast<UChar32>(0x20100)).length() != 4 ||
+        test3.replace(2, 2, static_cast<UChar32>(0xe0061)).length() != 4 ||
+        (test3 = static_cast<UChar32>(0x14001)).length() != 2
     ) {
-        errln((UnicodeString)"simple UChar32 overloads for replace, insert, setTo or = failed");
+        errln(UnicodeString("simple UChar32 overloads for replace, insert, setTo or = failed"));
     }
 
     {
@@ -227,7 +238,7 @@ UnicodeStringTest::TestBasicManipulation()
             errln("UnicodeString(buffer without NUL, length, capacity) does not work with length==-1");
         }
 
-        static const char cs[]={ 0x61, (char)0xe4, (char)0x85, 0 };
+        static const char cs[] = { 0x61, static_cast<char>(0xe4), static_cast<char>(0x85), 0 };
         UConverter *cnv;
         UErrorCode errorCode=U_ZERO_ERROR;
 
@@ -244,18 +255,18 @@ UnicodeStringTest::TestBasicManipulation()
         // Test the hardcoded-UTF-8 UnicodeString optimizations.
         static const uint8_t utf8[]={ 0x61, 0xC3, 0xA4, 0xC3, 0x9F, 0xE4, 0xB8, 0x80, 0 };
         static const char16_t utf16[]={ 0x61, 0xE4, 0xDF, 0x4E00 };
-        UnicodeString from8a = UnicodeString((const char *)utf8);
-        UnicodeString from8b = UnicodeString((const char *)utf8, (int32_t)sizeof(utf8)-1);
+        UnicodeString from8a = UnicodeString(reinterpret_cast<const char*>(utf8));
+        UnicodeString from8b = UnicodeString(reinterpret_cast<const char*>(utf8), static_cast<int32_t>(sizeof(utf8)) - 1);
         UnicodeString from16(false, utf16, UPRV_LENGTHOF(utf16));
         if(from8a != from16 || from8b != from16) {
             errln("UnicodeString(const char * U_CHARSET_IS_UTF8) failed");
         }
         char buffer[16];
-        int32_t length8=from16.extract(0, 0x7fffffff, buffer, (uint32_t)sizeof(buffer));
-        if(length8!=((int32_t)sizeof(utf8)-1) || 0!=uprv_memcmp(buffer, utf8, sizeof(utf8))) {
+        int32_t length8 = from16.extract(0, 0x7fffffff, buffer, static_cast<uint32_t>(sizeof(buffer)));
+        if (length8 != (static_cast<int32_t>(sizeof(utf8)) - 1) || 0 != uprv_memcmp(buffer, utf8, sizeof(utf8))) {
             errln("UnicodeString::extract(char * U_CHARSET_IS_UTF8) failed");
         }
-        length8=from16.extract(1, 2, buffer, (uint32_t)sizeof(buffer));
+        length8 = from16.extract(1, 2, buffer, static_cast<uint32_t>(sizeof(buffer)));
         if(length8!=4 || buffer[length8]!=0 || 0!=uprv_memcmp(buffer, utf8+1, length8)) {
             errln("UnicodeString::extract(substring to char * U_CHARSET_IS_UTF8) failed");
         }
@@ -271,8 +282,8 @@ UnicodeStringTest::TestCompare()
     UnicodeString   test3("this is a test of the emergency broadcast system");
     UnicodeString   test4("never say, \"this is a test\"!!");
 
-    UnicodeString   test5((char16_t)0x5000);
-    UnicodeString   test6((char16_t)0x5100);
+    UnicodeString test5(static_cast<char16_t>(0x5000));
+    UnicodeString test6(static_cast<char16_t>(0x5100));
 
     char16_t      uniChars[] = { 0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73,
                  0x20, 0x61, 0x20, 0x74, 0x65, 0x73, 0x74, 0 };
@@ -504,19 +515,19 @@ UnicodeStringTest::TestExtract()
     }
 
     for (int32_t i = 0; i < 12; i++) {
-        if (test1.charAt((int32_t)(11 + i)) != test2.charAt(i)) {
+        if (test1.charAt(static_cast<int32_t>(11 + i)) != test2.charAt(i)) {
             errln(UnicodeString("extracting into a UnicodeString failed at position ") + i);
             break;
         }
-        if (test1.charAt((int32_t)(11 + i)) != test3[i]) {
+        if (test1.charAt(static_cast<int32_t>(11 + i)) != test3[i]) {
             errln(UnicodeString("extracting into an array of char16_t failed at position ") + i);
             break;
         }
-        if (((char)test1.charAt((int32_t)(11 + i))) != test4b.charAt(i)) {
+        if (static_cast<char>(test1.charAt(static_cast<int32_t>(11 + i))) != test4b.charAt(i)) {
             errln(UnicodeString("extracting into an array of char failed at position ") + i);
             break;
         }
-        if (test1.charAt((int32_t)(11 + i)) != test5.charAt(i)) {
+        if (test1.charAt(static_cast<int32_t>(11 + i)) != test5.charAt(i)) {
             errln(UnicodeString("extracting with extractBetween failed at position ") + i);
             break;
         }
@@ -527,11 +538,11 @@ UnicodeStringTest::TestExtract()
         errln("UnicodeString.extract(0, 10, (char *)nullptr, \"\") != 10");
     }
 
-    test4[2] = (char)0xff;
+    test4[2] = static_cast<char>(0xff);
     if (test1.extract(0, 10, test4, 2, "") != 10) {
         errln("UnicodeString.extract(0, 10, test4, 2, \"\") != 10");
     }
-    if (test4[2] != (char)0xff) {
+    if (test4[2] != static_cast<char>(0xff)) {
         errln("UnicodeString.extract(0, 10, test4, 2, \"\") overwrote test4[2]");
     }
 
@@ -584,10 +595,10 @@ UnicodeStringTest::TestExtract()
         UnicodeString s=UNICODE_STRING("\\U0002f999\\U0001d15f\\u00c4\\u1ed0", 32).unescape();
         char buffer[32];
         static const char expect[]={
-            (char)0xf0, (char)0xaf, (char)0xa6, (char)0x99,
-            (char)0xf0, (char)0x9d, (char)0x85, (char)0x9f,
-            (char)0xc3, (char)0x84,
-            (char)0xe1, (char)0xbb, (char)0x90
+            static_cast<char>(0xf0), static_cast<char>(0xaf), static_cast<char>(0xa6), static_cast<char>(0x99),
+            static_cast<char>(0xf0), static_cast<char>(0x9d), static_cast<char>(0x85), static_cast<char>(0x9f),
+            static_cast<char>(0xc3), static_cast<char>(0x84),
+            static_cast<char>(0xe1), static_cast<char>(0xbb), static_cast<char>(0x90)
         };
         UErrorCode errorCode=U_ZERO_ERROR;
         UConverter *cnv=ucnv_open("UTF-8", &errorCode);
@@ -749,7 +760,7 @@ UnicodeStringTest::TestSearching()
           (startPos = test3.indexOf(test4, startPos)) != -1 ? (++occurrences, startPos += 2) : 0)
         ;
     if (occurrences != 4)
-        errln((UnicodeString)"indexOf failed: expected to find 4 occurrences, found " + occurrences);
+        errln(UnicodeString("indexOf failed: expected to find 4 occurrences, found ") + occurrences);
 
     for ( startPos=10, occurrences=0;
           startPos != -1 && startPos < test3.length();
@@ -793,14 +804,14 @@ UnicodeStringTest::TestSearching()
         subString.remove();
     }
     if (occurrences != 14)
-        errln((UnicodeString)"indexOf failed: expected to find 14 occurrences, found " + occurrences);
+        errln(UnicodeString("indexOf failed: expected to find 14 occurrences, found ") + occurrences);
 
     for ( occurrences = 0, startPos = 0;
           startPos != -1 && startPos < test3.length();
           (startPos = test3.indexOf(testChar32, startPos)) != -1 ? (++occurrences, startPos += 1) : 0)
         ;
     if (occurrences != 4)
-        errln((UnicodeString)"indexOf failed: expected to find 4 occurrences, found " + occurrences);
+        errln(UnicodeString("indexOf failed: expected to find 4 occurrences, found ") + occurrences);
      
     endPos=test3.length();
     for ( occurrences = 0, startPos = 5;
@@ -808,7 +819,7 @@ UnicodeStringTest::TestSearching()
           (startPos = test3.indexOf(testChar32, startPos, endPos - startPos)) != -1 ? (++occurrences, startPos += 1) : 0)
         ;
     if (occurrences != 3)
-        errln((UnicodeString)"indexOf with character & start & end offsets failed: expected to find 2 occurrences, found " + occurrences);
+        errln(UnicodeString("indexOf with character & start & end offsets failed: expected to find 2 occurrences, found ") + occurrences);
     //---
 
     if(test1.lastIndexOf(test2)!=29) {
@@ -842,7 +853,7 @@ UnicodeStringTest::TestSearching()
           (startPos = test3.lastIndexOf(testChar32, 5, startPos - 5)) != -1 ? ++occurrences : 0)
         ;
     if (occurrences != 3)
-        errln((UnicodeString)"lastIndexOf with character & start & end offsets failed: expected to find 3 occurrences, found " + occurrences);
+        errln(UnicodeString("lastIndexOf with character & start & end offsets failed: expected to find 3 occurrences, found ") + occurrences);
 
 
     for ( occurrences = 0, endPos = test3.length();  endPos > 0; endPos -= 1){
@@ -853,20 +864,20 @@ UnicodeStringTest::TestSearching()
         }
     }
     if (occurrences != 18)
-        errln((UnicodeString)"indexOf failed: expected to find 18 occurrences, found " + occurrences);
+        errln(UnicodeString("indexOf failed: expected to find 18 occurrences, found ") + occurrences);
     //---
 
     // test that indexOf(UChar32) and lastIndexOf(UChar32)
     // do not find surrogate code points when they are part of matched pairs
     // (= part of supplementary code points)
     // Jitterbug 1542
-    if(test3.indexOf((UChar32)0xd841) != 4 || test3.indexOf((UChar32)0xdc02) != 3) {
+    if (test3.indexOf(static_cast<UChar32>(0xd841)) != 4 || test3.indexOf(static_cast<UChar32>(0xdc02)) != 3) {
         errln("error: UnicodeString::indexOf(UChar32 surrogate) finds a partial supplementary code point");
     }
-    if( UnicodeString(test3, 0, 17).lastIndexOf((char16_t)0xd841, 0) != 4 ||
-        UnicodeString(test3, 0, 17).lastIndexOf((UChar32)0xd841, 2) != 4 ||
-        test3.lastIndexOf((UChar32)0xd841, 0, 17) != 4 || test3.lastIndexOf((UChar32)0xdc02, 0, 17) != 16
-    ) {
+    if (UnicodeString(test3, 0, 17).lastIndexOf(static_cast<char16_t>(0xd841), 0) != 4 ||
+        UnicodeString(test3, 0, 17).lastIndexOf(static_cast<UChar32>(0xd841), 2) != 4 ||
+        test3.lastIndexOf(static_cast<UChar32>(0xd841), 0, 17) != 4 ||
+        test3.lastIndexOf(static_cast<UChar32>(0xdc02), 0, 17) != 16) {
         errln("error: UnicodeString::lastIndexOf(UChar32 surrogate) finds a partial supplementary code point");
     }
 }
@@ -1055,12 +1066,12 @@ UnicodeStringTest::TestMiscellaneous()
         errln("UnicodeString::getBuffer(20).getCapacity()<20");
     }
 
-    test1.append((char16_t)7); // must not be able to modify the string here
+    test1.append(static_cast<char16_t>(7)); // must not be able to modify the string here
     test1.setCharAt(3, 7);
     test1.reverse();
-    if( test1.length()!=0 ||
-        test1.charAt(0)!=0xffff || test1.charAt(3)!=0xffff ||
-        test1.getBuffer(10)!=0 || test1.getBuffer()!=0
+    if (test1.length() != 0 ||
+        test1.charAt(0) != 0xffff || test1.charAt(3) != 0xffff ||
+        test1.getBuffer(10) != nullptr || test1.getBuffer() != nullptr
     ) {
         errln("UnicodeString::getBuffer(minCapacity) allows read or write access to the UnicodeString");
     }
@@ -1069,7 +1080,7 @@ UnicodeStringTest::TestMiscellaneous()
     p[1]=2;
     p[2]=3;
     test1.releaseBuffer(3);
-    test1.append((char16_t)4);
+    test1.append(static_cast<char16_t>(4));
 
     if(test1.length()!=4 || test1.charAt(0)!=1 || test1.charAt(1)!=2 || test1.charAt(2)!=3 || test1.charAt(3)!=4) {
         errln("UnicodeString::releaseBuffer(newLength) does not properly reallow access to the UnicodeString");
@@ -1100,7 +1111,7 @@ UnicodeStringTest::TestMiscellaneous()
     // test releaseBuffer() with a non-NUL-terminated buffer
     p=test1.getBuffer(256);
     for(int32_t i=0; i<test1.getCapacity(); ++i) {
-        p[i]=(char16_t)1;      // fill the buffer with all non-NUL code units
+        p[i] = static_cast<char16_t>(1); // fill the buffer with all non-NUL code units
     }
     test1.releaseBuffer();  // implicit -1
     if(test1.length()!=test1.getCapacity() || test1.charAt(1)!=1 || test1.charAt(100)!=1 || test1.charAt(test1.getCapacity()-1)!=1) {
@@ -1144,7 +1155,7 @@ UnicodeStringTest::TestMiscellaneous()
     assertEquals("UnicodeString::insert(start, const char16_t *, length) failed",
         u"la dudum hm lila", test1);
 
-    test1.replace(9, 2, (char16_t)0x2b);
+    test1.replace(9, 2, static_cast<char16_t>(0x2b));
     assertEquals("UnicodeString::replace(start, length, char16_t) failed",
         u"la dudum + lila", test1);
 
@@ -1191,7 +1202,7 @@ UnicodeStringTest::TestStackAllocation()
     char16_t        testString[] ={
         0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x63, 0x72, 0x61, 0x7a, 0x79, 0x20, 0x74, 0x65, 0x73, 0x74, 0x2e, 0 };
     char16_t        guardWord = 0x4DED;
-    UnicodeString*  test = 0;
+    UnicodeString* test = nullptr;
 
     test = new  UnicodeString(testString);
     if (*test != "This is a crazy test.")
@@ -1285,13 +1296,13 @@ UnicodeStringTest::TestStackAllocation()
     test->setTo(buffer, 4, 10);
     if(test->length() !=4 || test->charAt(0) != 0x0061 || test->charAt(1) != 0x0062 ||
         test->charAt(2) != 0x20ac || test->charAt(3) != 0x0043){
-        errln((UnicodeString)"UnicodeString.setTo(char16_t*, length, capacity) does not work correctly\n" + prettify(*test));
+        errln(UnicodeString("UnicodeString.setTo(char16_t*, length, capacity) does not work correctly\n") + prettify(*test));
     }
     delete test;
 
 
     // test the UChar32 constructor
-    UnicodeString c32Test((UChar32)0x10ff2a);
+    UnicodeString c32Test(static_cast<UChar32>(0x10ff2a));
     if( c32Test.length() != U16_LENGTH(0x10ff2a) ||
         c32Test.char32At(c32Test.length() - 1) != 0x10ff2a
     ) {
@@ -1299,7 +1310,7 @@ UnicodeStringTest::TestStackAllocation()
     }
 
     // test the (new) capacity constructor
-    UnicodeString capTest(5, (UChar32)0x2a, 5);
+    UnicodeString capTest(5, static_cast<UChar32>(0x2a), 5);
     if( capTest.length() != 5 * U16_LENGTH(0x2a) ||
         capTest.char32At(0) != 0x2a ||
         capTest.char32At(4) != 0x2a
@@ -1307,7 +1318,7 @@ UnicodeStringTest::TestStackAllocation()
         errln("The UnicodeString capacity constructor does not work with an ASCII filler");
     }
 
-    capTest = UnicodeString(5, (UChar32)0x10ff2a, 5);
+    capTest = UnicodeString(5, static_cast<UChar32>(0x10ff2a), 5);
     if( capTest.length() != 5 * U16_LENGTH(0x10ff2a) ||
         capTest.char32At(0) != 0x10ff2a ||
         capTest.char32At(4) != 0x10ff2a
@@ -1315,7 +1326,7 @@ UnicodeStringTest::TestStackAllocation()
         errln("The UnicodeString capacity constructor does not work with a 0x10ff2a filler");
     }
 
-    capTest = UnicodeString(5, (UChar32)0, 0);
+    capTest = UnicodeString(5, static_cast<UChar32>(0), 0);
     if(capTest.length() != 0) {
         errln("The UnicodeString capacity constructor does not work with a 0x10ff2a filler");
     }
@@ -1327,14 +1338,14 @@ UnicodeStringTest::TestStackAllocation()
 void UnicodeStringTest::TestUnescape() {
     UnicodeString IN("abc\\u4567 \\n\\r \\U00101234xyz\\x1\\x{5289}\\x1b", -1, US_INV);
     UnicodeString OUT("abc");
-    OUT.append((char16_t)0x4567);
+    OUT.append(static_cast<char16_t>(0x4567));
     OUT.append(" ");
-    OUT.append((char16_t)0xA);
-    OUT.append((char16_t)0xD);
+    OUT.append(static_cast<char16_t>(0xA));
+    OUT.append(static_cast<char16_t>(0xD));
     OUT.append(" ");
-    OUT.append((UChar32)0x00101234);
+    OUT.append(static_cast<UChar32>(0x00101234));
     OUT.append("xyz");
-    OUT.append((UChar32)1).append((UChar32)0x5289).append((char16_t)0x1b);
+    OUT.append(static_cast<UChar32>(1)).append(static_cast<UChar32>(0x5289)).append(static_cast<char16_t>(0x1b));
     UnicodeString result = IN.unescape();
     if (result != OUT) {
         errln("FAIL: " + prettify(IN) + ".unescape() -> " +
@@ -1467,7 +1478,7 @@ UnicodeStringTest::TestBogus() {
     if (test1.hashCode() != test2.hashCode() || test1.hashCode() == test3.hashCode()) {
         errln("hashCode() failed");
     }
-    if(test3.getBuffer()!=0 || test3.getBuffer(20)!=0 || test3.getTerminatedBuffer()!=0) {
+    if (test3.getBuffer() != nullptr || test3.getBuffer(20) != nullptr || test3.getTerminatedBuffer() != nullptr) {
         errln("bogus.getBuffer()!=0");
     }
     if (test1.indexOf(test3) != -1) {
@@ -1485,26 +1496,26 @@ UnicodeStringTest::TestBogus() {
 
     // verify that non-assignment modifications fail and do not revive a bogus string
     test3.setToBogus();
-    test3.append((char16_t)0x61);
-    if(!test3.isBogus() || test3.getBuffer()!=0) {
+    test3.append(static_cast<char16_t>(0x61));
+    if (!test3.isBogus() || test3.getBuffer() != nullptr) {
         errln("bogus.append('a') worked but must not");
     }
 
     test3.setToBogus();
-    test3.findAndReplace(UnicodeString((char16_t)0x61), test2);
-    if(!test3.isBogus() || test3.getBuffer()!=0) {
+    test3.findAndReplace(UnicodeString(static_cast<char16_t>(0x61)), test2);
+    if (!test3.isBogus() || test3.getBuffer() != nullptr) {
         errln("bogus.findAndReplace() worked but must not");
     }
 
     test3.setToBogus();
     test3.trim();
-    if(!test3.isBogus() || test3.getBuffer()!=0) {
+    if (!test3.isBogus() || test3.getBuffer() != nullptr) {
         errln("bogus.trim() revived bogus but must not");
     }
 
     test3.setToBogus();
     test3.remove(1);
-    if(!test3.isBogus() || test3.getBuffer()!=0) {
+    if (!test3.isBogus() || test3.getBuffer() != nullptr) {
         errln("bogus.remove(1) revived bogus but must not");
     }
 
@@ -1550,12 +1561,12 @@ UnicodeStringTest::TestBogus() {
     }
 
     test3.setToBogus();
-    if(!test3.isBogus() || test3.setTo((char16_t)0x2028).isBogus() || test3!=UnicodeString((char16_t)0x2028)) {
+    if (!test3.isBogus() || test3.setTo(static_cast<char16_t>(0x2028)).isBogus() || test3 != UnicodeString(static_cast<char16_t>(0x2028))) {
         errln("bogus.setTo(char16_t) failed");
     }
 
     test3.setToBogus();
-    if(!test3.isBogus() || test3.setTo((UChar32)0x1d157).isBogus() || test3!=UnicodeString((UChar32)0x1d157)) {
+    if (!test3.isBogus() || test3.setTo(static_cast<UChar32>(0x1d157)).isBogus() || test3 != UnicodeString(static_cast<UChar32>(0x1d157))) {
         errln("bogus.setTo(UChar32) failed");
     }
 
@@ -1585,12 +1596,12 @@ UnicodeStringTest::TestBogus() {
     }
 
     test3.setToBogus();
-    if(test3.remove().isBogus() || test3.getBuffer()==0 || !test3.isEmpty()) {
+    if (test3.remove().isBogus() || test3.getBuffer() == nullptr || !test3.isEmpty()) {
         errln("bogus.remove() failed");
     }
 
     test3.setToBogus();
-    if(test3.remove(0, INT32_MAX).isBogus() || test3.getBuffer()==0 || !test3.isEmpty()) {
+    if (test3.remove(0, INT32_MAX).isBogus() || test3.getBuffer() == nullptr || !test3.isEmpty()) {
         errln("bogus.remove(0, INT32_MAX) failed");
     }
 
@@ -1600,7 +1611,7 @@ UnicodeStringTest::TestBogus() {
     }
 
     test3.setToBogus();
-    if(!test3.isBogus() || test3.setTo((UChar32)-1).isBogus() || !test3.isEmpty()) {
+    if (!test3.isBogus() || test3.setTo(static_cast<UChar32>(-1)).isBogus() || !test3.isEmpty()) {
         errln("bogus.setTo((UChar32)-1) failed");
     }
 
@@ -1612,7 +1623,7 @@ UnicodeStringTest::TestBogus() {
     }
 
     test3.setToBogus();
-    if(!test3.isBogus() || test3.getBuffer()!=0) {
+    if (!test3.isBogus() || test3.getBuffer() != nullptr) {
         errln("setToBogus() failed to make a string bogus");
     }
 
@@ -1623,7 +1634,7 @@ UnicodeStringTest::TestBogus() {
 
     // test that nullptr primitive input string values are treated like
     // empty strings, not errors (bogus)
-    test2.setTo((UChar32)0x10005);
+    test2.setTo(static_cast<UChar32>(0x10005));
     if(test2.insert(1, nullptr, 1).length()!=2) {
         errln("UniStr.insert(...nullptr...) should not modify the string but does");
     }
@@ -1670,7 +1681,9 @@ UnicodeStringTest::TestBogus() {
 // most of StringEnumeration is tested elsewhere
 // this test improves code coverage
 
-static const char *const
+namespace {
+
+const char* const
 testEnumStrings[]={
     "a",
     "b",
@@ -1678,6 +1691,8 @@ testEnumStrings[]={
     "this is a long string which helps us test some buffer limits",
     "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 };
+
+}  // namespace
 
 class TestEnumeration : public StringEnumeration {
 public:
@@ -1874,6 +1889,8 @@ UnicodeStringTest::TestUTF32() {
     }
 }
 
+namespace {
+
 class TestCheckedArrayByteSink : public CheckedArrayByteSink {
 public:
     TestCheckedArrayByteSink(char* outbuf, int32_t capacity)
@@ -1881,6 +1898,8 @@ public:
     virtual void Flush() override { calledFlush = true; }
     UBool calledFlush;
 };
+
+}  // namespace
 
 void
 UnicodeStringTest::TestUTF8() {
@@ -1907,13 +1926,13 @@ UnicodeStringTest::TestUTF8() {
         0xd800, 0xdc00, 0xd840, 0xdc00,
         0xdb40, 0xdc00, 0xdbff, 0xdfff
     };
-    UnicodeString from8 = UnicodeString::fromUTF8(StringPiece((const char *)utf8, (int32_t)sizeof(utf8)));
+    UnicodeString from8 = UnicodeString::fromUTF8(StringPiece(reinterpret_cast<const char*>(utf8), static_cast<int32_t>(sizeof(utf8))));
     UnicodeString expected(false, expected_utf16, UPRV_LENGTHOF(expected_utf16));
 
     if(from8 != expected) {
         errln("UnicodeString::fromUTF8(StringPiece) did not create the expected string.");
     }
-    std::string utf8_string((const char *)utf8, sizeof(utf8));
+    std::string utf8_string(reinterpret_cast<const char*>(utf8), sizeof(utf8));
     UnicodeString from8b = UnicodeString::fromUTF8(utf8_string);
     if(from8b != expected) {
         errln("UnicodeString::fromUTF8(std::string) did not create the expected string.");
@@ -1929,9 +1948,9 @@ UnicodeStringTest::TestUTF8() {
     UnicodeString us(false, utf16, UPRV_LENGTHOF(utf16));
 
     char buffer[64];
-    TestCheckedArrayByteSink sink(buffer, (int32_t)sizeof(buffer));
+    TestCheckedArrayByteSink sink(buffer, static_cast<int32_t>(sizeof(buffer)));
     us.toUTF8(sink);
-    if( sink.NumberOfBytesWritten() != (int32_t)sizeof(expected_utf8) ||
+    if (sink.NumberOfBytesWritten() != static_cast<int32_t>(sizeof(expected_utf8)) ||
         0 != uprv_memcmp(buffer, expected_utf8, sizeof(expected_utf8))
     ) {
         errln("UnicodeString::toUTF8() did not create the expected string.");
@@ -1941,7 +1960,7 @@ UnicodeStringTest::TestUTF8() {
     }
     // Initial contents for testing that toUTF8String() appends.
     std::string result8 = "-->";
-    std::string expected8 = "-->" + std::string((const char *)expected_utf8, sizeof(expected_utf8));
+    std::string expected8 = "-->" + std::string(reinterpret_cast<const char*>(expected_utf8), sizeof(expected_utf8));
     // Use the return value just for testing.
     std::string &result8r = us.toUTF8String(result8);
     if(result8r != expected8 || &result8r != &result8) {
@@ -2070,7 +2089,7 @@ UnicodeStringTest::doTestAppendable(UnicodeString &dest, Appendable &app) {
     int32_t capacity=-1;
     char16_t *buffer=app.getAppendBuffer(3, 3, scratch, 3, &capacity);
     if(capacity<3) {
-        errln("Appendable.getAppendBuffer(min=3) returned capacity=%d<3", (int)capacity);
+        errln("Appendable.getAppendBuffer(min=3) returned capacity=%d<3", static_cast<int>(capacity));
         return;
     }
     static const char16_t hij[3]={ 0x68, 0x69, 0x6a };
@@ -2123,19 +2142,19 @@ UnicodeStringTest::TestSizeofUnicodeString() {
         // Possible cause: UNISTR_OBJECT_SIZE may not be a multiple of sizeof(pointer),
         // of the compiler might add more internal padding than expected.
         errln("sizeof(UnicodeString)=%d, expected UNISTR_OBJECT_SIZE=%d",
-              (int)sizeofUniStr, (int)expected);
+              static_cast<int>(sizeofUniStr), static_cast<int>(expected));
     }
     if(sizeofUniStr<32) {
-        errln("sizeof(UnicodeString)=%d < 32, probably too small", (int)sizeofUniStr);
+        errln("sizeof(UnicodeString)=%d < 32, probably too small", static_cast<int>(sizeofUniStr));
     }
     // We assume that the entire UnicodeString object,
     // minus the vtable pointer and 2 bytes for flags and short length,
     // is available for internal storage of UChars.
-    int32_t expectedStackBufferLength=((int32_t)UNISTR_OBJECT_SIZE-sizeof(void *)-2)/U_SIZEOF_UCHAR;
+    int32_t expectedStackBufferLength = (static_cast<int32_t>(UNISTR_OBJECT_SIZE) - sizeof(void*) - 2) / U_SIZEOF_UCHAR;
     UnicodeString s;
     const char16_t *emptyBuffer=s.getBuffer();
     for(int32_t i=0; i<expectedStackBufferLength; ++i) {
-        s.append((char16_t)0x2e);
+        s.append(static_cast<char16_t>(0x2e));
     }
     const char16_t *fullBuffer=s.getBuffer();
     if(fullBuffer!=emptyBuffer) {
@@ -2149,10 +2168,14 @@ UnicodeStringTest::TestSizeofUnicodeString() {
     }
 }
 
+namespace {
+
 // Try to avoid clang -Wself-move warnings from s1 = std::move(s1);
 void moveFrom(UnicodeString &dest, UnicodeString &src) {
     dest = std::move(src);
 }
+
+}  // namespace
 
 void
 UnicodeStringTest::TestMoveSwap() {
@@ -2407,4 +2430,199 @@ void UnicodeStringTest::TestLargeAppend() {
             assertTrue("dest should be bogus", dest.isBogus());
         }
     }
+}
+
+void UnicodeStringTest::TestU16StringView() {
+    IcuTestErrorCode status(*this, "TestU16StringView");
+    // ICU-22843 Test ICU 76 new UnicodeString APIs that take or return a std::u16string_view
+    // or something convertible to it.
+    // NOTE: Keep this function very parallel with TestWStringView()!
+    const char16_t *p16 = u"p16";
+    std::u16string_view sv16 = u"sv16";
+    std::u16string str16 = u"str16";
+    UnicodeString ustr = u"ustr";
+
+    // These copy the string contents.
+    UnicodeString fromPtr(p16);  // pointer is convertible to std::u16string_view
+    UnicodeString fromSV(sv16);  // std::u16string_view itself
+    UnicodeString fromSV2(u"sv16_2"sv);  // std::u16string_view literal
+    UnicodeString fromStr(str16);  // std::u16string is convertible to std::u16string_view
+    assertEquals("UnicodeString(const char16_t *pointer)", UnicodeString(u"p16", 3), fromPtr);
+    assertEquals("UnicodeString(std::u16string_view)", UnicodeString(u"sv16", 4), fromSV);
+    assertEquals("UnicodeString(std::u16string_view literal)", UnicodeString(u"sv16_2", 6), fromSV2);
+    assertEquals("UnicodeString(std::u16string)", UnicodeString(u"str16", 5), fromStr);
+
+    // Read-only aliases
+    UnicodeString aliasFromPtr = UnicodeString::readOnlyAlias(p16);
+    assertTrue("aliasFromPtr pointer alias", aliasFromPtr.getBuffer() == p16);
+    assertEquals("aliasFromPtr length", 3, aliasFromPtr.length());
+
+    UnicodeString aliasFromSV = UnicodeString::readOnlyAlias(sv16);
+    assertTrue("aliasFromSV pointer alias", aliasFromSV.getBuffer() == sv16.data());
+    assertEquals("aliasFromSV length", static_cast<int32_t>(sv16.length()), aliasFromSV.length());
+
+    UnicodeString aliasFromStr = UnicodeString::readOnlyAlias(str16);
+    assertTrue("aliasFromStr pointer alias", aliasFromStr.getBuffer() == str16.data());
+    assertEquals("aliasFromStr length", static_cast<int32_t>(str16.length()), aliasFromStr.length());
+
+    UnicodeString aliasFromUStr = UnicodeString::readOnlyAlias(ustr);
+    assertTrue("aliasFromUStr pointer alias", aliasFromUStr.getBuffer() == ustr.getBuffer());
+    assertEquals("aliasFromUStr length", ustr.length(), aliasFromUStr.length());
+
+    // operator==
+    UnicodeString any(true, u"any", 3);
+    assertFalse("any == pointer-p16", any == p16);
+    assertTrue("any == pointer-any", any == u"any");
+    assertFalse("any == string_view-sv16", any == sv16);
+    assertTrue("any == string_view-any", any == u"any"sv);
+    assertFalse("any == string-str16", any == str16);
+    assertTrue("any == string-any", any == u"any"s);
+
+    // operator!=
+    assertTrue("any != pointer-p16", any != p16);
+    assertFalse("any != pointer-any", any != u"any");
+    assertTrue("any != string_view-sv16", any != sv16);
+    assertFalse("any != string_view-any", any != u"any"sv);
+    assertTrue("any != string-str16", any != str16);
+    assertFalse("any != string-any", any != u"any"s);
+
+    // Assignment copies the string contents.
+    UnicodeString x;
+    x = p16;
+    assertEquals("x = p16", UnicodeString(true, u"p16", 3), x);
+    x = sv16;
+    assertEquals("x = sv16", UnicodeString(true, u"sv16", 4), x);
+    x = str16;
+    assertEquals("x = str16", UnicodeString(true, u"str16", 5), x);
+
+    // Append
+    x += p16;
+    assertEquals("+= p16", UnicodeString(true, u"str16p16", 8), x);
+    x += sv16;
+    assertEquals("+= sv16", UnicodeString(true, u"str16p16sv16", 12), x);
+    x += str16;
+    assertEquals("+= str16", UnicodeString(true, u"str16p16sv16str16", 17), x);
+
+    x = u"x"sv;
+    x.append(p16);
+    assertEquals("append(p16)", UnicodeString(true, u"xp16", 4), x);
+    x.append(sv16);
+    assertEquals("append(sv16)", UnicodeString(true, u"xp16sv16", 8), x);
+    x.append(str16);
+    assertEquals("append(str16)", UnicodeString(true, u"xp16sv16str16", 13), x);
+
+    // Convert UnicodeString to string view.
+    std::u16string_view sv16FromUniStr(any);
+    assertTrue("sv16FromUniStr buffer alias", sv16FromUniStr.data() == any.getBuffer());
+    assertEquals("sv16FromUniStr length", any.length(), static_cast<int32_t>(sv16FromUniStr.length()));
+
+    // Just to show convenience: Convert UnicodeString to string view, then to std string.
+    std::u16string str16FromUniStr(any);
+    assertTrue("str16FromUniStr contents", str16FromUniStr == u"any"s);
+
+    // operator+
+    x = any + p16;
+    assertEquals("any + p16", UnicodeString(true, u"anyp16", 6), x);
+    x = any + sv16;
+    assertEquals("any + sv16", UnicodeString(true, u"anysv16", 7), x);
+    x = any + str16;
+    assertEquals("any + str16", UnicodeString(true, u"anystr16", 8), x);
+}
+
+void UnicodeStringTest::TestWStringView() {
+#if U_SIZEOF_WCHAR_T==2
+    IcuTestErrorCode status(*this, "TestU16StringView");
+    // ICU-22843 Test ICU 76 new UnicodeString APIs that take or return a std::wstring_view
+    // or something convertible to it.
+    // NOTE: Keep this function very parallel with TestU16StringView()!
+    const wchar_t *p16 = L"p16";
+    std::wstring_view sv16 = L"sv16";
+    std::wstring str16 = L"str16";
+
+    // These copy the string contents.
+    UnicodeString fromPtr(p16);  // pointer is convertible to std::wstring_view
+    UnicodeString fromSV(sv16);  // std::wstring_view itself
+    UnicodeString fromSV2(L"sv16_2"sv);  // std::wstring_view literal
+    UnicodeString fromStr(str16);  // std::wstring is convertible to std::wstring_view
+    assertEquals("UnicodeString(const wchar_t *pointer)", UnicodeString(L"p16", 3), fromPtr);
+    assertEquals("UnicodeString(std::wstring_view)", UnicodeString(L"sv16", 4), fromSV);
+    assertEquals("UnicodeString(std::wstring_view literal)", UnicodeString(L"sv16_2", 6), fromSV2);
+    assertEquals("UnicodeString(std::wstring)", UnicodeString(L"str16", 5), fromStr);
+
+    // Read-only aliases
+    UnicodeString aliasFromPtr = UnicodeString::readOnlyAlias(p16);
+    assertTrue("aliasFromPtr pointer alias",
+               aliasFromPtr.getBuffer() == reinterpret_cast<const char16_t *>(p16));
+    assertEquals("aliasFromPtr length", 3, aliasFromPtr.length());
+
+    UnicodeString aliasFromSV = UnicodeString::readOnlyAlias(sv16);
+    assertTrue("aliasFromSV pointer alias",
+               aliasFromSV.getBuffer() == reinterpret_cast<const char16_t *>(sv16.data()));
+    assertEquals("aliasFromSV length", (int32_t)sv16.length(), aliasFromSV.length());
+
+    UnicodeString aliasFromStr = UnicodeString::readOnlyAlias(str16);
+    assertTrue("aliasFromStr pointer alias",
+               aliasFromStr.getBuffer() == reinterpret_cast<const char16_t *>(str16.data()));
+    assertEquals("aliasFromStr length", (int32_t)str16.length(), aliasFromStr.length());
+
+    // operator==
+    UnicodeString any(true, L"any", 3);
+    assertFalse("any == pointer-p16", any == p16);
+    assertTrue("any == pointer-any", any == L"any");
+    assertFalse("any == string_view-sv16", any == sv16);
+    assertTrue("any == string_view-any", any == L"any"sv);
+    assertFalse("any == string-str16", any == str16);
+    assertTrue("any == string-any", any == L"any"s);
+
+    // operator!=
+    assertTrue("any != pointer-p16", any != p16);
+    assertFalse("any != pointer-any", any != L"any");
+    assertTrue("any != string_view-sv16", any != sv16);
+    assertFalse("any != string_view-any", any != L"any"sv);
+    assertTrue("any != string-str16", any != str16);
+    assertFalse("any != string-any", any != L"any"s);
+
+    // Assignment copies the string contents.
+    UnicodeString x;
+    x = p16;
+    assertEquals("x = p16", UnicodeString(true, L"p16", 3), x);
+    x = sv16;
+    assertEquals("x = sv16", UnicodeString(true, L"sv16", 4), x);
+    x = str16;
+    assertEquals("x = str16", UnicodeString(true, L"str16", 5), x);
+
+    // Append
+    x += p16;
+    assertEquals("+= p16", UnicodeString(true, L"str16p16", 8), x);
+    x += sv16;
+    assertEquals("+= sv16", UnicodeString(true, L"str16p16sv16", 12), x);
+    x += str16;
+    assertEquals("+= str16", UnicodeString(true, L"str16p16sv16str16", 17), x);
+
+    x = L"x"sv;
+    x.append(p16);
+    assertEquals("append(p16)", UnicodeString(true, L"xp16", 4), x);
+    x.append(sv16);
+    assertEquals("append(sv16)", UnicodeString(true, L"xp16sv16", 8), x);
+    x.append(str16);
+    assertEquals("append(str16)", UnicodeString(true, L"xp16sv16str16", 13), x);
+
+    // Convert UnicodeString to string view.
+    std::wstring_view sv16FromUniStr(any);
+    assertTrue("sv16FromUniStr buffer alias",
+               reinterpret_cast<const char16_t *>(sv16FromUniStr.data()) == any.getBuffer());
+    assertEquals("sv16FromUniStr length", any.length(), (int32_t)sv16FromUniStr.length());
+
+    // Just to show convenience: Convert UnicodeString to string view, then to std string.
+    std::wstring str16FromUniStr(any);
+    assertTrue("str16FromUniStr contents", str16FromUniStr == L"any"s);
+
+    // operator+
+    x = any + p16;
+    assertEquals("any + p16", UnicodeString(true, L"anyp16", 6), x);
+    x = any + sv16;
+    assertEquals("any + sv16", UnicodeString(true, L"anysv16", 7), x);
+    x = any + str16;
+    assertEquals("any + str16", UnicodeString(true, L"anystr16", 8), x);
+#endif
 }

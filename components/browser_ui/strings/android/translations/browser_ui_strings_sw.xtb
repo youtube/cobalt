@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Ficha kadi ya "kupungua kwa bei kwenye vichupo"</translation>
 <translation id="1508931164824684991">Tovuti zinaweza kutumia JavaScript</translation>
 <translation id="1510341833810331442">Tovuti haziruhusiwi kuhifadhi data kwenye kifaa chako</translation>
+<translation id="1532175480576580256">Umefungua safu ya chini ya njia zangu za mkato katika skrini nzima</translation>
 <translation id="1538031354170655462">Kwa kawaida tovuti hutumia mawasiliano ya vifaa vinavyokaribiana (NFC) ili kufanya kazi na vifaa au vishikizo vilivyo karibu, kama vile kuchanganua beji au kulipa kielektroniki</translation>
 <translation id="1547123415014299762">Vidakuzi vya washirika wengine vinaruhusiwa</translation>
 <translation id="1569054338208717605">Ongeza kasi ya tovuti kupakia ukitumia mtambo wa V8 wa Chrome lakini uifanye Chrome isistahimili sana mashambulio</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Mara nyingi henda tovuti nyingi unazotembelea zikahifadhi data kwenye kifaa chako kwa ajili ya kuboresha hali yako ya utumiaji kwa kuhifadhi mapendeleo au taarifa unazoshiriki na tovuti. Tunapendekeza mipangilio hii isalie ikiwa imewashwa.</translation>
 <translation id="2289270750774289114">Niulize wakati tovuti inataka kugundua vifaa vya Bluetooth vilivyo karibu (inapendekezwa)</translation>
 <translation id="2315043854645842844">Uchaguzi wa cheti cha sehemu ya seva teja hautumiwi na mfumo wa uendeshaji.</translation>
+<translation id="2347601491101454548">Umefungua safu ya chini ya njia zangu za mkato katika skrini nusu</translation>
 <translation id="2359808026110333948">Endelea</translation>
 <translation id="2379925928934107488">Tumia mandhari meusi kwenye tovuti wakati Chrome inatumia mandhari meusi, panapowezekana</translation>
 <translation id="2390272837142897736">Ongeza ukuzaji</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Kupanga maudhui kwa kutumia vikundi vya vichupo</translation>
 <translation id="2597457036804169544">Usitumie mandhari meusi kwenye tovuti</translation>
 <translation id="2606760465469169465">Thibitisha kiotomatiki</translation>
+<translation id="2610903128639500624">Dhibiti katika <ph name="BEGIN_LINK1" />mipangilio ya Android<ph name="END_LINK1" />
+
+Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
+• Umewasha hali ya "Kutumia muunganisho salama kila wakati".
+• Umezima "kiboreshaji cha JavaScript". <ph name="BEGIN_LINK2" />Dhibiti vipengele vya Tovuti visivyofuata kanuni<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Ruhusu JavaScript ya tovuti mahususi.</translation>
 <translation id="2626708220538466178">Safu ya chini ya kivinjari chaguomsingi imefungwa</translation>
 <translation id="2653659639078652383">Wasilisha</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome itadhibiti vidakuzi tena leo</translation>
 <translation id="4338831206024587507">Tovuti zote zenye kikoa cha <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Usiruhusu tovuti zitume arifa</translation>
+<translation id="4341577178275615435">Ili uwashe au uzime mipangilio ya kuvinjari kwa kibodi, tumia njia ya mkato ya F7</translation>
 <translation id="4402755511846832236">Zuia tovuti zisijue wakati unatumia kifaa hiki</translation>
 <translation id="4412683424767388419">Umefungua safu ya chini ya rangi za Chrome katika skrini nusu</translation>
 <translation id="4412992751769744546">Ruhusu vidakuzi vingine</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Mipangilio uliyohifadhi ya viwango vya ukuzaji wa tovuti</translation>
 <translation id="4836046166855586901">Tovuti ikuombe ruhusa inapotaka kujua wakati unatumia kifaa hiki</translation>
 <translation id="483914009762354899">Inajumuisha tovuti zote zenye kikoa hiki</translation>
+<translation id="4852997963351138624">Hex ya Rangi ya Mandharinyuma</translation>
 <translation id="4882919381756638075">Tovuti hutumia maikrofoni yako kwa ajili ya vipengele vya mawasiliano kama vile kupiga gumzo la video</translation>
 <translation id="4883854917563148705">Huwezi kubadilisha mipangilio inayodhibitiwa</translation>
 <translation id="4887024562049524730">Uliza kabla ya kuruhusu tovuti zitumie data na kifaa chako cha uhalisia pepe (inapendekezwa)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374">GB <ph name="GIGABYTES" /></translation>
 <translation id="6612358246767739896">Maudhui yanayolindwa</translation>
 <translation id="662080504995468778">Usiondoke</translation>
+<translation id="6630443592285535486">Andika hex hapa</translation>
 <translation id="6635327442719709864">Ukiwasha, tovuti zinaweza kuomba ruhusa ya kutumia milango ya kuingiza data. Ukizima, tovuti haziwezi kuomba ruhusa ya kutumia milango ya kuingiza data.</translation>
 <translation id="6678072580827808850">Hakiki Ukaguzi wa Usalama</translation>
 <translation id="6682057173375416470">Pata makala yanayopendekezwa kwenye ukurasa wa Kichupo Kipya</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Angalizo la Usalama</translation>
 <translation id="7406113532070524618">Mipangilio hii hufanya kazi bila kukutambulisha au kuruhusu tovuti zione historia yako ya kuvinjari, ingawa tovuti zinaweza kushiriki kiasi kidogo cha maelezo kama sehemu ya uthibitishaji</translation>
 <translation id="7409735910987429903">Tovuti zinaweza kutuma madirisha ibukizi yakuonyeshe matangazo, au kukuelekeza kwenye tovuti ambazo hutaki kuzitembelea</translation>
+<translation id="7412160840120117304">Hex ya Rangi ya Msingi</translation>
 <translation id="7423098979219808738">Uliza kwanza</translation>
 <translation id="7423538860840206698">Imezuiwa kusoma ubao wa kunakili</translation>
 <translation id="7425915948813553151">Mandhari meusi ya tovuti</translation>

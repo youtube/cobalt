@@ -287,7 +287,8 @@ class MaglevReducer {
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<double> TryGetFloat64Constant(
-      ValueNode* value, TaggedToFloat64ConversionType conversion_type);
+      UseRepresentation use_repr, ValueNode* value,
+      TaggedToFloat64ConversionType conversion_type);
 
   template <typename MapContainer>
   MaybeReduceResult TryFoldCheckMaps(ValueNode* object,
@@ -297,6 +298,7 @@ class MaglevReducer {
 
   ValueNode* BuildNumberOrOddballToFloat64(ValueNode* node,
                                            NodeType allowed_input_type);
+  ValueNode* BuildHoleyFloat64SilenceNumberNans(ValueNode* node);
 
   // Get a tagged representation node whose value is equivalent to the given
   // node.
@@ -327,6 +329,8 @@ class MaglevReducer {
 
   ValueNode* GetFloat64ForToNumber(ValueNode* value,
                                    NodeType allowed_input_type);
+
+  ValueNode* GetHoleyFloat64(ValueNode* value);
 
   ValueNode* GetHoleyFloat64ForToNumber(ValueNode* value,
                                         NodeType allowed_input_type);

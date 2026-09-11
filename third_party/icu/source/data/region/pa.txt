@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 pa{
     Countries{
         001{"ਸੰਸਾਰ"}
@@ -94,7 +94,7 @@ pa{
         CZ{"ਚੈਕੀਆ"}
         DE{"ਜਰਮਨੀ"}
         DG{"ਡੀਇਗੋ ਗਾਰਸੀਆ"}
-        DJ{"ਜ਼ੀਬੂਤੀ"}
+        DJ{"ਜਿਬੂਤੀ"}
         DK{"ਡੈਨਮਾਰਕ"}
         DM{"ਡੋਮੀਨਿਕਾ"}
         DO{"ਡੋਮੀਨਿਕਾਈ ਗਣਰਾਜ"}

@@ -210,7 +210,6 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
           <ph name="LIST_ITEM" />Din arbejdsgiver eller skole
           <ph name="LIST_ITEM" />Din internetudbyder
         <ph name="END_LIST" /></translation>
-<translation id="1335042910556016570">Overvåg denne vare</translation>
 <translation id="1337692097987160377">Del denne fane</translation>
 <translation id="1339601241726513588">Registreringsdomæne:</translation>
 <translation id="1340482604681802745">Afhentningsadresse</translation>
@@ -481,7 +480,6 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="1762779605905950734">Gadenavn</translation>
 <translation id="1763864636252898013">Denne server kunne ikke bevise, at den er <ph name="DOMAIN" />, da operativsystemet på din enhed ikke har tillid til sikkerhedscertifikatet. Dette kan skyldes en fejlkonfiguration, eller at en hacker har opfanget din forbindelse.</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Prøv at køre Windows Netværksdiagnosticering<ph name="END_LINK" />.</translation>
-<translation id="1771254328977666895">Se prishistorik</translation>
 <translation id="1777422078676229054">Foto (arkiv)</translation>
 <translation id="1778646502362731194">JIS B0</translation>
 <translation id="1785118555253503473">Vil du installere webapps?</translation>
@@ -990,6 +988,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="2610561535971892504">Klik for at kopiere</translation>
 <translation id="2612676031748830579">Kortnummer</translation>
 <translation id="2612993535136743634">Alle sikkerhedskoder, der er gemt på din enhed og på din Google-konto, slettes</translation>
+<translation id="2614835674900828050">Kan ikke bruges til dette køb</translation>
 <translation id="2616412942031748191">Søgemaskineoptimering og marketing</translation>
 <translation id="2618206371527040026">Akademiske konferencer og udgivelser</translation>
 <translation id="2619052155095999743">Indsæt</translation>
@@ -1253,6 +1252,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="3087734570205094154">Bund</translation>
 <translation id="3090667236485488075">Glas</translation>
 <translation id="3093122472063815077">Statusskærmen for Køb nu, betal senere er åbnet i halv højde.</translation>
+<translation id="309381737510736393">Når din organisation begrænser muligheden for at gemme på din Google-konto, kan du ikke dele faner eller samarbejde med andre</translation>
 <translation id="3094051226187213523">Åbn AI-tilstand med dette forslag.</translation>
 <translation id="3095940652251934233">Erklæring</translation>
 <translation id="3098513225387949945">Ignoreret, fordi deaktiveringslisten indeholder et mønster, der svarer til "*", hvilket er ækvivalent til deaktivering af politikken.</translation>
@@ -1289,6 +1289,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="3137507986424712703">{COUNT,plural, =0{Ingen}=1{logindata for en konto}one{logindata for # konto}other{logindata for # konti}}</translation>
 <translation id="3140646734028448730">Virksomhedsydelser</translation>
 <translation id="3141093262818886744">Åbn alligevel</translation>
+<translation id="3141337053413339205">Skift til denne fane.</translation>
 <translation id="3141641372357166056">Ingen beslutning om samtykke</translation>
 <translation id="3144458715650412431">Testpolitikkerne er anvendt. Du kan gennemgå og nulstille dem på chrome://policy/test. Administratorpolitikker anvendes ikke.</translation>
 <translation id="3145945101586104090">Svaret kunne ikke afkodes</translation>
@@ -1697,6 +1698,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="3784372983762739446">Bluetooth-enheder</translation>
 <translation id="3785246317262748285">Du opretter normalt forbindelse til websites på en sikker måde, men Chrome kunne ikke anvende en sikker forbindelse denne gang. Det kan skyldes, at en hacker prøver at opfange eller ændre din netværksforbindelse. <ph name="LEARN_MORE" /></translation>
 <translation id="378611282717571199">Bedste match for "<ph name="SEARCH_QUERY" />"</translation>
+<translation id="3787887386289385215"><ph name="ISSUER_1_NAME" />, <ph name="ISSUER_2_NAME" /> eller <ph name="ISSUER_3_NAME" /></translation>
 <translation id="3789841737615482174">Installer</translation>
 <translation id="3791118028061680614">Betal uden at skifte app</translation>
 <translation id="3792100426446126328"><ph name="NAME" /> (<ph name="WIDTH" /> x <ph name="HEIGHT" /> tommer)</translation>
@@ -2678,6 +2680,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="5412040515238827314">Ugyldigt format: Der blev forventet en liste over mønstre.</translation>
 <translation id="5412245327974352290"><ph name="TRADITIONAL_TEXT" /> – <ph name="ADDITIONAL_TEXT" /></translation>
 <translation id="541416427766103491">Stabler 4</translation>
+<translation id="5414306071315087019">Betalingsmetoden køb nu, betal senere er tilgængelig med Google Pay</translation>
 <translation id="5414446060143308245">Gennemgang er påkrævet før overførsel</translation>
 <translation id="5414511064953050917">Flyt alligevel</translation>
 <translation id="5418700249417444482">Webadresserne for de sider, du besøger, sendes til analyse hos Google Cloud eller tredjeparter og kan muligvis ses af din administrator. De kan f.eks. undersøge, om nogen af de tilhørende websites er usikre, eller filtrere websites baseret på de regler, som administratoren har angivet.</translation>
@@ -2798,6 +2801,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="5595485650161345191">Rediger adresse</translation>
 <translation id="5596939519753369075">2 x 3,5 tommer</translation>
 <translation id="5597254438174353289">Blå 3</translation>
+<translation id="5603469469737324249"><ph name="ISSUER_1_NAME" /> eller <ph name="ISSUER_2_NAME" /></translation>
 <translation id="560412284261940334">Administration er ikke understøttet</translation>
 <translation id="5605249000617390290">Få flere oplysninger om prissporing</translation>
 <translation id="5605670050355397069">Ledger</translation>
@@ -3433,6 +3437,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="6671697161687535275">Vil du fjerne formularforslag fra Chromium?</translation>
 <translation id="6675846980676550611">AR er ikke tilladt</translation>
 <translation id="6677351035258626477">Fastfood</translation>
+<translation id="6677738644213083042">Skift til denne fane</translation>
 <translation id="6679354743514146922">Chrome-browseren forsøger at udfylde din adgangskode i <ph name="APP_NAME" />.</translation>
 <translation id="6681790815630918386">CVC er gemt</translation>
 <translation id="6683022854667115063">Høretelefoner</translation>

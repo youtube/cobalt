@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ja{
     Keys{
         calendar{"暦法"}
@@ -92,6 +92,7 @@ ja{
         bjn{"バンジャル語"}
         bkm{"コム語"}
         bla{"シクシカ語"}
+        blo{"アニ語 (blo)"}
         bm{"バンバラ語"}
         bn{"ベンガル語"}
         bo{"チベット語"}
@@ -225,7 +226,6 @@ ja{
         gmh{"中高ドイツ語"}
         gn{"グアラニー語"}
         goh{"古高ドイツ語"}
-        gom{"ゴア・コンカニ語"}
         gon{"ゴーンディー語"}
         gor{"ゴロンタロ語"}
         got{"ゴート語"}
@@ -335,6 +335,7 @@ ja{
         kv{"コミ語"}
         kw{"コーンウォール語"}
         kwk{"クヮキゥワラ語"}
+        kxv{"クーヴィンガ語"}
         ky{"キルギス語"}
         la{"ラテン語"}
         lad{"ラディノ語"}
@@ -629,6 +630,7 @@ ja{
         vi{"ベトナム語"}
         vls{"西フラマン語"}
         vmf{"マインフランク語"}
+        vmw{"マクア語"}
         vo{"ヴォラピュク語"}
         vot{"ヴォート語"}
         vro{"ヴォロ語"}
@@ -644,6 +646,7 @@ ja{
         xal{"カルムイク語"}
         xh{"コサ語"}
         xmf{"メグレル語"}
+        xnr{"カーングリー語"}
         xog{"ソガ語"}
         yao{"ヤオ語"}
         yap{"ヤップ語"}
@@ -932,7 +935,6 @@ ja{
             phonebook{"電話帳順"}
             phonetic{"音声順による並べ替え"}
             pinyin{"ピンイン順"}
-            reformed{"リフォーム"}
             search{"汎用検索"}
             searchjl{"ハングル語頭子音による並べ替え"}
             standard{"標準並べ替え順序"}

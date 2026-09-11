@@ -2031,6 +2031,16 @@ int SSL_set1_client_key_shares(SSL *ssl, const uint16_t *group_ids,
   return 1;
 }
 
+int SSL_set1_server_supported_groups_hint(SSL *ssl,
+                                          const uint16_t *server_groups,
+                                          size_t num_server_groups) {
+  if (!ssl->config) {
+    return 0;
+  }
+  auto span = Span(server_groups, num_server_groups);
+  return ssl->config->server_supported_groups_hint.CopyFrom(span);
+}
+
 int SSL_CTX_set_tmp_dh(SSL_CTX *ctx, const DH *dh) { return 1; }
 
 int SSL_set_tmp_dh(SSL *ssl, const DH *dh) { return 1; }

@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -29,6 +28,7 @@
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
@@ -59,7 +59,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "test/create_test_environment.h"
-#include "test/create_test_field_trials.h"
 #include "test/encoder_settings.h"
 #include "test/fake_decoder.h"
 #include "test/fake_encoder.h"
@@ -74,8 +73,8 @@
 namespace webrtc {
 namespace test {
 
-CallTest::CallTest(absl::string_view field_trials)
-    : field_trials_(CreateTestFieldTrials(field_trials)),
+CallTest::CallTest(FieldTrials field_trials)
+    : field_trials_(std::move(field_trials)),
       env_(CreateTestEnvironment({.field_trials = &field_trials_})),
       send_env_(env_),
       recv_env_(env_),

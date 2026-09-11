@@ -691,7 +691,7 @@ static void draw_rect_as_path(const Draw& orig,
                               const SkMatrix& ctm) {
     Draw draw(orig);
     draw.fCTM = &ctm;
-    draw.drawPath(SkPath::Rect(prePaintRect), paint, nullptr, true);
+    draw.drawPath(SkPath::Rect(prePaintRect), paint, nullptr);
 }
 
 void Draw::drawRect(const SkRect& prePaintRect,
@@ -829,7 +829,7 @@ void Draw::drawOval(const SkRect& oval, const SkPaint& paint) const {
         return;
     }
 
-    this->drawPath(SkPath::Oval(oval), paint, nullptr, true);
+    this->drawPath(SkPath::Oval(oval), paint, nullptr);
 }
 
 void Draw::drawRRect(const SkRRect& rrect, const SkPaint& paint) const {
@@ -861,7 +861,7 @@ void Draw::drawRRect(const SkRRect& rrect, const SkPaint& paint) const {
 
 DRAW_PATH:
     // Now fall back to the default case of using a path.
-    this->drawPath(SkPath::RRect(rrect), paint, nullptr, true);
+    this->drawPath(SkPath::RRect(rrect), paint, nullptr);
 }
 
 bool Draw::drawRRectNinePatch(const SkRRect& rrect, const SkPaint& paint) const {
@@ -994,7 +994,6 @@ static std::optional<SkPaint> modifyPaintForHairlines(const SkPaint& origPaint,
 void Draw::drawPath(const SkPath& origSrcPath,
                     const SkPaint& origPaint,
                     const SkMatrix* prePathMatrix,
-                    bool pathIsMutable,
                     SkDrawCoverage drawCoverage,
                     SkBlitter* customBlitter) const {
     SkDEBUGCODE(this->validate();)
@@ -1004,61 +1003,61 @@ void Draw::drawPath(const SkPath& origSrcPath,
         return;
     }
 
-    SkPath* pathPtr = const_cast<SkPath*>(&origSrcPath);
-    bool doFill = true;
-    SkPath tmpPathStorage;
-    SkPath* tmpPath = &tmpPathStorage;
-    SkTCopyOnFirstWrite<SkMatrix> matrix(fCTM);
-    tmpPath->setIsVolatile(true);
-
-    if (prePathMatrix) {
-        if (origPaint.getPathEffect() || origPaint.getStyle() != SkPaint::kFill_Style) {
-            SkPath* result = pathPtr;
-
-            if (!pathIsMutable) {
-                result = tmpPath;
-                pathIsMutable = true;
-            }
-            pathPtr->transform(*prePathMatrix, result);
-            pathPtr = result;
-        } else {
-            matrix.writable()->preConcat(*prePathMatrix);
-        }
-    }
-
-    std::optional<SkPaint> newPaint = modifyPaintForHairlines(origPaint, *matrix);
+    std::optional<SkPaint> newPaint = modifyPaintForHairlines(origPaint, *fCTM);
     const SkPaint* paint = newPaint.has_value() ? &newPaint.value()
                                                 : &origPaint;
 
-    if (paint->getPathEffect() || paint->getStyle() != SkPaint::kFill_Style) {
+    const bool needsFillPath = paint->getPathEffect() || paint->getStyle() != SkPaint::kFill_Style;
+
+    SkPathBuilder builder;
+    std::optional<SkPathRaw> raw;      // will point to either origSrcPath or builder
+    bool          doFill = true;
+
+    SkPath scratchPath;
+
+    if (needsFillPath) {
         SkRect cullRect;
         const SkRect* cullRectPtr = nullptr;
         if (this->computeConservativeLocalClipBounds(&cullRect)) {
             cullRectPtr = &cullRect;
         }
-        SkPathBuilder builder;
+
+        SkPath prePathStorage;
+        const SkPath* pathPtr = &origSrcPath;
+        if (prePathMatrix) {
+            prePathStorage = pathPtr->makeTransform(*prePathMatrix);
+            pathPtr = &prePathStorage;
+        }
         doFill = skpathutils::FillPathWithPaint(*pathPtr, *paint, &builder, cullRectPtr, *fCTM);
-        *tmpPath = builder.detach();
-        pathPtr = tmpPath;
+        builder.transform(*fCTM);
+        raw = SkPathPriv::Raw(builder);
+    } else {
+        SkMatrix matrix = *fCTM;
+        if (prePathMatrix) {
+            matrix.preConcat(*prePathMatrix);
+        }
+
+        if (matrix.isIdentity()) {
+            // special case, to avoid copying the origSrcPath into the builder
+            raw = SkPathPriv::Raw(origSrcPath);
+        } else {
+            builder = origSrcPath;
+            builder.transform(matrix);
+            raw = SkPathPriv::Raw(builder);
+        }
     }
 
-    // avoid possibly allocating a new path in transform if we can
-    SkPath* devPathPtr = pathIsMutable ? pathPtr : tmpPath;
-
-    // transform the path into device space
-    pathPtr->transform(*matrix, devPathPtr);
-    if (!devPathPtr->isFinite()) {
+    if (!raw) {
         return;
     }
 
 #if defined(SK_BUILD_FOR_FUZZER)
-    if (devPathPtr->countPoints() > 1000) {
+    if (raw.points().size() > 1000) {
         return;
     }
 #endif
 
-    SkPathRaw raw = SkPathPriv::Raw(*devPathPtr);
-    this->drawDevPath(raw, *paint, drawCoverage, customBlitter, doFill);
+    this->drawDevPath(*raw, *paint, drawCoverage, customBlitter, doFill);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1238,10 +1237,7 @@ void Draw::drawDevicePoints(SkCanvas::PointMode mode,
 
                     for (const auto& pt : points) {
                         preMatrix.setTranslate(pt.fX, pt.fY);
-                        // pass true for the last point, since we can modify
-                        // then path then
-                        const bool isLast = &pt == &points.back();
-                        this->drawPath(path, newPaint, &preMatrix, isLast);
+                        this->drawPath(path, newPaint, &preMatrix);
                     }
                 }
             } else {
@@ -1282,17 +1278,17 @@ void Draw::drawDevicePoints(SkCanvas::PointMode mode,
 
                     if (!pointData.fFirst.isEmpty()) {
                         if (device) {
-                            device->drawPath(pointData.fFirst, newP, true);
+                            device->drawPath(pointData.fFirst, newP);
                         } else {
-                            this->drawPath(pointData.fFirst, newP, nullptr, true);
+                            this->drawPath(pointData.fFirst, newP, nullptr);
                         }
                     }
 
                     if (!pointData.fLast.isEmpty()) {
                         if (device) {
-                            device->drawPath(pointData.fLast, newP, true);
+                            device->drawPath(pointData.fLast, newP);
                         } else {
-                            this->drawPath(pointData.fLast, newP, nullptr, true);
+                            this->drawPath(pointData.fLast, newP, nullptr);
                         }
                     }
 
@@ -1347,9 +1343,9 @@ void Draw::drawDevicePoints(SkCanvas::PointMode mode,
             for (size_t i = 0; i < count; i += inc) {
                 auto path = SkPath::Line(points[i], points[i + 1]);
                 if (device) {
-                    device->drawPath(path, p, true);
+                    device->drawPath(path, p);
                 } else {
-                    this->drawPath(path, p, nullptr, true);
+                    this->drawPath(path, p, nullptr);
                 }
             }
             break;

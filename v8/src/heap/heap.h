@@ -1093,7 +1093,8 @@ class Heap final {
   V8_EXPORT_PRIVATE void StartIncrementalMarking(
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags,
-      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR);
+      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR,
+      const char* reason = "missing reason");
 
   V8_EXPORT_PRIVATE void StartIncrementalMarkingOnInterrupt();
 
@@ -1800,6 +1801,7 @@ class Heap final {
 
   void CheckHeapLimitReached();
   bool ReachedHeapLimit();
+  bool HasConsecutiveIneffectiveMarkCompact() const;
 
   // Make all LABs of all threads iterable.
   void MakeLinearAllocationAreasIterable();
@@ -1946,7 +1948,7 @@ class Heap final {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  inline size_t OldGenerationSpaceAvailable() {
+  inline uint64_t OldGenerationAllocationLimitConsumedBytes() {
     uint64_t bytes = OldGenerationConsumedBytes();
     if (!v8_flags.external_memory_accounted_in_global_limit) {
       // TODO(chromium:42203776): When not accounting external memory properly
@@ -1954,7 +1956,11 @@ class Heap final {
       // regular old gen bytes. This is historic behavior.
       bytes += AllocatedExternalMemorySinceMarkCompact();
     }
+    return bytes;
+  }
 
+  inline size_t OldGenerationSpaceAvailable() {
+    uint64_t bytes = OldGenerationAllocationLimitConsumedBytes();
     if (old_generation_allocation_limit() <= bytes) return 0;
     return old_generation_allocation_limit() - static_cast<size_t>(bytes);
   }
@@ -2053,11 +2059,52 @@ class Heap final {
 
   void RecomputeLimits(GarbageCollector collector, base::TimeTicks time);
   void RecomputeLimitsAfterLoadingIfNeeded();
+
   struct LimitsComputationResult {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-  LimitsComputationResult ComputeNewAllocationLimits();
+
+  struct LimitsComputationBoundaries {
+    size_t minimum_old_generation_allocation_limit = 0;
+    size_t maximum_old_generation_allocation_limit = SIZE_MAX;
+
+    size_t minimum_global_allocation_limit = 0;
+    size_t maximum_global_allocation_limit = SIZE_MAX;
+
+    size_t bounded_old_generation_allocation_limit(size_t val) {
+      DCHECK_LE(minimum_old_generation_allocation_limit,
+                maximum_old_generation_allocation_limit);
+      const size_t capped =
+          std::min(val, maximum_old_generation_allocation_limit);
+      return std::max(capped, minimum_old_generation_allocation_limit);
+    }
+
+    size_t bounded_global_allocation_limit(size_t val) {
+      DCHECK_LE(minimum_global_allocation_limit,
+                maximum_global_allocation_limit);
+      const size_t capped = std::min(val, maximum_global_allocation_limit);
+      return std::max(capped, minimum_global_allocation_limit);
+    }
+
+    static LimitsComputationBoundaries AtLeastCurrentLimits(Heap* heap) {
+      return {
+          .minimum_old_generation_allocation_limit =
+              heap->old_generation_allocation_limit(),
+          .minimum_global_allocation_limit = heap->global_allocation_limit()};
+    }
+
+    static LimitsComputationBoundaries AtMostCurrentLimits(Heap* heap) {
+      return {
+          .maximum_old_generation_allocation_limit =
+              heap->old_generation_allocation_limit(),
+          .maximum_global_allocation_limit = heap->global_allocation_limit()};
+    }
+  };
+
+  LimitsComputationResult UpdateAllocationLimits(
+      LimitsComputationBoundaries boundaries,
+      const char* caller = __builtin_FUNCTION());
 
   // ===========================================================================
   // GC Tasks. =================================================================
@@ -2289,7 +2336,7 @@ class Heap final {
 
   // The number of Mark-Compact garbage collections that are considered as
   // ineffective. See IsIneffectiveMarkCompact() predicate.
-  int consecutive_ineffective_mark_compacts_ = 0;
+  std::atomic<int> consecutive_ineffective_mark_compacts_ = 0;
 
   static const uintptr_t kMmapRegionMask = 0xFFFFFFFFu;
   uintptr_t mmap_region_base_ = 0;

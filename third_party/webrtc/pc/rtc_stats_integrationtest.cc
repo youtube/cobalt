@@ -1222,7 +1222,7 @@ TEST_F(RTCStatsIntegrationTest, GetStatsContainsNoDuplicateAttributes) {
 }
 
 TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
-  StartCall("WebRTC-Video-CalculatePsnr/Enabled/");
+  StartCall("WebRTC-Video-CalculatePsnr/Enabled,sampling_interval:1000ms/");
 
   // This assumes all other stats are ok and tests the stats which should be
   // different under the field trial.

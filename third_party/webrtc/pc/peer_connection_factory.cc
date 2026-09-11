@@ -124,6 +124,7 @@ PeerConnectionFactory::~PeerConnectionFactory() {
     RTC_DCHECK_RUN_ON(worker_thread());
     decode_metronome_ = nullptr;
     encode_metronome_ = nullptr;
+    StopAecDump();
   });
 }
 
@@ -190,13 +191,27 @@ scoped_refptr<AudioSourceInterface> PeerConnectionFactory::CreateAudioSource(
 
 bool PeerConnectionFactory::StartAecDump(FILE* file, int64_t max_size_bytes) {
   RTC_DCHECK_RUN_ON(worker_thread());
-  return context_->media_engine()->voice().StartAecDump(FileWrapper(file),
-                                                        max_size_bytes);
+  if (aec_dump_active_) {
+    RTC_LOG(LS_WARNING) << "Replacing ongoing AEC dump.";
+  } else {
+    aec_dump_active_ = true;
+    context_->AddRefMediaEngine();
+  }
+  const bool started = context_->media_engine()->voice().StartAecDump(
+      FileWrapper(file), max_size_bytes);
+  if (!started) {  // E.g. if the file couldn't be opened/created.
+    StopAecDump();
+  }
+  return started;
 }
 
 void PeerConnectionFactory::StopAecDump() {
   RTC_DCHECK_RUN_ON(worker_thread());
+  if (!aec_dump_active_)
+    return;
   context_->media_engine()->voice().StopAecDump();
+  context_->ReleaseMediaEngine();
+  aec_dump_active_ = false;
 }
 
 const MediaEngineInterface* PeerConnectionFactory::media_engine() const {

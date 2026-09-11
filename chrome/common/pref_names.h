@@ -152,11 +152,6 @@ inline constexpr char kSessionExitType[] = "profile.exit_type";
 // 5: open the New Tab Page on startup.
 inline constexpr char kRestoreOnStartup[] = "session.restore_on_startup";
 
-// This pref is set to true when the user changes the kRestoreOnStartup pref.
-// This is used to prevent showing the session restore infobar.
-inline constexpr char kSessionRestorePrefChanged[] =
-    "session.restore_pref_changed";
-
 // The URLs to restore on startup or when the home button is pressed. The URLs
 // are only restored on startup if kRestoreOnStartup is 4.
 inline constexpr char kURLsToRestoreOnStartup[] = "session.startup_urls";
@@ -2123,15 +2118,6 @@ inline constexpr char kPinInfoBarTimesShown[] =
 // How many times the session restore infobar has been shown.
 inline constexpr char kSessionRestoreInfoBarTimesShown[] =
     "browser.session_restore_infobar_times_shown";
-
-// How many times the session restore infobar has been shown for restarting.
-inline constexpr char kSessionRestoreTurnOffFromRestartInfoBarTimesShown[] =
-    "browser.session_restore_turn_off_from_restart_infobar_times_shown";
-
-// How many times the session restore infobar has been shown for session turn
-// off.
-inline constexpr char kSessionRestoreTurnOffFromSessionInfoBarTimesShown[] =
-    "browser.session_restore_turn_off_from_session_infobar_times_shown";
 
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
@@ -4289,6 +4275,11 @@ inline constexpr char kClearWindowNameForNewBrowsingContextGroup[] =
 // on regardless of defaults.
 inline constexpr char kManagedLocalNetworkAccessRestrictionsEnabled[] =
     "managed_local_network_access_restrictions_enabled";
+
+// Boolean indicating whether Local Network Access restrictions should be
+// temporarily opted out of.
+inline constexpr char kManagedLocalNetworkAccessRestrictionsTemporaryOptOut[] =
+    "managed_local_network_access_restrictions_temporary_opt_out";
 
 // Boolean that specifies whether SpeculationRules prefetch can be sent to
 // ServiceWorker-controlled URLs.

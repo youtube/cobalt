@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 sw{
     AuxExemplarCharacters{"[c q x]"}
     ExemplarCharacters{"[a b {ch} d e f g h i j k l m n o p r s t u v w y z]"}
@@ -419,6 +419,7 @@ sw{
                 yMMMM{"MMMM y"}
                 yMMMd{"d MMM y"}
                 yMd{"d/M/y"}
+                yQQQ{"QQQ y"}
                 yQQQQ{"QQQQ y"}
                 yw{
                     one{"'wiki' w 'ya' Y"}
@@ -1115,10 +1116,10 @@ sw{
                 "[%％﹪ ٪]",
                 "[‰ ؉]",
                 "[\$＄﹩]",
-                "[£ ₤]",
+                "[£￡ ₤]",
                 "[¥￥]",
                 "[₩￦]",
-                "[₹ ₨ {Rp} {Rs}]",
+                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

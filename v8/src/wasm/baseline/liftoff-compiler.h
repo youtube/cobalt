@@ -68,13 +68,12 @@ enum class LocationKindForDeopt : uint8_t {
 struct LiftoffOptions {
   int func_index = -1;
   ForDebugging for_debugging = kNotForDebugging;
-  Counters* counters = nullptr;
+  DelayedCounterUpdates* counter_updates = nullptr;
   WasmDetectedFeatures* detected_features = nullptr;
   base::Vector<const int> breakpoints = {};
   std::unique_ptr<DebugSideTable>* debug_sidetable = nullptr;
   int dead_breakpoint = 0;
   int32_t* max_steps = nullptr;
-  bool detect_nondeterminism = false;
   uint32_t deopt_info_bytecode_offset = std::numeric_limits<uint32_t>::max();
   LocationKindForDeopt deopt_location_kind = LocationKindForDeopt::kNone;
 
@@ -90,13 +89,12 @@ struct LiftoffOptions {
 
   SETTER(func_index)
   SETTER(for_debugging)
-  SETTER(counters)
+  SETTER(counter_updates)
   SETTER(detected_features)
   SETTER(breakpoints)
   SETTER(debug_sidetable)
   SETTER(dead_breakpoint)
   SETTER(max_steps)
-  SETTER(detect_nondeterminism)
   SETTER(deopt_info_bytecode_offset)
   SETTER(deopt_location_kind)
 

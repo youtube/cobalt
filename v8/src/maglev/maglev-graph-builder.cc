@@ -1807,8 +1807,9 @@ std::optional<double> MaglevGraphBuilder::TryGetHoleyFloat64Constant(
       return Cast<Oddball>(root_object)->to_number_raw();
     }
   }
-  std::optional<double> constant = TryGetFloat64Constant(
-      value, TaggedToFloat64ConversionType::kNumberOrOddball);
+  std::optional<double> constant =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, value,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
   if (constant.has_value() && std::isnan(constant.value())) {
     // If need to silence nans when converting from Float64 to HoleyFloat64
     // representation.
@@ -1819,11 +1820,11 @@ std::optional<double> MaglevGraphBuilder::TryGetHoleyFloat64Constant(
 
 ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type,
-    bool convert_hole_to_undefined) {
+    bool convert_hole_to_undefined, bool silence_number_nans) {
   ValueRepresentation representation =
       value->properties().value_representation();
   if (representation == ValueRepresentation::kHoleyFloat64 &&
-      !convert_hole_to_undefined) {
+      !convert_hole_to_undefined && !silence_number_nans) {
     return value;
   }
 
@@ -1837,7 +1838,7 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
   switch (representation) {
     case ValueRepresentation::kTagged:
       return AddNewNodeNoInputConversion<CheckedNumberOrOddballToHoleyFloat64>(
-          {value}, conversion_type);
+          {value}, conversion_type, silence_number_nans);
     case ValueRepresentation::kInt32: {
       auto& alternative = node_info->alternative();
       return alternative.set_float64(
@@ -4133,6 +4134,10 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
+  // For constants, we may be able to skip the runtime check.
+  if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
+    if (Smi::IsValid(constant_value.value())) return object;
+  }
   switch (object->value_representation()) {
     case ValueRepresentation::kInt32:
       if (!SmiValuesAre32Bits()) {
@@ -5704,7 +5709,8 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       return object;
     case ValueRepresentation::kFloat64:
       if (auto constant = TryGetFloat64Constant(
-              object, TaggedToFloat64ConversionType::kOnlyNumber)) {
+              UseRepresentation::kFloat64, object,
+              TaggedToFloat64ConversionType::kOnlyNumber)) {
         uint32_t uint32_value;
         if (!DoubleToUint32IfEqualToSelf(*constant, &uint32_value)) {
           return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
@@ -6203,7 +6209,7 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
       const bool convert_hole_to_undefined = true;
       return GetHoleyFloat64(value,
                              TaggedToFloat64ConversionType::kNumberOrUndefined,
-                             convert_hole_to_undefined);
+                             convert_hole_to_undefined, true);
     }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
     // Make sure we do not store signalling NaNs into double arrays.
@@ -12284,6 +12290,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   // Arity > 1, `new Array(x0, x1, ...)`.
   DCHECK_GT(arity, 1);
 
+  auto node_type_of = [=, this](ValueNode* v) {
+    DCHECK(IsConstantNode(v->opcode()));
+    if (std::optional<int32_t> constant_int32 = TryGetInt32Constant(v)) {
+      return Smi::IsValid(constant_int32.value()) ? NodeType::kSmi
+                                                  : NodeType::kHeapNumber;
+    }
+    return TryGetFloat64Constant(UseRepresentation::kFloat64, v,
+                                 TaggedToFloat64ConversionType::kOnlyNumber)
+               ? NodeType::kHeapNumber
+               : NodeType::kAnyHeapObject;
+  };
+
   // Gather the values to store into the newly created array, and remember
   // sufficient information about node types so we can select a suitable
   // elements_kind below.
@@ -12294,9 +12312,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   for (ValueNode* v : args) {
     NodeType node_type = GetType(v);
     if (NodeTypeIs(node_type, NodeType::kUnknown)) {
+      if (IsConstantNode(v->opcode())) {
+        // Even without NodeType, we can extract some information from
+        // constants. This is used to generalize elements_kind in case we see
+        // constants that require doing so.
+        combined_type = UnionType(combined_type, node_type_of(v));
+      }
       // No static type info available; this is tracked separately from static
-      // types, since we may still speculate on present static types from other
-      // value nodes below.
+      // types, since we may still speculate on present static types from
+      // other value nodes below.
       any_value_has_unknown_type = true;
     } else {
       combined_type = UnionType(combined_type, node_type);
@@ -15714,7 +15738,7 @@ ReduceResult MaglevGraphBuilder::VisitForOfNext() {
   auto register_pair = iterator_.GetRegisterPairOperand(2);
 
   CallBuiltin* result_struct =
-      BuildCallBuiltin<Builtin::kForOfNextBaseline>({iterator, next_method});
+      BuildCallBuiltin<Builtin::kForOfNext>({iterator, next_method});
 
   StoreRegisterPair(register_pair, result_struct);
 
@@ -16356,8 +16380,9 @@ std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
   return reducer_.TryGetUint32Constant(value);
 }
 std::optional<double> MaglevGraphBuilder::TryGetFloat64Constant(
-    ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
-  return reducer_.TryGetFloat64Constant(value, conversion_type);
+    UseRepresentation use_repr, ValueNode* value,
+    TaggedToFloat64ConversionType conversion_type) {
+  return reducer_.TryGetFloat64Constant(use_repr, value, conversion_type);
 }
 
 MaybeHandle<String> MaglevGraphBuilder::TryGetStringConstant(ValueNode* value) {
@@ -16714,7 +16739,13 @@ ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
                                                       uint32_t offset,
                                                       LoadType type,
                                                       Args&&... args) {
-  if (!CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
+  // TODO(jgruber): The VirtualObject now stores map slots, so theoretically we
+  // could let the path below handle map loads as well. But, maglev currently
+  // doesn't like this at all - doing so creates problems like OOB vobject field
+  // loads, and missed JSArray elements kind transitions. We should understand
+  // whether this is an issue with --maglev-object-tracking.
+  if (offset == HeapObject::kMapOffset ||
+      !CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
     return AddNewNode<Instruction>({object}, offset,
                                    std::forward<Args>(args)..., type);
   }

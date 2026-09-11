@@ -23,6 +23,7 @@
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/sync/base/features.h"
 #include "components/sync/test/test_sync_service.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -44,9 +45,9 @@ constexpr std::string_view kTestName2 = "Thomas Jefferson";
 constexpr std::string_view kTestEmailAddress2 = "thomas.jefferson@gmail.com";
 constexpr GaiaId::Literal kFakeGaiaId("1234567890");
 
-class AccountNameEmailStoreTest : public testing::Test {
+class AccountNameEmailStoreCoreTest : public testing::Test {
  public:
-  AccountNameEmailStoreTest()
+  AccountNameEmailStoreCoreTest()
       : prefs_(test::PrefServiceForTesting()),
         identity_manager_(identity_test_env_.identity_manager()),
         store_(test_adm_, *identity_manager_, sync_service_, *prefs_) {}
@@ -114,9 +115,10 @@ class AccountNameEmailStoreTest : public testing::Test {
   }
   syncer::TestSyncService& sync_service() { return sync_service_; }
 
+ protected:
+  base::test::ScopedFeatureList features_;
+
  private:
-  base::test::ScopedFeatureList feature_{
-      features::kAutofillEnableSupportForNameAndEmail};
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<PrefService> prefs_;
   signin::IdentityTestEnvironment identity_test_env_;
@@ -135,6 +137,14 @@ MATCHER_P2(IsCorrectAccountNameEmail, name_full, email, "") {
          arg->GetRawInfo(EMAIL_ADDRESS) == email &&
          arg->GetAddressCountryCode().value().empty();
 }
+
+class AccountNameEmailStoreTest : public AccountNameEmailStoreCoreTest {
+ public:
+  AccountNameEmailStoreTest() {
+    features_.InitWithFeatures(
+        {features::kAutofillEnableSupportForNameAndEmail}, {});
+  }
+};
 
 // Tests that a new `kAccountNameEmail` profile isn't created when an empty
 // `AccountInfo` is passed into the `MaybeUpdateOrCreateAccountNameEmail`
@@ -457,7 +467,7 @@ TEST_F(AccountNameEmailStoreTest, SignInAfterHardRemove) {
   sync_service().FireStateChanged();
 
   CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
-  sync_service().SetSignedIn(signin::ConsentLevel::kSync);
+  sync_service().SetSignedIn(signin::ConsentLevel::kSignin);
   sync_service().SetDownloadStatusFor(
       {syncer::DataType::PRIORITY_PREFERENCES},
       syncer::SyncService::DataTypeDownloadStatus::kWaitingForUpdates);
@@ -557,6 +567,67 @@ TEST_F(AccountNameEmailStoreTest, AutofillSyncToggleOnAfterHardRemove) {
   EXPECT_GT(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
             features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+}
+
+// Tests that the kAccountNameEmail profile will be recreated even if the stored
+// hash matches the account info, if the actual profile has outdated data.
+// It is a regression for the following bug:
+// If there were two devices A,B and the account info got updated on the
+// device A, the profile will correctly be recreated there, however since
+// the hash of the account info is synced, the device B will download the
+// updated hash and detect that its stored hash already matches the account info
+// and thus won't update the profile.
+TEST_F(AccountNameEmailStoreTest,
+       ProfileRecreatedIfNameUpdatedOnDifferentDevice) {
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  ASSERT_THAT(
+      address_data_manager().GetProfiles(),
+      ElementsAre(Property(&AutofillProfile::record_type,
+                           AutofillProfile::RecordType::kAccountNameEmail)));
+
+  AccountInfo info = GetPrimaryAccountInfo();
+  info.full_name = kTestName2;
+
+  // Set the hash pref to the updated value before the actual autofill profile
+  // data changes.
+  pref_service().SetString(
+      prefs::kAutofillNameAndEmailProfileSignature,
+      test_api(&account_name_email_store()).HashAccountInfo(info));
+
+  // Try recreating the profile.
+  OnAccountUpdated(info);
+
+  EXPECT_THAT(
+      address_data_manager().GetProfiles(),
+      ElementsAre(IsCorrectAccountNameEmail(base::UTF8ToUTF16(info.full_name),
+                                            base::UTF8ToUTF16(info.email))));
+}
+
+class AccountNameEmailStoreSyncTest : public AccountNameEmailStoreCoreTest {
+ public:
+  AccountNameEmailStoreSyncTest() {
+    features_.InitWithFeatures(
+        {features::kAutofillEnableSupportForNameAndEmail},
+        {syncer::kReplaceSyncPromosWithSignInPromos});
+  }
+};
+
+// Tests that kAccountNameEmail profile exists only if sync-the-feature is
+// enabled.
+// TODO(crbug.com/40066949): Remove once kSync gets removed.
+TEST_F(AccountNameEmailStoreSyncTest, SyncTheFeatureState) {
+  sync_service().SetSignedIn(signin::ConsentLevel::kSignin);
+  sync_service().FireStateChanged();
+
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+
+  sync_service().SetSignedIn(signin::ConsentLevel::kSync);
+  sync_service().FireStateChanged();
+  EXPECT_THAT(address_data_manager().GetProfiles(),
+              ElementsAre(IsCorrectAccountNameEmail(
+                  base::UTF8ToUTF16(kTestName1),
+                  base::UTF8ToUTF16(kTestEmailAddress1))));
 }
 
 }  // namespace

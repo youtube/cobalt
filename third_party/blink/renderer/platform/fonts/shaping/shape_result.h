@@ -106,11 +106,6 @@ struct PLATFORM_EXPORT OffsetWithSpacing {
   float spacing;
 };
 
-struct DeprecatedInkBounds : public GarbageCollected<DeprecatedInkBounds> {
-  void Trace(Visitor*) const {}
-  gfx::RectF ink_bounds;
-};
-
 // BreakGlyphsOption - allows OffsetForPosition to consider graphemes
 // separations inside a glyph. It allows the function to return a point inside
 // a glyph when multiple graphemes share a glyph (for example, in a ligature)
@@ -372,22 +367,14 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
                                 GraphemeClusterCallback,
                                 void* context) const;
 
+  // Returns the first GlyphData for an emphasis mark.
+  // Returns an empty GlyphData if this ShapeResult contains no glyphs.
+  GlyphData EmphasisMarkGlyphData(
+      const FontDescription& font_description) const;
+
   // Computes and returns the ink bounds (or visual overflow rect). This is
   // quite expensive and involves measuring each glyph accumulating the bounds.
   gfx::RectF ComputeInkBounds() const;
-
-  // Only used by CachingWordShapeIterator
-  // TODO(eae): Remove once LayoutNG lands. https://crbug.com/591099
-  void SetDeprecatedInkBounds(gfx::RectF ink_bounds) {
-    if (!deprecated_ink_bounds_) {
-      deprecated_ink_bounds_ = MakeGarbageCollected<DeprecatedInkBounds>();
-    }
-    deprecated_ink_bounds_->ink_bounds = ink_bounds;
-  }
-  gfx::RectF GetDeprecatedInkBounds() const {
-    DCHECK(deprecated_ink_bounds_);
-    return deprecated_ink_bounds_->ink_bounds;
-  }
 
   String ToString() const;
   void ToString(StringBuilder*) const;
@@ -483,11 +470,6 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
   mutable HeapVector<ShapeResultCharacterData> character_position_;
 
   HeapVector<Member<ShapeResultRun>, 1> runs_;
-
-  // Only used by CachingWordShapeIterator and stored here for memory reduction
-  // reasons. See https://crbug.com/955776
-  // TODO(eae): Remove once LayoutNG lands. https://crbug.com/591099
-  Member<DeprecatedInkBounds> deprecated_ink_bounds_ = nullptr;
 
   // The total width. This is the sum of `ShapeResultRun::width_`.
   // It's mutable because `RecalcCharacterPositions()` recalculates this.

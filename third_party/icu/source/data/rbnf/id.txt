@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 id{
     RBNFRules{
         OrdinalRules{
@@ -17,7 +17,8 @@ id{
             "%spellout-cardinal:",
             "-x: negatif >>;",
             "x.x: << titik >>;",
-            "0: kosong;",
+            "x,x: << koma >>;",
+            "0: nol;",
             "1: satu;",
             "2: dua;",
             "3: tiga;",
@@ -44,6 +45,8 @@ id{
             "-x: negatif >>;",
             "x.x: =#,##0.#=;",
             "0: ke=%spellout-cardinal=;",
+            "1: pertama;",
+            "2: ke=%spellout-cardinal=;",
         }
     }
 }

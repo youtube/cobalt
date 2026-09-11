@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <variant>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
@@ -15,11 +16,11 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
-#include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -91,9 +92,9 @@ class ChatClient {
    public:
     RemoteTrackVisitor(ChatClient* client) : client_(client) {}
 
-    void OnReply(const moqt::FullTrackName& full_track_name,
-                 std::optional<Location> largest_id,
-                 std::optional<absl::string_view> reason_phrase) override;
+    void OnReply(
+        const moqt::FullTrackName& full_track_name,
+        std::variant<SubscribeOkData, MoqtRequestError> response) override;
 
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
 
@@ -106,6 +107,9 @@ class ChatClient {
 
     // TODO(martinduke): Implement this.
     void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
+
+    void OnStreamFin(const FullTrackName&, DataStreamIndex) override {}
+    void OnStreamReset(const FullTrackName&, DataStreamIndex) override {}
 
    private:
     ChatClient* client_;
@@ -127,9 +131,10 @@ class ChatClient {
  private:
   void RunEventLoop() { event_loop_->RunEventLoopOnce(kChatEventLoopDuration); }
   // Callback for incoming publish_namespaces.
-  std::optional<MoqtPublishNamespaceErrorReason> OnIncomingPublishNamespace(
+  void OnIncomingPublishNamespace(
       const moqt::TrackNamespace& track_namespace,
-      std::optional<VersionSpecificParameters> parameters);
+      std::optional<VersionSpecificParameters> parameters,
+      moqt::MoqtResponseCallback callback);
 
   // Basic session information
   FullTrackName my_track_name_;

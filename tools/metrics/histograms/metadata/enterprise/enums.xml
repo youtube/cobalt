@@ -111,6 +111,12 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="STORE_KEY_UNAVAILABLE_MANAGED"/>
 </enum>
 
+<enum name="DeviceSignalsHarmfulAppsStatus">
+  <int value="0" label="Success"/>
+  <int value="1" label="Timeout"/>
+  <int value="2" label="Failed"/>
+</enum>
+
 <enum name="DeviceSignalsParsingError">
   <int value="0" label="Hit max data size"/>
   <int value="1" label="Data malformed"/>
@@ -2295,6 +2301,8 @@ chromium-metrics-reviews@google.com.
   <int value="1398" label="PreferSlowCiphers"/>
   <int value="1399" label="DeveloperToolsAvailabilityAllowlist"/>
   <int value="1400" label="DeveloperToolsAvailabilityBlocklist"/>
+  <int value="1401" label="LocalNetworkAccessRestrictionsTemporaryOptOut"/>
+  <int value="1402" label="GeminiActOnWebSettings"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">

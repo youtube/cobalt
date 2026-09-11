@@ -16,7 +16,8 @@
 
 class FormattedValueTest : public IntlTest {
 public:
-    void runIndexedTest(int32_t index, UBool exec, const char *&name, char *par=0) override;
+    void runIndexedTest(int32_t index, UBool exec, const char*& name, char* par = nullptr) override;
+
 private:
     void testBasic();
     void testSetters();
@@ -156,11 +157,11 @@ void FormattedValueTest::assertAllPartsEqual(
         context, cfpos.getInt64IterationContext());
 
     assertEquals(messagePrefix + u": integer field",
-        (UBool) ((matching & 1) != 0), cfpos.matchesField(UFIELD_CATEGORY_NUMBER, UNUM_INTEGER_FIELD));
+        static_cast<UBool>((matching & 1) != 0), cfpos.matchesField(UFIELD_CATEGORY_NUMBER, UNUM_INTEGER_FIELD));
     assertEquals(messagePrefix + u": compact field",
-        (UBool) ((matching & 2) != 0), cfpos.matchesField(UFIELD_CATEGORY_NUMBER, UNUM_COMPACT_FIELD));
+        static_cast<UBool>((matching & 2) != 0), cfpos.matchesField(UFIELD_CATEGORY_NUMBER, UNUM_COMPACT_FIELD));
     assertEquals(messagePrefix + u": date field",
-        (UBool) ((matching & 4) != 0), cfpos.matchesField(UFIELD_CATEGORY_DATE, UDAT_AM_PM_FIELD));
+        static_cast<UBool>((matching & 4) != 0), cfpos.matchesField(UFIELD_CATEGORY_DATE, UDAT_AM_PM_FIELD));
 }
 
 

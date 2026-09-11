@@ -36,7 +36,8 @@ public:
     void TestFormatReplaceOptimizationNoOffsets();
     void TestFormatReplaceNoOptimizationNoOffsets();
     void TestQuotingLikeMessageFormat();
-    void runIndexedTest(int32_t index, UBool exec, const char *&name, char *par=0) override;
+    void runIndexedTest(int32_t index, UBool exec, const char*& name, char* par = nullptr) override;
+
 private:
     void verifyOffsets(
             const int32_t *expected,
@@ -90,10 +91,10 @@ void SimpleFormatterTest::TestNoArguments() {
 void SimpleFormatterTest::TestSyntaxErrors() {
     UErrorCode status = U_ZERO_ERROR;
     SimpleFormatter fmt("{}", status);
-    assertEquals("syntax error {}", (int32_t)U_ILLEGAL_ARGUMENT_ERROR, status);
+    assertEquals("syntax error {}", static_cast<int32_t>(U_ILLEGAL_ARGUMENT_ERROR), status);
     status = U_ZERO_ERROR;
     fmt.applyPattern("{12d", status);
-    assertEquals("syntax error {12d", (int32_t)U_ILLEGAL_ARGUMENT_ERROR, status);
+    assertEquals("syntax error {12d", static_cast<int32_t>(U_ILLEGAL_ARGUMENT_ERROR), status);
 }
 
 void SimpleFormatterTest::TestOneArgument() {

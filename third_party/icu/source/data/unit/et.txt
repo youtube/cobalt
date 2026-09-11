@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 et{
     units{
         acceleration{
@@ -185,6 +185,11 @@ et{
                 one{"{0} promüriaad"}
                 other{"{0} promüriaadi"}
             }
+            portion-per-1e9{
+                dnam{"miljardikosa"}
+                one{"{0} miljardikosa"}
+                other{"{0} miljardikosa"}
+            }
         }
         consumption{
             liter-per-100-kilometer{
@@ -316,6 +321,12 @@ et{
                 dnam{"nanosekundid"}
                 one{"{0} nanosekund"}
                 other{"{0} nanosekundit"}
+            }
+            night{
+                dnam{"ööd"}
+                one{"{0} öö"}
+                other{"{0} ööd"}
+                per{"{0} öö kohta"}
             }
             quarter{
                 dnam{"kvartalid"}
@@ -1025,6 +1036,12 @@ et{
                 one{"{0} k"}
                 other{"{0} k"}
             }
+            night{
+                dnam{"ööd"}
+                one{"{0} öö"}
+                other{"{0} ööd"}
+                per{"{0}/öö"}
+            }
             second{
                 dnam{"s"}
                 one{"{0} s"}
@@ -1195,6 +1212,11 @@ et{
             permyriad{
                 dnam{"promüriaad"}
             }
+            portion-per-1e9{
+                dnam{"osakesed/miljard"}
+                one{"{0} miljardikosa"}
+                other{"{0} miljardikosa"}
+            }
         }
         consumption{
             liter-per-100-kilometer{
@@ -1265,6 +1287,12 @@ et{
                 one{"{0} kuu"}
                 other{"{0} kuud"}
                 per{"{0}/k"}
+            }
+            night{
+                dnam{"ööd"}
+                one{"{0} öö"}
+                other{"{0} ööd"}
+                per{"{0}/öö"}
             }
             quarter{
                 dnam{"kv"}

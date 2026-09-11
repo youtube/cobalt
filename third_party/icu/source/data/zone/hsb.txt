@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 hsb{
     zoneStrings{
         "Africa:Accra"{
@@ -39,23 +39,14 @@ hsb{
         "Africa:Porto-Novo"{
             ec{"Porto Novo"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "Africa:Tripoli"{
             ec{"Tripolis"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bogota"{
             ec{"Bogotá"}
         }
         "America:Cayman"{
             ec{"Kaimanske kupy"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Havana"{
             ec{"Havanna"}
@@ -255,9 +246,6 @@ hsb{
         "Europe:Tirane"{
             ec{"Tirana"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Užgorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikan"}
         }
@@ -269,9 +257,6 @@ hsb{
         }
         "Europe:Warsaw"{
             ec{"Waršawa"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporižžja"}
         }
         "Europe:Zurich"{
             ec{"Zürich"}
@@ -285,11 +270,11 @@ hsb{
         "Indian:Maldives"{
             ec{"Malediwy"}
         }
-        "Indian:Reunion"{
-            ec{"Réunion"}
-        }
         "Pacific:Easter"{
             ec{"Jutrowna kupa"}
+        }
+        "Pacific:Enderbury"{
+            ec{"Enderbury"}
         }
         "Pacific:Fiji"{
             ec{"Fidźi"}
@@ -442,11 +427,6 @@ hsb{
             ld{"chinski lětni čas"}
             lg{"chinski čas"}
             ls{"chinski standardny čas"}
-        }
-        "meta:Choibalsan"{
-            ld{"Čojbalsanski lětni čas"}
-            lg{"Čojbalsanski čas"}
-            ls{"Čojbalsanski standardny čas"}
         }
         "meta:Christmas"{
             ls{"čas Hodowneje kupy"}
@@ -615,6 +595,9 @@ hsb{
             lg{"japanski čas"}
             ls{"japanski standardny čas"}
         }
+        "meta:Kazakhstan"{
+            ls{"kazachski čas"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"wuchodnokazachski čas"}
         }
@@ -645,9 +628,6 @@ hsb{
             lg{"čas kupy Lord-Howe"}
             ls{"standardny čas kupy Lord-Howe"}
         }
-        "meta:Macquarie"{
-            ls{"čas kupy Macquarie"}
-        }
         "meta:Magadan"{
             ld{"Magadanski lětni čas"}
             lg{"Magadanski čas"}
@@ -672,11 +652,6 @@ hsb{
         }
         "meta:Mawson"{
             ls{"Mawsonski čas"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"mexiski sewjerozapadny lětni čas"}
-            lg{"mexiski sewjerozapadny čas"}
-            ls{"mexiski sewjerozapadny standardny čas"}
         }
         "meta:Mexico_Pacific"{
             ld{"mexiski pacifiski lětni čas"}

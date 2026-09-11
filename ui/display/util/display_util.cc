@@ -16,6 +16,7 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "components/device_event_log/device_event_log.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "ui/display/types/display_snapshot.h"
 #include "ui/display/util/edid_parser.h"
 #include "ui/gfx/icc_profile.h"
@@ -314,14 +315,14 @@ gfx::DisplayColorSpaces CreateDisplayColorSpaces(
     const std::optional<gfx::HDRStaticMetadata>& hdr_static_metadata) {
   if (HasForceDisplayColorProfile()) {
     return gfx::DisplayColorSpaces(GetForcedDisplayColorProfile(),
-                                   DisplaySnapshot::PrimaryFormat());
+                                   DisplaySnapshot::PrimarySharedImageFormat());
   }
 
   // ChromeOS VMs (e.g. amd64-generic or betty) have INVALID Primaries; just
   // pass the color space along.
   if (!snapshot_color_space.IsValid()) {
     return gfx::DisplayColorSpaces(snapshot_color_space,
-                                   DisplaySnapshot::PrimaryFormat());
+                                   DisplaySnapshot::PrimarySharedImageFormat());
   }
 
   // Make all displays report that they have sRGB primaries. Hardware color
@@ -335,7 +336,7 @@ gfx::DisplayColorSpaces CreateDisplayColorSpaces(
 
   // Use that color space for all content.
   gfx::DisplayColorSpaces display_color_spaces = gfx::DisplayColorSpaces(
-      sdr_color_space, DisplaySnapshot::PrimaryFormat());
+      sdr_color_space, DisplaySnapshot::PrimarySharedImageFormat());
 
   // Claim 10% HDR headroom if HDR is available.
   if (allow_high_bit_depth && snapshot_color_space.IsHDR()) {
@@ -360,7 +361,7 @@ gfx::DisplayColorSpaces CreateDisplayColorSpaces(
     // ContentColorUsage. BT2020 primaries and PQ transfer function require a
     // 10-bit buffer.
     display_color_spaces = gfx::DisplayColorSpaces(
-        gfx::ColorSpace::CreateHDR10(), gfx::BufferFormat::RGBA_1010102);
+        gfx::ColorSpace::CreateHDR10(), viz::SinglePlaneFormat::kRGBA_1010102);
     // TODO(b/165822222): Set initial luminance values based on display
     // brightness
     display_color_spaces.SetSDRMaxLuminanceNits(
