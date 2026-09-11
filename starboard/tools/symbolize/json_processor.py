@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +14,7 @@
 """Decoupled test runner JSON summary processor with fast pre-filtering."""
 
 import base64
+import binascii
 import json
 from typing import Callable, Iterable
 
@@ -33,7 +33,7 @@ STACK_TRACE_SIGNATURES = (
 
 
 def has_stack_trace_signature(text: str) -> bool:
-  """Fast pre-check for stack trace signatures in O(1)."""
+  """Fast heuristic pre-check to bypass snippets lacking trace signatures."""
   return any(sig in text for sig in STACK_TRACE_SIGNATURES)
 
 
@@ -55,7 +55,7 @@ def process_test_run(test_run: dict,
 
   try:
     decoded = base64.b64decode(snippet_b64).decode('utf-8', 'replace')
-  except Exception:  # pylint: disable=broad-except
+  except (binascii.Error, ValueError):
     return False
 
   if not has_stack_trace_signature(decoded):
