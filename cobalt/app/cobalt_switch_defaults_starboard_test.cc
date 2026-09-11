@@ -18,6 +18,7 @@
 
 #include "base/base_switches.h"
 #include "build/buildflag.h"
+#include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
@@ -124,6 +125,16 @@ TEST(CobaltSwitchDefaultsTest, GpuMemorySwitchDefault) {
   std::string gpu_mem =
       GetSwitchValue(cmd_line_pxr, ::switches::kForceGpuMemAvailableMb);
   EXPECT_EQ(std::string("64"), gpu_mem);
+}
+
+TEST(CobaltSwitchDefaultsTest, SkewportTargetTimeDefault) {
+  const auto input_argv = std::to_array<const char*>({"PROGRAM"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  std::string skewport_time =
+      GetSwitchValue(cmd_line_pxr, ::switches::kSkewportTargetTimeInSeconds);
+  EXPECT_EQ(std::string("0"), skewport_time);
 }
 
 TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {

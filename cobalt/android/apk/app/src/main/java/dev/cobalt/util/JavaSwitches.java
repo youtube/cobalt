@@ -42,6 +42,7 @@ public class JavaSwitches {
   public static final String DEFAULT_INITIAL_OLD_SPACE_SIZE = "64";
   public static final String DEFAULT_MAX_OLD_SPACE_SIZE = "512";
   public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
+  public static final String DEFAULT_SKEWPORT_TARGET_TIME_IN_SECONDS = "0";
 
   public static final String ENABLE_QUIC = "EnableQUIC";
 
@@ -149,6 +150,9 @@ public class JavaSwitches {
 
   /** flag to force GPU memory available in MB. */
   public static final String FORCE_GPU_MEM_AVAILABLE_MB = "ForceGpuMemAvailableMb";
+
+  /** flag to configure compositor skewport target time in seconds. */
+  public static final String SKEWPORT_TARGET_TIME_IN_SECONDS = "SkewportTargetTimeInSeconds";
 
   /** flag to enable area based buffer budget experiment. */
   public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
@@ -306,6 +310,7 @@ public class JavaSwitches {
     if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
       defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
     }
+    defaultArgs.add("--skewport-target-time-in-seconds=" + DEFAULT_SKEWPORT_TARGET_TIME_IN_SECONDS);
     defaultArgs.add(
         "--js-flags=--initial-old-space-size="
             + DEFAULT_INITIAL_OLD_SPACE_SIZE
@@ -380,6 +385,15 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
       extraCommandLineArgs.add("--disable-gpu-memory-buffer-compositor-resources");
+    }
+
+    String skewportTargetTime =
+        getSanitizedNumericValue(javaSwitches, JavaSwitches.SKEWPORT_TARGET_TIME_IN_SECONDS);
+    if (skewportTargetTime != null) {
+      extraCommandLineArgs.add("--skewport-target-time-in-seconds=" + skewportTargetTime);
+    } else {
+      extraCommandLineArgs.add(
+          "--skewport-target-time-in-seconds=" + DEFAULT_SKEWPORT_TARGET_TIME_IN_SECONDS);
     }
 
     String limit = getSanitizedNumericValue(javaSwitches, JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS);
@@ -523,8 +537,7 @@ public class JavaSwitches {
       enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
     }
     if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
-      String cooldown =
-          javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
+      String cooldown = javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
       if (cooldown != null) {
         String cooldownVal = cooldown.replaceAll("[^0-9]", "");
         if (!cooldownVal.isEmpty()) {
