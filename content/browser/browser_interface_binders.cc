@@ -852,24 +852,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
                           base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-<<<<<<< HEAD
-=======
-  if (base::FeatureList::IsEnabled(features::kWebOTP)) {
-    map->Add<blink::mojom::WebOTPService>(
-        base::BindRepeating(&RenderFrameHostImpl::BindWebOTPServiceReceiver,
-                            base::Unretained(host)));
-  }
-
-  map->Add<blink::mojom::DigitalIdentityRequest>(base::BindRepeating(
-      &RenderFrameHostImpl::BindDigitalIdentityRequestReceiver,
-      base::Unretained(host)));
-
-  map->Add<blink::mojom::FederatedAuthRequest>(base::BindRepeating(
-      &RenderFrameHostImpl::BindFederatedAuthRequestReceiver,
-      base::Unretained(host)));
-
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &RenderFrameHostImpl::CreateWebUsbService, base::Unretained(host)));
 #endif
