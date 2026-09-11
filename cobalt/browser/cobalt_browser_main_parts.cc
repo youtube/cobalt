@@ -373,6 +373,8 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
+CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
+
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   LOG(INFO) << "Native CommandLine: "
@@ -467,9 +469,16 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
-#if !BUILDFLAG(IS_ANDROID)
-  // Register the Cobalt system memory pressure evaluator with Chromium's
-  // MultiSourceMemoryPressureMonitor.
+  // Register the Cobalt system memory pressure evaluator with
+  // MultiSourceMemoryPressureMonitor across all platforms.
+  // On platforms where BrowserMainLoop did not create a MemoryPressureMonitor
+  // (e.g. Android TV), create and own one here so that process-budget memory
+  // pressure evaluation is active uniformly across all Cobalt targets.
+  if (!base::MemoryPressureMonitor::Get()) {
+    memory_pressure_monitor_ =
+        std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
+  }
+
   auto* monitor =
       static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
           base::MemoryPressureMonitor::Get());
@@ -485,7 +494,6 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
             monitor->CreateVoter(), std::move(media_allowance_getter)));
     LOG(INFO) << "CobaltSystemMemoryPressureEvaluator registered successfully.";
   }
-#endif
 
   StartStorageMigration();
 

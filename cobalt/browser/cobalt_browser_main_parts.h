@@ -27,6 +27,10 @@
 
 class PrefService;
 
+namespace memory_pressure {
+class MultiSourceMemoryPressureMonitor;
+}  // namespace memory_pressure
+
 namespace metrics {
 class MetricsService;
 }  // namespace metrics
@@ -51,7 +55,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
 
-  ~CobaltBrowserMainParts() override = default;
+  ~CobaltBrowserMainParts() override;
 
   // ShellBrowserMainParts overrides.
   int PreEarlyInitialization() override;
@@ -90,6 +94,9 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  std::unique_ptr<memory_pressure::MultiSourceMemoryPressureMonitor>
+      memory_pressure_monitor_;
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };
