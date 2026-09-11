@@ -73,6 +73,7 @@ CC_BASE_EXPORT extern const char kCCImageCacheLimitMbs[];
 CC_BASE_EXPORT extern const char kDecodedImageWorkingSetBudgetBytes[];
 // Avoid reuse resource.
 CC_BASE_EXPORT extern const char kAvoidCCReuseResource[];
+CC_BASE_EXPORT extern const char kSkewportTargetTimeInSeconds[];
 #endif
 
 }  // namespace switches

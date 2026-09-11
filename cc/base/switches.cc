@@ -120,6 +120,7 @@ const char kDecodedImageWorkingSetBudgetBytes[] =
     "decoded-image-working-set-budget-bytes";
 // Avoid reuse resource.
 const char kAvoidCCReuseResource[] = "avoid-cc-reuse-resource";
+const char kSkewportTargetTimeInSeconds[] = "skewport-target-time-in-seconds";
 #endif
 
 }  // namespace switches

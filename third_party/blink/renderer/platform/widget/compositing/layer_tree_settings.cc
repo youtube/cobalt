@@ -612,6 +612,21 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
            settings.skewport_extrapolation_limit_in_screen_pixels) =
       GetTilingInterestAreaSizes();
 
+#if BUILDFLAG(IS_COBALT)
+  if (cmd.HasSwitch(::switches::kSkewportTargetTimeInSeconds)) {
+    std::string string_value =
+        cmd.GetSwitchValueASCII(::switches::kSkewportTargetTimeInSeconds);
+    double skewport_target_time;
+    if (base::StringToDouble(string_value, &skewport_target_time) &&
+        skewport_target_time >= 0.0) {
+      settings.skewport_target_time_in_seconds =
+          static_cast<float>(skewport_target_time);
+      settings.gpu_rasterization_skewport_target_time_in_seconds =
+          static_cast<float>(skewport_target_time);
+    }
+  }
+#endif
+
   settings.dynamic_safe_area_insets_on_scroll_enabled =
       RuntimeEnabledFeatures::DynamicSafeAreaInsetsOnScrollEnabled();
   return settings;

@@ -134,6 +134,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kForceGpuMemAvailableMb, "64"},
       // Disable CC image cache items limit.
       {::switches::kCCImageCacheLimitItems, "0"},
+      // Disable skewport target time to avoid speculative offscreen tile
+      // rasterization.
+      {::switches::kSkewportTargetTimeInSeconds, "0"},
   };
   return kCobaltSwitchDefaults;
 }

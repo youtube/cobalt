@@ -3621,6 +3621,9 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       switches::kBrowserControlsHideThreshold,
       switches::kBrowserControlsShowThreshold,
       switches::kRunAllCompositorStagesBeforeDraw,
+#if BUILDFLAG(IS_COBALT)
+      switches::kSkewportTargetTimeInSeconds,
+#endif
 
       network::switches::kForcePermissionPolicyUnloadDefaultEnabled,
 
