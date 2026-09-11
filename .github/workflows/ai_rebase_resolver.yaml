@@ -145,10 +145,16 @@ jobs:
             exit 1
           fi
 
-          # 2. Create a separate, isolated AI branch from the base branch
-          echo "Creating isolated AI branch: ${AI_BRANCH}..."
+          # 2. Set up AI branch: if remote branch already exists, track it to accumulate commits; otherwise start from base
+          if git ls-remote --exit-code --heads origin "${AI_BRANCH}"; then
+            echo "Branch origin/${AI_BRANCH} already exists. Checking out existing AI branch..."
+            git fetch origin "${AI_BRANCH}:${AI_BRANCH}"
+            git checkout "${AI_BRANCH}"
+          else
+            echo "Creating isolated AI branch: ${AI_BRANCH}..."
+            git checkout -B "${AI_BRANCH}"
+          fi
           STARTING_SHA=$(git rev-parse HEAD)
-          git checkout -B "${AI_BRANCH}"
 
           echo "pr_num=${PR_NUM}" >> "${GITHUB_OUTPUT}"
           echo "base_branch=${BASE_NAME}" >> "${GITHUB_OUTPUT}"
@@ -310,31 +316,44 @@ jobs:
           git fetch "${BUNDLE_FILE}" "+refs/heads/*:refs/heads/*"
 
           echo "Pushing ${AI_BRANCH} to origin..."
-          git push origin "${AI_BRANCH}" --force
+          git push origin "${AI_BRANCH}"
 
       - name: Create or Update AI PR
         run: |
           set -x
           TARGET_PR="${PR_NUM:-custom}"
           if [[ -n "${PR_NUM}" ]]; then
-            TARGET_BASE=$(gh pr view "${PR_NUM}" --repo "${GITHUB_REPOSITORY}" --json headRefName --jq '.headRefName // "autoroll-chromium/main-to-staging"')
+            TARGET_BASE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUM}" --jq '.head.ref // "autoroll-chromium/main-to-staging"' 2>/dev/null || echo "autoroll-chromium/main-to-staging")
           else
             TARGET_BASE="autoroll-chromium/main-to-staging"
           fi
           PR_TITLE="[AI] Fix conflicts and builds for PR #${TARGET_PR}"
-          PR_BODY="### Vertex AI Rebase Agent Resolution
+
+          # Query for existing open PR using REST API to bypass GraphQL token limitations
+          EXISTING_PR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls?head=${GITHUB_REPOSITORY%/*}:${AI_BRANCH}&state=open" --jq '.[0].number // ""')
+          if [[ -z "${EXISTING_PR}" ]]; then
+            EXISTING_PR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls?head=${GITHUB_REPOSITORY%/*}:${AI_BRANCH}&state=all" --jq '.[0].number // ""')
+          fi
+
+          if [[ -n "${EXISTING_PR}" ]]; then
+            echo "Adding update comment to existing AI PR #${EXISTING_PR} via REST API..."
+            STATUS_STR=$([[ "${IS_RESOLVED}" == "true" ]] && echo "Build Verified" || echo "In Progress")
+            COMMENT_BODY="#### Update from Rebase Agent Run
+          - **Status**: ${STATUS_STR}
+          - **Workflow Run**: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${EXISTING_PR}/comments" \
+              -X POST \
+              -f body="${COMMENT_BODY}"
+          else
+            echo "Creating new AI PR for ${AI_BRANCH} against ${TARGET_BASE}..."
+            PR_BODY="### Vertex AI Rebase Agent Resolution
 
           Automated rebase resolution for target PR #${TARGET_PR}.
           - **Status**: $([[ "${IS_RESOLVED}" == "true" ]] && echo "Build Verified" || echo "In Progress")
           - **AI Branch**: \`${AI_BRANCH}\`
           - **Target Base**: \`${TARGET_BASE}\`"
 
-          EXISTING_PR=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${AI_BRANCH}" --json number --jq '.[0].number // ""')
-          if [[ -n "${EXISTING_PR}" ]]; then
-            echo "Updating existing AI PR #${EXISTING_PR}..."
-            gh pr edit "${EXISTING_PR}" --repo "${GITHUB_REPOSITORY}" --title "${PR_TITLE}" --body "${PR_BODY}"
-          else
-            echo "Creating new AI PR for ${AI_BRANCH} against ${TARGET_BASE}..."
             gh pr create --repo "${GITHUB_REPOSITORY}" \
               --base "${TARGET_BASE}" \
               --head "${AI_BRANCH}" \
