@@ -854,18 +854,16 @@ class BLINK_PLATFORM_EXPORT Platform {
   }
 #endif
 
-<<<<<<< HEAD
   // Memory Coordinator -------------------------------
   // Invoked when the garbage collector is about to run its last GC before
   // calling an OOM.
   virtual void OnV8HeapLastResortGC() {}
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual uint64_t GetMediaSourceMaximumMemoryCapacity() const { return 0; }
   virtual uint64_t GetMediaSourceCurrentMemoryCapacity() const { return 0; }
   virtual uint64_t GetMediaSourceTotalAllocatedMemory() const { return 0; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 7b052c2955e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  private:
   static void InitializeMainThreadCommon(

@@ -95,14 +95,17 @@ OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
     gfx::BufferUsage usage) {
   CHECK(viz::HasEquivalentBufferFormat(format));
   gfx::BufferFormat buffer_format = ToBufferFormat(format);
+  VulkanDeviceQueue* device_queue = nullptr;
+#if BUILDFLAG(ENABLE_VULKAN)
+  if (vulkan_context_provider) {
+    device_queue = vulkan_context_provider->GetDeviceQueue();
+  }
+#endif  // BUILDFLAG(ENABLE_VULKAN)
   scoped_refptr<gfx::NativePixmap> pixmap =
       ui::OzonePlatform::GetInstance()
           ->GetSurfaceFactoryOzone()
-          ->CreateNativePixmap(gpu::kNullSurfaceHandle,
-                               vulkan_context_provider
-                                   ? vulkan_context_provider->GetDeviceQueue()
-                                   : nullptr,
-                               size, buffer_format, usage, size);
+          ->CreateNativePixmap(gpu::kNullSurfaceHandle, device_queue, size,
+                               buffer_format, usage, size);
 
   if (!pixmap.get()) {
     DLOG(ERROR) << "Failed to create pixmap " << size.ToString() << ",  "

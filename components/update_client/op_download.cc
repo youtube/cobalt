@@ -298,7 +298,6 @@ base::OnceClosure DownloadOperation(
           },
           get_available_space),
       base::BindOnce(&HandleAvailableSpace, config, id, cancellation,
-<<<<<<< HEAD
                      is_foreground, urls, size, hash,
                      base::BindRepeating(
                          [](CrxDownloader::ProgressCallback progress_callback,
@@ -307,15 +306,11 @@ base::OnceClosure DownloadOperation(
                            progress_callback.Run(downloaded_bytes, file_size);
                          },
                          progress_callback, size),
-                     event_adder, std::move(callback)));
-=======
-                     is_foreground, urls, size, hash, progress_callback,
                      event_adder,
 #if defined(IN_MEMORY_UPDATES)
                      crx_str,
 #endif
                      std::move(callback)));
->>>>>>> parent of 7b052c2955e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::BindOnce(&Cancellation::Cancel, cancellation);
 }
 
