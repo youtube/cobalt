@@ -36,6 +36,7 @@
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
+#include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -51,11 +52,19 @@ namespace {
 
 metrics::FileMetricsProvider::FilterAction FilterBrowserMetricsFiles(
     const base::FilePath& path) {
-  base::ProcessId pid;
-  if (base::GlobalHistogramAllocator::ParseFilePath(path, nullptr, nullptr,
-                                                    &pid)) {
-    if (pid == base::GetCurrentProcId()) {
+  std::optional<base::ProcessId> pid =
+      ExtractStabilityMetricsPid(path, "BrowserStabilityMetrics");
+  if (pid.has_value()) {
+    if (*pid == base::GetCurrentProcId()) {
       return metrics::FileMetricsProvider::FILTER_ACTIVE_THIS_PID;
+    }
+  } else {
+    base::ProcessId old_pid;
+    if (base::GlobalHistogramAllocator::ParseFilePath(path, nullptr, nullptr,
+                                                      &old_pid)) {
+      if (old_pid == base::GetCurrentProcId()) {
+        return metrics::FileMetricsProvider::FILTER_ACTIVE_THIS_PID;
+      }
     }
   }
   return metrics::FileMetricsProvider::FILTER_PROCESS_FILE;

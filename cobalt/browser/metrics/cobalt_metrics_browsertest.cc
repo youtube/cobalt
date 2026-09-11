@@ -28,6 +28,7 @@
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/file_metrics_provider.h"
@@ -496,23 +497,17 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   base::FilePath metrics_dir = base_dir.AppendASCII("BrowserStabilityMetrics");
 
   // Verify that a prior session file name constructed with a known PID
-  // and timestamp correctly yields the PID upon ParseFilePath.
+  // correctly yields the PID upon ExtractStabilityMetricsPid.
   base::ProcessId simulated_pid = 12345;
-  base::Time simulated_stamp = base::Time::FromTimeT(1700000000);
-  base::FilePath simulated_file =
-      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
-          metrics_dir, "BrowserStabilityMetrics", simulated_stamp,
-          simulated_pid);
+  base::FilePath simulated_file = cobalt::ConstructStabilityMetricsFilePath(
+      metrics_dir, "BrowserStabilityMetrics", simulated_pid);
 
-  std::string parsed_name;
-  base::Time parsed_stamp;
-  base::ProcessId parsed_pid = 0;
-  EXPECT_TRUE(base::GlobalHistogramAllocator::ParseFilePath(
-      simulated_file, &parsed_name, &parsed_stamp, &parsed_pid));
-  EXPECT_EQ(parsed_name, "BrowserStabilityMetrics");
-  EXPECT_EQ(parsed_stamp.ToTimeT(), simulated_stamp.ToTimeT());
-  EXPECT_EQ(parsed_pid, simulated_pid);
-  EXPECT_GT(parsed_pid, 0);
+  std::optional<base::ProcessId> parsed_pid =
+      cobalt::ExtractStabilityMetricsPid(simulated_file,
+                                         "BrowserStabilityMetrics");
+  ASSERT_TRUE(parsed_pid.has_value());
+  EXPECT_EQ(*parsed_pid, simulated_pid);
+  EXPECT_GT(*parsed_pid, 0);
 }
 
 }  // namespace cobalt
