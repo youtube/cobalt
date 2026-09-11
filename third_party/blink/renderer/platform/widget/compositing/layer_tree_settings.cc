@@ -9,6 +9,7 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/features.h"
 #include "base/logging.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/string_number_conversions.h"
@@ -179,6 +180,27 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
     }
     return actual;
   }
+#if BUILDFLAG(IS_COBALT)
+  int force_gpu_mem_mb = 0;
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltForceGpuMemAvailable)) {
+    force_gpu_mem_mb = base::features::kCobaltForceGpuMemAvailableMb.Get();
+#if BUILDFLAG(IS_STARBOARD) || \
+    (BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS))
+  } else {
+    // Default to 64MB GPU memory limit on Starboard and 32-bit Android (arm).
+    // 64-bit Android (arm64, x86_64) is excluded to avoid capping high-end
+    // devices that require higher memory budgets for 4K UI rendering.
+    force_gpu_mem_mb = 64;
+#endif  // BUILDFLAG(IS_STARBOARD) || (BUILDFLAG(IS_ANDROID) &&
+        // defined(ARCH_CPU_32_BITS))
+  }
+  if (force_gpu_mem_mb > 0) {
+    actual.bytes_limit_when_visible =
+        static_cast<size_t>(force_gpu_mem_mb) * 1024 * 1024;
+    return actual;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::SysInfo::IsLowEndDevice() ||

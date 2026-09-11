@@ -32,6 +32,20 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMemoryPressureCooldown);
 // kCobaltMemoryPressureCooldown is enabled.
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMemoryPressureCooldownSeconds);
+
+// When enabled, gates the GPU memory budget via Finch feature and parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltForceGpuMemAvailable);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltForceGpuMemAvailableMb);
+
+// When enabled, gates the V8 max old space size via Finch feature and
+// parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8MaxOldSpaceSize);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8MaxOldSpaceSizeMb);
+
+// When enabled, gates the V8 initial old space size via Finch feature and
+// parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8InitialOldSpaceSize);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
