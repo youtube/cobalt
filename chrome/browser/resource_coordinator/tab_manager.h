@@ -20,7 +20,6 @@
 #include "chrome/browser/resource_coordinator/lifecycle_unit.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_observer.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_source_observer.h"
-#include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom-forward.h"
 #include "chrome/browser/resource_coordinator/tab_manager_features.h"
 #include "chrome/browser/sessions/session_restore_observer.h"
 #include "content/public/browser/navigation_throttle.h"
@@ -129,7 +128,8 @@ class TabManager : public LifecycleUnitObserver,
   LifecycleUnitSet lifecycle_units_;
 
   // A listener to global memory pressure events.
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::MemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   // Weak pointer factory used for posting delayed tasks.
   base::WeakPtrFactory<TabManager> weak_ptr_factory_{this};

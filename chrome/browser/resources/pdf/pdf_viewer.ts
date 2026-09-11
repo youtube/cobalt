@@ -68,7 +68,8 @@ import {Ink2Manager} from './ink2_manager.js';
 import {LocalStorageProxyImpl} from './local_storage_proxy.js';
 import {convertDocumentDimensionsMessage, convertFormFocusChangeMessage, convertLoadProgressMessage} from './message_converter.js';
 import {record, recordEnumeration, UserAction} from './metrics.js';
-import {NavigatorDelegateImpl, PdfNavigator, WindowOpenDisposition} from './navigator.js';
+import {NavigatorDelegateImpl, PdfNavigatorImpl, WindowOpenDisposition} from './navigator.js';
+import type {PdfNavigator} from './navigator.js';
 import {deserializeKeyEvent, LoadState} from './pdf_scripting_api.js';
 import {getCss} from './pdf_viewer.css.js';
 import {getHtml} from './pdf_viewer.html.js';
@@ -494,7 +495,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
         this.originalUrl, this.sidenavCollapsed_);
     this.sidenavCollapsed_ = !showSidenav;
 
-    this.navigator_ = new PdfNavigator(
+    this.navigator_ = new PdfNavigatorImpl(
         this.originalUrl, this.viewport, this.paramsParser,
         new NavigatorDelegateImpl(browserApi));
 
@@ -1323,6 +1324,10 @@ export class PdfViewerElement extends PdfViewerBaseElement {
         this.handleSaveToDriveProgress_.bind(this));
   }
 
+  setPdfNavigatorForTesting(navigator: PdfNavigator) {
+    this.navigator_ = navigator;
+  }
+
   // Calculates the save to Drive progress in percentage. Returns 0 if the PDF
   // is not uploading to Drive.
   protected getSaveToDriveProgress_(): number {
@@ -1409,10 +1414,26 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     return bubble;
   }
 
-  private onSaveToDriveStateChanged_(oldSaveToDriveState: SaveToDriveState) {
-    // Transition from UNINITIALIZED to UPLOADING.
-    if (oldSaveToDriveState === SaveToDriveState.UNINITIALIZED &&
-        this.isSaveToDriveUploading_()) {
+  private onSaveToDriveStateChanged_(oldState: SaveToDriveState) {
+    const newState = this.saveToDriveState_;
+    if (saveToDriveStateIsFinalState(newState)) {
+      if (newState === SaveToDriveState.SUCCESS) {
+        this.onSaveSuccessful_(this.saveToDriveRequestType_);
+      } else if (oldState === SaveToDriveState.UPLOADING) {
+        // TODO(crbug.com/450600664): Fix an edge case where beforeunload dialog
+        // is still blocking if an EDITED upload is cancelled after a successful
+        // EDITED disk save.
+        // <if expr="enable_pdf_ink2">
+        this.onSaveFailedOrCancelled_(this.saveToDriveRequestType_);
+        // </if>
+      }
+      this.getSaveToDriveBubble_().showAt(
+          this.$.toolbar.getSaveToDriveBubbleAnchor(),
+          /*autoDismiss=*/ true);
+      return;
+    }
+
+    if (newState === SaveToDriveState.UPLOADING) {
       // Block unloading the window if upload is in progress.
       this.setShowBeforeUnloadDialog_(true);
       if (isEditedSaveRequestType(this.saveToDriveRequestType_)) {
@@ -1420,37 +1441,15 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       }
       return;
     }
-    // Transition from a final state (COMPLETE, or any error state) to
-    // UNINITIALIZED.
-    if (oldSaveToDriveState !== SaveToDriveState.UPLOADING) {
-      // TODO(crbug.com/427449996): Add an assertion to check that the current
-      // state is UNINITIALIZED. Also update the tests to accommodate the
-      // change.
+
+    assert(
+        newState === SaveToDriveState.UNINITIALIZED,
+        `Unexpected state: ${newState}`);
+    if (oldState !== SaveToDriveState.UPLOADING) {
+      // TODO(crbug.com/427449996): Update the tests to make sure they all end
+      // with an UNINITIALIZED state.
       this.setShowBeforeUnloadDialog_(this.hasUnsavedEdits_);
-      return;
     }
-    // Transition from UPLOADING to SUCCESS, cancelled, or error state.
-    if (this.saveToDriveState_ === SaveToDriveState.SUCCESS) {
-      this.onSaveSuccessful_(this.saveToDriveRequestType_);
-    } else {
-      // TODO(crbug.com/427449996): Fix an edge case where beforeunload dialog
-      // is still blocking if an EDITED upload is cancelled after a successful
-      // EDITED disk save. This could happen in the following order:
-      // 1. Make an edit.
-      // 2. Initiate an EDITED save to Drive.
-      // 3. Initiate an EDITED disk save.
-      // 4. Cancel the EDITED save to Drive upload.
-      // 5. `hasUnsavedEdits_` is restored to true from step 4.
-      // <if expr="enable_pdf_ink2">
-      this.onSaveFailedOrCancelled_(this.saveToDriveRequestType_);
-      // </if>
-      if (this.saveToDriveState_ === SaveToDriveState.UNINITIALIZED) {
-        return;
-      }
-    }
-    this.getSaveToDriveBubble_().showAt(
-        this.$.toolbar.getSaveToDriveBubbleAnchor(),
-        /*autoDismiss=*/ true);
   }
   // </if> enable_pdf_save_to_drive
 
@@ -1651,7 +1650,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
         return;
       }
       writer.write(blob);
+      // <if expr="enable_pdf_ink2">
       this.onSaveSuccessful_(requestType);
+      // </if>
       return;
     }
 
@@ -1659,7 +1660,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       const writable = await this.selectFileAndGetWritable_(fileName);
       await writable.write(blob);
       await writable.close();
+      // <if expr="enable_pdf_ink2">
       this.onSaveSuccessful_(requestType);
+      // </if>
     } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error('window.showSaveFilePicker failed: ' + error);
@@ -1758,7 +1761,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       if (writable !== null) {
         await writable.close();
       }
+      // <if expr="enable_pdf_ink2">
       this.onSaveSuccessful_(requestType);
+      // </if>
     } catch (error: any) {
       this.pluginController_.releaseSaveInBlockBuffers();
       if (error.name !== 'AbortError') {
@@ -1770,28 +1775,16 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     }
   }
 
+  // <if expr="enable_pdf_ink2 or enable_pdf_save_to_drive">
   /**
    * Performs required tasks after a successful save.
    */
   private onSaveSuccessful_(requestType: SaveRequestType) {
-    // <if expr="enable_pdf_ink2 or enable_pdf_save_to_drive">
     this.setShowBeforeUnloadDialog_(this.shouldShowBeforeUnloadDialog_());
+    // <if expr="enable_pdf_ink2">
     this.hasSavedEdits_ =
         this.hasSavedEdits_ || requestType === SaveRequestType.EDITED;
-    // </if>
-  }
-
-  // <if expr="enable_pdf_ink2 or enable_pdf_save_to_drive">
-  /**
-   * Performs required tasks after a failed or cancelled save.
-   */
-  private onSaveFailedOrCancelled_(requestType: SaveRequestType) {
-    // Restore the original value of `hasUnsavedEdits_` and block closing the
-    // window if there are unsaved edits.
-    if (isEditedSaveRequestType(requestType)) {
-      this.hasUnsavedEdits_ = true;
-    }
-    this.setShowBeforeUnloadDialog_(this.shouldShowBeforeUnloadDialog_());
+    // </if> enable_pdf_ink2
   }
 
   /**
@@ -1803,10 +1796,10 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     // If Save to Drive is uploading, block closing the window.
     showBeforeUnloadDialog =
         showBeforeUnloadDialog || this.isSaveToDriveUploading_();
-    // </if>
+    // </if> enable_pdf_save_to_drive
     return showBeforeUnloadDialog;
   }
-  // </if>
+  // </if> enable_pdf_ink2 or enable_pdf_save_to_drive
 
   /**
    * Records metrics for saving PDFs.
@@ -1894,6 +1887,18 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   protected hasInk2AnnotationEdits_(): boolean {
     return this.textboxState_ === TextBoxState.EDITED ||
         this.hasCommittedInk2Edits_;
+  }
+
+  /**
+   * Performs required tasks after a failed or cancelled save.
+   */
+  private onSaveFailedOrCancelled_(requestType: SaveRequestType) {
+    // Restore the original value of `hasUnsavedEdits_` and block closing the
+    // window if there are unsaved edits.
+    if (isEditedSaveRequestType(requestType)) {
+      this.hasUnsavedEdits_ = true;
+    }
+    this.setShowBeforeUnloadDialog_(this.shouldShowBeforeUnloadDialog_());
   }
 
   protected onTextBoxStateChanged_(e: CustomEvent<TextBoxState>) {

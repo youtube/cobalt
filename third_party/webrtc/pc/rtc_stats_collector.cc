@@ -64,7 +64,6 @@
 #include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transceiver.h"
 #include "pc/transport_stats.h"
-#include "pc/webrtc_sdp.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/ip_address.h"
@@ -106,7 +105,7 @@ std::string RTCCodecStatsIDFromTransportAndCodecParameters(
   // lines for the same PT and transport, which should be illegal SDP, then we
   // wouldn't need `fmtp` to be part of the ID here.
   StringBuilder fmtp;
-  if (WriteFmtpParameters(codec_params.parameters, &fmtp)) {
+  if (WriteFmtpParameters(codec_params.parameters, fmtp)) {
     sb << '_' << fmtp.Release();
   }
   return sb.str();
@@ -381,7 +380,7 @@ std::string GetCodecIdAndMaybeCreateCodecStats(
   }
 
   StringBuilder fmtp;
-  if (WriteFmtpParameters(codec_params.parameters, &fmtp)) {
+  if (WriteFmtpParameters(codec_params.parameters, fmtp)) {
     codec_stats->sdp_fmtp_line = fmtp.Release();
   }
   codec_stats->transport_id = transport_id;

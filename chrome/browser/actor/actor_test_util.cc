@@ -270,6 +270,9 @@ Actions MakeScroll(RenderFrameHost& rfh,
 Actions MakeScrollTo(RenderFrameHost& rfh, int content_node_id) {
   Actions actions;
   ScrollToAction* scroll_to = actions.add_actions()->mutable_scroll_to();
+  auto* tab = TabInterface::GetFromContents(
+      content::WebContents::FromRenderFrameHost(&rfh));
+  scroll_to->set_tab_id(tab->GetHandle().raw_value());
   scroll_to->mutable_target()->set_content_node_id(content_node_id);
   scroll_to->mutable_target()
       ->mutable_document_identifier()
@@ -308,6 +311,29 @@ Actions MakeDragAndRelease(tabs::TabHandle tab_handle,
   drag_and_release->mutable_to_target()->mutable_coordinate()->set_y(
       to_point.y());
   drag_and_release->set_tab_id(tab_handle.raw_value());
+  return actions;
+}
+
+Actions MakeDragAndRelease(content::RenderFrameHost& rfh,
+                           int from_node_id,
+                           int to_node_id) {
+  Actions actions;
+  DragAndReleaseAction* drag_and_release =
+      actions.add_actions()->mutable_drag_and_release();
+
+  drag_and_release->mutable_from_target()->set_content_node_id(from_node_id);
+  drag_and_release->mutable_from_target()
+      ->mutable_document_identifier()
+      ->set_serialized_token(*DocumentIdentifierUserData::GetDocumentIdentifier(
+          rfh.GetGlobalFrameToken()));
+
+  drag_and_release->mutable_to_target()->set_content_node_id(to_node_id);
+  drag_and_release->mutable_to_target()
+      ->mutable_document_identifier()
+      ->set_serialized_token(*DocumentIdentifierUserData::GetDocumentIdentifier(
+          rfh.GetGlobalFrameToken()));
+
+  drag_and_release->set_tab_id(GetTabHandleForFrame(rfh).raw_value());
   return actions;
 }
 

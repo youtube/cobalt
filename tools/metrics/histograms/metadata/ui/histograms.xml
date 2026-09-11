@@ -61,6 +61,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".CommentsSidePanel"/>
   <variant name=".CompanionSidePanelUntrusted"/>
   <variant name=".Compose"/>
+  <variant name=".ContextualTasks"/>
   <variant name=".CustomizeChrome"/>
   <variant name=".DataSharingBubble"/>
   <variant name=".Emoji"/>
@@ -259,17 +260,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Number of times the emoji item in the views text services context menu is
     used.
-  </summary>
-</histogram>
-
-<histogram name="DefaultBrowser.AppMenu.TimesShownBeforeAccept" units="count"
-    expires_after="2025-11-16">
-  <owner>agale@chromium.org</owner>
-  <owner>robliao@chromium.org</owner>
-  <summary>
-    Times the default browser app menu chip has been shown before the user
-    accepted the prompt. This is emitted each time a user accepts the prompt by
-    clicking the chip and then the associated menu item.
   </summary>
 </histogram>
 
@@ -582,7 +572,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ColorsStylesheetServingDuration" units="ms"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>skau@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -618,7 +608,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ShownUrl" enum="WebUIUrlHashes"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dpapad@chromium.org</owner>
   <owner>chrome-webui@google.com</owner>

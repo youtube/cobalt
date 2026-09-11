@@ -14,13 +14,13 @@
 #include <algorithm>
 
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
-#include "rtc_base/experiments/field_trial_parser.h"
+#include "modules/congestion_controller/scream/delay_based_congestion_control.h"
+#include "modules/congestion_controller/scream/scream_v2_parameters.h"
 
 namespace webrtc {
 
@@ -49,49 +49,6 @@ class ScreamV2 {
   double l4s_alpha() const { return l4s_alpha_; }
 
  private:
-  struct Parameters {
-    explicit Parameters(const FieldTrialsView& trials);
-
-    // Minimum Reference Window
-    FieldTrialParameter<DataSize> min_ref_window;
-
-    // Exponentially Weighted Moving Average (EWMA) factor for for l4s_alpha.
-    FieldTrialParameter<double> l4s_avg_g;
-
-    // Maximum Segment Size (MSS)
-    // Size of the largest data segment that a sender is able to transmit. I.e
-    // largest possible IP packet.
-    FieldTrialParameter<DataSize> max_segment_size;
-
-    // Headroom for bytes in flight when increasing reference window.
-    FieldTrialParameter<double> bytes_in_flight_head_room;
-
-    // Determines how many RTTs after a congestion event the reference window
-    // growth should be cautious.
-    FieldTrialParameter<int> post_congestion_delay_rtts;
-
-    // Determines how much (as a fraction of ref_window) that the ref_window can
-    // increase per RTT.
-    FieldTrialParameter<double> multiplicative_increase_factor;
-
-    // This mimics Prague's RTT fairness such that flows with RTT below
-    // virtual_rtt should get a roughly equal share over an L4S path.
-    FieldTrialParameter<TimeDelta> virtual_rtt;
-
-    // Increase and decrease of ref window is slower close to the last
-    // inflection point. Both increase and decrease is scaled by
-    // (backoff_scale_factor_close_to_ref_window_i* (ref_window_i -
-    // ref_window)) / ref_window_i) ^2
-    FieldTrialParameter<double> backoff_scale_factor_close_to_ref_window_i;
-
-    FieldTrialParameter<int> number_of_rtts_between_ref_window_i_updates;
-
-    // If CE is detected and this number of RTTs has passed since last
-    // congestion, ref_window_i will be reset.
-    FieldTrialParameter<int>
-        number_of_rtts_between_reset_ref_window_i_on_congestion;
-  };
-
   void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
   void UpdateRefWindowAndTargetRate(const TransportPacketsFeedback& msg);
 
@@ -121,7 +78,7 @@ class ScreamV2 {
   }
 
   const Environment env_;
-  const Parameters params_;
+  const ScreamV2Parameters params_;
 
   DataRate max_target_bitrate_ = DataRate::PlusInfinity();
   DataRate min_target_bitrate_ = DataRate::Zero();
@@ -154,6 +111,8 @@ class ScreamV2 {
   // Last received feedback that contained a congestion event that may have
   // caused a reaction.
   Timestamp last_reaction_to_congestion_time_ = Timestamp::MinusInfinity();
+
+  DelayBasedCongestionControl delay_based_congestion_control_;
 };
 
 }  // namespace webrtc

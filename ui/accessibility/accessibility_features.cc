@@ -335,7 +335,7 @@ bool IsAccessibilityManifestV3EnabledForGoogleTts() {
 }
 
 BASE_FEATURE(kAccessibilityManifestV3AccessibilityCommon,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityManifestV3EnabledForAccessibilityCommon() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityManifestV3AccessibilityCommon);
@@ -373,6 +373,13 @@ bool IsAccessibilityMagnificationFollowsInputEnabled() {
       ::features::kAccessibilityMagnificationFollowsInputFocus);
 }
 
+BASE_FEATURE(kAccessibilityMagnificationFollowsTextCursor,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityMagnificationFollowsTextCursorEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kAccessibilityMagnificationFollowsTextCursor);
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -397,6 +404,11 @@ BASE_FEATURE(kDataCollectionModeForScreen2x, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsDataCollectionModeForScreen2xEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kDataCollectionModeForScreen2x);
+}
+
+BASE_FEATURE(kImmersiveReadingMode, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsImmersiveReadingModeEnabled() {
+  return base::FeatureList::IsEnabled(::features::kImmersiveReadingMode);
 }
 
 BASE_FEATURE(kMainNodeAnnotations, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -450,6 +462,14 @@ BASE_FEATURE(kReadAnythingDocsLoadMoreButton,
 bool IsReadAnythingDocsLoadMoreButtonEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kReadAnythingDocsLoadMoreButton);
+}
+
+BASE_FEATURE(kReadAnythingWithReadability, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsReadAnythingWithReadabilityEnabled() {
+  return base::FeatureList::IsEnabled(
+             ::features::kReadAnythingReadAloudTSTextSegmentation) &&
+         base::FeatureList::IsEnabled(::features::kReadAnythingWithReadability);
+  ;
 }
 
 // This feature is only for debug purposes and for security/privacy reasons,

@@ -51,6 +51,7 @@ class VirtualCardEnrollUiModel;
 
 namespace payments {
 
+struct BnplIssuerContext;
 class MandatoryReauthManager;
 
 // Chrome iOS implementation of PaymentsAutofillClient. Owned by the
@@ -150,6 +151,7 @@ class IOSChromePaymentsAutofillClient : public PaymentsAutofillClient {
   CreditCardOtpAuthenticator* GetOtpAuthenticator() override;
   CreditCardRiskBasedAuthenticator* GetRiskBasedAuthenticator() override;
   bool IsRiskBasedAuthEffectivelyAvailable() const override;
+  bool IsMandatoryReauthEnabled() override;
   void ShowMandatoryReauthOptInPrompt(
       base::OnceClosure accept_mandatory_reauth_callback,
       base::OnceClosure cancel_mandatory_reauth_callback,
@@ -176,11 +178,10 @@ class IOSChromePaymentsAutofillClient : public PaymentsAutofillClient {
   bool UpdateTouchToFillBnplPaymentMethod(
       std::optional<uint64_t> extracted_amount,
       bool is_amount_supported_by_any_issuer) override;
-  bool ShowTouchToFillProgress(
-      base::WeakPtr<TouchToFillDelegate> delegate) override;
+  bool ShowTouchToFillProgress(base::OnceClosure cancel_callback) override;
   bool ShowTouchToFillBnplIssuers(
       base::WeakPtr<TouchToFillDelegate> delegate,
-      base::span<const autofill::BnplIssuer> bnpl_issurs_to_suggest) override;
+      base::span<const BnplIssuerContext> bnpl_issuer_contexts) override;
   bool ShowTouchToFillError(base::WeakPtr<TouchToFillDelegate> delegate,
                             const AutofillErrorDialogContext& context) override;
   void HideTouchToFillPaymentMethod() override;

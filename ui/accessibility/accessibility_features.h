@@ -291,10 +291,18 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityInlineLineSeparators);
 AX_BASE_EXPORT bool IsAccessibilityInlineLineSeparatorsEnabled();
 
 // Propagate bounding rectangles of input events to the Android platform to
-// allow Magnification to follow them
+// allow Magnification to follow them. Only applies pre-Baklava 36.1, when a
+// system API was added to allow this.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(
     kAccessibilityMagnificationFollowsInputFocus);
 AX_BASE_EXPORT bool IsAccessibilityMagnificationFollowsInputFocusEnabled();
+
+// Propagate bounding rectangles of cursor moves to the Android platform to
+// allow Magnification to follow them. Only applies pre-Baklava 36.1, when a
+// system API was added to allow this.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(
+    kAccessibilityMagnificationFollowsTextCursor);
+AX_BASE_EXPORT bool IsAccessibilityMagnificationFollowsTextCursorEnabled();
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -315,6 +323,10 @@ AX_BASE_EXPORT bool IsAXTreeFixingEnabled();
 // and --no-sandbox.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kDataCollectionModeForScreen2x);
 AX_BASE_EXPORT bool IsDataCollectionModeForScreen2xEnabled();
+
+// Enable Immersive Mode for Read Anything.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kImmersiveReadingMode);
+AX_BASE_EXPORT bool IsImmersiveReadingModeEnabled();
 
 // Identify and annotate the main node of the AXTree where one was not already
 // provided.
@@ -346,6 +358,10 @@ AX_BASE_EXPORT bool IsReadAnythingDocsIntegrationEnabled();
 // Should be disabled by default.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingDocsLoadMoreButton);
 AX_BASE_EXPORT bool IsReadAnythingDocsLoadMoreButtonEnabled();
+
+// Enable ReadabilityJS as the distillation source for Reading Mode.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingWithReadability);
+AX_BASE_EXPORT bool IsReadAnythingWithReadabilityEnabled();
 
 // Write some ScreenAI library debug data in /tmp.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kScreenAIDebugMode);

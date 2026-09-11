@@ -25,8 +25,10 @@
 #include <optional>
 #include <tuple>
 
+class SkPathData;
 class SkRRect;
 struct SkPathRaw;
+class SkString;
 
 class SK_API SkPathBuilder {
 public:
@@ -63,8 +65,10 @@ public:
         @return      SkPathBuilder
     */
     SkPathBuilder& operator=(const SkPath&);
-
     SkPathBuilder& operator=(const SkPathBuilder&) = default;
+
+    bool operator==(const SkPathBuilder&) const;
+    bool operator!=(const SkPathBuilder& o) const { return !(*this == o); }
 
     /** Returns SkPathFillType, the rule used to fill SkPath.
 
@@ -109,6 +113,9 @@ public:
         @return  SkPath representing the current state of the builder.
      */
     SkPath detach(const SkMatrix* mx = nullptr);
+
+    sk_sp<SkPathData> snapshotData() const;
+    sk_sp<SkPathData> detachData();
 
     /** Sets SkPathFillType, the rule used to fill SkPath. While there is no
         check that ft is legal, values outside of SkPathFillType are not supported.
@@ -871,12 +878,6 @@ public:
     */
     SkPathBuilder& transform(const SkMatrix& matrix);
 
-#ifdef SK_SUPPORT_LEGACY_APPLYPERSPECTIVECLIP
-    SkPathBuilder& transform(const SkMatrix& matrix, SkApplyPerspectiveClip) {
-        return this->transform(matrix);
-    }
-#endif
-
     /*
      *  Returns true if the builder is empty, or all of its points are finite.
      */
@@ -950,6 +951,16 @@ public:
     SkPathBuilder& addRaw(const SkPathRaw&);
 
     SkPathIter iter() const;
+
+    enum class DumpFormat {
+        kDecimal,
+        kHex,
+    };
+    SkString dumpToString(DumpFormat = DumpFormat::kDecimal) const;
+    void dump(DumpFormat) const;
+    // can't use default argument easily in debugger, so we name this
+    // helper explicitly.
+    void dump() const { this->dump(DumpFormat::kDecimal); }
 
 private:
     SkPathRef::PointsArray fPts;

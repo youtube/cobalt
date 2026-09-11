@@ -9,7 +9,6 @@
  */
 
 #include <cassert>
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -31,7 +30,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "p2p/base/transport_description.h"
-#include "pc/sdp_utils.h"
+#include "pc/session_description.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "pc/test/peer_connection_test_wrapper.h"
 #include "rtc_base/checks.h"
@@ -143,8 +142,8 @@ class PeerConnectionDataChannelOpenTest
       scoped_refptr<PeerConnectionTestWrapper> pc_wrapper,
       SessionDescriptionInterface* sdp) {
     auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
-    pc_wrapper->pc()->SetLocalDescription(
-        observer.get(), CloneSessionDescription(sdp).release());
+    pc_wrapper->pc()->SetLocalDescription(observer.get(),
+                                          sdp->Clone().release());
     return observer;
   }
 
@@ -152,8 +151,8 @@ class PeerConnectionDataChannelOpenTest
       scoped_refptr<PeerConnectionTestWrapper> pc_wrapper,
       SessionDescriptionInterface* sdp) {
     auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
-    pc_wrapper->pc()->SetRemoteDescription(
-        observer.get(), CloneSessionDescription(sdp).release());
+    pc_wrapper->pc()->SetRemoteDescription(observer.get(),
+                                           sdp->Clone().release());
     return observer;
   }
 

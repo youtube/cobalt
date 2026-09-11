@@ -443,6 +443,7 @@ if (rtc_enable_protobuf) {
       "../api/rtc_event_log",
       "../api/task_queue",
       "../api/units:time_delta",
+      "../api/units:timestamp",
       "../rtc_base:checks",
       "../rtc_base:logging",
       "../rtc_base:macromagic",

@@ -21,12 +21,14 @@
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
+#include "api/datagram_connection.h"
 #include "api/environment/environment.h"
 #include "api/ice_transport_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/transport/enums.h"
+#include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
@@ -49,6 +51,8 @@
 
 namespace webrtc {
 namespace {
+using PacketMetadata = DatagramConnection::Observer::PacketMetadata;
+
 // Fixed SSRC for DatagramConnections. Transport won't be shared with any
 // other streams, so a single fixed SSRC is safe.
 constexpr uint32_t kDatagramConnectionSsrc = 0x1EE7;
@@ -103,8 +107,10 @@ DatagramConnectionInternal::DatagramConnectionInternal(
     dtls_transport_->internal()->RegisterReceivedPacketCallback(
         this, [this](PacketTransportInternal* transport,
                      const ReceivedIpPacket& packet) {
-          this->OnDtlsPacket(CopyOnWriteBuffer(packet.payload().data(),
-                                               packet.payload().size()));
+          this->OnDtlsPacket(
+              CopyOnWriteBuffer(packet.payload().data(),
+                                packet.payload().size()),
+              packet.arrival_time().value_or(Timestamp::MinusInfinity()));
         });
   } else {
     dtls_srtp_transport_->SetDtlsTransports(dtls_transport_->internal(),
@@ -289,14 +295,17 @@ void DatagramConnectionInternal::OnRtpPacket(const RtpPacketReceived& packet) {
   if (current_state_ != State::kActive) {
     return;
   }
-  observer_->OnPacketReceived(packet.payload());
+  PacketMetadata metadata{.receive_time = packet.arrival_time()};
+  observer_->OnPacketReceived(packet.payload(), metadata);
 }
 
-void DatagramConnectionInternal::OnDtlsPacket(CopyOnWriteBuffer packet) {
+void DatagramConnectionInternal::OnDtlsPacket(CopyOnWriteBuffer packet,
+                                              Timestamp receive_time) {
   if (current_state_ != State::kActive) {
     return;
   }
-  observer_->OnPacketReceived(packet);
+  PacketMetadata metadata{.receive_time = receive_time};
+  observer_->OnPacketReceived(packet, metadata);
 }
 
 }  // namespace webrtc

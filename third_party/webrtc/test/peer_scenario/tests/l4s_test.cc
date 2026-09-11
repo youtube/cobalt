@@ -10,6 +10,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 
@@ -23,6 +24,7 @@
 #include "api/stats/rtcstats_objects.h"
 #include "api/test/network_emulation/dual_pi2_network_queue.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
+#include "api/test/network_emulation_manager.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
@@ -38,8 +40,10 @@
 #include "test/create_frame_generator_capturer.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/network/network_emulation.h"
 #include "test/peer_scenario/peer_scenario.h"
 #include "test/peer_scenario/peer_scenario_client.h"
+#include "test/peer_scenario/signaling_route.h"
 
 namespace webrtc {
 namespace {
@@ -48,6 +52,9 @@ using test::PeerScenario;
 using test::PeerScenarioClient;
 using ::testing::HasSubstr;
 using ::testing::TestWithParam;
+
+// RTC event logs can be gathered from these tests.
+// Add --peer_logs=true --peer_logs_root=/tmp/l4s/ to write logs to /tmp/l4s
 
 // Helper class used for counting RTCP feedback messages.
 class RtcpFeedbackCounter {
@@ -459,25 +466,69 @@ TEST(L4STest, NoCcfbSentAfterRenegotiationAndCallerCachLocalDescription) {
 // Note - this test only test that the
 // caller adapt to the link capacity. It does not test that the caller uses ECN
 // to adapt even though the network can mark packets with CE.
-// TODO: bugs.webrtc.org/42225697 - actually test that the caller adapt to ECN
-// marking.
-TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithEcn) {
-  PeerScenario s(*test_info_);
-  PeerScenarioClient::Config config;
-  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
-                          "Enabled,offer:true");
+struct NetworkEmulationParams {
+  DataRate link_capacity;
+  TimeDelta one_way_delay;
+  std::map</*trial*/ std::string, /*group*/ std::string> field_trials;
+  std::string test_suffix;
+};
 
+class CongestionControlWithEcnTest
+    : public TestWithParam<NetworkEmulationParams> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    L4STest,
+    CongestionControlWithEcnTest,
+    testing::Values(
+        NetworkEmulationParams{
+            .link_capacity = DataRate::KilobitsPerSec(600),
+            .one_way_delay = TimeDelta::Millis(50),
+            .field_trials = {{"WebRTC-RFC8888CongestionControlFeedback",
+                              "Enabled,offer:true"}},
+            .test_suffix = "GoogCc600kbpsDelay50ms"},
+        NetworkEmulationParams{
+            .link_capacity = DataRate::KilobitsPerSec(600),
+            .one_way_delay = TimeDelta::Millis(50),
+            .field_trials = {{"WebRTC-RFC8888CongestionControlFeedback",
+                              "Enabled,offer:true"},
+                             {"WebRTC-Bwe-ScreamV2", "Enabled"}},
+            .test_suffix = "Scream600kbpsDelay50ms"},
+        NetworkEmulationParams{
+            .link_capacity = DataRate::KilobitsPerSec(2000),
+            .one_way_delay = TimeDelta::Millis(25),
+            .field_trials = {{"WebRTC-RFC8888CongestionControlFeedback",
+                              "Enabled,offer:true"}},
+            .test_suffix = "GoogCc20000kbpsDelay25ms"},
+        NetworkEmulationParams{
+            .link_capacity = DataRate::KilobitsPerSec(2000),
+            .one_way_delay = TimeDelta::Millis(25),
+            .field_trials = {{"WebRTC-RFC8888CongestionControlFeedback",
+                              "Enabled,offer:true"},
+                             {"WebRTC-Bwe-ScreamV2", "Enabled"}},
+            .test_suffix = "Scream2000kbpsDelay25ms"}),
+    [](const testing::TestParamInfo<NetworkEmulationParams>& info) {
+      return info.param.test_suffix;
+    });
+
+TEST_P(CongestionControlWithEcnTest, CallerAdaptToLinkCapacity) {
+  PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
+  PeerScenarioClient::Config config;
+  for (auto [trial, group] : GetParam().field_trials) {
+    config.field_trials.Set(trial, group);
+  }
   PeerScenarioClient* caller = s.CreateClient(config);
   PeerScenarioClient* callee = s.CreateClient(config);
 
-  DualPi2NetworkQueueFactory dual_pi_factory({});
-  auto caller_to_callee = s.net()
-                              ->NodeBuilder()
-                              .queue_factory(dual_pi_factory)
-                              .capacity(DataRate::KilobitsPerSec(600))
-                              .Build()
-                              .node;
-  auto callee_to_caller = s.net()->NodeBuilder().Build().node;
+  DualPi2NetworkQueueFactory dual_pi_factory(
+      {.target_delay = TimeDelta::Millis(10)});
+  NetworkEmulationManager::SimulatedNetworkNode::Builder network_builder =
+      s.net()
+          ->NodeBuilder()
+          .queue_factory(dual_pi_factory)
+          .capacity(GetParam().link_capacity)
+          .delay_ms(GetParam().one_way_delay.ms());
+  EmulatedNetworkNode* caller_to_callee = network_builder.Build().node;
+  EmulatedNetworkNode* callee_to_caller = network_builder.Build().node;
   s.net()->CreateRoute(caller->endpoint(), {caller_to_callee},
                        callee->endpoint());
   s.net()->CreateRoute(callee->endpoint(), {callee_to_caller},
@@ -487,8 +538,9 @@ TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithEcn) {
                                       {callee_to_caller});
   PeerScenarioClient::VideoSendTrackConfig video_conf;
   video_conf.generator.squares_video->framerate = 30;
-  video_conf.generator.squares_video->width = 640;
-  video_conf.generator.squares_video->height = 360;
+  video_conf.generator.squares_video->width = 1280;
+  video_conf.generator.squares_video->height = 720;
+  caller->CreateAudio("AUDIO_1", {});
   caller->CreateVideo("VIDEO_1", video_conf);
 
   signaling.StartIceSignaling();
@@ -497,11 +549,15 @@ TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithEcn) {
     offer_exchange_done = true;
   });
   s.WaitAndProcess(&offer_exchange_done);
-  s.ProcessMessages(TimeDelta::Seconds(3));
+  s.ProcessMessages(TimeDelta::Seconds(10));
   DataRate available_bwe =
       GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
-  EXPECT_GT(available_bwe, DataRate::KilobitsPerSec(450));
-  EXPECT_LT(available_bwe, DataRate::KilobitsPerSec(610));
+  // TODO: bugs.webrtc.org/447037083 - Implement stricter pacing and re-evalute
+  // these limits, Currently, since the DualPi target delay is 10ms, and we dont
+  // strictly pace, frames with more than 1 packet can cause the queue delay to
+  // be too long at these rates.
+  EXPECT_GT(available_bwe, GetParam().link_capacity * 0.3);
+  EXPECT_LT(available_bwe, GetParam().link_capacity * 1.1);
 }
 
 TEST(L4STest, SendsEct1UntilFirstFeedback) {
@@ -560,6 +616,44 @@ TEST(L4STest, SendsEct1UntilFirstFeedback) {
   auto packets_sent_with_ect1_stats =
       GetPacketsSentWithEct1(GetStatsAndProcess(s, caller));
   EXPECT_EQ(packets_sent_with_ect1_stats, feedback_counter.ect1());
+}
+
+TEST(L4STest, SendsEct1WithScream) {
+  PeerScenario s(*test_info_);
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                          "Enabled,offer:true");
+  config.field_trials.Set("WebRTC-Bwe-ScreamV2", "Enabled");
+  config.disable_encryption = true;
+  PeerScenarioClient* caller = s.CreateClient(config);
+  PeerScenarioClient* callee = s.CreateClient(config);
+  EmulatedNetworkNode* caller_to_callee = s.net()->NodeBuilder().Build().node;
+  EmulatedNetworkNode* callee_to_caller = s.net()->NodeBuilder().Build().node;
+  s.net()->CreateRoute(caller->endpoint(), {caller_to_callee},
+                       callee->endpoint());
+  s.net()->CreateRoute(callee->endpoint(), {callee_to_caller},
+                       caller->endpoint());
+  RtcpFeedbackCounter feedback_counter;
+  callee_to_caller->router()->SetWatcher(
+      [&](const EmulatedIpPacket& packet) { feedback_counter.Count(packet); });
+
+  test::SignalingRoute signaling = s.ConnectSignaling(
+      caller, callee, {caller_to_callee}, {callee_to_caller});
+  PeerScenarioClient::VideoSendTrackConfig video_conf;
+  video_conf.generator.squares_video->framerate = 15;
+  caller->CreateVideo("VIDEO_1", video_conf);
+  signaling.StartIceSignaling();
+  std::atomic<bool> offer_exchange_done(false);
+  signaling.NegotiateSdp([&](const SessionDescriptionInterface& answer) {
+    offer_exchange_done = true;
+  });
+
+  s.WaitAndProcess(&offer_exchange_done);
+  s.ProcessMessages(TimeDelta::Seconds(3));
+  EXPECT_EQ(GetPacketsSentWithEct1(GetStatsAndProcess(s, caller)),
+            feedback_counter.ect1());
+  EXPECT_GT(feedback_counter.ect1(), 0);
+  EXPECT_EQ(feedback_counter.not_ect(), 0);
 }
 
 TEST(L4STest, SendsEct1AfterRouteChange) {

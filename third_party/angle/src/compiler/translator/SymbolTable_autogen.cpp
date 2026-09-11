@@ -25,7 +25,7 @@ using TableBase = TSymbolTableBase;
 
 struct SymbolIdChecker
 {
-    static_assert(TSymbolTable::kFirstUserDefinedSymbolId > 2029);
+    static_assert(TSymbolTable::kFirstUserDefinedSymbolId > 2025);
 };
 
 namespace BuiltInName
@@ -40,8 +40,6 @@ constexpr const ImmutableString abs("abs");
 constexpr const ImmutableString acos("acos");
 constexpr const ImmutableString acosh("acosh");
 constexpr const ImmutableString all("all");
-constexpr const ImmutableString angle_BaseInstance("angle_BaseInstance");
-constexpr const ImmutableString angle_BaseVertex("angle_BaseVertex");
 constexpr const ImmutableString any("any");
 constexpr const ImmutableString asin("asin");
 constexpr const ImmutableString asinh("asinh");
@@ -122,7 +120,6 @@ constexpr const ImmutableString gl_HelperInvocation("gl_HelperInvocation");
 constexpr const ImmutableString gl_InstanceID("gl_InstanceID");
 constexpr const ImmutableString gl_InstanceIndex("gl_InstanceIndex");
 constexpr const ImmutableString gl_InvocationID("gl_InvocationID");
-constexpr const ImmutableString gl_LastFragColor("gl_LastFragColor");
 constexpr const ImmutableString gl_LastFragColorARM("gl_LastFragColorARM");
 constexpr const ImmutableString gl_LastFragData("gl_LastFragData");
 constexpr const ImmutableString gl_LastFragDepthARM("gl_LastFragDepthARM");
@@ -407,30 +404,18 @@ namespace BuiltInVariable
 
 constexpr const unsigned int kArraySize4[1] = {4};
 
-constexpr const TVariable kangle_BaseInstance(
-    BuiltInId::angle_BaseInstance,
-    BuiltInName::angle_BaseInstance,
-    SymbolType::BuiltIn,
-    std::array<TExtension, 1u>{{TExtension::ANGLE_base_vertex_base_instance_shader_builtin}},
-    StaticType::Get<EbtInt, EbpHigh, EvqUniform, 1, 1>());
-constexpr const TVariable kangle_BaseVertex(
-    BuiltInId::angle_BaseVertex,
-    BuiltInName::angle_BaseVertex,
-    SymbolType::BuiltIn,
-    std::array<TExtension, 1u>{{TExtension::ANGLE_base_vertex_base_instance_shader_builtin}},
-    StaticType::Get<EbtInt, EbpHigh, EvqUniform, 1, 1>());
 constexpr const TVariable kgl_BaseInstance(
     BuiltInId::gl_BaseInstance,
     BuiltInName::gl_BaseInstance,
     SymbolType::BuiltIn,
     std::array<TExtension, 1u>{{TExtension::ANGLE_base_vertex_base_instance_shader_builtin}},
-    StaticType::Get<EbtInt, EbpHigh, EvqUniform, 1, 1>());
+    StaticType::Get<EbtInt, EbpHigh, EvqBaseInstance, 1, 1>());
 constexpr const TVariable kgl_BaseVertex(
     BuiltInId::gl_BaseVertex,
     BuiltInName::gl_BaseVertex,
     SymbolType::BuiltIn,
     std::array<TExtension, 1u>{{TExtension::ANGLE_base_vertex_base_instance_shader_builtin}},
-    StaticType::Get<EbtInt, EbpHigh, EvqUniform, 1, 1>());
+    StaticType::Get<EbtInt, EbpHigh, EvqBaseVertex, 1, 1>());
 constexpr const TVariable kgl_DrawID(BuiltInId::gl_DrawID,
                                      BuiltInName::gl_DrawID,
                                      SymbolType::BuiltIn,
@@ -511,12 +496,6 @@ constexpr const TVariable kgl_InvocationIDTCSES3_2(
     SymbolType::BuiltIn,
     std::array<TExtension, 1u>{{TExtension::UNDEFINED}},
     StaticType::Get<EbtInt, EbpHigh, EvqInvocationID, 1, 1>());
-constexpr const TVariable kgl_LastFragColor(
-    BuiltInId::gl_LastFragColor,
-    BuiltInName::gl_LastFragColor,
-    SymbolType::BuiltIn,
-    std::array<TExtension, 1u>{{TExtension::NV_shader_framebuffer_fetch}},
-    StaticType::Get<EbtFloat, EbpMedium, EvqLastFragColor, 4, 1>());
 constexpr const TVariable kgl_LastFragColorARM(
     BuiltInId::gl_LastFragColorARM,
     BuiltInName::gl_LastFragColorARM,
@@ -1305,16 +1284,6 @@ constexpr const TVariable kpt_o_30D(BuiltInId::pt_o_30D,
                                     std::array<TExtension, 1u>{{TExtension::UNDEFINED}},
                                     StaticType::Get<EbtUInt, EbpUndefined, EvqParamOut, 4, 1>());
 
-const TVariable *angle_BaseInstance()
-{
-    return &kangle_BaseInstance;
-}
-
-const TVariable *angle_BaseVertex()
-{
-    return &kangle_BaseVertex;
-}
-
 const TVariable *gl_BaseInstance()
 {
     return &kgl_BaseInstance;
@@ -1393,11 +1362,6 @@ const TVariable *gl_InvocationIDTCS()
 const TVariable *gl_InvocationIDTCSES3_2()
 {
     return &kgl_InvocationIDTCSES3_2;
-}
-
-const TVariable *gl_LastFragColor()
-{
-    return &kgl_LastFragColor;
 }
 
 const TVariable *gl_LastFragColorARM()
@@ -19489,10 +19453,6 @@ constexpr SymbolRule kRules[] = {
         &TableBase::m_gl_LastFragData),
     Rule::Get<100, Shader::FRAGMENT, EXT_INDEX(EXT_shader_framebuffer_fetch_non_coherent)>(
         &TableBase::m_gl_LastFragData),
-    Rule::Get<100, Shader::FRAGMENT, EXT_INDEX(NV_shader_framebuffer_fetch)>(
-        &TableBase::m_gl_LastFragDataNV),
-    Rule::Get<100, Shader::FRAGMENT, EXT_INDEX(NV_shader_framebuffer_fetch)>(
-        &BuiltInVariable::kgl_LastFragColor),
     Rule::Get<0, Shader::FRAGMENT, EXT_INDEX(ARM_shader_framebuffer_fetch)>(
         &BuiltInVariable::kgl_LastFragColorARM),
     Rule::Get<0, Shader::FRAGMENT, EXT_INDEX(ARM_shader_framebuffer_fetch_depth_stencil)>(
@@ -19568,10 +19528,6 @@ constexpr SymbolRule kRules[] = {
         &BuiltInVariable::kgl_BaseVertex),
     Rule::Get<300, Shader::VERTEX, EXT_INDEX(ANGLE_base_vertex_base_instance_shader_builtin)>(
         &BuiltInVariable::kgl_BaseInstance),
-    Rule::Get<0, Shader::VERTEX, EXT_INDEX(ANGLE_base_vertex_base_instance_shader_builtin)>(
-        &BuiltInVariable::kangle_BaseVertex),
-    Rule::Get<0, Shader::VERTEX, EXT_INDEX(ANGLE_base_vertex_base_instance_shader_builtin)>(
-        &BuiltInVariable::kangle_BaseInstance),
     Rule::Get<0, Shader::VERTEX, EXT_INDEX(APPLE_clip_distance)>(
         &TableBase::m_gl_ClipDistanceAPPLE),
     Rule::Get<300, Shader::NOT_COMPUTE, EXT_INDEX(EXT_clip_cull_distance)>(
@@ -21079,7 +21035,6 @@ constexpr const char *kMangledNames[] = {"radians(00B",
                                          "gl_SecondaryFragDataEXT",
                                          "gl_FragDepthEXT",
                                          "gl_LastFragData",
-                                         "gl_LastFragColor",
                                          "gl_LastFragColorARM",
                                          "gl_LastFragDepthARM",
                                          "gl_LastFragStencilARM",
@@ -21099,8 +21054,6 @@ constexpr const char *kMangledNames[] = {"radians(00B",
                                          "gl_DrawID",
                                          "gl_BaseVertex",
                                          "gl_BaseInstance",
-                                         "angle_BaseVertex",
-                                         "angle_BaseInstance",
                                          "gl_ClipDistance",
                                          "gl_PrimitiveShadingRateEXT",
                                          "gl_NumWorkGroups",
@@ -22511,50 +22464,47 @@ constexpr uint16_t kMangledOffsets[] = {
     1927,  // gl_SecondaryFragDataEXT
     1928,  // gl_FragDepthEXT
     1929,  // gl_LastFragData
-    1932,  // gl_LastFragColor
-    1933,  // gl_LastFragColorARM
-    1934,  // gl_LastFragDepthARM
-    1935,  // gl_LastFragStencilARM
-    1936,  // gl_PrimitiveID
-    1948,  // gl_Layer
-    1955,  // gl_ShadingRateEXT
-    1956,  // gl_SampleID
-    1958,  // gl_SamplePosition
-    1960,  // gl_SampleMaskIn
-    1962,  // gl_SampleMask
-    1964,  // gl_Position
-    1974,  // gl_PointSize
-    1976,  // gl_InstanceID
-    1977,  // gl_InstanceIndex
-    1978,  // gl_VertexID
-    1979,  // gl_VertexIndex
-    1980,  // gl_DrawID
-    1981,  // gl_BaseVertex
-    1982,  // gl_BaseInstance
-    1983,  // angle_BaseVertex
-    1984,  // angle_BaseInstance
-    1985,  // gl_ClipDistance
-    1988,  // gl_PrimitiveShadingRateEXT
-    1990,  // gl_NumWorkGroups
-    1991,  // gl_WorkGroupSize
-    1992,  // gl_WorkGroupID
-    1993,  // gl_LocalInvocationID
-    1994,  // gl_GlobalInvocationID
-    1995,  // gl_LocalInvocationIndex
-    1996,  // gl_PrimitiveIDIn
-    1999,  // gl_InvocationID
-    2005,  // gl_PerVertex
-    2014,  // gl_in
-    2023,  // gl_PatchVerticesIn
-    2029,  // gl_TessLevelOuter
-    2035,  // gl_TessLevelInner
-    2041,  // gl_out
-    2047,  // gl_BoundingBox
-    2050,  // gl_BoundingBoxEXT
-    2053,  // gl_BoundingBoxOES
-    2056,  // gl_TessCoord
-    2057,  // gl_ViewID_OVR
-    2058,  // gl_CullDistance
+    1931,  // gl_LastFragColorARM
+    1932,  // gl_LastFragDepthARM
+    1933,  // gl_LastFragStencilARM
+    1934,  // gl_PrimitiveID
+    1946,  // gl_Layer
+    1953,  // gl_ShadingRateEXT
+    1954,  // gl_SampleID
+    1956,  // gl_SamplePosition
+    1958,  // gl_SampleMaskIn
+    1960,  // gl_SampleMask
+    1962,  // gl_Position
+    1972,  // gl_PointSize
+    1974,  // gl_InstanceID
+    1975,  // gl_InstanceIndex
+    1976,  // gl_VertexID
+    1977,  // gl_VertexIndex
+    1978,  // gl_DrawID
+    1979,  // gl_BaseVertex
+    1980,  // gl_BaseInstance
+    1981,  // gl_ClipDistance
+    1984,  // gl_PrimitiveShadingRateEXT
+    1986,  // gl_NumWorkGroups
+    1987,  // gl_WorkGroupSize
+    1988,  // gl_WorkGroupID
+    1989,  // gl_LocalInvocationID
+    1990,  // gl_GlobalInvocationID
+    1991,  // gl_LocalInvocationIndex
+    1992,  // gl_PrimitiveIDIn
+    1995,  // gl_InvocationID
+    2001,  // gl_PerVertex
+    2010,  // gl_in
+    2019,  // gl_PatchVerticesIn
+    2025,  // gl_TessLevelOuter
+    2031,  // gl_TessLevelInner
+    2037,  // gl_out
+    2043,  // gl_BoundingBox
+    2046,  // gl_BoundingBoxEXT
+    2049,  // gl_BoundingBoxOES
+    2052,  // gl_TessCoord
+    2053,  // gl_ViewID_OVR
+    2054,  // gl_CullDistance
 };
 
 using Ext = TExtension;
@@ -23849,13 +23799,6 @@ void TSymbolTable::initializeBuiltInVariables(sh::GLenum shaderType,
         std::array<TExtension, 2u>{{TExtension::EXT_shader_framebuffer_fetch,
                                     TExtension::EXT_shader_framebuffer_fetch_non_coherent}},
         type_gl_LastFragData);
-    TType *type_gl_LastFragDataNV = new TType(EbtFloat, EbpMedium, EvqLastFragData, 4, 1);
-    type_gl_LastFragDataNV->makeArray(resources.MaxDrawBuffers);
-    type_gl_LastFragDataNV->realize();
-    m_gl_LastFragDataNV = new TVariable(
-        BuiltInId::gl_LastFragDataNV, BuiltInName::gl_LastFragData, SymbolType::BuiltIn,
-        std::array<TExtension, 1u>{{TExtension::NV_shader_framebuffer_fetch}},
-        type_gl_LastFragDataNV);
     TType *type_gl_SampleMaskIn = new TType(EbtInt, EbpHigh, EvqSampleMaskIn, 1);
     type_gl_SampleMaskIn->makeArray((resources.MaxSamples + 31) / 32);
     type_gl_SampleMaskIn->realize();
@@ -24217,8 +24160,10 @@ namespace
 {
 uint16_t GetNextRuleIndex(uint32_t nameHash)
 {
-    if (nameHash == 1429 - 1)
+    if (nameHash == 1426 - 1)
+    {
         return ArraySize(BuiltInArray::kRules);
+    }
     return BuiltInArray::kMangledOffsets[nameHash + 1];
 }
 }  // namespace
@@ -24229,8 +24174,10 @@ const TSymbol *TSymbolTable::findBuiltIn(const ImmutableString &name, int shader
         return nullptr;
 
     uint32_t nameHash = name.mangledNameHash();
-    if (nameHash >= 1429)
+    if (nameHash >= 1426)
+    {
         return nullptr;
+    }
 
     const char *actualName = BuiltInArray::kMangledNames[nameHash];
     if (name != actualName)

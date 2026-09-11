@@ -8,6 +8,9 @@ import static androidx.browser.customtabs.CustomTabsIntent.CLOSE_BUTTON_POSITION
 
 import static org.chromium.base.MathUtils.interpolate;
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.OPEN_IN_BROWSER;
+import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.SHARE;
+import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.UNKNOWN;
 import static org.chromium.ui.accessibility.KeyboardFocusUtil.setFocusOnFirstFocusableDescendant;
 
 import android.animation.Animator;
@@ -51,6 +54,7 @@ import androidx.annotation.ColorRes;
 import androidx.annotation.DimenRes;
 import androidx.annotation.Dimension;
 import androidx.annotation.DrawableRes;
+import androidx.annotation.IntDef;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
@@ -156,6 +160,8 @@ import org.chromium.ui.text.SpanApplier.SpanInfo;
 import org.chromium.ui.widget.Toast;
 import org.chromium.url.GURL;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -305,6 +311,44 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     private @Nullable HandleStrategy mHandleStrategy;
     private @CloseButtonPosition int mCloseButtonPosition;
     private @AdaptiveToolbarButtonVariant int mVariantForFallbackMenu;
+
+    private final List<Integer> mCustomButtonsForMetric = new ArrayList<>();
+    private int mOptionalButtonForMetric = UNKNOWN;
+
+    // Used to record which buttons are shown in top toolbar.
+    // LINT.IfChange(CctActions)
+    @IntDef({
+        CctActions.INVALID,
+        CctActions.NONE,
+        CctActions.SHARE_OIB,
+        CctActions.SHARE_CUSTOM,
+        CctActions.SHARE_ONLY,
+        CctActions.SHARE_MTB,
+        CctActions.OIB_CUSTOM,
+        CctActions.OIB_ONLY,
+        CctActions.OIB_MTB,
+        CctActions.CUSTOM_ONLY,
+        CctActions.CUSTOM_MTB,
+        CctActions.MTB_ONLY,
+        CctActions.MAX_VALUE,
+    })
+    @interface CctActions {
+        int INVALID = -1;
+        int NONE = 0;
+        int SHARE_OIB = 1;
+        int SHARE_CUSTOM = 2;
+        int SHARE_ONLY = 3;
+        int SHARE_MTB = 4;
+        int OIB_CUSTOM = 5;
+        int OIB_ONLY = 6;
+        int OIB_MTB = 7;
+        int CUSTOM_ONLY = 8;
+        int CUSTOM_MTB = 9;
+        int MTB_ONLY = 10;
+        int MAX_VALUE = MTB_ONLY;
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/custom_tabs/enums.xml:CustomTabsToolbarButtons)
 
     /** Constructor for getting this class inflated from an xml layout file. */
     public CustomTabToolbar(Context context, AttributeSet attrs) {
@@ -476,6 +520,10 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         indicator.setVisibility(show ? View.VISIBLE : View.GONE);
         if (!show) return;
 
+        RecordHistogram.recordEnumeratedHistogram(
+                "CustomTabs.AdaptiveToolbarButton.FallbackIndicator.Shown",
+                buttonVariant,
+                AdaptiveToolbarButtonVariant.MAX_VALUE);
         var lp = (MarginLayoutParams) indicator.getLayoutParams();
         int topMargin = getDimensionPx(R.dimen.custom_tabs_toolbar_menu_dot_top_margin);
         int endMargin = getDimensionPx(R.dimen.custom_tabs_toolbar_menu_dot_end_margin);
@@ -486,6 +534,20 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         indicator.setLayoutParams(lp);
 
         addFallbackMenuItem(buttonVariant);
+    }
+
+    /**
+     * Record the metric indicating that user clicked the fallback dot when it's shown on the
+     * overflow menu icon.
+     */
+    private void maybeRecordCpaFallbackIndicatorClicked() {
+        View indicator = mMenuButton.findViewById(R.id.menu_dot);
+        if (indicator.getVisibility() != View.VISIBLE) return;
+
+        RecordHistogram.recordEnumeratedHistogram(
+                "CustomTabs.AdaptiveToolbarButton.FallbackIndicator.Clicked",
+                mVariantForFallbackMenu,
+                AdaptiveToolbarButtonVariant.MAX_VALUE);
     }
 
     /**
@@ -512,6 +574,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                     public void onMenuVisibilityChanged(boolean isVisible) {
                         // TODO(crbug.com/424807997): Do this toggling in MenuButton MVC.
                         if (isVisible) {
+                            maybeRecordCpaFallbackIndicatorClicked();
                             mLocationBar.resetOptionalButtonState(/* resetFallbackMenu= */ false);
                             String menuTitle = getContext().getString(menuInfo.second);
                             int textId = R.string.accessibility_custom_tab_menu_item_highlight;
@@ -676,6 +739,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
             Drawable drawable, String description, OnClickListener listener, @ButtonType int type) {
         if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) return;
 
+        // TODO: Update action buttons in the refactored toolbar too.
+        mCustomButtonsForMetric.add(type);
         ImageButton button =
                 (ImageButton)
                         LayoutInflater.from(getContext())
@@ -1808,6 +1873,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                         "CustomTabs.AdaptiveToolbarButton.Shown",
                         buttonVariant,
                         AdaptiveToolbarButtonVariant.MAX_VALUE);
+                mOptionalButtonForMetric = buttonVariant;
+
             } else {
                 // See if we should show an indicator (a dot) if optional button cannot be shown.
                 // This check needs to be invoked _after_ optional button initialization is
@@ -1903,23 +1970,18 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         public void showBrandingLocationBar() {
             mBrandingStarted = true;
 
-            if (ChromeFeatureList.sCctRevampedBranding.isEnabled()) {
-                ViewStub stub = findViewById(R.id.branding_stub);
+            ViewStub stub = findViewById(R.id.branding_stub);
+            if (stub != null) {
+                PropertyModel model =
+                        new PropertyModel.Builder(ToolbarBrandingOverlayProperties.ALL_KEYS)
+                                .with(
+                                        ToolbarBrandingOverlayProperties.COLOR_DATA,
+                                        new ToolbarBrandingOverlayProperties.ColorData(
+                                                getBackground().getColor(), mBrandedColorScheme))
+                                .build();
+                mBrandingOverlayCoordinator = new ToolbarBrandingOverlayCoordinator(stub, model);
 
-                if (stub != null) {
-                    PropertyModel model =
-                            new PropertyModel.Builder(ToolbarBrandingOverlayProperties.ALL_KEYS)
-                                    .with(
-                                            ToolbarBrandingOverlayProperties.COLOR_DATA,
-                                            new ToolbarBrandingOverlayProperties.ColorData(
-                                                    getBackground().getColor(),
-                                                    mBrandedColorScheme))
-                                    .build();
-                    mBrandingOverlayCoordinator =
-                            new ToolbarBrandingOverlayCoordinator(stub, model);
-
-                    return;
-                }
+                return;
             }
 
             // Store the title and domain setting, if the empty state is not in used. Otherwise
@@ -1955,10 +2017,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         public void showRegularToolbar() {
             mCurrentlyShowingBranding = false;
 
-            if (ChromeFeatureList.sCctRevampedBranding.isEnabled()) {
-                if (mBrandingOverlayCoordinator != null) {
-                    mBrandingOverlayCoordinator.hideAndDestroy();
-                }
+            if (mBrandingOverlayCoordinator != null) {
+                mBrandingOverlayCoordinator.hideAndDestroy();
             }
 
             recoverFromRegularState();
@@ -2643,6 +2703,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         @SuppressWarnings("NullAway")
         @Override
         public void destroy() {
+            logActionButtonComboMetric();
             if (mTaskHandler != null) {
                 mTaskHandler.removeCallbacksAndMessages(null);
             }
@@ -2658,6 +2719,95 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                 mBrandingOverlayCoordinator.destroy();
                 mBrandingOverlayCoordinator = null;
             }
+        }
+
+        private void logActionButtonComboMetric() {
+            int logActions = CctActions.INVALID;
+            if (mCustomButtonsForMetric.size() == 2) {
+                boolean hasShare =
+                        mCustomButtonsForMetric.get(0) == ButtonType.CCT_SHARE_BUTTON
+                                || mCustomButtonsForMetric.get(1) == ButtonType.CCT_SHARE_BUTTON;
+                boolean hasOib =
+                        mCustomButtonsForMetric.get(0) == ButtonType.CCT_OPEN_IN_BROWSER_BUTTON
+                                || mCustomButtonsForMetric.get(1)
+                                        == ButtonType.CCT_OPEN_IN_BROWSER_BUTTON;
+                if (hasShare && hasOib) {
+                    logActions = CctActions.SHARE_OIB;
+                } else if (hasShare) {
+                    logActions = CctActions.SHARE_CUSTOM;
+                } else if (hasOib) {
+                    logActions = CctActions.OIB_CUSTOM;
+                } else {
+                    logActions = CctActions.CUSTOM_ONLY;
+                }
+            } else if (mCustomButtonsForMetric.size() == 1) {
+                int customActionType = mCustomButtonsForMetric.get(0);
+                int optionalActionType = mOptionalButtonForMetric;
+                switch (customActionType) {
+                    case ButtonType.CCT_SHARE_BUTTON:
+                        switch (optionalActionType) {
+                            case UNKNOWN:
+                                logActions = CctActions.SHARE_ONLY;
+                                break;
+                            case OPEN_IN_BROWSER:
+                                logActions = CctActions.SHARE_OIB;
+                                break;
+                            default:
+                                logActions = CctActions.SHARE_MTB;
+                                break;
+                        }
+                        break;
+                    case ButtonType.CCT_OPEN_IN_BROWSER_BUTTON:
+                        switch (optionalActionType) {
+                            case UNKNOWN:
+                                logActions = CctActions.OIB_ONLY;
+                                break;
+                            case SHARE:
+                                logActions = CctActions.SHARE_OIB;
+                                break;
+                            default:
+                                logActions = CctActions.OIB_MTB;
+                                break;
+                        }
+                        break;
+                    case ButtonType.OTHER:
+                    case ButtonType.EXTERNAL:
+                        switch (optionalActionType) {
+                            case UNKNOWN:
+                                logActions = CctActions.CUSTOM_ONLY;
+                                break;
+                            case SHARE:
+                                logActions = CctActions.SHARE_CUSTOM;
+                                break;
+                            case OPEN_IN_BROWSER:
+                                logActions = CctActions.OIB_CUSTOM;
+                                break;
+                            default:
+                                logActions = CctActions.CUSTOM_MTB;
+                                break;
+                        }
+                        break;
+                }
+            } else {
+                switch (mOptionalButtonForMetric) {
+                    case UNKNOWN:
+                        logActions = CctActions.NONE;
+                        break;
+                    case SHARE:
+                        logActions = CctActions.SHARE_ONLY;
+                        break;
+                    case OPEN_IN_BROWSER:
+                        logActions = CctActions.OIB_ONLY;
+                        break;
+                    default:
+                        logActions = CctActions.MTB_ONLY;
+                        break;
+                }
+            }
+            RecordHistogram.recordEnumeratedHistogram(
+                    "CustomTab.AdaptiveToolbarButton.ActionButtons",
+                    logActions,
+                    CctActions.MAX_VALUE);
         }
 
         @Override

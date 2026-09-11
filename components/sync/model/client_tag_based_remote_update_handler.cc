@@ -24,6 +24,7 @@
 #include "components/sync/protocol/data_type_state_helper.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/unique_position.pb.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace syncer {
 
@@ -68,7 +69,7 @@ ClientTagBasedRemoteUpdateHandler::ProcessIncrementalUpdate(
   // If new encryption requirements come from the server, the entities that are
   // in `updates` will be recorded here so they can be ignored during the
   // re-encryption phase at the end.
-  std::unordered_set<std::string> already_updated;
+  absl::flat_hash_set<std::string> already_updated;
 
   for (syncer::UpdateResponseData& update : updates) {
     std::string storage_key_to_clear;
@@ -200,17 +201,17 @@ ProcessorEntity* ClientTagBasedRemoteUpdateHandler::ProcessUpdate(
     return nullptr;
   }
 
-  // TODO(crbug.com/40889096): Remove the storage key check as storage keys
-  // should not be empty after IsEntityDataValid() has been implemented by all
-  // bridges.
-  if (!data.is_deleted() && (!bridge_->IsEntityDataValid(data) ||
-                             (bridge_->SupportsGetStorageKey() &&
-                              bridge_->GetStorageKey(data).empty()))) {
+  if (!data.is_deleted() && !bridge_->IsEntityDataValid(data)) {
     DLOG(WARNING) << "Received invalid remote update."
                   << " client_tag_hash: " << client_tag_hash << " for "
                   << DataTypeToDebugString(type_);
     return nullptr;
   }
+
+  // Valid entities (other than deletions) must have non-empty storage keys.
+  CHECK(data.is_deleted() || !bridge_->SupportsGetStorageKey() ||
+        !bridge_->GetStorageKey(data).empty())
+      << DataTypeToDebugString(type_);
 
   // Cache update encryption_key_name and is_deleted in case `update` will be
   // moved away into ResolveConflict().
@@ -284,14 +285,14 @@ void ClientTagBasedRemoteUpdateHandler::ResolveConflict(
     // Local tombstone vs remote update (non-deletion). Should be undeleted.
     resolution_type = ConflictResolution::kUseRemote;
   } else if (entity->MatchesOwnBaseData()) {
-    // If there is no real local change, then the entity must be unsynced due to
-    // a pending local re-encryption request. In this case, the remote data
-    // should win.
-    resolution_type = ConflictResolution::kIgnoreLocalEncryption;
+    // If there is no real local change, the remote data should win (e.g. when
+    // the entity is unsynced due to a pending local re-encryption request).
+    resolution_type = ConflictResolution::kIgnoreLocalNoOpUpdate;
   } else if (entity->MatchesBaseData(remote_data)) {
     // The remote data isn't actually changing from the last remote data that
-    // was seen, so it must have been a re-encryption and can be ignored.
-    resolution_type = ConflictResolution::kIgnoreRemoteEncryption;
+    // was seen, so it can be ignored (e.g. in case of a re-encryption, or some
+    // remote update which was reverted).
+    resolution_type = ConflictResolution::kIgnoreRemoteNoOpUpdate;
   } else {
     // There's a real data conflict here; let the bridge resolve it.
     resolution_type =
@@ -319,13 +320,13 @@ void ClientTagBasedRemoteUpdateHandler::ResolveConflict(
       }
       break;
     case ConflictResolution::kUseLocal:
-    case ConflictResolution::kIgnoreRemoteEncryption:
+    case ConflictResolution::kIgnoreRemoteNoOpUpdate:
       // Record that we received the update from the server but leave the
       // pending commit intact.
       entity->RecordIgnoredRemoteUpdate(update);
       break;
     case ConflictResolution::kUseRemote:
-    case ConflictResolution::kIgnoreLocalEncryption:
+    case ConflictResolution::kIgnoreLocalNoOpUpdate:
       // Update client data to match server.
       if (update.entity.is_deleted()) {
         DCHECK(!entity->metadata().is_deleted());

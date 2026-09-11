@@ -30,8 +30,6 @@ BASE_FEATURE(kPermissionElementPromptPositioning,
 
 BASE_FEATURE(kPermissionPredictionsV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPermissionsAIv1, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kPermissionsAIv3, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPermissionsAIv4, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -39,6 +37,12 @@ BASE_FEATURE(kPermissionsAIv4, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPermissionsAIP92, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPermissionPromiseLifetimeModulation,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPermissionOnDeviceNotificationPredictions,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPermissionOnDeviceGeolocationPredictions,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether to trigger showing a HaTS survey, with the given

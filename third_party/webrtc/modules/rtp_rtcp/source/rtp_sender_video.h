@@ -103,7 +103,7 @@ class RTPSenderVideo : public RTPVideoFrameSenderInterface {
   // video encoder, excluding any additional overhead.
   // Calls to this method are assumed to be externally serialized.
   bool SendVideo(int payload_type,
-                 std::optional<VideoCodecType> codec_type,
+                 VideoCodecType codec_type,
                  uint32_t rtp_timestamp,
                  Timestamp capture_time,
                  ArrayView<const uint8_t> payload,
@@ -113,7 +113,7 @@ class RTPSenderVideo : public RTPVideoFrameSenderInterface {
                  std::vector<uint32_t> csrcs) override;
 
   bool SendEncodedImage(int payload_type,
-                        std::optional<VideoCodecType> codec_type,
+                        VideoCodecType codec_type,
                         uint32_t rtp_timestamp,
                         const EncodedImage& encoded_image,
                         RTPVideoHeader video_header,

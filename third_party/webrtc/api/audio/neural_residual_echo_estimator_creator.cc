@@ -11,12 +11,11 @@
 #include "api/audio/neural_residual_echo_estimator_creator.h"
 
 #include <memory>
-#include <utility>
 
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/neural_residual_echo_estimator.h"
-#include "modules/audio_processing/aec3/neural_residual_echo_estimator_impl.h"
+#include "modules/audio_processing/aec3/neural_residual_echo_estimator/neural_residual_echo_estimator_impl.h"
 #include "rtc_base/checks.h"
 #include "third_party/tflite/src/tensorflow/lite/op_resolver.h"
 

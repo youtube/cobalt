@@ -274,7 +274,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         maybeAddDividerLine(modelList, R.id.divider_line_id);
 
         // Open History
-        modelList.add(buildHistoryItem());
+        if (!IncognitoUtils.shouldOpenIncognitoAsWindow() || !isIncognitoShowing()) {
+            modelList.add(buildHistoryItem());
+        }
 
         // Tinker Tank
         if (shouldShowTinkerTank()) modelList.add(buildTinkerTankItem());
@@ -307,6 +309,11 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         // Disable page zoom menu item on Reading Mode pages.
         if (shouldShowPageZoomItem(currentTab) && !isReaderModeShowing(currentTab)) {
             modelList.add(buildPageZoomItem(currentTab));
+            // Divider
+            modelList.add(
+                    new MVCListAdapter.ListItem(
+                            AppMenuHandler.AppMenuItemType.DIVIDER,
+                            buildModelForDivider(R.id.divider_line_id)));
         }
 
         // Share

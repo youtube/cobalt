@@ -25,7 +25,7 @@ public class RtpReceiver {
   private long nativeRtpReceiver;
   private long nativeObserver;
 
-  @Nullable private MediaStreamTrack cachedTrack;
+  @Nullable private final MediaStreamTrack cachedTrack;
 
   @CalledByNative
   public RtpReceiver(long nativeRtpReceiver) {

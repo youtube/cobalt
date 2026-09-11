@@ -20,6 +20,7 @@
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "api/video/video_adaptation_reason.h"
 #include "call/adaptation/video_stream_adapter.h"
 #include "call/adaptation/video_stream_input_state_provider.h"
 #include "rtc_base/checks.h"
@@ -33,7 +34,7 @@ namespace {
 
 // How to enable the PixelLimitResource, example:
 // --force-fieldtrials=WebRTC-PixelLimitResource/target_pixels:230400,
-// interval:5s,toggle:5s/
+// interval:5s,reason:quality,toggle:5s/
 //
 // "target_pixels" is the encoder input video size (e.g. 640x360 = 230400) that
 // the PixelLimitResource will try to achieve by signaling kOveruse or kUnderuse
@@ -43,6 +44,9 @@ namespace {
 // "interval" is the interval at which PixelLimitResource checks whether it
 // it should report kOveruse or kUnderuse, impacting how quickly adaptation
 // converges on the target. Defaults to 5s.
+//
+// "reason" is the VideoAdaptationReason that is associated with this resource,
+// valid values are "cpu" or "quality". Defaults to "cpu".
 //
 // If "toggle" is specified, then PixelLimitResource will turn "on" and "off"
 // every specified amount of time. By turning "off" we mean that it will
@@ -56,7 +60,8 @@ struct PixelLimitResourceParams {
       return std::nullopt;
     }
     PixelLimitResourceParams params;
-    ParseFieldTrial({&params.target_pixels, &params.interval, &params.toggle},
+    ParseFieldTrial({&params.target_pixels, &params.interval, &params.reason,
+                     &params.toggle},
                     params_str);
     return params;
   }
@@ -64,12 +69,26 @@ struct PixelLimitResourceParams {
   PixelLimitResourceParams()
       : target_pixels("target_pixels", 0),
         interval("interval", TimeDelta::Seconds(5)),
+        reason("reason",
+               VideoAdaptationReason::kCpu,
+               {{"cpu", VideoAdaptationReason::kCpu},
+                {"quality", VideoAdaptationReason::kQuality}}),
         toggle("toggle") {}
 
   FieldTrialParameter<int> target_pixels;
   FieldTrialParameter<TimeDelta> interval;
+  FieldTrialEnum<VideoAdaptationReason> reason;
   FieldTrialOptional<TimeDelta> toggle;
 };
+
+const char* ToString(VideoAdaptationReason reason) {
+  switch (reason) {
+    case VideoAdaptationReason::kQuality:
+      return "quality";
+    case VideoAdaptationReason::kCpu:
+      return "cpu";
+  }
+}
 
 }  // namespace
 
@@ -85,10 +104,13 @@ scoped_refptr<PixelLimitResource> PixelLimitResource::CreateIfFieldTrialEnabled(
   }
   auto pixel_limit_resource = make_ref_counted<PixelLimitResource>(
       task_queue, input_state_provider, params->target_pixels.Get(),
-      params->interval.Get(), params->toggle.GetOptional());
+      params->interval.Get(), params->reason.Get(),
+      params->toggle.GetOptional());
   RTC_LOG(LS_INFO) << "Running with PixelLimitResource {target_pixels:"
                    << params->target_pixels.Get()
-                   << ", interval: " << params->interval.Get() << ", toggle:"
+                   << ", interval: " << params->interval.Get()
+                   << ", reason:" << ToString(params->reason.Get())
+                   << ", toggle:"
                    << (params->toggle ? ToString(*params->toggle)
                                       : std::string("N/A"))
                    << "}";
@@ -100,14 +122,17 @@ PixelLimitResource::PixelLimitResource(
     VideoStreamInputStateProvider* input_state_provider,
     int target_pixels,
     TimeDelta interval,
+    VideoAdaptationReason reason,
     std::optional<TimeDelta> toggle_interval)
     : task_queue_(task_queue),
       input_state_provider_(input_state_provider),
       target_pixels_(target_pixels),
       interval_(interval),
+      reason_(reason),
       toggle_interval_(toggle_interval),
       is_enabled_(true),
-      time_since_last_toggle_(TimeDelta::Zero()) {
+      time_since_last_toggle_(TimeDelta::Zero()),
+      listener_(nullptr) {
   RTC_DCHECK(task_queue_);
   RTC_DCHECK(input_state_provider_);
 }

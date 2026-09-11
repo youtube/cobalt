@@ -42,7 +42,6 @@
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_wrapper.h"
 #include "pc/rtp_transceiver.h"
-#include "pc/sdp_utils.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/internal/default_socket_server.h"
@@ -1419,14 +1418,12 @@ TEST_P(PeerConnectionIceTest,
 
   std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   SetIceMode(offer.get(), IceMode::ICEMODE_LITE);
-  ASSERT_TRUE(
-      caller->SetLocalDescription(CloneSessionDescription(offer.get())));
+  ASSERT_TRUE(caller->SetLocalDescription(offer->Clone()));
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
   std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   SetIceMode(answer.get(), IceMode::ICEMODE_FULL);
-  ASSERT_TRUE(
-      callee->SetLocalDescription(CloneSessionDescription(answer.get())));
+  ASSERT_TRUE(callee->SetLocalDescription(answer->Clone()));
   ASSERT_TRUE(caller->SetRemoteDescription(std::move(answer)));
 
   EXPECT_EQ(ICEROLE_CONTROLLED, GetIceRole(caller));
@@ -1443,14 +1440,12 @@ TEST_P(PeerConnectionIceTest,
 
   std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   SetIceMode(offer.get(), IceMode::ICEMODE_LITE);
-  ASSERT_TRUE(
-      caller->SetLocalDescription(CloneSessionDescription(offer.get())));
+  ASSERT_TRUE(caller->SetLocalDescription(offer->Clone()));
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
   std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   SetIceMode(answer.get(), IceMode::ICEMODE_LITE);
-  ASSERT_TRUE(
-      callee->SetLocalDescription(CloneSessionDescription(answer.get())));
+  ASSERT_TRUE(callee->SetLocalDescription(answer->Clone()));
   ASSERT_TRUE(caller->SetRemoteDescription(std::move(answer)));
 
   EXPECT_EQ(ICEROLE_CONTROLLING, GetIceRole(caller));

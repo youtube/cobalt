@@ -7,6 +7,7 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+
 #ifndef VIDEO_TIMING_SIMULATOR_RTP_PACKET_SIMULATOR_H_
 #define VIDEO_TIMING_SIMULATOR_RTP_PACKET_SIMULATOR_H_
 
@@ -15,11 +16,11 @@
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 
-namespace webrtc::video_frame_simulator {
+namespace webrtc::video_timing_simulator {
 
 class RtpPacketSimulator {
  public:
-  explicit RtpPacketSimulator(Environment env);
+  explicit RtpPacketSimulator(const Environment& env);
   ~RtpPacketSimulator() = default;
 
   RtpPacketSimulator(const RtpPacketSimulator&) = delete;
@@ -30,13 +31,13 @@ class RtpPacketSimulator {
   // from `logged_packet.log_time()`. This allows the caller to provide its own
   // clock offset, that might be different from the logged time base.
   RtpPacketReceived SimulateRtpPacketReceived(
-      const LoggedRtpPacketIncoming& logged_packet);
+      const LoggedRtpPacketIncoming& logged_packet) const;
 
  private:
   const Environment env_;
   const RtpHeaderExtensionMap rtp_header_extension_map_;
 };
 
-}  // namespace webrtc::video_frame_simulator
+}  // namespace webrtc::video_timing_simulator
 
 #endif  // VIDEO_TIMING_SIMULATOR_RTP_PACKET_SIMULATOR_H_

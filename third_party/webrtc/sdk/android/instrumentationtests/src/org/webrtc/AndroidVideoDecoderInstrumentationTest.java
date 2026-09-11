@@ -72,7 +72,7 @@ public final class AndroidVideoDecoderInstrumentationTest {
       new VideoDecoder.Settings(1 /* core */, TEST_FRAME_WIDTH, TEST_FRAME_HEIGHT);
 
   private static class MockDecodeCallback implements VideoDecoder.Callback {
-    private BlockingQueue<VideoFrame> frameQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<VideoFrame> frameQueue = new LinkedBlockingQueue<>();
 
     @Override
     public void onDecodedFrame(VideoFrame frame, Integer decodeTimeMs, Integer qp) {

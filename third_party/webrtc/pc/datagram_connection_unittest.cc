@@ -25,6 +25,7 @@
 #include "api/test/mock_datagram_connection_observer.h"
 #include "api/transport/enums.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "p2p/base/ice_transport_internal.h"
@@ -160,14 +161,18 @@ TEST_F(DatagramConnectionTest, ObserverCalledOnReceivedPacket) {
   std::vector<uint8_t> packet_data = {1, 2, 3, 4};
   RtpPacketReceived packet;
   packet.SetPayload(packet_data);
+  packet.set_arrival_time(Timestamp::Seconds(1234));
 
-  EXPECT_CALL(*observer1_ptr_, OnPacketReceived(_))
-      .WillOnce([&](ArrayView<const uint8_t> data) {
-        EXPECT_EQ(data.size(), packet_data.size());
-        EXPECT_EQ(memcmp(data.data(), packet_data.data(), packet_data.size()),
-                  0);
-        event.Set();
-      });
+  EXPECT_CALL(*observer1_ptr_, OnPacketReceived(_, _))
+      .WillOnce(
+          [&](ArrayView<const uint8_t> data,
+              const DatagramConnection::Observer::PacketMetadata& metadata) {
+            EXPECT_EQ(data.size(), packet_data.size());
+            EXPECT_EQ(
+                memcmp(data.data(), packet_data.data(), packet_data.size()), 0);
+            EXPECT_EQ(metadata.receive_time, packet.arrival_time());
+            event.Set();
+          });
 
   main_thread_.BlockingCall([&]() { conn1_->OnRtpPacket(packet); });
 
@@ -194,12 +199,16 @@ TEST_F(DatagramConnectionTest, PacketsAreReceived) {
 
   std::vector<uint8_t> data = {1, 2, 3, 4, 5};
   Event event;
-  EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_))
-      .WillOnce([&](ArrayView<const uint8_t> received_data) {
-        EXPECT_EQ(received_data.size(), data.size());
-        EXPECT_EQ(memcmp(received_data.data(), data.data(), data.size()), 0);
-        event.Set();
-      });
+  EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_, _))
+      .WillOnce(
+          [&](ArrayView<const uint8_t> received_data,
+              const DatagramConnection::Observer::PacketMetadata& metadata) {
+            EXPECT_EQ(received_data.size(), data.size());
+            EXPECT_EQ(memcmp(received_data.data(), data.data(), data.size()),
+                      0);
+            EXPECT_NE(metadata.receive_time, Timestamp::Zero());
+            event.Set();
+          });
 
   EXPECT_TRUE(conn1_->SendPacket(data));
   // Process the message queue to ensure the packet is sent.
@@ -283,12 +292,16 @@ TEST_F(DatagramConnectionTest, DirectDtlsPacketsAreReceived) {
 
   std::vector<uint8_t> data = {1, 2, 3, 4, 5};
   Event event;
-  EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_))
-      .WillOnce([&](ArrayView<const uint8_t> received_data) {
-        EXPECT_EQ(received_data.size(), data.size());
-        EXPECT_EQ(memcmp(received_data.data(), data.data(), data.size()), 0);
-        event.Set();
-      });
+  EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_, _))
+      .WillOnce(
+          [&](ArrayView<const uint8_t> received_data,
+              const DatagramConnection::Observer::PacketMetadata& metadata) {
+            EXPECT_EQ(received_data.size(), data.size());
+            EXPECT_EQ(memcmp(received_data.data(), data.data(), data.size()),
+                      0);
+            EXPECT_NE(metadata.receive_time, Timestamp::Zero());
+            event.Set();
+          });
 
   EXPECT_TRUE(conn1_->SendPacket(data));
   // Process the message queue to ensure the packet is sent.

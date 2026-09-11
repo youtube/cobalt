@@ -2150,6 +2150,11 @@ angle::Result CLCommandQueueVk::flushComputePassCommands()
             VK_PIPELINE_STAGE_HOST_BIT, memoryBarrier);
     }
 
+    if (mContext->getRenderer()->getFeatures().debugClDumpCommandStream.enabled)
+    {
+        addCommandBufferDiagnostics(mComputePassCommands->getCommandDiagnostics());
+    }
+
     // get hold of the queue serial that is flushed, post the flush the command buffer will be reset
     mLastFlushedQueueSerial = mComputePassCommands->getQueueSerial();
     // Here, we flush our compute cmds to RendererVk's primary command buffer
@@ -2200,6 +2205,11 @@ angle::Result CLCommandQueueVk::submitCommands()
     ANGLE_TRACE_EVENT0("gpu.angle", "CLCommandQueueVk::submitCommands()");
 
     ASSERT(hasCommandsPendingSubmission());
+
+    if (mContext->getRenderer()->getFeatures().debugClDumpCommandStream.enabled)
+    {
+        mContext->dumpCommandStreamDiagnostics();
+    }
 
     // Kick off renderer submit
     ANGLE_TRY(mContext->getRenderer()->submitCommands(
@@ -2348,7 +2358,6 @@ angle::Result CLCommandQueueVk::finishQueueSerialInternal(const QueueSerial queu
     // Events associated with this queue serial and ready to be marked complete
     ANGLE_TRY(setEventsWithQueueSerialToState(queueSerial, cl::ExecutionStatus::Complete));
 
-    mExternalEvents.clear();
     mCommandsStateMap.erase(queueSerial);
 
     return angle::Result::Continue;
@@ -2512,6 +2521,11 @@ bool CLCommandQueueVk::hasUserEventDependency() const
 {
     return std::any_of(mExternalEvents.begin(), mExternalEvents.end(),
                        [](const cl::EventPtr event) { return event->isUserEvent(); });
+}
+
+void CLCommandQueueVk::addCommandBufferDiagnostics(const std::string &commandBufferDiagnostics)
+{
+    mContext->addCommandBufferDiagnostics(commandBufferDiagnostics);
 }
 
 }  // namespace rx

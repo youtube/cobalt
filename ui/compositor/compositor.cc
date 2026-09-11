@@ -397,15 +397,9 @@ void Compositor::SetExternalBeginFrameController(
   }
 }
 
-#if BUILDFLAG(IS_CHROMEOS)
 void Compositor::OnChildResizing() {
-  observer_list_.Notify(&CompositorObserver::OnCompositingChildResizing);
+  observer_list_.Notify(&CompositorObserver::OnCompositingChildResizing, this);
 }
-
-void Compositor::OnChildResizeActivated() {
-  observer_list_.Notify(&CompositorObserver::OnChildResizeActivated);
-}
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 void Compositor::ScheduleDraw() {
   host_->SetNeedsCommit();
@@ -888,6 +882,10 @@ void Compositor::NotifyCompositorMetricsTrackerResults(
     cc::CustomTrackerResults results) {
   for (auto& pair : results)
     ReportMetricsForTracker(pair.first, std::move(pair.second));
+}
+
+void Compositor::DidReceiveCompositorFrameAckDeprecatedForCompositor() {
+  observer_list_.Notify(&CompositorObserver::OnCompositingAckDeprecated, this);
 }
 
 void Compositor::DidPresentCompositorFrame(

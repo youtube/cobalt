@@ -79,6 +79,8 @@ class VirtualCardEnrollBubbleControllerImpl
   bool IsIconVisible() const override;
 
   // BubbleControllerBase:
+  void OnBubbleDiscarded() override;
+  bool CanBeReshown() const override;
   BubbleType GetBubbleType() const override;
   base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
@@ -103,6 +105,9 @@ class VirtualCardEnrollBubbleControllerImpl
   void SetupBubble(VirtualCardEnrollmentFields virtual_card_enrollment_fields,
                    base::OnceClosure accept_virtual_card_callback,
                    base::OnceClosure decline_virtual_card_callback);
+
+  // Log metrics when the bubble is closed.
+  void LogBubbleCloseMetrics(PaymentsUiClosedReason closed_reason);
 
   // Contains the UI assets shown in the virtual card enrollment view.
   std::unique_ptr<VirtualCardEnrollUiModel> ui_model_;

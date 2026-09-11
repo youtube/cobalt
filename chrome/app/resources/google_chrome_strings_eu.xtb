@@ -274,7 +274,6 @@ Eginbide batzuk agian dira erabilgarri egongo eta hobespenei egindako aldaketak 
 <translation id="409936259433005390">Windows 11-ra bertsio-berrituko zara? Deskargatu Chrome-ren instalatzailea OneDrive-n lehen egunetik prest egoteko.</translation>
 <translation id="4110895483821904099">Konfiguratu Chrome-ko profil berria</translation>
 <translation id="4111566860456076004">Chrome-k ezin du egiaztatu luzapena nondik datorren, eta baliteke segurua ez izatea. Ken ezazu Chrome-tik, bisitatzen dituzun webguneetan zure datuak ikusi eta aldatu ezin izan ditzan, informazio pertsonala barne.</translation>
-<translation id="4128488089242627000">Chrome-k bizkorrago funtzionatzen du eta JavaScript darabilten eginbideek behar bezala funtzionatu beharko lukete (gomendatua)</translation>
 <translation id="4147555960264124640">Kontu kudeatu batekin hasten ari zara saioa eta, beraz, Google Chrome-ko zure profilaren gaineko kontrola emango diozu kontuaren administratzaileari. <ph name="USER_NAME" /> erabiltzailearekin iraunkorki lotuko dira zure Chrome datuak, esaterako, aplikazioak, laster-markak eta beste ezarpen batzuk. Datu horiek ezabatzeko, Google-ko kontuen panela erabil dezakezu, baina ezin izango dituzu datuak lotu beste kontu batera. <ph name="LEARN_MORE" /></translation>
 <translation id="4148957013307229264">Instalatzen…</translation>
 <translation id="4149882025268051530">Instalatzaileak ezin izan du artxiboa deskonprimitu. Deskargatu berriro Google Chrome.</translation>
@@ -527,6 +526,7 @@ Google Chrome-k ezin ditu berreskuratu zure ezarpenak.</translation>
 <translation id="6967962315388095737">Google Chrome Beta-k mDNS trafikoa baimentzeko sarrerako araua.</translation>
 <translation id="6979589607440534284">Ikusi zergatik blokeatzen dituen Chrome-k fitxategi batzuk, beste fitxa batean irekiko da</translation>
 <translation id="6991926986715044139">Erakutsi beti Google Lens-en lasterbidea</translation>
+<translation id="6999131147875565462">Chrome-k bizkorrago funtzionatzen du eta JavaScript darabilten eginbideek behar bezala funtzionatu beharko lukete</translation>
 <translation id="7011190694940573312">Instalazioak huts egin du, sistema eragilearen bertsio hau bateragarria ez delako.</translation>
 <translation id="7024536598735240744">Despaketatze-errorea: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Gelditu da instalazioa.</translation>

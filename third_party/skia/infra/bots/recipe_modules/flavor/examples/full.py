@@ -84,7 +84,6 @@ TEST_BUILDERS = [
   'Perf-Android-Clang-MotoG73-GPU-BXM_8_256-arm64-Release-All-Android',
   'Perf-Android-Clang-Nexus5x-GPU-Adreno418-arm64-Debug-All-Android',
   'Perf-Android-Clang-Pixel6-GPU-Adreno620-arm64-Release-All-Android',
-  'Perf-ChromeOS-Clang-Sparky360-GPU-MaliT860-arm-Release-All',
   'Perf-Debian10-Clang-GCE-CPU-AVX2-x86_64-Debug-All-MSAN',
   'Perf-Debian10-Clang-GCE-CPU-AVX2-x86_64-Release-All-ASAN',
   'Perf-Win2019-Clang-GCE-CPU-AVX2-x86_64-Debug-All-ASAN',
@@ -94,7 +93,6 @@ TEST_BUILDERS = [
   'Test-Android-Clang-Nexus5x-GPU-Adreno418-arm64-Release-All-Android_ASAN',
   'Test-Android-Clang-Pixel3a-GPU-Adreno615-arm64-Debug-All-Android_Vulkan',
   'Test-ChromeOS-Clang-Cherry-GPU-MaliG57-arm-Debug-All',
-  'Test-ChromeOS-Clang-Sparky360-GPU-MaliT860-arm-Release-All',
   'Test-Debian10-Clang-GCE-CPU-AVX2-x86_64-Debug-All-Coverage',
   'Test-Debian10-Clang-GCE-CPU-AVX2-x86_64-Release-All-Lottie',
   'Test-Debian10-Clang-GCE-CPU-AVX2-x86_64-Release-All-TSAN',
@@ -258,7 +256,7 @@ def GenTests(api):
                    path_config='kitchen',
                    swarm_out_dir='[SWARM_OUT_DIR]') +
     api.step_data('get swarming bot id',
-                  stdout=api.raw_io.output('build123-m2--device5')) +
+                  stdout=api.raw_io.output('lin-231-e505--device5')) +
     api.step_data('Scale CPU 4 to 0.600000', retcode=1)+
     api.step_data('Scale CPU 4 to 0.600000 (attempt 2)', retcode=1)+
     api.step_data('Scale CPU 4 to 0.600000 (attempt 3)', retcode=1)

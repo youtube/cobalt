@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.StrictMode;
 
+import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -34,8 +35,26 @@ public class SysUtils {
 
     private static @Nullable Boolean sLowEndDevice;
     private static @Nullable Integer sAmountOfPhysicalMemoryKB;
+    private static @Nullable Boolean sHasCameraForTesting;
+    private static int sLowMemoryThresholdMB = LOW_MEMORY_DEVICE_THRESHOLD_MB;
 
     private SysUtils() {}
+
+    /**
+     * Overrides the value of {@link #isLowEndDevice()} for testing.
+     */
+    public static void setIsLowEndDeviceForTesting(@Nullable Boolean isLowEndDevice) {
+        sLowEndDevice = isLowEndDevice;
+        ResettersForTesting.register(() -> sLowEndDevice = null);
+    }
+
+    /**
+     * Overrides the value of {@link #hasCamera(Context)} for testing.
+     */
+    public static void setHasCameraForTesting(@Nullable Boolean hasCamera) {
+        sHasCameraForTesting = hasCamera;
+        ResettersForTesting.register(() -> sHasCameraForTesting = null);
+    }
 
     /**
      * Return the amount of physical memory on this device in kilobytes.
@@ -88,8 +107,12 @@ public class SysUtils {
      * @return Whether or not this device should be considered a low end device.
      */
     public static boolean isLowEndDevice() {
-        // Do not cache in tests since command-line flags can change.
-        if (sLowEndDevice == null || BuildConfig.IS_FOR_TEST) {
+        if (sLowEndDevice == null) {
+            // Do not cache in tests since command-line flags can change.
+            if (BuildConfig.IS_FOR_TEST) {
+                return detectLowEndDevice();
+            }
+
             sLowEndDevice = detectLowEndDevice();
         }
         return sLowEndDevice;
@@ -126,6 +149,9 @@ public class SysUtils {
     }
 
     public static boolean hasCamera(final Context context) {
+        if (sHasCameraForTesting != null) {
+            return sHasCameraForTesting;
+        }
         final PackageManager pm = context.getPackageManager();
         return pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY);
     }
@@ -152,6 +178,15 @@ public class SysUtils {
 
         return isLowEnd;
         // LINT.ThenChange(//base/system/sys_info.cc)
+    }
+
+    public static void setLowMemoryDeviceThresholdMb(int thresholdMb) {
+        sLowMemoryThresholdMB = thresholdMb;
+    }
+
+    @CalledByNative
+    private static int getLowMemoryDeviceThresholdMb() {
+        return sLowMemoryThresholdMB;
     }
 
     /**

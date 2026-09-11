@@ -16,6 +16,7 @@
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/neural_residual_echo_estimator.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace tflite {
 class OpResolver;
@@ -28,6 +29,7 @@ namespace webrtc {
 // file contents.
 //
 // Beware: This is an experimental API and may change without notice.
+RTC_EXPORT
 absl_nullable std::unique_ptr<NeuralResidualEchoEstimator>
 CreateNeuralResidualEchoEstimator(absl::string_view tflite_model_path,
                                   const tflite::OpResolver* absl_nonnull

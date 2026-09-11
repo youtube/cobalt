@@ -253,6 +253,7 @@ source_set("unit_tests") {
     "//net",
     "//services/network:test_support",
     "//services/network/public/cpp",
+    "//services/preferences/tracked",
     "//sql",
     "//sql:test_support",
     "//testing/gmock",

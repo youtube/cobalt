@@ -97,6 +97,9 @@ class NetworkControllerInterface {
   // Called with network state estimate updates.
   ABSL_MUST_USE_RESULT virtual NetworkControlUpdate OnNetworkStateEstimate(
       NetworkStateEstimate) = 0;
+  // Returns true if the network controller supports adaptation to ECN.
+  // https://www.rfc-editor.org/rfc/rfc9331.html
+  virtual bool SupportsEcnAdaptation() const { return false; }
 };
 
 // NetworkControllerFactoryInterface is an interface for creating a network

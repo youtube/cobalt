@@ -771,9 +771,9 @@ TEST_F(WebRtcVideoEngineTest, UseFactoryForVp8WhenSupported) {
   FakeFrameSource frame_source(1280, 720, kNumMicrosecsPerSec / 30);
   EXPECT_TRUE(send_channel->SetVideoSend(kSsrc, nullptr, &frame_forwarder));
   frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
-  time_controller_.AdvanceTime(TimeDelta::Zero());
   // Sending one frame will have allocate the encoder.
-  ASSERT_TRUE(encoder_factory_->WaitForCreatedVideoEncoders(1));
+  ASSERT_TRUE(time_controller_.Wait(
+      [&] { return encoder_factory_->GetNumCreatedEncoders() >= 1; }));
   EXPECT_GT(encoder_factory_->encoders()[0]->GetNumEncodedFrames(), 0);
 
   int num_created_encoders = encoder_factory_->GetNumCreatedEncoders();
@@ -1111,8 +1111,8 @@ TEST_F(WebRtcVideoEngineTest, UsesSimulcastAdapterForVp8Factories) {
   EXPECT_TRUE(
       send_channel->SetVideoSend(ssrcs.front(), nullptr, &frame_forwarder));
   frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
-  time_controller_.AdvanceTime(TimeDelta::Zero());
-  ASSERT_TRUE(encoder_factory_->WaitForCreatedVideoEncoders(2));
+  ASSERT_TRUE(time_controller_.Wait(
+      [&] { return encoder_factory_->GetNumCreatedEncoders() >= 2; }));
 
   // Verify that encoders are configured for simulcast through adapter
   // (increasing resolution and only configured to send one stream each).
@@ -1194,9 +1194,8 @@ TEST_F(WebRtcVideoEngineTest,
   EXPECT_TRUE(
       send_channel->SetVideoSend(ssrcs.front(), nullptr, &frame_forwarder));
   frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
-  time_controller_.AdvanceTime(TimeDelta::Zero());
-
-  ASSERT_TRUE(encoder_factory_->WaitForCreatedVideoEncoders(2));
+  ASSERT_TRUE(time_controller_.Wait(
+      [&] { return encoder_factory_->GetNumCreatedEncoders() >= 2; }));
   ASSERT_TRUE(encoder_factory_->encoders()[0]->WaitForInitEncode());
   EXPECT_EQ(kVideoCodecVP8,
             encoder_factory_->encoders()[0]->GetCodecSettings().codecType);
@@ -1226,8 +1225,8 @@ TEST_F(WebRtcVideoEngineTest,
   FakeFrameSource frame_source(1280, 720, kNumMicrosecsPerSec / 30);
   EXPECT_TRUE(send_channel->SetVideoSend(kSsrc, nullptr, &frame_forwarder));
   frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
-  time_controller_.AdvanceTime(TimeDelta::Zero());
-  ASSERT_TRUE(encoder_factory_->WaitForCreatedVideoEncoders(1));
+  ASSERT_TRUE(time_controller_.Wait(
+      [&] { return encoder_factory_->GetNumCreatedEncoders() >= 1; }));
   ASSERT_EQ(1u, encoder_factory_->encoders().size());
   ASSERT_TRUE(encoder_factory_->encoders()[0]->WaitForInitEncode());
   EXPECT_EQ(kVideoCodecH264,
@@ -1259,9 +1258,9 @@ TEST_F(WebRtcVideoEngineTest, SimulcastEnabledForH264) {
   FakeFrameSource frame_source(1280, 720, kNumMicrosecsPerSec / 30);
   EXPECT_TRUE(send_channel->SetVideoSend(ssrcs[0], nullptr, &frame_forwarder));
   frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
-  time_controller_.AdvanceTime(TimeDelta::Zero());
 
-  ASSERT_TRUE(encoder_factory_->WaitForCreatedVideoEncoders(1));
+  ASSERT_TRUE(time_controller_.Wait(
+      [&] { return encoder_factory_->GetNumCreatedEncoders() >= 1; }));
   ASSERT_EQ(1u, encoder_factory_->encoders().size());
   FakeWebRtcVideoEncoder* encoder = encoder_factory_->encoders()[0];
   ASSERT_TRUE(encoder_factory_->encoders()[0]->WaitForInitEncode());
@@ -1569,7 +1568,8 @@ TEST_F(WebRtcVideoEngineTest, DISABLED_RecreatesEncoderOnContentTypeChange) {
   EXPECT_TRUE(send_channel->SetVideoSend(kSsrc, &options, &frame_forwarder));
 
   frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
-  ASSERT_TRUE(encoder_factory_->WaitForCreatedVideoEncoders(1));
+  ASSERT_TRUE(time_controller_.Wait(
+      [&] { return encoder_factory_->GetNumCreatedEncoders() >= 1; }));
   EXPECT_EQ(VideoCodecMode::kRealtimeVideo,
             encoder_factory_->encoders().back()->GetCodecSettings().mode);
 
@@ -1584,7 +1584,8 @@ TEST_F(WebRtcVideoEngineTest, DISABLED_RecreatesEncoderOnContentTypeChange) {
   // Change to screen content, recreate encoder. For the simulcast encoder
   // adapter case, this will result in two calls since InitEncode triggers a
   // a new instance.
-  ASSERT_TRUE(encoder_factory_->WaitForCreatedVideoEncoders(2));
+  ASSERT_TRUE(time_controller_.Wait(
+      [&] { return encoder_factory_->GetNumCreatedEncoders() >= 2; }));
   EXPECT_EQ(VideoCodecMode::kScreensharing,
             encoder_factory_->encoders().back()->GetCodecSettings().mode);
 
@@ -1599,7 +1600,8 @@ TEST_F(WebRtcVideoEngineTest, DISABLED_RecreatesEncoderOnContentTypeChange) {
   // Change back to regular video content, update encoder. Also change
   // a non `is_screencast` option just to verify it doesn't affect recreation.
   frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
-  ASSERT_TRUE(encoder_factory_->WaitForCreatedVideoEncoders(3));
+  ASSERT_TRUE(time_controller_.Wait(
+      [&] { return encoder_factory_->GetNumCreatedEncoders() >= 3; }));
   EXPECT_EQ(VideoCodecMode::kRealtimeVideo,
             encoder_factory_->encoders().back()->GetCodecSettings().mode);
 

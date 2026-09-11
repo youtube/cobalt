@@ -4,6 +4,8 @@
 
 #include "content/browser/browser_interface_binders.h"
 
+#include <concepts>
+
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -74,7 +76,6 @@
 #include "content/browser/renderer_host/render_process_host_impl.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_host.h"
-#include "content/browser/shape_detection/shape_detection_service_host.h"
 #include "content/browser/shared_storage/shared_storage_worklet_host.h"
 #include "content/browser/speech/speech_recognition_dispatcher_host.h"
 #include "content/browser/storage_access/storage_access_handle.h"
@@ -95,6 +96,7 @@
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/service_worker_version_base_info.h"
+#include "content/public/browser/shape_detection_service.h"
 #include "content/public/browser/shared_worker_instance.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/storage_partition.h"
@@ -629,15 +631,9 @@ void EmptyBinderForFrame(RenderFrameHost* host,
            << " for the frame/document scope";
 }
 
-BatteryMonitorBinder& GetBatteryMonitorBinderOverride() {
-  static base::NoDestructor<BatteryMonitorBinder> binder;
-  return *binder;
-}
-
 void BindBatteryMonitor(
-    RenderFrameHostImpl* host,
+    RenderFrameHost* host,
     mojo::PendingReceiver<device::mojom::BatteryMonitor> receiver) {
-  const auto& binder = GetBatteryMonitorBinderOverride();
   // TODO(crbug.com/1007264, crbug.com/1290231): remove fenced frame specific
   // code when permission policy implements the battery status API support.
   if (host->IsNestedWithinFencedFrame()) {
@@ -646,10 +642,7 @@ void BindBatteryMonitor(
                                 BIBI_BIND_BATTERY_MONITOR_FOR_FENCED_FRAME);
     return;
   }
-  if (binder)
-    binder.Run(std::move(receiver));
-  else
-    GetDeviceService().BindBatteryMonitor(std::move(receiver));
+  GetDeviceService().BindBatteryMonitor(std::move(receiver));
 }
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
@@ -714,15 +707,22 @@ void BindDevicePostureProvider(
       ->Bind(std::move(receiver));
 }
 
+template <auto Method, typename Interface>
+void BindRenderFrameHostImpl(RenderFrameHost* host,
+                             mojo::PendingReceiver<Interface> receiver)
+  requires std::invocable<decltype(Method),
+                          RenderFrameHostImpl*,
+                          mojo::PendingReceiver<Interface>>
+{
+  (static_cast<RenderFrameHostImpl*>(host)->*Method)(std::move(receiver));
+}
+
 }  // namespace
 
 // Documents/frames
 void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
   map->Add<blink::mojom::AudioContextManager>(base::BindRepeating(
       &RenderFrameHostImpl::GetAudioContextManager, base::Unretained(host)));
-
-  map->Add<device::mojom::BatteryMonitor>(
-      base::BindRepeating(&BindBatteryMonitor, base::Unretained(host)));
 
   map->Add<blink::mojom::CacheStorage>(base::BindRepeating(
       &RenderFrameHostImpl::BindCacheStorage, base::Unretained(host)));
@@ -852,6 +852,8 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
                           base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+<<<<<<< HEAD
+=======
   if (base::FeatureList::IsEnabled(features::kWebOTP)) {
     map->Add<blink::mojom::WebOTPService>(
         base::BindRepeating(&RenderFrameHostImpl::BindWebOTPServiceReceiver,
@@ -867,6 +869,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
       base::Unretained(host)));
 
 #if !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &RenderFrameHostImpl::CreateWebUsbService, base::Unretained(host)));
 #endif
@@ -920,11 +923,6 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
   map->Add<blink::mojom::WebTransportConnector>(
       base::BindRepeating(&RenderFrameHostImpl::CreateWebTransportConnector,
                           base::Unretained(host)));
-
-  map->Add<payments::mojom::SecurePaymentConfirmationService>(
-      base::BindRepeating(
-          &RenderFrameHostImpl::CreateSecurePaymentConfirmationService,
-          base::Unretained(host)));
 
   // BrowserMainLoop::GetInstance() may be null on unit tests.
   if (BrowserMainLoop::GetInstance()) {
@@ -1191,6 +1189,7 @@ void PopulateBinderMapWithContext(
 
   map->Add<blink::mojom::BackgroundFetchService>(
       &BackgroundFetchServiceImpl::CreateForFrame);
+  map->Add<device::mojom::BatteryMonitor>(&BindBatteryMonitor);
   map->Add<blink::mojom::ColorChooserFactory>(&BindColorChooserFactoryForFrame);
   map->Add<blink::mojom::EyeDropperChooser>(&EyeDropperChooserImpl::Create);
   map->Add<blink::mojom::CookieStore>(
@@ -1248,11 +1247,23 @@ void PopulateBinderMapWithContext(
 #endif  // BUILDFLAG(IS_ANDROID)
 
   map->Add<blink::mojom::Authenticator>(
-      [](RenderFrameHost* host,
-         mojo::PendingReceiver<blink::mojom::Authenticator> receiver) {
-        static_cast<RenderFrameHostImpl*>(host)->GetWebAuthenticationService(
-            std::move(receiver));
-      });
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::GetWebAuthenticationService>);
+  if (base::FeatureList::IsEnabled(features::kWebOTP)) {
+    map->Add<blink::mojom::WebOTPService>(
+        &BindRenderFrameHostImpl<
+            &RenderFrameHostImpl::BindWebOTPServiceReceiver>);
+  }
+  map->Add<blink::mojom::DigitalIdentityRequest>(
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::BindDigitalIdentityRequestReceiver>);
+  map->Add<blink::mojom::FederatedAuthRequest>(
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::BindFederatedAuthRequestReceiver>);
+  map->Add<payments::mojom::SecurePaymentConfirmationService>(
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::CreateSecurePaymentConfirmationService>);
+
   map->Add<blink::mojom::ClipboardHost>(&ClipboardHostImpl::Create);
   map->Add<blink::mojom::SpeculationHost>(&SpeculationHostImpl::Bind);
   map->Add<blink::mojom::AnchorElementInteractionHost>(
@@ -1847,9 +1858,4 @@ void PopulateBinderMap(ServiceWorkerHost* host, mojo::BinderMap* map) {
 }
 
 }  // namespace internal
-
-void OverrideBatteryMonitorBinderForTesting(BatteryMonitorBinder binder) {
-  internal::GetBatteryMonitorBinderOverride() = std::move(binder);
-}
-
 }  // namespace content

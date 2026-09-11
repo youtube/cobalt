@@ -274,7 +274,6 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="409936259433005390">Upgrade je binnenkort naar Windows 11? Download het Chrome-installatieprogramma naar OneDrive en wees er direct klaar voor.</translation>
 <translation id="4110895483821904099">Je nieuwe Chrome-profiel instellen</translation>
 <translation id="4111566860456076004">Chrome kan niet verifiëren waar deze extensie vandaan komt en de extensie is misschien onveilig. Verwijder de extensie uit Chrome zodat deze je gegevens (waaronder je persoonlijke informatie) niet meer kan bekijken en wijzigen op sites die je bezoekt.</translation>
-<translation id="4128488089242627000">Chrome werkt sneller en functies die JavaScript gebruiken, zouden naar behoren moeten werken (aanbevolen)</translation>
 <translation id="4147555960264124640">Je logt in op een beheerd account en geeft de beheerderscontrole over aan je Google Chrome-profiel. Je Chrome-gegevens zoals je apps, bookmarks, geschiedenis, wachtwoorden en andere instellingen worden permanent gekoppeld aan <ph name="USER_NAME" />. Je kunt deze gegevens verwijderen via het Google Accounts Dashboard, maar je kunt deze gegevens niet koppelen aan een ander account. <ph name="LEARN_MORE" /></translation>
 <translation id="4148957013307229264">Installeren...</translation>
 <translation id="4149882025268051530">Het installatieprogramma kan het archief niet uitpakken. Download Google Chrome opnieuw.</translation>
@@ -525,6 +524,7 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="6967962315388095737">Inkomende regel zodat Google Chrome Bèta mDNS-verkeer toestaat.</translation>
 <translation id="6979589607440534284">Meer informatie over waarom Chrome bepaalde bestanden blokkeert, wordt geopend in een nieuw tabblad</translation>
 <translation id="6991926986715044139">Google Lens-snelkoppeling altijd tonen</translation>
+<translation id="6999131147875565462">Chrome werkt sneller en functies die JavaScript gebruiken, zouden naar behoren moeten werken</translation>
 <translation id="7011190694940573312">De installatie is mislukt omdat deze versie van het besturingssysteem niet wordt ondersteund.</translation>
 <translation id="7024536598735240744">Fout bij uitpakken: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Installatie gestopt.</translation>

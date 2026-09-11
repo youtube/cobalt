@@ -4,7 +4,9 @@
 
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_menu_button.h"
 
+#include "base/callback_list.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -106,7 +108,12 @@ void WebAppMenuButton::OnAppRegistrarDestroyed() {
 }
 
 void WebAppMenuButton::UpdateStateForTesting() {
-  UpdateTextAndHighlightColor(HasPendingUpdate());
+  UpdateTextAndHighlightColor(CanShowPendingUpdate());
+}
+
+base::CallbackListSubscription WebAppMenuButton::AwaitLabelTextUpdated(
+    base::RepeatingClosure callback) {
+  return label()->AddTextChangedCallback(callback);
 }
 
 void WebAppMenuButton::ShowMenu(int run_types) {
@@ -116,7 +123,7 @@ void WebAppMenuButton::ShowMenu(int run_types) {
 }
 
 void WebAppMenuButton::OnThemeChanged() {
-  UpdateTextAndHighlightColor(HasPendingUpdate());
+  UpdateTextAndHighlightColor(CanShowPendingUpdate());
   AppMenuButton::OnThemeChanged();
 }
 
@@ -157,12 +164,12 @@ void WebAppMenuButton::FadeHighlightOff() {
   }
 }
 
-bool WebAppMenuButton::HasPendingUpdate() {
+bool WebAppMenuButton::CanShowPendingUpdate() {
   web_app::AppBrowserController* app_controller =
       browser_view_->browser()->app_controller();
   // `app_controller` can be null if this button is used in a (Chrome OS) custom
   // tab bar view for an ARC app.
-  return app_controller && app_controller->HasPendingUpdate();
+  return app_controller && app_controller->HasPendingUpdateNotIgnoredByUser();
 }
 
 void WebAppMenuButton::UpdateTextAndHighlightColor(bool is_pending_update) {
@@ -181,7 +188,6 @@ void WebAppMenuButton::UpdateTextAndHighlightColor(bool is_pending_update) {
   }
 
   const bool label_present_and_visible = !text.empty();
-
   SetHorizontalAlignment(label_present_and_visible ? gfx::ALIGN_RIGHT
                                                    : gfx::ALIGN_CENTER);
 

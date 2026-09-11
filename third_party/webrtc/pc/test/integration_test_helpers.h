@@ -36,6 +36,7 @@
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -63,7 +64,6 @@
 #include "media/base/stream_params.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/port.h"
-#include "p2p/base/port_interface.h"
 #include "p2p/test/fake_ice_transport.h"
 #include "p2p/test/test_turn_customizer.h"
 #include "p2p/test/test_turn_server.h"
@@ -85,6 +85,7 @@
 #include "rtc_base/firewall_socket_server.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/socket_server.h"
@@ -93,7 +94,6 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/clock.h"
-#include "system_wrappers/include/metrics.h"
 #include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
@@ -1377,44 +1377,8 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
   static constexpr char kCallerName[] = "Caller";
   static constexpr char kCalleeName[] = "Callee";
 
-  explicit PeerConnectionIntegrationBaseTest(SdpSemantics sdp_semantics)
-      : sdp_semantics_(sdp_semantics),
-        env_(CreateTestEnvironment()),
-        ss_(new VirtualSocketServer()),
-        fss_(new FirewallSocketServer(ss_.get())),
-        network_thread_(new Thread(fss_.get())),
-        worker_thread_(Thread::Create()) {
-    network_thread_->SetName("PCNetworkThread", this);
-    worker_thread_->SetName("PCWorkerThread", this);
-    RTC_CHECK(network_thread_->Start());
-    RTC_CHECK(worker_thread_->Start());
-    metrics::Reset();
-  }
-
-  ~PeerConnectionIntegrationBaseTest() {
-    // The PeerConnections should be deleted before the TurnCustomizers.
-    // A TurnPort is created with a raw pointer to a TurnCustomizer. The
-    // TurnPort has the same lifetime as the PeerConnection, so it's expected
-    // that the TurnCustomizer outlives the life of the PeerConnection or else
-    // when Send() is called it will hit a seg fault.
-    if (caller_) {
-      caller_->set_signaling_message_receiver(nullptr);
-      caller_->pc()->Close();
-      caller_.reset();
-    }
-    if (callee_) {
-      callee_->set_signaling_message_receiver(nullptr);
-      callee_->pc()->Close();
-      callee_.reset();
-    }
-
-    // If turn servers were created for the test they need to be destroyed on
-    // the network thread.
-    SendTask(network_thread(), [this] {
-      turn_servers_.clear();
-      turn_customizers_.clear();
-    });
-  }
+  explicit PeerConnectionIntegrationBaseTest(SdpSemantics sdp_semantics);
+  ~PeerConnectionIntegrationBaseTest() override;
 
   bool SignalingStateStable() {
     return caller_->SignalingStateStable() && callee_->SignalingStateStable();
@@ -1920,10 +1884,18 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
   }
 
  protected:
+  void OverrideLoggingLevelForTest(LoggingSeverity new_severity);
+
   SdpSemantics sdp_semantics_;
   const Environment env_;
 
  private:
+  // Support for optionally changing the default logging level for the duration
+  // of the test. Scoped wider than other member variables to also affect
+  // logging that's done in destructors.
+  class ScopedSetLoggingLevel;
+  std::unique_ptr<ScopedSetLoggingLevel> overridden_logging_level_;
+
   AutoThread main_thread_;  // Used as the signal thread by most tests.
   // `ss_` is used by `network_thread_` so it must be destroyed later.
   std::unique_ptr<VirtualSocketServer> ss_;

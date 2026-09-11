@@ -375,129 +375,6 @@ bool DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
   return any_marked;
 }
 
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
-  DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
-  DCHECK(AllowGarbageCollection::IsAllowed());
-  DCHECK(isolate->context().is_null());
-
-  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  DirectHandle<JSFunction> function = deoptimizer->function();
-  // For OSR the optimized code isn't installed on the function, so get the
-  // code object from deoptimizer.
-  DirectHandle<Code> optimized_code = deoptimizer->compiled_code();
-  const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
-  const DeoptimizeReason deopt_reason =
-      deoptimizer->GetDeoptInfo().deopt_reason;
-
-  // TODO(turbofan): We currently need the native context to materialize
-  // the arguments object, but only to get to its map.
-  isolate->set_context(deoptimizer->function()->native_context());
-
-  // Make sure to materialize objects before causing any allocation.
-  deoptimizer->MaterializeHeapObjects();
-  deoptimizer->ProcessDeoptReason(deopt_reason);
-  const BytecodeOffset deopt_exit_offset =
-      deoptimizer->bytecode_offset_in_outermost_frame();
-  delete deoptimizer;
-
-  // Ensure the context register is updated for materialized objects.
-  JavaScriptStackFrameIterator top_it(isolate);
-  JavaScriptFrame* top_frame = top_it.frame();
-  isolate->set_context(Cast<Context>(top_frame->context()));
-
-  // Lazy deopts don't invalidate the underlying optimized code since the code
-  // object itself is still valid (as far as we know); the called function
-  // caused the deopt, not the function we're currently looking at.
-  if (deopt_kind == DeoptimizeKind::kLazy) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  // Some eager deopts also don't invalidate InstructionStream (e.g. when
-  // preparing for OSR from Maglev to Turbofan).
-  if (IsDeoptimizationWithoutCodeInvalidation(deopt_reason)) {
-    if (deopt_reason == DeoptimizeReason::kPrepareForOnStackReplacement &&
-        function->ActiveTierIsMaglev(isolate)) {
-      isolate->tiering_manager()->MarkForTurboFanOptimization(*function);
-    }
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  DCHECK_NE(deopt_reason, DeoptimizeReason::kOSREarlyExit);
-  DCHECK_NE(deopt_reason, DeoptimizeReason::kPrepareForOnStackReplacement);
-
-  // Non-OSR'd code is deoptimized unconditionally. If the deoptimization occurs
-  // inside the outermost loop containing a loop that can trigger OSR
-  // compilation, we remove the OSR code, it will avoid hit the out of date OSR
-  // code and soon later deoptimization.
-  //
-  // For OSR'd code, we keep the optimized code around if deoptimization occurs
-  // outside the outermost loop containing the loop that triggered OSR
-  // compilation. The reasoning is that OSR is intended to speed up the
-  // long-running loop; so if the deoptimization occurs outside this loop it is
-  // still worth jumping to the OSR'd code on the next run. The reduced cost of
-  // the loop should pay for the deoptimization costs.
-
-  const BytecodeOffset osr_offset = optimized_code->osr_offset();
-  bool any_marked = false;
-
-  if (osr_offset.IsNone() || Deoptimizer::DeoptExitIsInsideOsrLoop(
-                                 isolate, *function, deopt_exit_offset,
-                                 osr_offset, optimized_code->kind())) {
-    function->ResetTieringRequests();
-    if (!optimized_code->marked_for_deoptimization()) {
-      optimized_code->SetMarkedForDeoptimization(
-          isolate, LazyDeoptimizeReason::kEagerDeopt);
-      any_marked = true;
-    }
-  }
-
-  if (osr_offset.IsNone()) {
-    if (DeoptAllOsrLoopsContainingDeoptExit(isolate, *function,
-                                            deopt_exit_offset)) {
-      any_marked = true;
-    }
-  }
-
-  if (any_marked) {
-    Deoptimizer::DeoptimizeMarkedCode(isolate);
-  }
-
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_ObserveNode) {
-  // The %ObserveNode intrinsic only tracks the changes to an observed node in
-  // code compiled by TurboFan.
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DirectHandle<Object> obj = args.at(0);
-  return *obj;
-}
-
-RUNTIME_FUNCTION(Runtime_VerifyType) {
-  // %VerifyType has no effect in the interpreter.
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DirectHandle<Object> obj = args.at(0);
-  return *obj;
-}
-
-RUNTIME_FUNCTION(Runtime_CheckTurboshaftTypeOf) {
-  // %CheckTurboshaftTypeOf has no effect in the interpreter.
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<Object> obj = args.at(0);
-  return *obj;
-}
-
-namespace {
-
 void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
                                    Handle<JSFunction>* function) {
   DCHECK(osr_offset->IsNone());
@@ -562,6 +439,146 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
 }
 
 }  // namespace
+
+RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
+  DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
+  DCHECK(AllowGarbageCollection::IsAllowed());
+  DCHECK(isolate->context().is_null());
+
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
+  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  DirectHandle<JSFunction> function = deoptimizer->function();
+  // For OSR the optimized code isn't installed on the function, so get the
+  // code object from deoptimizer.
+  DirectHandle<Code> optimized_code = deoptimizer->compiled_code();
+  const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
+  const DeoptimizeReason deopt_reason =
+      deoptimizer->GetDeoptInfo().deopt_reason;
+
+  // TODO(turbofan): We currently need the native context to materialize
+  // the arguments object, but only to get to its map.
+  isolate->set_context(deoptimizer->function()->native_context());
+
+  // Make sure to materialize objects before causing any allocation.
+  deoptimizer->MaterializeHeapObjects();
+  deoptimizer->ProcessDeoptReason(deopt_reason);
+  const BytecodeOffset deopt_exit_offset =
+      deoptimizer->bytecode_offset_in_outermost_frame();
+  delete deoptimizer;
+
+  // Ensure the context register is updated for materialized objects.
+  JavaScriptStackFrameIterator top_it(isolate);
+  JavaScriptFrame* top_frame = top_it.frame();
+  isolate->set_context(Cast<Context>(top_frame->context()));
+
+  // Lazy deopts don't invalidate the underlying optimized code since the code
+  // object itself is still valid (as far as we know); the called function
+  // caused the deopt, not the function we're currently looking at.
+  if (deopt_kind == DeoptimizeKind::kLazy) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  // If there's a turbolevved inner OSR loop and a maglevved outer OSR loop,
+  // force the outer loop to be turbolevved.
+  //
+  // Otherwise we're stuck in a state where the outer loop is maglevved and the
+  // inner loop is turbolevved, and we deopt the inner loop at every outer loop
+  // backedge.
+  const BytecodeOffset osr_offset = optimized_code->osr_offset();
+  BytecodeOffset outer_loop_osr_offset = BytecodeOffset::None();
+  if (v8_flags.turbolev && deopt_reason == DeoptimizeReason::kOSREarlyExit) {
+    CHECK_GT(deopt_exit_offset.ToInt(), osr_offset.ToInt());
+    if (optimized_code->kind() == CodeKind::TURBOFAN_JS &&
+        Deoptimizer::GetOutermostOuterLoopWithCodeKind(
+            isolate, *function, osr_offset, CodeKind::MAGLEV,
+            &outer_loop_osr_offset)) {
+      auto result =
+          CompileOptimizedOSR(isolate, handle(*function, isolate),
+                              CodeKind::TURBOFAN_JS, outer_loop_osr_offset);
+      USE(result);
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+  }
+
+  // Some eager deopts also don't invalidate InstructionStream (e.g. when
+  // preparing for OSR from Maglev to Turbofan).
+  if (IsDeoptimizationWithoutCodeInvalidation(deopt_reason)) {
+    if (deopt_reason == DeoptimizeReason::kPrepareForOnStackReplacement &&
+        function->ActiveTierIsMaglev(isolate)) {
+      isolate->tiering_manager()->MarkForTurboFanOptimization(*function);
+    }
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  DCHECK_NE(deopt_reason, DeoptimizeReason::kOSREarlyExit);
+  DCHECK_NE(deopt_reason, DeoptimizeReason::kPrepareForOnStackReplacement);
+
+  // Non-OSR'd code is deoptimized unconditionally. If the deoptimization occurs
+  // inside the outermost loop containing a loop that can trigger OSR
+  // compilation, we remove the OSR code, it will avoid hit the out of date OSR
+  // code and soon later deoptimization.
+  //
+  // For OSR'd code, we keep the optimized code around if deoptimization occurs
+  // outside the outermost loop containing the loop that triggered OSR
+  // compilation. The reasoning is that OSR is intended to speed up the
+  // long-running loop; so if the deoptimization occurs outside this loop it is
+  // still worth jumping to the OSR'd code on the next run. The reduced cost of
+  // the loop should pay for the deoptimization costs.
+
+  bool any_marked = false;
+
+  if (osr_offset.IsNone() || Deoptimizer::DeoptExitIsInsideOsrLoop(
+                                 isolate, *function, deopt_exit_offset,
+                                 osr_offset, optimized_code->kind())) {
+    function->ResetTieringRequests();
+    if (!optimized_code->marked_for_deoptimization()) {
+      optimized_code->SetMarkedForDeoptimization(
+          isolate, LazyDeoptimizeReason::kEagerDeopt);
+      any_marked = true;
+    }
+  }
+
+  if (osr_offset.IsNone()) {
+    if (DeoptAllOsrLoopsContainingDeoptExit(isolate, *function,
+                                            deopt_exit_offset)) {
+      any_marked = true;
+    }
+  }
+
+  if (any_marked) {
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_ObserveNode) {
+  // The %ObserveNode intrinsic only tracks the changes to an observed node in
+  // code compiled by TurboFan.
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<Object> obj = args.at(0);
+  return *obj;
+}
+
+RUNTIME_FUNCTION(Runtime_VerifyType) {
+  // %VerifyType has no effect in the interpreter.
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<Object> obj = args.at(0);
+  return *obj;
+}
+
+RUNTIME_FUNCTION(Runtime_CheckTurboshaftTypeOf) {
+  // %CheckTurboshaftTypeOf has no effect in the interpreter.
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Object> obj = args.at(0);
+  return *obj;
+}
 
 RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   HandleScope handle_scope(isolate);

@@ -3260,7 +3260,8 @@ TEST_F(VideoStreamEncoderTest, SinkWantsStoredByDegradationPreference) {
 
   // Turn off degradation completely.
   video_stream_encoder_->SetSourceAndWaitForRestrictionsUpdated(
-      &new_video_source, DegradationPreference::DISABLED);
+      &new_video_source,
+      DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION);
   // Give the encoder queue time to process the change in degradation preference
   // by waiting for an encoded frame.
   new_video_source.IncomingCapturedFrame(
@@ -3412,8 +3413,9 @@ TEST_F(VideoStreamEncoderTest, SwitchingSourceKeepsCpuAdaptation) {
   EXPECT_EQ(1, stats.number_of_cpu_adapt_changes);
 
   // Set adaptation disabled.
-  video_stream_encoder_->SetSource(&new_video_source,
-                                   DegradationPreference::DISABLED);
+  video_stream_encoder_->SetSource(
+      &new_video_source,
+      DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION);
 
   new_video_source.IncomingCapturedFrame(CreateFrame(4, kWidth, kHeight));
   WaitForEncodedFrame(4);
@@ -3695,8 +3697,9 @@ TEST_F(VideoStreamEncoderTest,
   EXPECT_EQ(2, stats.number_of_cpu_adapt_changes);
 
   // Disable CPU adaptation.
-  video_stream_encoder_->SetSource(&new_video_source,
-                                   DegradationPreference::DISABLED);
+  video_stream_encoder_->SetSource(
+      &new_video_source,
+      DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION);
   new_video_source.IncomingCapturedFrame(
       CreateFrame(sequence, kWidth, kHeight));
   WaitForEncodedFrame(sequence++);
@@ -4220,7 +4223,8 @@ TEST_F(VideoStreamEncoderTest, NoChangeForInitialNormalUsage_DisabledMode) {
 
   // Enable DISABLED preference, no initial limitation.
   test::FrameForwarder source;
-  video_stream_encoder_->SetSource(&source, DegradationPreference::DISABLED);
+  video_stream_encoder_->SetSource(
+      &source, DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION);
 
   source.IncomingCapturedFrame(CreateFrame(1, kWidth, kHeight));
   sink_.WaitForEncodedFrame(kWidth, kHeight);
@@ -5053,8 +5057,8 @@ TEST_F(VideoStreamEncoderTest,
   const int kHeight = 360;
   int64_t ntp_timestamp_ms = 123;
 
-  video_stream_encoder_->SetSource(&video_source_,
-                                   DegradationPreference::DISABLED);
+  video_stream_encoder_->SetSource(
+      &video_source_, DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION);
 
   for (int i = 1; i <= SendStatisticsProxy::kMinRequiredMetricsSamples; ++i) {
     video_source_.IncomingCapturedFrame(

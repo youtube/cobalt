@@ -44,6 +44,10 @@
 
 class SkBitmap;
 
+namespace viz {
+struct CopyOutputBitmapWithMetadata;
+}  // namespace viz
+
 namespace content {
 class DevToolsProtocolTestBindings;
 class RenderFrameHost;
@@ -316,7 +320,7 @@ class WebTestControlHost : public WebContentsObserver,
   void PrepareRendererForNextWebTest();
   void PrepareRendererForNextWebTestDone();
 
-  void OnPixelDumpCaptured(const SkBitmap& snapshot);
+  void OnPixelDumpCaptured(const viz::CopyOutputBitmapWithMetadata& result);
   void ReportResults();
   void EnqueueSurfaceCopyRequest();
 

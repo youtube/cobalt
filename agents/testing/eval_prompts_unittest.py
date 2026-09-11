@@ -75,7 +75,9 @@ class BuildChromiumUnittest(fake_filesystem_unittest.TestCase):
         """Tests that the correct commands are called to build chromium."""
         eval_prompts._build_chromium('/tmp/src')
         mock_check_call.assert_has_calls([
-            mock.call(['gn', 'gen', 'out/Default'], cwd='/tmp/src'),
+            mock.call(
+                ['gn', 'gen', 'out/Default', '--args=use_remoteexec=true'],
+                cwd='/tmp/src'),
             mock.call(['autoninja', '-C', 'out/Default'], cwd='/tmp/src'),
         ])
 
@@ -355,6 +357,122 @@ class GetTestsToRunUnittest(fake_filesystem_unittest.TestCase):
         self.assertEqual(len(result), 0)
 
 
+class ReadPassKConfigUnittest(fake_filesystem_unittest.TestCase):
+    """Unit tests for the `_read_pass_k_config` function."""
+
+    def setUp(self):
+        """Sets up the fake filesystem."""
+        self.setUpPyfakefs()
+
+    def test_empty_config(self):
+        """Tests that default values are returned for an empty config."""
+        self.fs.create_file('test.yaml', contents='{}')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_no_tests_key(self):
+        """Tests that default values are returned when 'tests' is missing."""
+        self.fs.create_file('test.yaml', contents='foo: bar')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_empty_tests_list(self):
+        """Tests that default values are returned for an empty 'tests' list."""
+        self.fs.create_file('test.yaml', contents='tests: []')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_no_metadata(self):
+        """Tests that default values are returned for tests with no metadata."""
+        self.fs.create_file('test.yaml', contents='tests:\n  - foo: bar')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_empty_metadata(self):
+        """Tests that default values are returned for empty metadata."""
+        self.fs.create_file('test.yaml', contents='tests:\n  - metadata: {}')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_with_settings(self):
+        """Tests that pass@k settings are read correctly."""
+        yaml_with_settings = """
+tests:
+  - metadata:
+      runs_per_test: 5
+      pass_k_threshold: 3
+"""
+        self.fs.create_file('test.yaml', contents=yaml_with_settings)
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 5)
+        self.assertEqual(config.pass_k_threshold, 3)
+
+    def test_first_test_has_settings(self):
+        """Tests that settings are read from the first test with metadata."""
+        yaml_first_test_has_settings = """
+tests:
+  - metadata:
+      runs_per_test: 5
+      pass_k_threshold: 3
+  - metadata:
+      runs_per_test: 10
+      pass_k_threshold: 8
+"""
+        self.fs.create_file('test.yaml', contents=yaml_first_test_has_settings)
+        with self.assertLogs(level='WARNING') as cm:
+            config = eval_prompts._read_pass_k_config(
+                pathlib.Path('test.yaml'))
+            self.assertIn('Settings on other tests will be ignored',
+                          cm.output[0])
+        self.assertEqual(config.runs_per_test, 5)
+        self.assertEqual(config.pass_k_threshold, 3)
+
+    def test_later_test_has_settings(self):
+        """Tests that settings are read from the first test with metadata."""
+        yaml_later_test_has_settings = """
+tests:
+  - {}
+  - metadata:
+      runs_per_test: 5
+      pass_k_threshold: 3
+"""
+        self.fs.create_file('test.yaml', contents=yaml_later_test_has_settings)
+        with self.assertLogs(level='WARNING') as cm:
+            config = eval_prompts._read_pass_k_config(
+                pathlib.Path('test.yaml'))
+            self.assertIn('Settings on other tests will be ignored',
+                          cm.output[0])
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_invalid_runs_type(self):
+        """Tests that a ValueError is raised for a non-integer runs_per_test."""
+        yaml_invalid_runs = """
+tests:
+  - metadata:
+      runs_per_test: "5"
+"""
+        self.fs.create_file('test.yaml', contents=yaml_invalid_runs)
+        with self.assertRaisesRegex(ValueError, 'must be an integer'):
+            eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+
+    def test_invalid_threshold_type(self):
+        """Tests that a ValueError is raised for a non-integer value."""
+        yaml_invalid_threshold = """
+tests:
+  - metadata:
+      pass_k_threshold: 3.5
+"""
+        self.fs.create_file('test.yaml', contents=yaml_invalid_threshold)
+        with self.assertRaisesRegex(ValueError, 'must be an integer'):
+            eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+
+
 class PerformChromiumSetupUnittest(unittest.TestCase):
     """Unit tests for the `_perform_chromium_setup` function."""
 
@@ -429,25 +547,47 @@ class PerformChromiumSetupUnittest(unittest.TestCase):
 class FetchSandboxImageUnittest(unittest.TestCase):
     """Unit tests for the `_fetch_sandbox_image` function."""
 
-    @mock.patch('subprocess.run')
-    def test_fetch_sandbox_image_success(self, mock_subprocess_run):
+    def setUp(self):
+        self.subprocess_run_patcher = mock.patch('subprocess.run')
+        self.mock_subprocess_run = self.subprocess_run_patcher.start()
+        self.addCleanup(self.subprocess_run_patcher.stop)
+
+        self.get_gemini_version_patcher = mock.patch(
+            'eval_prompts.gemini_helpers.get_gemini_version')
+        self.mock_get_gemini_version = self.get_gemini_version_patcher.start()
+        self.addCleanup(self.get_gemini_version_patcher.stop)
+
+        self.mock_get_gemini_version.return_value = '1.2.3'
+
+    def test_fetch_sandbox_image_success(self):
         """Tests that _fetch_sandbox_image returns true on success."""
-        mock_subprocess_run.return_value = subprocess.CompletedProcess(
-            args=['gemini', '--sandbox', 'no-op'],
-            returncode=0,
-            stdout='',
-        )
         with self.assertLogs(level='INFO') as cm:
             result = eval_prompts._fetch_sandbox_image()
             self.assertTrue(result)
             self.assertIn('Pre-fetching sandbox image', cm.output[0])
 
-    @mock.patch('subprocess.run')
-    def test_fetch_sandbox_image_failure(self, mock_subprocess_run):
+        self.mock_subprocess_run.assert_called_once_with(
+            [
+                'docker', 'pull',
+                'us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:1.2.3'
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+
+    def test_fetch_sandbox_image_get_version_fails(self):
         """Tests that _fetch_sandbox_image returns false on failure."""
-        error = subprocess.CalledProcessError(returncode=1, cmd='gemini')
+        self.mock_get_gemini_version.return_value = None
+        with self.assertLogs(level='ERROR') as cm:
+            result = eval_prompts._fetch_sandbox_image()
+            self.assertFalse(result)
+            self.assertIn('Failed to get gemini version', cm.output[0])
+
+    def test_fetch_sandbox_image_docker_pull_fails(self):
+        """Tests that _fetch_sandbox_image returns false on failure."""
+        error = subprocess.CalledProcessError(returncode=1, cmd='docker')
         error.stdout = 'mocked output'
-        mock_subprocess_run.side_effect = error
+        self.mock_subprocess_run.side_effect = error
         with self.assertLogs(level='ERROR') as cm:
             result = eval_prompts._fetch_sandbox_image()
             self.assertFalse(result)
@@ -513,6 +653,11 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         subprocess_run_patcher = mock.patch('subprocess.run')
         self.mock_subprocess_run = subprocess_run_patcher.start()
         self.addCleanup(subprocess_run_patcher.stop)
+
+        fetch_sandbox_image_patcher = mock.patch(
+            'eval_prompts._fetch_sandbox_image')
+        self.mock_fetch_sandbox_image = fetch_sandbox_image_patcher.start()
+        self.addCleanup(fetch_sandbox_image_patcher.stop)
 
     def test_run_prompt_eval_tests_no_tests(self):
         """Tests that the function returns 1 if there are no tests to run."""
@@ -598,15 +743,9 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         """Tests that _run_prompt_eval_tests exits and logs output if sandbox
         pre-fetch fails."""
         self.args.sandbox = True
-        error = subprocess.CalledProcessError(returncode=1, cmd='gemini')
-        error.stdout = 'mocked output'
-        self.mock_subprocess_run.side_effect = error
-
-        with self.assertLogs(level='ERROR') as cm:
-            result = eval_prompts._run_prompt_eval_tests(self.args)
-            self.assertEqual(result, 1)
-            self.assertIn('Failed to pre-fetch sandbox image', cm.output[0])
-            self.assertIn('mocked output', cm.output[0])
+        self.mock_fetch_sandbox_image.return_value = False
+        result = eval_prompts._run_prompt_eval_tests(self.args)
+        self.assertEqual(result, 1)
 
     def test_run_prompt_eval_tests_with_sandbox_enabled(self):
         """Tests that _run_prompt_eval_tests calls pre-fetch and passes sandbox
@@ -614,17 +753,11 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         self.args.sandbox = True
         self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
             return_value = []
+        self.mock_fetch_sandbox_image.return_value = True
 
         eval_prompts._run_prompt_eval_tests(self.args)
 
-        self.mock_subprocess_run.assert_called_once_with(
-            ['gemini', '--sandbox', 'no-op'],
-            text=True,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            cwd=mock.ANY,
-        )
+        self.mock_fetch_sandbox_image.assert_called_once()
         self.mock_worker_pool.assert_called_once()
         self.assertTrue(self.mock_worker_pool.call_args[0][2].sandbox)
 
@@ -732,6 +865,22 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
             [pathlib.Path('/test/a.yaml')] * 4)
         self.assertEqual(returncode, 0)
 
+    def test_run_prompt_eval_tests_full_parallel(self):
+        """Tests that a -1 parallel workers makes a worker for each test."""
+        self.mock_get_tests_to_run.return_value = [
+            pathlib.Path('/test/a.yaml'),
+            pathlib.Path('/test/b.yaml'),
+            pathlib.Path('/test/c.yaml'),
+        ]
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
+        self.args.parallel_workers = -1
+
+        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+        self.mock_worker_pool.assert_called_with(3, mock.ANY, mock.ANY,
+                                                 mock.ANY)
+        self.assertEqual(returncode, 0)
+
 
 class ParseArgsUnittest(unittest.TestCase):
     """Unit tests for the `_parse_args` function."""
@@ -834,6 +983,32 @@ class ParseArgsUnittest(unittest.TestCase):
         self.assertEqual(args.parallel_workers, 4)
         self.assertEqual(args.retries, 2)
         self.assertEqual(args.isolated_script_test_repeat, 3)
+
+    def test_parse_args_full_parallel_args(self):
+        """Tests that all test runner arguments are parsed correctly."""
+        self.mock_argv[:] = ['eval_prompts.py', '--parallel-workers', '-1']
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.parallel_workers, -1)
+
+    def test_parse_args_isolated_script_test_launcher_retry_limit(self):
+        """Tests the --isolated-script-test-launcher-retry-limit argument."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--isolated-script-test-launcher-retry-limit',
+            '3'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.retries, 3)
+
+    def test_parse_args_retries_exclusive_group(self):
+        """Tests that retry arguments are mutually exclusive."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--retries', '2',
+            '--isolated-script-test-launcher-retry-limit', '3'
+        ]
+        # stderr mocked to silence the automatic help output by the parser when
+        # parsing fails.
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
 
     def test_parse_args_promptfoo_bin(self):
         """Tests --promptfoo-bin."""

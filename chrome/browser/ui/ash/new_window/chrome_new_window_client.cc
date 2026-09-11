@@ -170,20 +170,6 @@ bool OpenFilesSwa(Profile* const profile,
 
 }  // namespace
 
-ChromeNewWindowClient::ChromeNewWindowClient() {
-  arc::ArcIntentHelperBridge::SetControlCameraAppDelegate(this);
-}
-
-ChromeNewWindowClient::~ChromeNewWindowClient() {
-  arc::ArcIntentHelperBridge::SetControlCameraAppDelegate(nullptr);
-}
-
-// static
-ChromeNewWindowClient* ChromeNewWindowClient::Get() {
-  return static_cast<ChromeNewWindowClient*>(
-      ash::NewWindowDelegate::GetInstance());
-}
-
 // TabRestoreHelper is used to restore a tab. In particular when the user
 // attempts to a restore a tab if the TabRestoreService hasn't finished loading
 // this waits for it. Once the TabRestoreService finishes loading the tab is
@@ -227,6 +213,20 @@ class ChromeNewWindowClient::TabRestoreHelper
   raw_ptr<Profile> profile_;
   raw_ptr<sessions::TabRestoreService> tab_restore_service_;
 };
+
+ChromeNewWindowClient::ChromeNewWindowClient() {
+  arc::ArcIntentHelperBridge::SetControlCameraAppDelegate(this);
+}
+
+ChromeNewWindowClient::~ChromeNewWindowClient() {
+  arc::ArcIntentHelperBridge::SetControlCameraAppDelegate(nullptr);
+}
+
+// static
+ChromeNewWindowClient* ChromeNewWindowClient::Get() {
+  return static_cast<ChromeNewWindowClient*>(
+      ash::NewWindowDelegate::GetInstance());
+}
 
 void ChromeNewWindowClient::NewTab() {
   Browser* browser = chrome::FindBrowserWithActiveWindow();
@@ -373,7 +373,7 @@ void ChromeNewWindowClient::OpenUrl(const GURL& url,
     // The browser window might be on another user's desktop, and hence not
     // visible. Ensure the browser becomes visible on this user's desktop.
     multi_user_util::MoveWindowToCurrentDesktop(
-        navigate_params.browser->window()->GetNativeWindow());
+        navigate_params.browser->GetWindow()->GetNativeWindow());
   }
 
   auto* tab = navigate_params.navigated_or_inserted_contents.get();
@@ -381,23 +381,6 @@ void ChromeNewWindowClient::OpenUrl(const GURL& url,
     // Add a flag to remember this tab originated in the ARC context.
     tab->SetUserData(&arc::ArcWebContentsData::kArcTransitionFlag,
                      std::make_unique<arc::ArcWebContentsData>(tab));
-  }
-}
-
-void ChromeNewWindowClient::OpenOSSettingsPage(
-    const user_manager::User& user,
-    const OpenSettingsPageParams& params) {
-  Profile* profile = Profile::FromBrowserContext(
-      ash::BrowserContextHelper::Get()->GetBrowserContextByUser(&user));
-
-  // TODO(crbug.com/47287122): unify SettingsWindowManager::ShowOSSettings,
-  // after callers are updated.
-  if (params.settings_id.has_value()) {
-    chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-        profile, params.sub_page, *params.settings_id, params.display_id);
-  } else {
-    chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-        profile, params.sub_page, params.display_id);
   }
 }
 

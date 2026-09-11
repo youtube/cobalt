@@ -329,6 +329,14 @@
       name: "AIPageContentPaidContentAnnotation",
       status: "stable"
     },
+    // In AIPageContentAgent::ComputeHitTestableNodesInViewport, the hit test
+    // may hit the same node multiple times, which causes issues with computing
+    // the final z-order of page elements. This flag will filter those
+    // duplicate results first before doing any further processing.
+    {
+      name: "AIPageContentZOrderEarlyFiltering",
+      status: "stable"
+    },
     {
       name: "AIPromptAPI",
       public: true,
@@ -1030,6 +1038,10 @@
       name: "CollapseZeroWidthSpaceWhenReuseItem",
       status: "stable",
     },
+    {
+      name: "CollectWidthAndHeightAsStylesForNestedSvg",
+      status: "stable",
+    },
     // Enable the rec2100-linear color space in CSS and PredefinedColorSpace.
     {
       name: "ColorSpaceRec2100Linear",
@@ -1166,6 +1178,13 @@
     },
     {
       name: "CorsRFC1918",
+    },
+    {
+      // CPU Performance API, work in progress.
+      // https://chromestatus.com/feature/5189864286978048
+      // https://github.com/explainers-by-googlers/cpu-performance
+      name: "CpuPerformance",
+      status: "experimental"
     },
     {
       name: "CrashReportingStorageAPI",
@@ -1333,8 +1352,9 @@
       status: "stable",
     },
     {
+      // https://drafts.csswg.org/css-anchor-position-2/#anchored
       name: "CSSFallbackContainerQueries",
-      status: "experimental",
+      status: "stable",
     },
     {
       // crbug.com/417306102
@@ -1354,6 +1374,12 @@
       // https://chromestatus.com/feature/5157805733183488
       name: "CSSGapDecoration",
       status: "experimental",
+    },
+    {
+      // https://chromestatus.com/feature/5157805733183488
+      name: "CSSGridGapSuppression",
+      status: "experimental",
+      depends_on: ["CSSGapDecoration"],
     },
     {
       // This needs to be kept as a runtime flag as long as we need to forcibly
@@ -1510,8 +1536,6 @@
       status: "stable",
       depends_on: ["PseudoElementsFocusable"],
     },
-
-
     {
       // Non-standard 'auto' keyword for the CSS resize property. Used for
       // selectively enable resize corner for textarea via UA stylesheet, but
@@ -1533,6 +1557,12 @@
       status: "experimental",
     },
     {
+      // The '&' pseudo-class effectively behaves like :where(:scope)
+      // when used in @scope rules.
+      name: "CSSScopeifiedParentPseudoClass",
+      status: "experimental",
+    },
+    {
       // The "@import scope(...)" syntax.
       // https://github.com/w3c/csswg-drafts/issues/7348
       name: "CSSScopeImport",
@@ -1541,7 +1571,7 @@
     {
       // https://drafts.csswg.org/css-conditional-5/#scrolled
       name: "CSSScrolledContainerQueries",
-      status: "test",
+      status: "experimental",
     },
     {
       // https://drafts.csswg.org/css-scroll-snap-2#scroll-initial-target
@@ -1631,11 +1661,6 @@
     {
       // crbug.com/1463890: CSS `text-autospace` property
       name: "CSSTextAutoSpace",
-      status: "stable",
-    },
-    {
-      // crbug.com/40767672
-      name: "CssTextDecorationLineBlinkSerialization",
       status: "stable",
     },
     {
@@ -2036,7 +2061,22 @@
       status: "stable",
     },
     {
+      // `event.pseudoTarget` property to represent pseudo-elements in events. Returns `CSSPseudoElement` or null.
+      name: "EventPseudoTargetProperty",
+      status: "experimental",
+      depends_on: ["CSSPseudoElementInterface"],
+    },
+    {
+      // See: crbug.com/40887145
+      "name": "EventTargetStringIdentifierUsesQuotes",
+      "status": "stable",
+    },
+    {
       name: "EventTimingInteractionCount",
+      status: "experimental",
+    },
+    {
+      name: "EventTimingTargetIdentifier",
       status: "experimental",
     },
     {
@@ -2148,6 +2188,12 @@
       origin_trial_feature_name: "FedCmMultipleIdentityProviders",
       origin_trial_os: ["win", "mac", "linux", "chromeos"],
       origin_trial_allows_third_party: true,
+    },
+    {
+      name: "FedCmNonStringToken",
+      depends_on: ["FedCm"],
+      public: true,
+      base_feature: "none",
     },
     {
       name: "FencedFrames",
@@ -2276,7 +2322,7 @@
       // See crbug.com/421690393.
       name: "FileSystemAccessRevokeReadOnRemove",
       depends_on: ["FileSystemAccessWriteMode"],
-      status: "test",
+      status: "stable",
     },
     {
       // Controls the internal write-only mode for various FileSystemAccess API.
@@ -2284,7 +2330,7 @@
       // user visible APIs.
       // This flag is part of crbug.com/421690393 and crbug.com/328458680.
       name: "FileSystemAccessWriteMode",
-      status: "test",
+      status: "stable",
     },
     {
       // The FileSystemObserver interface for the File System Access API.
@@ -2467,10 +2513,6 @@
     },
     {
       name: "FontMatchAliasesAsLastResort",
-      status: "stable",
-    },
-    {
-      name: "FontPresentWin",
       status: "stable",
     },
     {
@@ -2692,7 +2734,6 @@
       name: "HTMLElementScrollParent",
       status: "experimental",
     },
-
     // Return a natural width/height of zero from
     // HTMLImageElement.naturalWidth/Height for SVG images that don't have a
     // natural width/height set.
@@ -2831,7 +2872,7 @@
     {
       // crbug.com/1420675
       name: "InsertLineBreakIfPhrasingContent",
-      status: {"Android": "test", "default": "stable"},
+      status: "stable",
     },
     {
       // Improved support for debugging CSSNestedDeclarations.
@@ -2924,11 +2965,6 @@
     },
     {
       name: "LayoutIgnoreMarginsForSticky",
-    },
-    {
-      name: "LayoutNGShapeCache",
-      status: "stable",
-      base_feature: "LayoutNGShapeCache",
     },
     {
       // Allow triggering the word suggestion from left click.
@@ -3189,13 +3225,12 @@
     },
     {
       name: "MenuElements",
-      status: "test",
+      status: "experimental",
     },
     {
       name: "MessagePortCloseEvent",
       status: "test",
     },
-
     // This is enabled by default on Windows only. The only part that's
     // "experimental" is the support on other platforms.
     {
@@ -3308,7 +3343,6 @@
       },
       base_feature: "none",
     },
-
     {
       // This turns off all font antialiasing for tests unless it is
       // explicitly required and enabled using the
@@ -3321,12 +3355,6 @@
     {
       name: "NoIdleEncodingForWebTests",
       status: "test",
-    },
-    // Doesn't increase the end offset on getting the range for a new line
-    // character. See https://crbug.com/326888905
-    {
-      name: "NoIncreasingEndOffsetOnSplittingTextNodes",
-      status: "stable",
     },
     // Doesn't insert empty blockquotes on outdenting a blockquote. See
     // https://crbug.com/323960902
@@ -3397,6 +3425,13 @@
       status: "stable",
     },
     {
+      // Restrict popover invoker lookup to the same TreeScope as the element.
+      // This will be shipped in M142, and it can be removed in M144.
+      // See https://issues.chromium.org/issues/443031270.
+      name: "OpenPopoverInvokerRestrictToSameTreeScope",
+      status: "stable",
+    },
+    {
       name: "OrientationEvent",
       status: {"Android": "stable"},
     },
@@ -3420,7 +3455,6 @@
       name: "OriginPolicy",
       status: "experimental",
     },
-
     // Define a sample API for testing integration with the Origin Trials
     // Framework. The sample API is used in both unit and web tests for the
     // Origin Trials Framework. Do not change this flag to stable, as it exists
@@ -3714,6 +3748,13 @@
       status: "stable",
     },
     {
+      // Kill switch for removing *x-self*, *y-self* as valid values.
+      // Enabling this flag will make *x-self* and *y-self* aliases of
+      // *self-x* and *self-y* at parse time.
+      // https://crbug.com/448642325
+      name: "PositionAreaXYSelf",
+    },
+    {
       name: "PositionOutsideTabSpanCheckSiblingNode",
       status: "stable",
     },
@@ -3772,6 +3813,14 @@
       // It also has some feature params defined throughout the codebase.
       name: "Prerender2",
       status: "stable",
+    },
+    {
+      // Used to allow prerender cross-origin iframes with an opt-in response
+      // header.
+      // https://chromestatus.com/feature/5112398709129216
+      // https://crbug.com/440387014
+      name: "Prerender2CrossOriginIframes",
+      origin_trial_feature_name: "Prerender2CrossOriginIframes",
     },
     {
       name: "PrerenderUntilScript",
@@ -3905,23 +3954,6 @@
       status: "stable",
     },
     {
-      // crbug.com/427520278
-      // Fix looking for next keyboard focusable radio button. This was added
-      // in M140 and can be removed after M143. This flag is no longer needed
-      // after RadioKeyboardFocusableOptimize ships.
-      name: "RadioInputNextKeyboardFocusable",
-      status: "stable",
-    },
-    {
-      // https://issues.chromium.org/issues/421837104
-      // Optimize keyboard focusable for the radio element. Making
-      // the focus navigation of the radio group more reasonable and
-      // consistent with Firefox.
-      // This was added in M140 and can be removed after M143.
-      name: "RadioKeyboardFocusableOptimize",
-      status: "stable",
-    },
-    {
       name: "RasterInducingScroll",
       status: {
         "Linux": "stable",
@@ -4015,7 +4047,7 @@
       // http://crbug.com/40228234
       // https://chromestatus.com/feature/6278918763708416
       name: "RelaxDOMValidNames",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "RelOpenerBcgDependencyHint",
@@ -4098,6 +4130,10 @@
       status: "test",
     },
     {
+      name: "ReportLayoutShiftRectsInCssPixels",
+      status: "experimental",
+    },
+    {
       name: "RequestMainFrameAfterFirstVideoFrame",
       status: "experimental",
     },
@@ -4137,6 +4173,13 @@
     },
     {
       name: "RestrictTabFocusForHiddenSVGElements",
+      status: "stable",
+    },
+    {
+      // Constrains text selections to stay within table cell boundaries
+      // (e.g., triple-click paragraph selection)
+      // See crbug.com/40852213.
+      name: "RestrictTableCellSelectionToBoundary",
       status: "stable",
     },
     {
@@ -4254,7 +4297,6 @@
       // https://github.com/WICG/view-transitions/blob/main/scoped-transitions.md
       name: "ScopedViewTransitions",
       status: "experimental"
-
     },
     {
       // https://github.com/w3c/window-management/issues/149
@@ -4404,16 +4446,21 @@
       name: "SelectedcontentelementAttribute",
       status: "test",
     },
-
     {
       // See https://crbug.com/40664519
+      // Disabled due to UI freeze issues, see https://crbug.com/448833953.
       name: "SelectionAndFocusedVisiblePositionMatch",
-      status: "stable",
+      status: "experimental",
     },
     {
       // Killswitch M141.
       name: "SelectionHandleWithBottomClipped",
       status: "stable",
+    },
+    {
+      // https://issues.chromium.org/issues/40502558
+      name: "SelectionRemoveRangeNotFoundError",
+      status: "experimental",
     },
     {
       // https://issues.chromium.org/issues/40502558
@@ -4612,7 +4659,11 @@
     },
     {
       name: "SmartCard",
-      status: {"Android": "", "default": "test"},
+      status: {
+        "Android": "",
+        "ChromeOS": "stable",
+        "default": "test",
+      },
     },
     {
       name: "SmartZoom",
@@ -4740,10 +4791,6 @@
       status: "stable",
     },
     {
-      name: "SvgAnchorElementRelAttributes",
-      status: "stable",
-    },
-    {
       name: "SvgAvoidCullingElementsWithTransformOperations",
       status: "stable",
     },
@@ -4793,10 +4840,6 @@
     {
       name: "SvgTransformOnNestedSvgElement",
       status: "stable",
-    },
-    {
-      name: "SvgUseInstancesAttributeSync",
-      status: "stable"
     },
     {
       name: "SynthesizedKeyboardEventsForAccessibilityActions",
@@ -4858,7 +4901,6 @@
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
     },
-
     {
       name: "TestFeature",
       base_feature: "none",
@@ -4927,11 +4969,6 @@
       depends_on: ["TextareaLineEndingsAsBr"],
     },
     {
-      // crbug.com/341564372
-      name: "TextareaSplitText",
-      status: "stable",
-    },
-    {
       // crbug.com/435186193
       name: "TextDecorationOmitCurrentColor",
       status: "stable",
@@ -4946,11 +4983,6 @@
       status: "experimental",
     },
     {
-      // crbug.com/325517313
-      name: "TextDiffSplitFix",
-      status: "stable",
-    },
-    {
       // crbug.com/40812040
       name: "TextEmphasisLetterSpacing",
       status: "stable",
@@ -4963,6 +4995,11 @@
     {
       name: "TextEmphasisPunctuationExceptions",
       status: "stable"
+    },
+    {
+      // crbug.com/442481227
+      name: "TextEmphasisWithRuby",
+      status: "stable",
     },
     {
       name: "TextFragmentAPI",

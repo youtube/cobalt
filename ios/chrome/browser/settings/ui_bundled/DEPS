@@ -38,6 +38,7 @@ include_rules = [
   "+ios/chrome/browser/push_notification/model",
   "+ios/chrome/browser/push_notification/ui_bundled/notifications_alert_presenter.h",
   "+ios/chrome/browser/regional_capabilities/model",
+  "+ios/chrome/browser/safari_data_import/model/features.h",
   "+ios/chrome/browser/safari_data_import/public",
   "+ios/chrome/browser/scoped_ui_blocker/ui_bundled",
   "+ios/chrome/browser/search_engine_choice/coordinator",
@@ -75,8 +76,5 @@ specific_include_rules = {
   ],
   "search_engine_settings_test_case_base\.mm": [
     "+ios/chrome/browser/search_engine_choice/test/search_engine_choice_earl_grey_ui_test_util.h",
-  ],
-  "supervised_user_settings_app_interface\.mm": [
-    "+ios/chrome/browser/tabs/model/features.h",
   ],
 }

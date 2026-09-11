@@ -52,26 +52,35 @@ public class RtpSenderTest {
 
     RtpParameters parameters = sender.getParameters();
     assertNotNull(parameters);
-    assertNull(parameters.degradationPreference);
+        assertNull(parameters.degradationPreference);
 
-    parameters.degradationPreference = DegradationPreference.MAINTAIN_FRAMERATE;
-    assertTrue(sender.setParameters(parameters));
-    parameters = sender.getParameters();
-    assertEquals(DegradationPreference.MAINTAIN_FRAMERATE, parameters.degradationPreference);
+        parameters.degradationPreference = DegradationPreference.MAINTAIN_FRAMERATE;
+        assertTrue(sender.setParameters(parameters));
+        parameters = sender.getParameters();
+        assertEquals(DegradationPreference.MAINTAIN_FRAMERATE, parameters.degradationPreference);
 
-    parameters.degradationPreference = DegradationPreference.MAINTAIN_RESOLUTION;
-    assertTrue(sender.setParameters(parameters));
-    parameters = sender.getParameters();
-    assertEquals(DegradationPreference.MAINTAIN_RESOLUTION, parameters.degradationPreference);
+        parameters.degradationPreference = DegradationPreference.MAINTAIN_RESOLUTION;
+        assertTrue(sender.setParameters(parameters));
+        parameters = sender.getParameters();
+        assertEquals(DegradationPreference.MAINTAIN_RESOLUTION, parameters.degradationPreference);
 
-    parameters.degradationPreference = DegradationPreference.BALANCED;
-    assertTrue(sender.setParameters(parameters));
-    parameters = sender.getParameters();
-    assertEquals(DegradationPreference.BALANCED, parameters.degradationPreference);
+        parameters.degradationPreference = DegradationPreference.BALANCED;
+        assertTrue(sender.setParameters(parameters));
+        parameters = sender.getParameters();
+        assertEquals(DegradationPreference.BALANCED, parameters.degradationPreference);
 
-    parameters.degradationPreference = DegradationPreference.DISABLED;
-    assertTrue(sender.setParameters(parameters));
-    parameters = sender.getParameters();
-    assertEquals(DegradationPreference.DISABLED, parameters.degradationPreference);
-  }
+        parameters.degradationPreference = DegradationPreference.MAINTAIN_FRAMERATE_AND_RESOLUTION;
+        assertTrue(sender.setParameters(parameters));
+        parameters = sender.getParameters();
+        assertEquals(
+                DegradationPreference.MAINTAIN_FRAMERATE_AND_RESOLUTION,
+                parameters.degradationPreference);
+
+        parameters.degradationPreference = DegradationPreference.DISABLED;
+        assertTrue(sender.setParameters(parameters));
+        parameters = sender.getParameters();
+        assertEquals(
+                DegradationPreference.MAINTAIN_FRAMERATE_AND_RESOLUTION,
+                parameters.degradationPreference);
+    }
 }

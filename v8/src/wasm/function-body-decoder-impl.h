@@ -1464,6 +1464,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value args[], const ContIndexImmediate& new_imm, Value* result)      \
   F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
     const Value& cont_ref, const Value args[], const Value returns[])          \
+  F(ResumeHandler, const Value* cont_ref, const BranchDepthImmediate& br_imm)  \
   F(ResumeThrow, const ContIndexImmediate& cont_imm,                           \
     const TagIndexImmediate& exc_imm, base::Vector<HandlerCase> handlers,      \
     const Value args[], const Value returns[])                                 \
@@ -4721,6 +4722,21 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Resume, imm, handlers, cont_ref,
                                        args.data(), returns);
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      MarkMightThrow();
+      for (const HandlerCase& handler : handlers) {
+        if (handler.kind == kOnSuspend) {
+          // TODO(thibaudm): Push tag params here.
+          Value* suspend_cont =
+              Push(ValueType::Ref(imm.index, false, RefTypeKind::kCont));
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, suspend_cont,
+                                             handler.maybe_depth.br);
+          Pop();
+          Control* target = control_at(handler.maybe_depth.br.depth);
+          target->br_merge()->reached = true;
+        }
+      }
+    }
     return 1 + imm.length + table_length;
   }
 
@@ -4760,6 +4776,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeThrow, cont_imm, exc_imm, handlers,
                                        args.data(), returns);
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      MarkMightThrow();
+      for (const HandlerCase& handler : handlers) {
+        if (handler.kind == kOnSuspend) {
+          Control* target = control_at(handler.maybe_depth.br.depth);
+          target->br_merge()->reached = true;
+        }
+      }
+    }
     return 1 + exc_imm.length + cont_imm.length + table_length;
   }
 
@@ -5198,9 +5223,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // Initialize start- and end-merges of {c} with values according to the
     // in- and out-types of {c} respectively.
     const uint8_t* pc = this->pc_;
-    InitMerge(&new_block->end_merge, imm.out_arity(), [pc, &imm](uint32_t i) {
-      return Value{pc, imm.out_type(i)};
-    });
+    InitMerge(&new_block->end_merge, imm.out_arity(),
+              [pc, &imm](uint32_t i) { return Value{pc, imm.out_type(i)}; });
     InitMerge(&new_block->start_merge, imm.in_arity(),
               [arg_base](uint32_t i) { return arg_base[i]; });
     return new_block;
@@ -6178,6 +6202,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               WasmOpcodes::OpcodeName(opcode));
           return 0;
         }
+        if (!VALIDATE(!IsSubtypeOf(ValueType::Ref(target_type), kWasmContRef,
+                                   this->module_))) {
+          this->DecodeError(
+              "Invalid type for %s: may not cast %s to continuation type",
+              WasmOpcodes::OpcodeName(opcode), target_type.name().c_str());
+          return 0;
+        }
 
         bool null_succeeds = opcode == kExprRefCastNull;
         Value* value = Push(ValueType::RefMaybeNull(
@@ -6249,6 +6280,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               this->pc_,
               "Invalid type for %s: string views are not classifiable",
               WasmOpcodes::OpcodeName(opcode));
+          return 0;
+        }
+        if (!VALIDATE(!IsSubtypeOf(ValueType::Ref(target_type), kWasmContRef,
+                                   this->module_))) {
+          this->DecodeError(
+              "Invalid type for %s: may not cast %s to continuation type",
+              WasmOpcodes::OpcodeName(opcode), target_type.name().c_str());
           return 0;
         }
         bool null_succeeds = opcode == kExprRefTestNull;
@@ -6400,6 +6438,18 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                           target_type.name().c_str(), src_type.name().c_str());
         return 0;
       }
+    }
+    if (!VALIDATE(!IsSubtypeOf(src_type, kWasmContRef, this->module_))) {
+      this->DecodeError(
+          "Invalid type for %s: may not cast %s continuation type",
+          WasmOpcodes::OpcodeName(opcode), src_type.name().c_str());
+      return 0;
+    }
+    if (!VALIDATE(!IsSubtypeOf(target_type, kWasmContRef, this->module_))) {
+      this->DecodeError(
+          "Invalid type for %s: may not cast %s to continuation type",
+          WasmOpcodes::OpcodeName(opcode), src_type.name().c_str());
+      return 0;
     }
 
     Value descriptor{nullptr, kWasmVoid};
@@ -7533,8 +7583,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #undef ASMJS_CASE
       {
         // Deal with special asmjs opcodes.
-        if (!VALIDATE(is_asmjs_module(this->module_)))
-          break;
+        if (!VALIDATE(is_asmjs_module(this->module_))) break;
         const FunctionSig* asmJsSig = WasmOpcodes::AsmjsSignature(opcode);
         DCHECK_NOT_NULL(asmJsSig);
         BuildSimpleOperator(opcode, asmJsSig);

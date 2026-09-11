@@ -94,8 +94,8 @@
     nativeDegradationPreferenceFromDegradationPreference:
         (RTCDegradationPreference)degradationPreference {
   switch (degradationPreference) {
-    case RTCDegradationPreferenceDisabled:
-      return webrtc::DegradationPreference::DISABLED;
+    case RTCDegradationPreferenceMaintainFramerateAndResolution:
+      return webrtc::DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION;
     case RTCDegradationPreferenceMaintainFramerate:
       return webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
     case RTCDegradationPreferenceMaintainResolution:
@@ -112,8 +112,8 @@
   }
 
   switch (*nativeDegradationPreference) {
-    case webrtc::DegradationPreference::DISABLED:
-      return @(RTCDegradationPreferenceDisabled);
+    case webrtc::DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION:
+      return @(RTCDegradationPreferenceMaintainFramerateAndResolution);
     case webrtc::DegradationPreference::MAINTAIN_FRAMERATE:
       return @(RTCDegradationPreferenceMaintainFramerate);
     case webrtc::DegradationPreference::MAINTAIN_RESOLUTION:

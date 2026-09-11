@@ -79,6 +79,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
   bool EvictCodedFrames(base::TimeDelta media_time, size_t newDataSize);
 
+<<<<<<< HEAD
+  void OnMemoryPressure(base::TimeDelta media_time,
+                        base::MemoryPressureLevel memory_pressure_level,
+                        bool force_instant_gc);
+=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Returns the latest presentation timestamp of the buffers queued in the
   // stream.
@@ -89,6 +94,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
       base::TimeDelta media_time,
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
       bool force_instant_gc);
+>>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Signal to the stream that duration has changed to |duration|.
   void OnSetDuration(base::TimeDelta duration);

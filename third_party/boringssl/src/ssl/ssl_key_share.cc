@@ -443,7 +443,7 @@ constexpr NamedGroup kNamedGroups[] = {
     {NID_X25519Kyber768Draft00, SSL_GROUP_X25519_KYBER768_DRAFT00,
      "X25519Kyber768Draft00", ""},
     {NID_X25519MLKEM768, SSL_GROUP_X25519_MLKEM768, "X25519MLKEM768", ""},
-    {NID_MLKEM1024, SSL_GROUP_MLKEM1024, "MLKEM1024", ""},
+    {NID_ML_KEM_1024, SSL_GROUP_MLKEM1024, "MLKEM1024", ""},
 };
 
 static_assert(std::size(kNamedGroups) == kNumNamedGroups,

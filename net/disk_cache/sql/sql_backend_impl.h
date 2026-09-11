@@ -420,6 +420,7 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
   // as a normal operation via the `ExclusiveOperationCoordinator` and forwards
   // the call to the persistent store.
   void HandleReadEntryDataOperation(
+      const CacheEntryKey& key,
       const scoped_refptr<ResIdOrErrorHolder>& res_id_or_error,
       int64_t offset,
       scoped_refptr<net::IOBuffer> buffer,
@@ -471,18 +472,6 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
   void ApplyInFlightEntryModifications(
       const CacheEntryKey& key,
       SqlPersistentStore::EntryInfo& entry_info);
-
-  // Schedules the `HandleDeleteDoomedEntriesOperation` task to run. This is the
-  // entry point for the one-time cleanup of entries that were doomed in a
-  // previous session.
-  void TriggerDeleteDoomedEntries();
-
-  // Physically deletes entries that were marked as "doomed" in previous
-  // sessions from the database. It excludes any currently active doomed entries
-  // to prevent data corruption. This method is executed as an exclusive
-  // operation to ensure it has sole access to the cache during cleanup.
-  void HandleDeleteDoomedEntriesOperation(
-      std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle);
 
   const base::FilePath path_;
 

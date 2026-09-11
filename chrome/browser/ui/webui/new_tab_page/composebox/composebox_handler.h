@@ -23,7 +23,6 @@
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 #include "url/gurl.h"
 
-class MetricsReporter;
 class Profile;
 
 class ComposeboxHandler
@@ -36,31 +35,12 @@ class ComposeboxHandler
       mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
-      std::unique_ptr<ComposeboxQueryController> query_controller,
       std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder,
       Profile* profile,
-      content::WebContents* web_contents,
-      MetricsReporter* metrics_reporter);
+      content::WebContents* web_contents);
   ~ComposeboxHandler() override;
 
-  // This is called from either the ComposeboxOmniboxClient when a match is
-  // present in navigation or for the PageHandler's `SubmitQuery()` when there
-  // was no match present. The latter only happens when submit is clicked with
-  // only a file and no input.
-  // If there is a match present in navigation, `additional_params` from the
-  // match's `detination_url` will be appended during url creation.
-  void SubmitQuery(
-      const std::string& query_text,
-      WindowOpenDisposition disposition,
-      std::map<std::string, std::string> additional_params) override;
-
   // composebox::mojom::PageHandler:
-  void SubmitQuery(const std::string& query_text,
-                   uint8_t mouse_button,
-                   bool alt_key,
-                   bool ctrl_key,
-                   bool meta_key,
-                   bool shift_key) override;
   void FocusChanged(bool focused) override;
   void SetDeepSearchMode(bool enabled) override;
   void SetCreateImageMode(bool enabled) override;
@@ -78,12 +58,31 @@ class ComposeboxHandler
                      bool meta_key,
                      bool shift_key) override;
   void OnThumbnailRemoved() override;
+  void SubmitQuery(const std::string& query_text,
+                   uint8_t mouse_button,
+                   bool alt_key,
+                   bool ctrl_key,
+                   bool meta_key,
+                   bool shift_key) override;
+
+  // This is called from either the ComposeboxOmniboxClient when a match is
+  // present in navigation or for the PageHandler's `SubmitQuery()` when there
+  // was no match present. The latter only happens when submit is clicked with
+  // only a file and no input.
+  // If there is a match present in navigation, `additional_params` from the
+  // match's `detination_url` will be appended during url creation.
+  void SubmitQuery(
+      const std::string& query_text,
+      WindowOpenDisposition disposition,
+      std::map<std::string, std::string> additional_params) override;
+
+  omnibox::ChromeAimToolsAndModels GetAimToolMode() override;
 
  private:
-  void OpenUrl(GURL url, const WindowOpenDisposition disposition);
-
-  bool deep_search_mode_enabled_ = false;
-  bool create_image_mode_enabled_ = false;
+  // The tool mode for the composebox, if any. These tool modes are disjoint
+  // and it's only possible for one mode to be set at one time.
+  omnibox::ChromeAimToolsAndModels aim_tool_mode_ =
+      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
   raw_ptr<content::WebContents> web_contents_;
 
   // These are located at the end of the list of member variables to ensure the

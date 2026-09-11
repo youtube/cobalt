@@ -7,6 +7,8 @@
 
 #include <string>
 
+#include "base/callback_list.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
@@ -57,6 +59,12 @@ class WebAppMenuButton : public AppMenuButton,
   // with the menu.
   void ShowMenu(int run_types);
 
+  // Safely waits for the label text to be updated, as per the contracts of
+  // `base::CallbackListSubscription`. Currently only used by tests, but can be
+  // used to listen to dynamic label text updates.
+  base::CallbackListSubscription AwaitLabelTextUpdated(
+      base::RepeatingClosure callback);
+
  protected:
   BrowserView* browser_view() { return browser_view_; }
 
@@ -71,7 +79,9 @@ class WebAppMenuButton : public AppMenuButton,
  private:
   void FadeHighlightOff();
 
-  bool HasPendingUpdate();
+  // Determines whether a pending update is available and can be shown on the
+  // UX, based on whether the update is new and hasn't been ignored by the user.
+  bool CanShowPendingUpdate();
 
   void UpdateTextAndHighlightColor(bool is_pending_update);
 

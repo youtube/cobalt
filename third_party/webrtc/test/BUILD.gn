@@ -300,7 +300,6 @@ if (!build_with_chromium) {
       deps = [
         ":test_video_capturer",
         ":video_test_common",
-        "../api:libjingle_peerconnection_api",
         "../api:media_stream_interface",
         "../api:scoped_refptr",
         "../api/video:video_frame",

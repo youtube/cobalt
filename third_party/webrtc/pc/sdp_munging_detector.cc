@@ -25,6 +25,7 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
+#include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
 #include "pc/session_description.h"
@@ -536,6 +537,14 @@ SdpMungingType DetermineContentsModification(
         return SdpMungingType::kRtpHeaderExtensionModified;
       }
     }
+
+    // Validate b= (which does not have an effect in the local description).
+    if (last_created_media_description->bandwidth() !=
+        media_description_to_set->bandwidth()) {
+      RTC_LOG(LS_WARNING) << "SDP munging: modifying bandwidth in SLD does not "
+                             "have an effect locally.";
+      return SdpMungingType::kBandwidth;
+    }
   }
   return SdpMungingType::kNoModification;
 }
@@ -606,6 +615,25 @@ SdpMungingType DetermineSdpMungingType(
           << last_created_desc->candidates(content_index)->count() << " to "
           << sdesc->candidates(content_index)->count() << " candidates";
       return SdpMungingType::kIceCandidateCount;
+    }
+  }
+
+  // Validate Bundle fields
+  std::vector<const ContentGroup*> old_bundles =
+      last_created_desc->description()->GetGroupsByName(GROUP_TYPE_BUNDLE);
+  std::vector<const ContentGroup*> new_bundles =
+      sdesc->description()->GetGroupsByName(GROUP_TYPE_BUNDLE);
+  if (old_bundles.size() != new_bundles.size()) {
+    RTC_LOG(LS_WARNING) << "SDP munging: number of bundle groups changed from "
+                        << old_bundles.size() << " to " << new_bundles.size();
+    return SdpMungingType::kBundle;
+  }
+  for (size_t i = 0; i < old_bundles.size(); ++i) {
+    if (*new_bundles[i] != *old_bundles[i]) {
+      RTC_LOG(LS_WARNING) << "SDP munging: Content of bundle group " << i
+                          << " changed from " << old_bundles[i]->ToString()
+                          << " to " << new_bundles[i]->ToString();
+      return SdpMungingType::kBundle;
     }
   }
 

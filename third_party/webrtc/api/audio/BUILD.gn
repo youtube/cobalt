@@ -192,8 +192,9 @@ if (rtc_enable_protobuf) {
     ]
     deps = [
       ":neural_residual_echo_estimator_api",
-      "../../modules/audio_processing/aec3:neural_residual_echo_estimator_impl",
+      "../../modules/audio_processing/aec3/neural_residual_echo_estimator:neural_residual_echo_estimator_impl",
       "../../rtc_base:checks",
+      "../../rtc_base/system:rtc_export",
       "//third_party/abseil-cpp/absl/base:nullability",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]

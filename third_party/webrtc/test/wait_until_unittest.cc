@@ -13,6 +13,8 @@
 #include <memory>
 
 #include "api/rtc_error.h"
+#include "api/task_queue/task_queue_base.h"
+#include "api/task_queue/task_queue_factory.h"
 #include "api/test/create_time_controller.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/test/time_controller.h"
@@ -95,9 +97,19 @@ TEST(WaitUntilTest, ReturnsWhenConditionIsMetWithSimulatedClock) {
   EXPECT_TRUE(WaitUntil(
       [&] { return ++counter == 3; },
       {.polling_interval = TimeDelta::Millis(10), .clock = &fake_clock}));
+  // Check function wasn't called again after it become true.
   EXPECT_EQ(counter, 3);
-  // The fake clock should have advanced at least 2 polling intervals, 20ms.
-  EXPECT_THAT(fake_clock.CurrentTime(), Ge(Timestamp::Millis(1357)));
+}
+
+TEST(WaitUntilTest, ReturnsFalseAfterTimeoutWithSimulatedClock) {
+  SimulatedClock fake_clock(Timestamp::Millis(1'337));
+
+  EXPECT_FALSE(
+      WaitUntil([&] { return false; },
+                {.timeout = TimeDelta::Seconds(1), .clock = &fake_clock}));
+
+  // With fake time `WaitUntil` should wait exactly `timeout`, not any longer.
+  EXPECT_EQ(fake_clock.CurrentTime(), Timestamp::Millis(2'337));
 }
 
 TEST(WaitUntilTest, ReturnsWhenConditionIsMetWithThreadProcessingFakeClock) {
@@ -163,6 +175,23 @@ TEST(WaitUntilTest, ReturnsWhenConditionIsMetWithSimulatedTimeController) {
   // The fake clock should have advanced at least 2ms.
   EXPECT_THAT(time_controller->GetClock()->CurrentTime(),
               Ge(Timestamp::Millis(1339)));
+}
+
+TEST(WaitUntilTest,
+     ReturnsTrueImmidiatelyWhenConditionIsMetByRunningPendingTask) {
+  std::unique_ptr<TimeController> time_controller =
+      CreateSimulatedTimeController();
+  std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue =
+      time_controller->GetTaskQueueFactory()->CreateTaskQueue(
+          "task_queue", TaskQueueFactory::Priority::NORMAL);
+
+  bool condition = false;
+  Timestamp start = time_controller->GetClock()->CurrentTime();
+  task_queue->PostTask([&] { condition = true; });
+  EXPECT_FALSE(condition);
+  EXPECT_TRUE(
+      WaitUntil([&] { return condition; }, {.clock = time_controller.get()}));
+  EXPECT_EQ(time_controller->GetClock()->CurrentTime(), start);
 }
 
 }  // namespace

@@ -408,7 +408,7 @@ std::unique_ptr<VideoEncoder> VideoQualityTest::CreateVideoEncoder(
 VideoQualityTest::VideoQualityTest(InjectionComponents injection_components)
     : CallTest(injection_components.field_trials_ptr
                    ? *injection_components.field_trials_ptr
-                   : CreateTestFieldTrials(injection_components.field_trials)),
+                   : CreateTestFieldTrials("")),
       video_decoder_factory_(
           [this](const Environment& env, const SdpVideoFormat& format) {
             return this->CreateVideoDecoder(env, format);

@@ -13,6 +13,7 @@
 #include "media/base/media_switches.h"
 #include "media/gpu/chromeos/mailbox_video_frame_converter.h"
 #include "media/gpu/chromeos/platform_video_frame_pool.h"
+#include "media/gpu/chromeos/simple_video_frame_converter.h"
 #include "media/gpu/chromeos/video_decoder_pipeline.h"
 #include "ui/gfx/buffer_types.h"
 
@@ -23,9 +24,7 @@ namespace {
 BASE_FEATURE(kAcceleratedVideoDecodeLinuxZeroCopyGL,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kRenderableMM21,
-             "RenderableMM21",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kRenderableMM21, base::FEATURE_DISABLED_BY_DEFAULT);
 
 VideoDecoderType GetPreferredLinuxDecoderImplementation() {
   // VaapiVideoDecoder flag is required for VaapiVideoDecoder.
@@ -185,15 +184,13 @@ class GpuMojoMediaClientLinux final : public GpuMojoMediaClient {
 
     switch (decoder_type) {
       case VideoDecoderType::kOutOfProcess: {
-        // TODO(b/195769334): for out-of-process video decoding, we don't need a
-        // |frame_pool| because the buffers will be allocated and managed
-        // out-of-process.
-        auto frame_pool = std::make_unique<PlatformVideoFramePool>();
-
-        auto frame_converter = MailboxVideoFrameConverter::Create(
-            gpu_task_runner_, traits.get_command_buffer_stub_cb);
+        auto frame_converter =
+            base::FeatureList::IsEnabled(kUseSharedImageInOOPVDProcess)
+                ? SimpleVideoFrameConverter::Create()
+                : MailboxVideoFrameConverter::Create(
+                      gpu_task_runner_, traits.get_command_buffer_stub_cb);
         return VideoDecoderPipeline::Create(
-            gpu_workarounds_, traits.task_runner, std::move(frame_pool),
+            gpu_workarounds_, traits.task_runner, /*frame_pool=*/nullptr,
             std::move(frame_converter),
             GetPreferredRenderableFourccs(gpu_preferences_, gpu_feature_info_),
             traits.media_log->Clone(), std::move(traits.oop_video_decoder),

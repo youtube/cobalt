@@ -320,7 +320,6 @@
 <translation id="1521655867290435174">Google Cədvəl</translation>
 <translation id="1524669537550112617">Əşyalı icarələr</translation>
 <translation id="1527263332363067270">Bağlantı gözlənilir...</translation>
-<translation id="1528311629279578926">Bağlantı bloklanıb, çünki şəxsi şəbəkədə cihaz və ya serverlərə qoşulmaq məqsədilə ictimai səhifə tərəfindən başladılıb. Bu səhifəni təkrar yükləyərək bağlantıya icazə verin.</translation>
 <translation id="1529789484829130889">Qab 8</translation>
 <translation id="1530707389502320859">Bu, saxta sayta oxşayır. Hücumçular bəzən URL-a kiçik, çətin sezilə bilən dəyişikliklər etməklə saytları təqlid edir.</translation>
 <translation id="1532118530259321453">Bu səhifə deyir:</translation>
@@ -814,6 +813,7 @@
 <translation id="2321291402658100099">Məlumatı idarə edin</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{1 pəncərə}other{# pəncərə}}</translation>
 <translation id="232390861414237658">Google Pay ilə istifadə üçün yadda saxlanıldıqda Chrome-da edilən satınalmalar üçün bu kartı avtomatik doldurun</translation>
+<translation id="2326283484705860548">Artıq Google Pulqabıdakı daha çox məlumatı avtomatik doldura bilərsiniz</translation>
 <translation id="2328651992442742497">İcazə verilib (defolt)</translation>
 <translation id="2328955282645810595">İnşaat və elektrik alətləri</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" />, <ph name="EXPIRATION_DATE_ABBR" /> tarixində bitir</translation>
@@ -824,6 +824,7 @@
 <translation id="2346319942568447007">Kopyalanmış şəkil</translation>
 <translation id="2347764072711098973">Ödənişi hissə-hissə etmək üçün Affirm, Zip və ya Klarna-dan istifadə edin</translation>
 <translation id="2348509731468399833">Qiymət izləmə dayandı.</translation>
+<translation id="2348836501965732644">Məlumatlarınızı idarə edin və ya bu təklifləri Ayarlarda söndürün</translation>
 <translation id="2349957959687031096">"Anonim tab açın" düyməsi, aktivləşdirərək yeni anonim tab açıb, gizli baxın</translation>
 <translation id="2350796302381711542"><ph name="HANDLER_HOSTNAME" /> hostuna <ph name="REPLACED_HANDLER_TITLE" /> əvəzinə <ph name="PROTOCOL" /> linklərinin açılması icazəsi verilsin?</translation>
 <translation id="2351718832234620840">Bu server onun <ph name="DOMAIN" /> domeni olduğunu sübut edə bilmədi, çünki o, Chromium və ya veb-trafikin şifrələnməsi üçün sistem konfiqurasiyanız tərəfindən etibar edilməyən təhlükəsizlik sertifikatından istifadə edir. Buna yanlış konfiqurasiya və ya hücumçu tərəfindən bağlantının ələ keçirilməsi səbəb ola bilər.</translation>
@@ -1407,7 +1408,6 @@
 <translation id="3325662270238538525">Fayl adları, fayl kontentinin rəqəmsal barmaq izləri, endirmə mənbəyi və metadata daxil olmaqla son fayl girişi və dəyişiklikləri</translation>
 <translation id="3329013043687509092">Saturasiya</translation>
 <translation id="3333762389743153920">Virtual kart üçün uyğun deyil</translation>
-<translation id="3336044043987989409">Şəxsi şəbəkədə cihaz və ya serverlərə qoşulmaq imkanı vermək üçün təkrar yükləmə düyməsini basın.</translation>
 <translation id="3338095232262050444">Güvənli</translation>
 <translation id="333839153442689579">Yüksəkintensivlikli interval məşqi</translation>
 <translation id="3339446062576134663">Bulud (Ash)</translation>
@@ -1451,6 +1451,7 @@
 <translation id="340924996148642843">Müqayisə hazırda əlçatan deyil</translation>
 <translation id="3409896703495473338">Təhlükəsizlik ayarlarını idarə edin</translation>
 <translation id="3411091017011773343"><ph name="HOURS" /> saat sonra yükləyin</translation>
+<translation id="341134412449102894">Məlumatlarınız <ph name="ACCOUNT" /> üçün burada saxlanılır: <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /></translation>
 <translation id="3413466783792948876">İctimai şəbəkə istifadə edirsinizsə, bu sayta daha sonra daxil olmaq ən təhlükəsiz seçimdir. Ev və ya iş Wi-Fi-ı kimi etibarlı şəbəkədə risk daha azdır.</translation>
 <translation id="3414275587143250384">Paylanmış və Bulud Hesablaması</translation>
 <translation id="3414952576877147120">Ölçü:</translation>
@@ -3140,6 +3141,7 @@
 <translation id="6189351761800074311">Mətn və səhifə kontentiniz Google-a göndərilir, lakin Sİ-ni təkmilləşdirmək üçün istifadə edilməyəcək.
     <ph name="BEGIN_LINK" />Ətraflı məlumat<ph name="END_LINK" /></translation>
 <translation id="6190518157737269631">Klaviaturanızda Esc kimi bəzi düymələri əvəzləyin</translation>
+<translation id="6192524964213419211">Google məhsullarında işləri daha tez yerinə yetirmək üçün məlumatınızı yadda saxlayın. Məlumatlarınız <ph name="ACCOUNT" /> üçün burada saxlanılır: <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /></translation>
 <translation id="6194209731893739467">Bütün izlənən məhsulları burada görə bilərsiniz</translation>
 <translation id="6195371403461054755">Geologiya</translation>
 <translation id="6195418151868446719">İstehlakçı Elektronikası</translation>
@@ -3306,6 +3308,7 @@
 <translation id="6433501201775827830">Axtarış sistemini seçin</translation>
 <translation id="6433595998831338502"><ph name="HOST_NAME" /> qoşulmaq istəmədi.</translation>
 <translation id="6433797564277305076">Bundan sonra cihazın kiliddən çıxarılmasından istifadə edərək kartlarınızı daha sürətli təsdiqləyin</translation>
+<translation id="6436994298828707228">Lokal şəbəkədəki cihaz və ya serverlərə qoşulmaq məqsədilə ictimai səhifə tərəfindən başladıldığı üçün bağlantı bloklanıb.</translation>
 <translation id="6437647869369934905">Google Çertyoj</translation>
 <translation id="643917412048333145">Geyimlər</translation>
 <translation id="6440503408713884761">İqnor edilənlər</translation>
@@ -3377,6 +3380,7 @@
 <translation id="6547208576736763147">Soldan qoşa deşik açın</translation>
 <translation id="6549443526281184652">Kostyumlar</translation>
 <translation id="6550245281449521513">Maus kilidinə icazə verilmir</translation>
+<translation id="6552566579578780089">Ödənişlər</translation>
 <translation id="6554732001434021288">Son ziyarət <ph name="NUM_DAYS" /> gün əvvəl olub</translation>
 <translation id="6556866813142980365">Yenidən edin</translation>
 <translation id="6557715786897013164">14 x 17 düym</translation>
@@ -3525,6 +3529,7 @@
 <translation id="6817217109584391709">javascript</translation>
 <translation id="6820143000046097424">ardıcıl portlar</translation>
 <translation id="6820686453637990663">CVC</translation>
+<translation id="6820949753458790123">Asan taksitlərlə ödəyin</translation>
 <translation id="6825578344716086703"><ph name="DOMAIN" /> domeninə daxil olmağa cəhd etdiniz, amma server zəif imza alqoritmi ilə daxil olan sertifikat təqdim etdi. Bu o deməkdir ki, serverin təqdim etdiyi təhlükəsizlik mandatı saxtalaşdırıla bilər və server gözlədiyiniz server olmaya bilər (Siz hücumçu ilə ünsiyyətdə ola bilərsiniz).</translation>
 <translation id="6826993739343257035">AR üçün icazə verilsin?</translation>
 <translation id="6828150717884939426">Zəng</translation>
@@ -3972,6 +3977,7 @@
 <translation id="753556296624075801">Google tərəfindən dəstəklənir</translation>
 <translation id="753713322968419914">Ev ünvanı Chrome avto-doldurmadan silinsin?</translation>
 <translation id="7537536606612762813">Məcburi</translation>
+<translation id="7541043894191476250">Kontekst tapşırıqları</translation>
 <translation id="7543525346216957623">Valideyninizdən soruşun</translation>
 <translation id="7546409722674205727">Başlayır: <ph name="APP_NAME" /></translation>
 <translation id="7548892272833184391">Bağlantı xətalarını həll edin</translation>
@@ -4497,6 +4503,7 @@
 <translation id="8406071103346257942">parolları daxil etmək üçün ekran kilidindən istifadə etməyi dayandırın</translation>
 <translation id="8407031780528483338">Qab-qacaq</translation>
 <translation id="8409413588194360210">ödəniş emalçıları</translation>
+<translation id="8410956920192583322">Aylıq və ya 4 taksit</translation>
 <translation id="8412145213513410671">Qəzalar (<ph name="CRASH_COUNT" />)</translation>
 <translation id="8412392972487953978">Eyni parolunu iki dəfə daxil etməlisiniz.</translation>
 <translation id="8414322570408428950">Artırma ilə bağlı hadisə baş verib</translation>
@@ -4787,6 +4794,7 @@
 <translation id="8922734931659847428"><ph name="BEGIN_LINK" />Köhnə texnologiya hadisələri<ph name="END_LINK" /> olan səhifələrin məhdud URL siyahısı</translation>
 <translation id="892588693504540538">Yuxarı sağdan deşik açın</translation>
 <translation id="8926389886865778422">Daha soruşmayın</translation>
+<translation id="8926400492587758246">Aylıq aşağı taksitlərlə ödəyin</translation>
 <translation id="8932102934695377596">Saatınız geridədir</translation>
 <translation id="893332455753468063">Ad əlavə edin</translation>
 <translation id="8938242527120341116">Cihazınızın kontent filtrləri bloklanıb <ph name="BLOCKED_URL" /></translation>

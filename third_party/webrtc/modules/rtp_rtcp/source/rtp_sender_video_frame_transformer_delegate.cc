@@ -51,7 +51,7 @@ class TransformableVideoSenderFrame : public TransformableVideoFrameInterface {
   TransformableVideoSenderFrame(const EncodedImage& encoded_image,
                                 const RTPVideoHeader& video_header,
                                 int payload_type,
-                                std::optional<VideoCodecType> codec_type,
+                                VideoCodecType codec_type,
                                 uint32_t rtp_timestamp,
                                 TimeDelta expected_retransmission_time,
                                 uint32_t ssrc,
@@ -114,7 +114,7 @@ class TransformableVideoSenderFrame : public TransformableVideoFrameInterface {
 
   const RTPVideoHeader& GetHeader() const { return header_; }
   uint8_t GetPayloadType() const override { return payload_type_; }
-  std::optional<VideoCodecType> GetCodecType() const { return codec_type_; }
+  VideoCodecType GetCodecType() const { return codec_type_; }
   std::optional<Timestamp> GetCaptureTimeIdentifier() const override {
     return presentation_timestamp_;
   }
@@ -128,11 +128,8 @@ class TransformableVideoSenderFrame : public TransformableVideoFrameInterface {
 
   Direction GetDirection() const override { return Direction::kSender; }
   std::string GetMimeType() const override {
-    if (!codec_type_.has_value()) {
-      return "video/x-unknown";
-    }
     std::string mime_type = "video/";
-    return mime_type + CodecTypeToPayloadString(*codec_type_);
+    return mime_type + CodecTypeToPayloadString(codec_type_);
   }
 
   std::optional<Timestamp> ReceiveTime() const override { return std::nullopt; }
@@ -151,7 +148,7 @@ class TransformableVideoSenderFrame : public TransformableVideoFrameInterface {
   RTPVideoHeader header_;
   const VideoFrameType frame_type_;
   const uint8_t payload_type_;
-  const std::optional<VideoCodecType> codec_type_ = std::nullopt;
+  const VideoCodecType codec_type_;
   uint32_t timestamp_;
   const Timestamp capture_time_;
   const std::optional<Timestamp> presentation_timestamp_;
@@ -183,7 +180,7 @@ void RTPSenderVideoFrameTransformerDelegate::Init() {
 
 bool RTPSenderVideoFrameTransformerDelegate::TransformFrame(
     int payload_type,
-    std::optional<VideoCodecType> codec_type,
+    VideoCodecType codec_type,
     uint32_t rtp_timestamp,
     const EncodedImage& encoded_image,
     RTPVideoHeader video_header,

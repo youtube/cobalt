@@ -576,12 +576,15 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "trusted heap object: " << JSONEscaped(handle());
       break;
     case Kind::kRelocatableWasmCall:
-      os << "relocatable wasm call: 0x"
-         << reinterpret_cast<void*>(storage.integral);
+      os << "relocatable wasm call: 0x" << std::hex << storage.integral
+         << std::dec;
       break;
     case Kind::kRelocatableWasmStubCall:
-      os << "relocatable wasm stub call: 0x"
-         << reinterpret_cast<void*>(storage.integral);
+      os << "relocatable wasm stub call: "
+         << (Builtins::IsBuiltinId(static_cast<int>(storage.integral))
+                 ? Builtins::name(Builtin(storage.integral))
+                 : "<not a builtin>")
+         << " (0x" << std::hex << storage.integral << std::dec << ")";
       break;
     case Kind::kRelocatableWasmCanonicalSignatureId:
       os << "relocatable wasm canonical signature ID: "
@@ -1116,7 +1119,12 @@ std::ostream& operator<<(std::ostream& os, BlockIndex b) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Block* b) {
-  return os << b->index();
+  if (b == nullptr) {
+    os << "nullptr";
+  } else {
+    os << b->index();
+  }
+  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, OpEffects effects) {
@@ -2145,9 +2153,16 @@ size_t CheckExceptionOp::hash_value(HashingStrategy strategy) const {
   if (strategy == HashingStrategy::kMakeSnapshotStable) {
     // Destructure here to cause a compilation error in case `options` is
     // changed.
-    auto [didnt_throw_block_value, catch_block_value] = options();
+    auto [didnt_throw_block_value, catch_block_value, effect_block_value] =
+        options();
+    BlockIndex catch_block_index = catch_block_value
+                                       ? index_for_bound_block(catch_block)
+                                       : BlockIndex::Invalid();
+    BlockIndex effect_block_index =
+        effect_block_value ? index_for_bound_block(effect_block_value)
+                           : BlockIndex::Invalid();
     return HashWithOptions(index_for_bound_block(didnt_throw_block_value),
-                           index_for_bound_block(catch_block_value));
+                           catch_block_index, effect_block_index);
   } else {
     return Base::hash_value(strategy);
   }

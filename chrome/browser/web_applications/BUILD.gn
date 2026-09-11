@@ -189,6 +189,8 @@ source_set("web_applications") {
     "jobs/uninstall/uninstall_job.cc",
     "jobs/uninstall/uninstall_job.h",
     "jobs/uninstall/web_app_uninstall_and_replace_job.h",
+    "jobs/update_ignore_state.cc",
+    "jobs/update_ignore_state.h",
     "locks/all_apps_lock.cc",
     "locks/all_apps_lock.h",
     "locks/app_lock.cc",
@@ -596,6 +598,8 @@ source_set("web_applications") {
         "preinstalled_web_apps/messages_dogfood.h",
         "preinstalled_web_apps/notebook_lm.cc",
         "preinstalled_web_apps/notebook_lm.h",
+        "preinstalled_web_apps/vids.cc",
+        "preinstalled_web_apps/vids.h",
       ]
       deps += [ "//extensions/common:common_constants" ]
     }
@@ -606,7 +610,6 @@ source_set("web_applications") {
   if (is_mac) {
     deps += [
       "//chrome/browser/web_applications/mojom:web_app_shortcut_copier_mojom",
-      "//components/os_crypt/sync",
     ]
   }
 
@@ -1129,6 +1132,7 @@ source_set("web_applications_browser_tests") {
     "isolated_web_apps/isolated_web_app_uninstall_browsertest.cc",
     "isolated_web_apps/isolated_web_app_url_loader_factory_browsertest.cc",
     "isolated_web_apps/key_distribution/iwa_key_distribution_component_installer_browsertest.cc",
+    "isolated_web_apps/policy/isolated_web_app_policy_manager_browsertest.cc",
     "isolated_web_apps/update/isolated_web_app_update_manager_browsertest.cc",
     "manifest_update_manager_browsertest.cc",
     "navigation_capturing_browser_navigator_browsertest.cc",
@@ -1165,7 +1169,6 @@ source_set("web_applications_browser_tests") {
       "isolated_web_apps/isolated_web_app_device_attributes_browsertest.cc",
       "isolated_web_apps/isolated_web_app_managed_configuration_api_browsertest.cc",
       "isolated_web_apps/policy/isolated_web_app_cache_browsertest.cc",
-      "isolated_web_apps/policy/isolated_web_app_policy_manager_ash_browsertest.cc",
       "web_app_run_on_os_login_manager_browsertest.cc",
     ]
   }

@@ -1280,6 +1280,51 @@ TEST(ECTest, HashToCurve) {
        "ecb9f0eadc9aeed232dabc53235368c1394c78de05dd96893eefa6"
        "2b0f4757dc"},
 
+      // See RFC 9380, appendix J.2.1.
+      {&EC_hash_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_RO_", "",
+       "eb9fe1b4f4e14e7140803c1d99d0a93cd823d2b024040f9c067a8e"
+       "ca1f5a2eeac9ad604973527a356f3fa3aeff0e4d83",
+       "0c21708cff382b7f4643c07b105c2eaec2cead93a917d825601e63"
+       "c8f21f6abd9abc22c93c2bed6f235954b25048bb1a"},
+      {&EC_hash_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_RO_", "abc",
+       "e02fc1a5f44a7519419dd314e29863f30df55a514da2d655775a81"
+       "d413003c4d4e7fd59af0826dfaad4200ac6f60abe1",
+       "01f638d04d98677d65bef99aef1a12a70a4cbb9270ec55248c0453"
+       "0d8bc1f8f90f8a6a859a7c1f1ddccedf8f96d675f6"},
+      {&EC_hash_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_RO_", "abcdef0123456789",
+       "bdecc1c1d870624965f19505be50459d363c71a699a496ab672f9a"
+       "5d6b78676400926fbceee6fcd1780fe86e62b2aa89",
+       "57cf1f99b5ee00f3c201139b3bfe4dd30a653193778d89a0accc5e"
+       "0f47e46e4e4b85a0595da29c9494c1814acafe183c"},
+      {&EC_hash_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_RO_",
+       "q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+       "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+       "qqqqqqqqqqqqqqqqqqqqqqqqq",
+       "03c3a9f401b78c6c36a52f07eeee0ec1289f178adf78448f43a385"
+       "0e0456f5dd7f7633dd31676d990eda32882ab486c0",
+       "cc183d0d7bdfd0a3af05f50e16a3f2de4abbc523215bf57c848d5e"
+       "a662482b8c1f43dc453a93b94a8026db58f3f5d878"},
+      {&EC_hash_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_RO_",
+       "a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "7b18d210b1f090ac701f65f606f6ca18fb8d081e3bc6cbd937c560"
+       "4325f1cdea4c15c10a54ef303aabf2ea58bd9947a4",
+       "ea857285a33abb516732915c353c75c576bf82ccc96adb63c094dd"
+       "e580021eddeafd91f8c0bfee6f636528f3d0c47fd2"},
+
       // See draft-irtf-cfrg-hash-to-curve-07, appendix G.2.1.
       {hash_to_curve_p384_sha512_draft07, EC_group_p384(),
        "P384_XMD:SHA-512_SSWU_RO_TESTGEN", "",
@@ -1315,6 +1360,96 @@ TEST(ECTest, HashToCurve) {
        "37f2913224287b9dfb64742851f760eb14ca115ff9",
        "1510e764f1be968d661b7aaecb26a6d38c98e5205ca150f0ae426d"
        "2c3983c68e3a9ffb283c6ae4891d891b5705500475"},
+
+      // See RFC 9380, appendix J.1.2.
+      {&EC_encode_to_curve_p256_xmd_sha256_sswu, EC_group_p256(),
+       "QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_NU_", "",
+       "f871caad25ea3b59c16cf87c1894902f7e7b2c822c3d3f73596c5a"
+       "ce8ddd14d1",
+       "87b9ae23335bee057b99bac1e68588b18b5691af476234b8971bc4"
+       "f011ddc99b"},
+      {&EC_encode_to_curve_p256_xmd_sha256_sswu, EC_group_p256(),
+       "QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_NU_", "abc",
+       "fc3f5d734e8dce41ddac49f47dd2b8a57257522a865c124ed02b92"
+       "b5237befa4",
+       "fe4d197ecf5a62645b9690599e1d80e82c500b22ac705a0b421fac"
+       "7b47157866"},
+      {&EC_encode_to_curve_p256_xmd_sha256_sswu, EC_group_p256(),
+       "QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_NU_", "abcdef0123456789",
+       "f164c6674a02207e414c257ce759d35eddc7f55be6d7f415e2cc17"
+       "7e5d8faa84",
+       "3aa274881d30db70485368c0467e97da0e73c18c1d00f34775d012"
+       "b6fcee7f97"},
+      {&EC_encode_to_curve_p256_xmd_sha256_sswu, EC_group_p256(),
+       "QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_NU_",
+       "q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+       "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+       "qqqqqqqqqqqqqqqqqqqqqqqqq",
+       "324532006312be4f162614076460315f7a54a6f85544da773dc659"
+       "aca0311853",
+       "8d8197374bcd52de2acfefc8a54fe2c8d8bebd2a39f16be9b710e4"
+       "b1af6ef883"},
+      {&EC_encode_to_curve_p256_xmd_sha256_sswu, EC_group_p256(),
+       "QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_NU_",
+       "a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "5c4bad52f81f39c8e8de1260e9a06d72b8b00a0829a8ea004a610b"
+       "0691bea5d9",
+       "c801e7c0782af1f74f24fc385a8555da0582032a3ce038de637ccd"
+       "cb16f7ef7b"},
+
+      // See RFC 9380, appendix J.2.2.
+      {&EC_encode_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_NU_", "",
+       "de5a893c83061b2d7ce6a0d8b049f0326f2ada4b966dc7e7292725"
+       "6b033ef61058029a3bfb13c1c7ececd6641881ae20",
+       "63f46da6139785674da315c1947e06e9a0867f5608cf24724eb379"
+       "3a1f5b3809ee28eb21a0c64be3be169afc6cdb38ca"},
+      {&EC_encode_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_NU_", "abc",
+       "1f08108b87e703c86c872ab3eb198a19f2b708237ac4be53d7929f"
+       "b4bd5194583f40d052f32df66afe5249c9915d139b",
+       "1369dc8d5bf038032336b989994874a2270adadb67a7fcc32f0f88"
+       "24bc5118613f0ac8de04a1041d90ff8a5ad555f96c"},
+      {&EC_encode_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_NU_", "abcdef0123456789",
+       "4dac31ec8a82ee3c02ba2d7c9fa431f1e59ffe65bf977b948c59e1"
+       "d813c2d7963c7be81aa6db39e78ff315a10115c0d0",
+       "845333cdb5702ad5c525e603f302904d6fc84879f0ef2ee2014a6b"
+       "13edd39131bfd66f7bd7cdc2d9ccf778f0c8892c3f"},
+      {&EC_encode_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_NU_",
+       "q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+       "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+       "qqqqqqqqqqqqqqqqqqqqqqqqq",
+       "13c1f8c52a492183f7c28e379b0475486718a7e3ac1dfef39283b9"
+       "ce5fb02b73f70c6c1f3dfe0c286b03e2af1af12d1d",
+       "57e101887e73e40eab8963324ed16c177d55eb89f804ec9df06801"
+       "579820420b5546b579008df2145fd770f584a1a54c"},
+      {&EC_encode_to_curve_p384_xmd_sha384_sswu, EC_group_p384(),
+       "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_NU_",
+       "a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "af129727a4207a8cb9e9dce656d88f79fce25edbcea350499d65e9"
+       "bf1204537bdde73c7cefb752a6ed5ebcd44e183302",
+       "ce68a3d5e161b2e6a968e4ddaa9e51504ad1516ec170c7eef3ca6b"
+       "5327943eca95d90b23b009ba45f58b72906f2a99e2"},
   };
 
   for (const auto &test : kTests) {

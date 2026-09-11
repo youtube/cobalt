@@ -375,15 +375,6 @@ void SqlBackendImpl::OnInitialized(CompletionOnceCallback callback,
                                    const std::vector<bool>& results) {
   const bool success = std::all_of(results.begin(), results.end(),
                                    [](bool result) { return result; });
-  if (success) {
-    // Schedule a one-time task to clean up doomed entries from previous
-    // sessions. This runs after a delay to avoid impacting startup performance.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&SqlBackendImpl::TriggerDeleteDoomedEntries,
-                       weak_factory_.GetWeakPtr()),
-        kSqlBackendDeleteDoomedEntriesDelay);
-  }
   std::move(callback).Run(success ? net::OK : net::ERR_FAILED);
 }
 
@@ -653,22 +644,26 @@ void SqlBackendImpl::HandleDoomEntriesBetweenOperation(
     return;
   }
 
-  // Collect keys of active entries to exclude them from the store's
+  // Collect Ids of active entries to exclude them from the store's
   // DeleteLiveEntriesBetween operation, as they will be handled by dooming them
   // directly within this method.
-  std::vector<CacheEntryKey> excluded_keys_vec;
-  excluded_keys_vec.reserve(active_entries_.size());
+  std::vector<SqlPersistentStore::ResId> excluded_ids_vec;
+  excluded_ids_vec.reserve(active_entries_.size());
   std::vector<SqlEntryImpl*> active_entries_to_be_doomed;
   for (auto& it : active_entries_) {
-    excluded_keys_vec.push_back(it.first);
+    const auto optional_res_id = GetResId(it.second->res_id_or_error());
+    if (optional_res_id.has_value()) {
+      excluded_ids_vec.push_back(*optional_res_id);
+    }
     // Check if the active entry falls within the specified time range.
     const base::Time last_used_time = it.second->GetLastUsed();
     if (last_used_time >= initial_time && last_used_time < end_time) {
       active_entries_to_be_doomed.push_back(&it.second.get());
     }
   }
-  base::flat_set<CacheEntryKey> excluded_keys(base::sorted_unique,
-                                              std::move(excluded_keys_vec));
+  std::sort(excluded_ids_vec.begin(), excluded_ids_vec.end());
+  base::flat_set<SqlPersistentStore::ResId> excluded_ids(
+      base::sorted_unique, std::move(excluded_ids_vec));
 
   auto barrier_callback = base::BarrierCallback<int>(
       active_entries_to_be_doomed.size() +  // For active entries being doomed
@@ -695,7 +690,7 @@ void SqlBackendImpl::HandleDoomEntriesBetweenOperation(
   // pending) entries within the specified time range, excluding those already
   // handled.
   store_->DeleteLiveEntriesBetween(
-      initial_time, end_time, std::move(excluded_keys),
+      initial_time, end_time, std::move(excluded_ids),
       base::BindOnce(
           [](CompletionOnceCallback callback,
              SqlPersistentStore::Error result) {
@@ -789,6 +784,8 @@ void SqlBackendImpl::HandleOnExternalCacheHitOperation(
 }
 
 void SqlBackendImpl::OnBrowserIdle() {
+  store_->MaybeLoadInMemoryIndex(base::DoNothing());
+  store_->MaybeRunCleanupDoomedEntries(base::DoNothing());
   store_->MaybeRunCheckpoint(base::DoNothing());
 }
 
@@ -1179,24 +1176,25 @@ int SqlBackendImpl::ReadEntryData(
   auto sync_result_receiver =
       base::MakeRefCounted<SyncResultReceiver<int>>(std::move(callback));
   exclusive_operation_coordinator_.PostOrRunNormalOperation(
-      key, base::BindOnce(&SqlBackendImpl::HandleReadEntryDataOperation,
-                          weak_factory_.GetWeakPtr(), res_id_or_error, offset,
-                          std::move(buffer), buf_len, body_end, sparse_reading,
-                          base::BindOnce(
-                              [](CompletionOnceCallback callback,
-                                 SqlPersistentStore::IntOrError result) {
-                                std::move(callback).Run(
-                                    result.value_or(net::ERR_FAILED));
-                              },
-                              WrapCallbackWithAbortError<int>(
-                                  sync_result_receiver->GetCallback(),
-                                  net::ERR_ABORTED))));
+      key,
+      base::BindOnce(
+          &SqlBackendImpl::HandleReadEntryDataOperation,
+          weak_factory_.GetWeakPtr(), key, res_id_or_error, offset,
+          std::move(buffer), buf_len, body_end, sparse_reading,
+          base::BindOnce(
+              [](CompletionOnceCallback callback,
+                 SqlPersistentStore::IntOrError result) {
+                std::move(callback).Run(result.value_or(net::ERR_FAILED));
+              },
+              WrapCallbackWithAbortError<int>(
+                  sync_result_receiver->GetCallback(), net::ERR_ABORTED))));
 
   auto sync_result = sync_result_receiver->FinishSyncCall();
   return sync_result ? std::move(*sync_result) : net::ERR_IO_PENDING;
 }
 
 void SqlBackendImpl::HandleReadEntryDataOperation(
+    const CacheEntryKey& key,
     const scoped_refptr<ResIdOrErrorHolder>& res_id_or_error,
     int64_t offset,
     scoped_refptr<net::IOBuffer> buffer,
@@ -1215,7 +1213,7 @@ void SqlBackendImpl::HandleReadEntryDataOperation(
     return;
   }
   store_->ReadEntryData(
-      *optional_res_id, offset, buffer, buf_len, body_end, sparse_reading,
+      key, *optional_res_id, offset, buffer, buf_len, body_end, sparse_reading,
       std::move(callback).Then(OnceClosureWithBoundArgs(std::move(handle))));
 }
 
@@ -1346,34 +1344,10 @@ void SqlBackendImpl::HandleTriggerEvictionOperation(
   if (!store_->ShouldStartEviction()) {
     return;
   }
-  std::vector<CacheEntryKey> excluded_keys_vec;
-  excluded_keys_vec.reserve(active_entries_.size());
-  for (const auto& pair : active_entries_) {
-    excluded_keys_vec.push_back(pair.first);
-  }
-  base::flat_set<CacheEntryKey> excluded_keys(base::sorted_unique,
-                                              std::move(excluded_keys_vec));
-  store_->StartEviction(
-      std::move(excluded_keys),
-      base::BindOnce([](SqlPersistentStore::Error result) {}));
-}
-
-void SqlBackendImpl::TriggerDeleteDoomedEntries() {
-  // TODO(crbug.com/443171275): Get information on whether a doomed entry
-  // exists when initializing SqlPersistentStore, and if it does not exist, do
-  // not execute TriggerDeleteDoomedEntries.
-  // TODO(crbug.com/443171275): Execute only when the browser is idle.
-  exclusive_operation_coordinator_.PostOrRunExclusiveOperation(base::BindOnce(
-      base::BindOnce(&SqlBackendImpl::HandleDeleteDoomedEntriesOperation,
-                     weak_factory_.GetWeakPtr())));
-}
-
-void SqlBackendImpl::HandleDeleteDoomedEntriesOperation(
-    std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle) {
   std::vector<SqlPersistentStore::ResId> excluded_ids_vec;
-  excluded_ids_vec.reserve(doomed_entries_.size());
-  for (const auto& entry : doomed_entries_) {
-    const auto optional_res_id = GetResId(entry->res_id_or_error());
+  excluded_ids_vec.reserve(active_entries_.size());
+  for (const auto& it : active_entries_) {
+    const auto optional_res_id = GetResId(it.second->res_id_or_error());
     if (optional_res_id.has_value()) {
       excluded_ids_vec.push_back(*optional_res_id);
     }
@@ -1381,10 +1355,9 @@ void SqlBackendImpl::HandleDeleteDoomedEntriesOperation(
   std::sort(excluded_ids_vec.begin(), excluded_ids_vec.end());
   base::flat_set<SqlPersistentStore::ResId> excluded_ids(
       base::sorted_unique, std::move(excluded_ids_vec));
-  store_->DeleteDoomedEntries(
+  store_->StartEviction(
       std::move(excluded_ids),
-      base::BindOnce([](SqlPersistentStore::Error result) {
-      }).Then(OnceClosureWithBoundArgs(std::move(handle))));
+      base::BindOnce([](SqlPersistentStore::Error result) {}));
 }
 
 void SqlBackendImpl::EnableStrictCorruptionCheckForTesting() {

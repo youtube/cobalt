@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/check_deref.h"
+#include "base/functional/callback.h"
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/android/preferences/autofill/settings_navigation_helper.h"
@@ -31,13 +32,13 @@
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
-#include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_delegate.h"
 #include "components/autofill/core/browser/metrics/payments/risk_data_metrics.h"
 #include "components/autofill/core/browser/payments/autofill_error_dialog_context.h"
 #include "components/autofill/core/browser/payments/autofill_offer_manager.h"
+#include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/payments/card_unmask_challenge_option.h"
 #include "components/autofill/core/browser/payments/credit_card_cvc_authenticator.h"
 #include "components/autofill/core/browser/payments/credit_card_otp_authenticator.h"
@@ -88,6 +89,7 @@
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/browser/ui/autofill/autofill_snackbar_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/android_bnpl_ui_delegate.h"
+#include "chrome/browser/ui/autofill/payments/android_payments_window_manager.h"
 #include "chrome/browser/ui/autofill/payments/autofill_message_controller.h"
 #include "chrome/browser/ui/autofill/payments/autofill_message_model.h"
 #include "chrome/browser/ui/autofill/payments/offer_notification_controller_android.h"
@@ -661,16 +663,17 @@ void ChromePaymentsAutofillClient::ShowAutofillErrorDialog(
 
 PaymentsWindowManager*
 ChromePaymentsAutofillClient::GetPaymentsWindowManager() {
-#if !BUILDFLAG(IS_ANDROID)
   if (!payments_window_manager_) {
+#if BUILDFLAG(IS_ANDROID)
+    payments_window_manager_ =
+        std::make_unique<AndroidPaymentsWindowManager>(&client_.get());
+#else
     payments_window_manager_ =
         std::make_unique<DesktopPaymentsWindowManager>(&client_.get());
+#endif  // BUILDFLAG(IS_ANDROID)
   }
 
   return payments_window_manager_.get();
-#else
-  return nullptr;
-#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void ChromePaymentsAutofillClient::ShowUnmaskPrompt(
@@ -768,6 +771,10 @@ ChromePaymentsAutofillClient::GetRiskBasedAuthenticator() {
 
 bool ChromePaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable() const {
   return true;
+}
+
+bool ChromePaymentsAutofillClient::IsMandatoryReauthEnabled() {
+  return GetPaymentsDataManager().IsPaymentMethodsMandatoryReauthEnabled();
 }
 
 void ChromePaymentsAutofillClient::ShowMandatoryReauthOptInPrompt(
@@ -968,11 +975,11 @@ bool ChromePaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
 }
 
 bool ChromePaymentsAutofillClient::ShowTouchToFillProgress(
-    base::WeakPtr<TouchToFillDelegate> delegate) {
+    base::OnceClosure cancel_callback) {
 #if BUILDFLAG(IS_ANDROID)
   // TTF should already be shown, so pass nullptr for `view`.
   return GetTouchToFillPaymentMethodController()->ShowProgressScreen(
-      /*view=*/nullptr, delegate);
+      /*view=*/nullptr, std::move(cancel_callback));
 #else
   // Touch To Fill is not supported on Desktop.
   NOTREACHED();
@@ -981,10 +988,10 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillProgress(
 
 bool ChromePaymentsAutofillClient::ShowTouchToFillBnplIssuers(
     base::WeakPtr<TouchToFillDelegate> delegate,
-    base::span<const autofill::BnplIssuer> bnpl_issurs_to_suggest) {
+    base::span<const BnplIssuerContext> bnpl_issuer_contexts) {
 #if BUILDFLAG(IS_ANDROID)
   return GetTouchToFillPaymentMethodController()->ShowBnplIssuers(
-      delegate, bnpl_issurs_to_suggest);
+      delegate, bnpl_issuer_contexts);
 #else
   // Touch To Fill is not supported on Desktop.
   NOTREACHED();
@@ -1139,7 +1146,7 @@ BnplStrategy* ChromePaymentsAutofillClient::GetBnplStrategy() {
 BnplUiDelegate* ChromePaymentsAutofillClient::GetBnplUiDelegate() {
   if (!bnpl_ui_delegate_) {
 #if BUILDFLAG(IS_ANDROID)
-    bnpl_ui_delegate_ = std::make_unique<AndroidBnplUiDelegate>();
+    bnpl_ui_delegate_ = std::make_unique<AndroidBnplUiDelegate>(this);
 #else   // !BUILDFLAG(IS_ANDROID)
     bnpl_ui_delegate_ = std::make_unique<DesktopBnplUiDelegate>(&client_.get());
 #endif  // BUILDFLAG(IS_ANDROID)

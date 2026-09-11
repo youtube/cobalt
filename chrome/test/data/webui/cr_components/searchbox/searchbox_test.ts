@@ -128,6 +128,7 @@ suite('NewTabPageRealboxTest', () => {
       searchboxDefaultIcon: 'search.svg',
       searchboxSeparator: ' - ',
       searchboxVoiceSearch: true,
+      reportMetrics: true,
     });
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
@@ -480,6 +481,48 @@ suite('NewTabPageRealboxTest', () => {
     assertFalse(glowAnimationWrapper.classList.contains('play'));
   });
 
+  test('adding multiple context files opens composebox', async () => {
+    // Arrange.
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    realbox = document.createElement('cr-searchbox');
+    realbox.composeButtonEnabled = true;
+    realbox.composeboxEnabled = true;
+    realbox.realboxLayoutMode = 'TallBottomContext';
+    realbox.ntpRealboxNextEnabled = true;
+    document.body.appendChild(realbox);
+    await microtasksFinished();
+    const contextElement =
+        realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
+    assertTrue(!!contextElement);
+
+    // Act & Assert.
+    // 1. Event with 1 file. `contextFilesCount_` is updated, but
+    // `open-composebox` is not fired.
+    assertEquals('0', realbox.getAttribute('context-files-count_'));
+    let openComposeboxFired = false;
+    realbox.addEventListener('open-composebox', () => {
+      openComposeboxFired = true;
+    });
+
+    contextElement.dispatchEvent(new CustomEvent('on-context-files-changed', {
+      detail: {files: 1},
+      bubbles: true,
+      composed: true,
+    }));
+    await microtasksFinished();
+    assertEquals('1', realbox.getAttribute('context-files-count_'));
+    assertFalse(openComposeboxFired);
+
+    // 2. Event with >1 file. `open-composebox` is fired.
+    const whenOpenComposeBox = eventToPromise('open-composebox', realbox);
+    contextElement.dispatchEvent(new CustomEvent('on-context-files-changed', {
+      detail: {files: 2},
+      bubbles: true,
+      composed: true,
+    }));
+    await whenOpenComposeBox;
+    assertTrue(openComposeboxFired);
+  });
 
   //============================================================================
   // Test Querying Autocomplete
@@ -1130,6 +1173,39 @@ suite('NewTabPageRealboxTest', () => {
     assertTrue(await areMatchesShowing());
 
     assertEquals('voiceSearchButton', getDeepActiveElement()!.id);
+  });
+
+  test('autocomplete hides dropdown in typed state with context', async () => {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    realbox = document.createElement('cr-searchbox');
+    realbox.ntpRealboxNextEnabled = true;
+    document.body.appendChild(realbox);
+
+    realbox.$.input.value = 'typed state';
+    realbox.$.input.dispatchEvent(new InputEvent('input'));
+    realbox.$.context.dispatchEvent(
+      new CustomEvent('on-context-files-changed', {
+        detail: {files: 1},
+      }));
+    const matches = [createSearchMatch(), createUrlMatch()];
+    testProxy.callbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({
+          input: realbox.$.input.value.trimStart(),
+          matches: matches,
+        }));
+    assertFalse(await areMatchesShowing());
+
+    // Dropdown should show again when context is removed.
+    realbox.$.context.dispatchEvent(
+      new CustomEvent('on-context-files-changed', {
+        detail: {files: 0},
+      }));
+    testProxy.callbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({
+          input: realbox.$.input.value.trimStart(),
+          matches: matches,
+        }));
+    assertTrue(await areMatchesShowing());
   });
 
   //============================================================================
@@ -2999,6 +3075,43 @@ suite('NewTabPageRealboxTest', () => {
     // Checking the input value after a backspace event doesn't work
     // so check the default behavior occurs (deleting a character).
     assertFalse(backspaceEvent.defaultPrevented);
+  });
+  suite('NtpRealboxNext', () => {
+    test(
+        'fires dropdown-visible-changed event when the feature is on',
+        async () => {
+          realbox.ntpRealboxNextEnabled = true;
+          // Confirm false -> true causes an event.
+          let whenDropdownVisibleChanged =
+              eventToPromise('dropdown-visible-changed', realbox);
+          realbox.$.input.value = 'he';
+          realbox.$.input.dispatchEvent(new InputEvent('input'));
+
+          const matches = [createSearchMatch()];
+          testProxy.callbackRouterRemote.autocompleteResultChanged(
+              createAutocompleteResult({
+                input: realbox.$.input.value.trimStart(),
+                matches: matches,
+              }));
+          assertTrue(await areMatchesShowing());
+          const e1 = await whenDropdownVisibleChanged;
+          assertTrue(e1.detail.value);
+
+          // Confirm true -> false causes an event.
+          whenDropdownVisibleChanged =
+              eventToPromise('dropdown-visible-changed', realbox);
+          // Pressing 'Escape' when no matches are selected closes the dropdown.
+          const escapeEvent = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            composed: true,  // So it propagates across shadow DOM boundary.
+            key: 'Escape',
+          });
+          realbox.$.input.dispatchEvent(escapeEvent);
+          assertFalse(await areMatchesShowing());
+          const e2 = await whenDropdownVisibleChanged;
+          assertFalse(e2.detail.value);
+        });
   });
 });
 

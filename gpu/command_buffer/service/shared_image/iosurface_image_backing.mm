@@ -21,7 +21,6 @@
 #include "base/memory/scoped_policy.h"
 #include "base/notimplemented.h"
 #include "base/trace_event/memory_dump_manager.h"
-#include "components/viz/common/resources/resource_sizes.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_trace_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
@@ -2183,14 +2182,15 @@ void IOSurfaceImageBacking::AddSharedEventForEndAccess(
   it->second = std::max(it->second, signal_value);
 }
 
-template <typename Fn>
-void IOSurfaceImageBacking::ProcessSharedEventsForBeginAccess(bool readonly,
-                                                              const Fn& fn) {
+void IOSurfaceImageBacking::ProcessSharedEventsForBeginAccess(
+    bool readonly,
+    base::FunctionRef<void(id<MTLSharedEvent> shared_event,
+                           uint64_t signaled_value)> process_fn) {
   AssertLockAcquired();
 
   // Always need wait on exclusive access end events.
   for (const auto& [shared_event, signal_value] : exclusive_shared_events_) {
-    fn(shared_event.get(), signal_value);
+    process_fn(shared_event.get(), signal_value);
   }
 
   if (!readonly) {
@@ -2198,7 +2198,7 @@ void IOSurfaceImageBacking::ProcessSharedEventsForBeginAccess(bool readonly,
     // should be waited on as well.
     for (const auto& [shared_event, signal_value] :
          non_exclusive_shared_events_) {
-      fn(shared_event.get(), signal_value);
+      process_fn(shared_event.get(), signal_value);
     }
 
     // Clear events, since this read-write (exclusive) access will provide an

@@ -441,13 +441,8 @@ class MaglevGraphBuilder {
 
   // Return true if the given offset is a merge point, i.e. there are jumps
   // targetting it.
-  bool IsOffsetAMergePoint(int offset) {
+  bool IsOffsetAMergePoint(int offset) const {
     return merge_states_[offset] != nullptr;
-  }
-
-  bool IsOffsetAMergePointOrLoopHeapder(int offset) {
-    return IsOffsetAMergePoint(offset) ||
-           bytecode_analysis().IsLoopHeader(offset);
   }
 
   ValueNode* GetContextAtDepth(ValueNode* context, size_t depth);
@@ -951,6 +946,8 @@ class MaglevGraphBuilder {
   V(MathRound)                                 \
   V(MathSqrt)                                  \
   V(MathClz32)                                 \
+  V(MathMin)                                   \
+  V(MathMax)                                   \
   V(SetPrototypeHas)                           \
   V(StringConstructor)                         \
   V(StringFromCharCode)                        \
@@ -1013,6 +1010,10 @@ class MaglevGraphBuilder {
 
   MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
                                          Float64Round::Kind kind);
+
+  template <typename Int32Binop>
+  MaybeReduceResult TryReduceMathMinMax(CallArguments& args,
+                                        Int32Binop int32_case);
 
   template <typename CallNode, typename... Args>
   ReduceResult AddNewCallNode(const CallArguments& args, Args&&... extra_args);
@@ -1120,7 +1121,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildCallFromRegisters(int argc_count,
                                       ConvertReceiverMode receiver_mode);
 
-  ValueNode* BuildElementsArray(int length);
+  ValueNode* BuildElementsArray(ElementsKind elements_kind, int length);
   ValueNode* BuildElementsArray(ElementsKind elements_kind,
                                 base::Vector<ValueNode*> values);
   ReduceResult BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
@@ -1275,7 +1276,8 @@ class MaglevGraphBuilder {
                                              IndirectPointerTag tag,
                                              StoreTaggedMode store_mode);
 
-  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, int index);
+  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, int index,
+                                          LoadType type = LoadType::kUnknown);
   ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index,
                                           LoadType type = LoadType::kUnknown);
   ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
@@ -1490,8 +1492,6 @@ class MaglevGraphBuilder {
 
   VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
   VirtualObject* CreateHeapNumber(ValueNode* value);
-  VirtualObject* CreateFixedDoubleArray(
-      const compiler::FixedDoubleArrayRef& elements);
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
                                   ValueNode* first, ValueNode* second);
@@ -1502,6 +1502,7 @@ class MaglevGraphBuilder {
                                        IterationKind kind);
   VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
   VirtualObject* CreateFixedArray(base::Vector<ValueNode* const> values);
+  VirtualObject* CreateFixedDoubleArray(base::Vector<ValueNode* const> values);
   VirtualObject* CreateContext(compiler::MapRef map, int length,
                                compiler::ScopeInfoRef scope_info,
                                ValueNode* previous_context,

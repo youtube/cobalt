@@ -137,9 +137,11 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
       return nullptr;
     }
-    // Versions v1, v2, and v3 are defined. v1 is DEFAULT, so cannot be encoded
-    // explicitly.
-    if (version != X509_VERSION_2 && version != X509_VERSION_3) {
+    // The version must be one of v1(0), v2(1), or v3(2).
+    // TODO(https://crbug.com/42290225): Also reject |X509_VERSION_1|. v1 is
+    // DEFAULT, so DER requires it be omitted.
+    if (version != X509_VERSION_1 && version != X509_VERSION_2 &&
+        version != X509_VERSION_3) {
       OPENSSL_PUT_ERROR(X509, X509_R_INVALID_VERSION);
       return nullptr;
     }
@@ -187,13 +189,14 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
       return nullptr;
     }
+    // TODO(crbug.com/442221114, crbug.com/42290219): Empty extension lists
+    // should be rejected. Extensions is a SEQUENCE SIZE (1..MAX), so it cannot
+    // be empty. An empty extensions list is encoded by omitting the OPTIONAL
+    // field. libpki already rejects this.
     const uint8_t *p = CBS_data(&wrapper);
     ret->extensions = d2i_X509_EXTENSIONS(nullptr, &p, CBS_len(&wrapper));
     if (ret->extensions == nullptr ||
-        p != CBS_data(&wrapper) + CBS_len(&wrapper) ||
-        // Extensions is a SEQUENCE SIZE (1..MAX), so it cannot be empty. An
-        // empty extensions list is encoded by omitting the OPTIONAL field.
-        sk_X509_EXTENSION_num(ret->extensions) == 0) {
+        p != CBS_data(&wrapper) + CBS_len(&wrapper)) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
       return nullptr;
     }

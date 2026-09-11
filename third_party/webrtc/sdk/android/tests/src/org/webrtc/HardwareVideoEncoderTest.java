@@ -86,7 +86,7 @@ public class HardwareVideoEncoderTest {
   private static class TestEncoder extends HardwareVideoEncoder {
     private final Object deliverEncodedImageLock = new Object();
     private boolean deliverEncodedImageDone = true;
-    private boolean isEncodingStatisticsSupported;
+    private final boolean isEncodingStatisticsSupported;
 
     TestEncoder(MediaCodecWrapperFactory mediaCodecWrapperFactory, String codecName,
         VideoCodecMimeType codecType, Integer surfaceColorFormat, Integer yuvColorFormat,

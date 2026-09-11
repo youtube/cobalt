@@ -1631,8 +1631,13 @@ RUNTIME_FUNCTION(Runtime_VerifyGetJSBuiltinState) {
   HandleScope scope(isolate);
 #ifdef DEBUG
   CHECK_UNLESS_FUZZING(args.length() == 1);
-  bool allow_non_initial_state = Object::BooleanValue(args[0], isolate);
-  isolate->builtins()->VerifyGetJSBuiltinState(allow_non_initial_state);
+  // Checking the state of builtins doesn't make sense with --fuzzing
+  // because the JS code could have modified the heap state in a way
+  // not expected by VerifyGetJSBuiltinState() machinery.
+  if (!v8_flags.fuzzing) {
+    bool allow_non_initial_state = Object::BooleanValue(args[0], isolate);
+    isolate->builtins()->VerifyGetJSBuiltinState(allow_non_initial_state);
+  }
 #endif
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1763,6 +1768,7 @@ v8::ModifyCodeGenerationFromStringsResult DisallowCodegenFromStringsCallback(
 RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
   SealHandleScope shs(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsBoolean(args[0]));
   bool flag = Cast<Boolean>(args[0])->ToBool(isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8_isolate->SetModifyCodeGenerationFromStringsCallback(
@@ -2332,11 +2338,12 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 RUNTIME_FUNCTION(Runtime_ArrayBufferDetachForceWasm) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
-  CHECK_UNLESS_FUZZING(args.length() <= 2);
-  CHECK_UNLESS_FUZZING(IsJSArrayBuffer(*args.at(0)));
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
+  DCHECK_LE(args.length(), 2);
+  DCHECK(IsJSArrayBuffer(*args.at(0)));
   auto array_buffer = Cast<JSArrayBuffer>(args.at(0));
-  CHECK_UNLESS_FUZZING(array_buffer->GetBackingStore()->is_wasm_memory());
-  CHECK_UNLESS_FUZZING(!array_buffer->is_shared());
+  DCHECK(array_buffer->GetBackingStore()->is_wasm_memory());
+  DCHECK(!array_buffer->is_shared());
   constexpr bool kForceForWasmMemory = true;
   MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer, kForceForWasmMemory,
                                      args.atOrUndefined(isolate, 1)),

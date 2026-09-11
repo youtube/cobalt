@@ -111,11 +111,10 @@ std::unique_ptr<SharedDictionaryManager> SharedDictionaryManager::CreateOnDisk(
 
 SharedDictionaryManager::SharedDictionaryManager()
     : cached_storages_(kCachedStorageMaxSize) {
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
           FROM_HERE, base::MemoryPressureListenerTag::kSharedDictionaryManager,
-          base::BindRepeating(&SharedDictionaryManager::OnMemoryPressure,
-                              weak_factory_.GetWeakPtr()));
+          this);
 }
 SharedDictionaryManager::~SharedDictionaryManager() = default;
 
@@ -135,8 +134,7 @@ scoped_refptr<SharedDictionaryStorage> SharedDictionaryManager::GetStorage(
   scoped_refptr<SharedDictionaryStorage> storage = CreateStorage(isolation_key);
   CHECK(storage);
   storages_.emplace(isolation_key, storage.get());
-  if (memory_pressure_level_ ==
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+  if (memory_pressure_level_ == base::MEMORY_PRESSURE_LEVEL_NONE) {
     cached_storages_.Put(isolation_key, storage);
   }
   return storage;
@@ -153,13 +151,14 @@ base::WeakPtr<SharedDictionaryManager> SharedDictionaryManager::GetWeakPtr() {
 }
 
 void SharedDictionaryManager::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+    base::MemoryPressureLevel level) {
   memory_pressure_level_ = level;
-  if (memory_pressure_level_ !=
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+  if (memory_pressure_level_ != base::MEMORY_PRESSURE_LEVEL_NONE) {
     cached_storages_.Clear();
     preloaded_dictionaries_set_.clear();
   }
+
+  HandleMemoryPressure(level);
 }
 
 size_t SharedDictionaryManager::GetStorageCountForTesting() {
@@ -215,8 +214,7 @@ void SharedDictionaryManager::PreloadSharedDictionaryInfoForDocument(
     const std::vector<GURL>& urls,
     mojo::PendingReceiver<mojom::PreloadedSharedDictionaryInfoHandle>
         preload_handle) {
-  if (memory_pressure_level_ !=
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+  if (memory_pressure_level_ != base::MEMORY_PRESSURE_LEVEL_NONE) {
     return;
   }
   auto preloaded_dictionaries =

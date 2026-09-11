@@ -1233,7 +1233,6 @@ void AIPageContentAgent::ContentBuilder::ProcessIframe(
 
   auto iframe_data = mojom::blink::AIPageContentIframeData::New();
   iframe_data->frame_token = frame.GetFrameToken();
-  iframe_data->likely_ad_frame = frame.IsAdFrame();
 
   content_node.content_attributes->iframe_data = std::move(iframe_data);
 
@@ -1622,6 +1621,31 @@ void AIPageContentAgent::ContentBuilder::ComputeHitTestableNodesInViewport(
       nullptr, std::move(hit_node_cb));
   HitTestResult result(request, location);
   document.GetLayoutView()->HitTest(location, result);
+
+  // TODO(averge): At this point, hit_nodes may contain duplicates due to
+  // multiple passes over the same node while hit testing. These need to
+  // be filtered out. The most correct approach is probably to keep the first
+  // occurrence of each node, because it's more likely it was added in a later
+  // paint phase, which is more representative of what the page actually looks
+  // like to the user (or actor).
+  //
+  // result.ListBasedTestResult() already returns a NodeSet with predictable
+  // iteration order based on order of insertion, which is a fancy way of saying
+  // it already handles duplicates in exactly the way we need. We should eval
+  // using the NodeSet result directly, and if we see improvement, remove
+  // hit_nodes and the associated callback entirely.
+  if (base::FeatureList::IsEnabled(
+          blink::features::kAIPageContentZOrderEarlyFiltering)) {
+    std::vector<DOMNodeId> nodes_from_result;
+    for (auto& gc_member : result.ListBasedTestResult()) {
+      Node& node = *gc_member;
+      if (node.GetLayoutObject()) {
+        nodes_from_result.push_back(DOMNodeIds::IdForNode(&node));
+      }
+    }
+
+    hit_nodes = nodes_from_result;
+  }
 
   int32_t next_z_order = 1;
   std::for_each(hit_nodes.rbegin(), hit_nodes.rend(), [&](auto node_id) {

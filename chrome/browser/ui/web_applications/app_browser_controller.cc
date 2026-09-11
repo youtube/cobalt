@@ -123,8 +123,7 @@ BrowserWindowInterface* AppBrowserController::FindForWebApp(
   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
       [&](BrowserWindowInterface* browser) {
         if (browser->GetBrowserForMigrationOnly()
-                ->IsAttemptingToCloseBrowser() ||
-            browser->GetBrowserForMigrationOnly()->IsBrowserClosing()) {
+                ->IsAttemptingToCloseBrowser()) {
           return true;  // continue iterating
         }
         if (browser->GetType() != BrowserWindowInterface::TYPE_APP) {
@@ -194,8 +193,7 @@ AppBrowserController::FindTopLevelBrowsingContextForWebApp(
   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
       [&](BrowserWindowInterface* browser) {
         if (browser->GetBrowserForMigrationOnly()
-                ->IsAttemptingToCloseBrowser() ||
-            browser->GetBrowserForMigrationOnly()->IsBrowserClosing()) {
+                ->IsAttemptingToCloseBrowser()) {
           return true;  // continue iterating
         }
         if (browser->GetType() != browser_type) {
@@ -458,6 +456,10 @@ bool AppBrowserController::HasReloadButton() const {
 }
 
 bool AppBrowserController::HasPendingUpdate() const {
+  return false;
+}
+
+bool AppBrowserController::HasPendingUpdateNotIgnoredByUser() const {
   return false;
 }
 

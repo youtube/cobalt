@@ -1289,11 +1289,14 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     Block* current_block = Asm().current_block();
     if (current_block->IsBranchTarget()) {
       DCHECK_EQ(current_block->PredecessorCount(), 1);
-      DCHECK_EQ(current_block->LastPredecessor()
-                    ->LastOperation(Asm().output_graph())
-                    .template Cast<CheckExceptionOp>()
-                    .catch_block,
-                current_block);
+      const CheckExceptionOp& check_op =
+          current_block->LastPredecessor()
+              ->LastOperation(Asm().output_graph())
+              .template Cast<CheckExceptionOp>();
+      USE(check_op);
+      DCHECK(check_op.catch_block == current_block ||
+             (check_op.effect_handler.has_value() &&
+              check_op.effect_handler->block == current_block));
       return Base::ReduceCatchBlockBegin();
     }
     // We are trying to emit a CatchBlockBegin into a block that used to be the
@@ -1341,7 +1344,8 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     V<Any> raw_call =
         Base::ReduceCall(callee, frame_state, arguments, descriptor, effects);
     bool has_catch_block = false;
-    if (descriptor->can_throw == CanThrow::kYes) {
+    if (descriptor->can_throw == CanThrow::kYes ||
+        Asm().effect_handler_for_next_call().has_value()) {
       // TODO(nicohartmann@): Unfortunately, we have many descriptors where
       // effects are not set consistently with {can_throw}. We should fix those
       // and reenable this DCHECK.
@@ -1389,23 +1393,32 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
   // never explicitly.
   using Base::ReduceDidntThrow;
   V<None> REDUCE(CheckException)(V<Any> throwing_operation, Block* successor,
-                                 Block* catch_block) {
+                                 Block* catch_block,
+                                 std::optional<EffectHandler> effect_handler) {
     // {successor} and {catch_block} should never be the same.  AddPredecessor
     // and SplitEdge rely on this.
     DCHECK_NE(successor, catch_block);
     Block* saved_current_block = Asm().current_block();
-    V<None> new_opindex =
-        Base::ReduceCheckException(throwing_operation, successor, catch_block);
+    V<None> new_opindex = Base::ReduceCheckException(
+        throwing_operation, successor, catch_block, effect_handler);
     Asm().AddPredecessor(saved_current_block, successor, true);
-    Asm().AddPredecessor(saved_current_block, catch_block, true);
+    DCHECK(catch_block || effect_handler.has_value());
+    if (catch_block) {
+      Asm().AddPredecessor(saved_current_block, catch_block, true);
+    }
+    if (effect_handler.has_value()) {
+      Asm().AddPredecessor(saved_current_block, effect_handler->block, true);
+    }
     return new_opindex;
   }
 
   bool CatchIfInCatchScope(OpIndex throwing_operation) {
-    if (Asm().current_catch_block()) {
+    if (Asm().current_catch_block() ||
+        Asm().effect_handler_for_next_call().has_value()) {
       Block* successor = Asm().NewBlock();
       ReduceCheckException(throwing_operation, successor,
-                           Asm().current_catch_block());
+                           Asm().current_catch_block(),
+                           Asm().effect_handler_for_next_call());
       Asm().BindReachable(successor);
       return true;
     }
@@ -2342,6 +2355,12 @@ class TurboshaftAssemblerOpInterface
       ConvertJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     return ReduceIfReachableConvertJSPrimitiveToUntagged(primitive, kind,
                                                          input_assumptions);
+  }
+
+  V<Word32> ConvertBooleanToWord32(V<Boolean> boolean) {
+    return V<Word32>::Cast(ConvertJSPrimitiveToUntagged(
+        boolean, ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
+        ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kBoolean));
   }
 
   V<Untagged> ConvertJSPrimitiveToUntaggedOrDeopt(
@@ -3506,7 +3525,10 @@ class TurboshaftAssemblerOpInterface
               BranchHint default_hint = BranchHint::kNone) {
     ReduceIfReachableSwitch(input, cases, default_case, default_hint);
   }
-  void Unreachable() { ReduceIfReachableUnreachable(); }
+  V<None> Unreachable() {
+    ReduceIfReachableUnreachable();
+    return V<None>::Invalid();
+  }
 
   OpIndex Parameter(int index, RegisterRepresentation rep,
                     const char* debug_name = nullptr) {
@@ -3828,12 +3850,17 @@ class TurboshaftAssemblerOpInterface
     }
     auto arguments = builtin::ArgumentsToVector(args);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    return result_t::Cast(Call(call_target,
-                               OptionalV<turboshaft::FrameState>::Nullopt(),
-                               base::VectorOf(arguments),
-                               Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                                            Asm().output_graph().graph_zone()),
-                               Desc::kEffects));
+    auto result =
+        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+             base::VectorOf(arguments),
+             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                          Asm().output_graph().graph_zone()),
+             Desc::kEffects);
+    if constexpr (requires { result_t::Cast(result); }) {
+      return result_t::Cast(result);
+    } else {
+      return result;
+    }
   }
 
   template <typename Desc>
@@ -4985,6 +5012,10 @@ class TurboshaftAssemblerOpInterface
 
   V<None> RuntimeAbort(AbortReason reason) {
     ReduceIfReachableRuntimeAbort(reason);
+    // RuntimeAbort exits the function and should thus be a block terminator,
+    // but we currently don't allow Simplified operations to be block
+    // terminators. We thus manually add an Unreachable after it.
+    Unreachable();
     return V<None>::Invalid();
   }
 
@@ -5145,11 +5176,15 @@ class TurboshaftAssemblerOpInterface
 
   V<Word32> WasmTypeCheck(V<Object> object, OptionalV<Map> rtt,
                           WasmTypeCheckConfig config) {
+    DCHECK(__ generating_unreachable_operations() ||
+           rtt.valid() != config.to.is_abstract_ref());
     return ReduceIfReachableWasmTypeCheck(object, rtt, config);
   }
 
   V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
                          WasmTypeCheckConfig config) {
+    DCHECK(__ generating_unreachable_operations() ||
+           rtt.valid() != config.to.is_abstract_ref());
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 
@@ -5162,7 +5197,9 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename T>
-  V<T> AnnotateWasmType(V<T> value, const wasm::ValueType type) {
+  V<T> AnnotateWasmType(V<T> value, const wasm::ValueType type)
+    requires(is_subtype_v<T, Object>)
+  {
     return ReduceIfReachableWasmTypeAnnotation(value, type);
   }
 
@@ -5702,6 +5739,14 @@ class Assembler : public AssemblerData,
   // this is sometimes impractical.
   void set_current_catch_block(Block* block) { current_catch_block_ = block; }
 
+  std::optional<EffectHandler> effect_handler_for_next_call() const {
+    return effect_handler_for_next_call_;
+  }
+  void set_effect_handler_for_next_call(int tag_index, Block* block) {
+    effect_handler_for_next_call_.emplace(tag_index, block);
+  }
+  void clear_effect_handler() { effect_handler_for_next_call_.reset(); }
+
 #ifdef DEBUG
   int& intermediate_tracing_depth() { return intermediate_tracing_depth_; }
 #endif
@@ -5879,12 +5924,22 @@ class Assembler : public AssemblerData,
           // can never be the same (there is a DCHECK in
           // CheckExceptionOp::Validate enforcing that).
           DCHECK_NE(catch_exception_op.catch_block, destination);
-        } else {
-          DCHECK_EQ(catch_exception_op.catch_block, destination);
+        } else if (catch_exception_op.catch_block == destination) {
           catch_exception_op.catch_block = intermediate_block;
           // A catch block always has to start with a `CatchBlockBeginOp`.
           BindReachable(intermediate_block);
           intermediate_block->SetOrigin(source->OriginForBlockEnd());
+          this->CatchBlockBegin();
+          this->Goto(destination);
+          return;
+        } else {
+          DCHECK(catch_exception_op.effect_handler.has_value());
+          DCHECK_EQ(catch_exception_op.effect_handler->block, destination);
+          catch_exception_op.effect_handler->block = intermediate_block;
+          BindReachable(intermediate_block);
+          intermediate_block->SetOrigin(source->OriginForBlockEnd());
+          // An effect handler block always has to start with a
+          // `CatchBlockBeginOp`.
           this->CatchBlockBegin();
           this->Goto(destination);
           return;
@@ -5989,6 +6044,8 @@ class Assembler : public AssemblerData,
 #ifdef DEBUG
   int intermediate_tracing_depth_ = 0;
 #endif
+
+  std::optional<EffectHandler> effect_handler_for_next_call_ = {};
 
   template <class Next>
   friend class TSReducerBase;

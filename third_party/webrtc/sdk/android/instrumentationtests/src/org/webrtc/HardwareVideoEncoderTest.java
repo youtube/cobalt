@@ -73,7 +73,7 @@ public class HardwareVideoEncoderTest {
    * frame such as width and height. Also used from AndroidVideoDecoderInstrumentationTest.
    */
   static class MockEncoderCallback implements VideoEncoder.Callback {
-    private BlockingQueue<EncodedImage> frameQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<EncodedImage> frameQueue = new LinkedBlockingQueue<>();
 
     @Override
     public void onEncodedFrame(EncodedImage frame, VideoEncoder.CodecSpecificInfo info) {
@@ -264,7 +264,7 @@ public class HardwareVideoEncoderTest {
   private final Object referencedFramesLock = new Object();
   private int referencedFrames;
 
-  private Runnable releaseFrameCallback = new Runnable() {
+  private final Runnable releaseFrameCallback = new Runnable() {
     @Override
     public void run() {
       synchronized (referencedFramesLock) {

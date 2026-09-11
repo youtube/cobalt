@@ -7,6 +7,7 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+
 #include "video/timing/simulator/rtp_packet_simulator.h"
 
 #include "api/environment/environment.h"
@@ -17,15 +18,15 @@
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 
-namespace webrtc::video_frame_simulator {
+namespace webrtc::video_timing_simulator {
 
-RtpPacketSimulator::RtpPacketSimulator(Environment env)
+RtpPacketSimulator::RtpPacketSimulator(const Environment& env)
     : env_(env),
       rtp_header_extension_map_(
           ParsedRtcEventLog::GetDefaultHeaderExtensionMap()) {}
 
 RtpPacketReceived RtpPacketSimulator::SimulateRtpPacketReceived(
-    const LoggedRtpPacketIncoming& logged_packet) {
+    const LoggedRtpPacketIncoming& logged_packet) const {
   RtpPacketReceived rtp_packet(&rtp_header_extension_map_);
   rtp_packet.set_arrival_time(env_.clock().CurrentTime());
 
@@ -62,4 +63,4 @@ RtpPacketReceived RtpPacketSimulator::SimulateRtpPacketReceived(
   return rtp_packet;
 }
 
-}  // namespace webrtc::video_frame_simulator
+}  // namespace webrtc::video_timing_simulator

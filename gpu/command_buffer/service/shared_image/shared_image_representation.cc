@@ -1063,7 +1063,6 @@ SharedImageRepresentationFactoryRef::SharedImageRepresentationFactoryRef(
 SharedImageRepresentationFactoryRef::~SharedImageRepresentationFactoryRef() {
   // Only primary refs provide link to the owning SharedImageFactory.
   if (is_primary_) {
-    backing()->UnregisterImageFactory();
     backing()->MarkForDestruction();
   }
 }

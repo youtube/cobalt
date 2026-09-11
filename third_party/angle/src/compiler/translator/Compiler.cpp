@@ -25,8 +25,8 @@
 #include "compiler/translator/IsASTDepthBelowLimit.h"
 #include "compiler/translator/OutputTree.h"
 #include "compiler/translator/ParseContext.h"
+#include "compiler/translator/SizeClipCullDistance.h"
 #include "compiler/translator/ValidateBarrierFunctionCall.h"
-#include "compiler/translator/ValidateClipCullDistance.h"
 #include "compiler/translator/ValidateLimitations.h"
 #include "compiler/translator/ValidateMaxParameters.h"
 #include "compiler/translator/ValidateOutputs.h"
@@ -622,7 +622,7 @@ TIntermBlock *TCompiler::compileTreeImpl(const char *const shaderStrings[],
         return nullptr;
     }
 
-    if (!postParseChecks(&parseContext))
+    if (!parseContext.postParseChecks())
     {
         return nullptr;
     }
@@ -950,23 +950,32 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     // Folding should only be able to generate warnings.
     ASSERT(mDiagnostics.numErrors() == 0);
 
-    // gl_ClipDistance and gl_CullDistance built-in arrays have unique semantics.
-    // They are pre-declared as unsized and must be sized by the shader either
-    // redeclaring them or indexing them only with integral constant expressions.
-    // The translator treats them as having the maximum allowed size and this pass
-    // detects the actual sizes resizing the variables if needed.
     if (parseContext.isExtensionEnabled(TExtension::ANGLE_clip_cull_distance) ||
         parseContext.isExtensionEnabled(TExtension::EXT_clip_cull_distance) ||
         parseContext.isExtensionEnabled(TExtension::APPLE_clip_distance))
     {
-        bool isClipDistanceUsed = false;
-        if (!ValidateClipCullDistance(this, root, &mDiagnostics,
-                                      mResources.MaxCombinedClipAndCullDistances,
-                                      &mClipDistanceSize, &mCullDistanceSize, &isClipDistanceUsed))
+        mClipDistanceSize = static_cast<uint8_t>(parseContext.getClipDistanceArraySize());
+        mCullDistanceSize = static_cast<uint8_t>(parseContext.getCullDistanceArraySize());
+        mMetadataFlags[MetadataFlags::HasClipDistance] = parseContext.isClipDistanceUsed();
+
+        // gl_ClipDistance and gl_CullDistance built-in arrays have unique semantics.
+        // They are pre-declared as unsized and must be sized by the shader either
+        // redeclaring them or indexing them only with integral constant expressions.
+        // The translator treats them as having the maximum allowed size and this pass
+        // applies the actual sizes if needed.
+        if (mClipDistanceSize > 0 && !parseContext.isClipDistanceRedeclared() &&
+            !SizeClipCullDistance(this, root, ImmutableString("gl_ClipDistance"),
+                                  mClipDistanceSize))
+        {
+
+            return false;
+        }
+        if (mCullDistanceSize > 0 && !parseContext.isCullDistanceRedeclared() &&
+            !SizeClipCullDistance(this, root, ImmutableString("gl_CullDistance"),
+                                  mCullDistanceSize))
         {
             return false;
         }
-        mMetadataFlags[MetadataFlags::HasClipDistance] = isClipDistanceUsed;
     }
 
     // Validate no barrier() after return before prunning it in |PruneNoOps()| below.
@@ -1461,28 +1470,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     return true;
 }
 
-bool TCompiler::postParseChecks(TParseContext *parseContext)
-{
-    // If parse failed, we shouldn't reach here.
-    ASSERT(parseContext->getTreeRoot() != nullptr);
-
-    if (!parseContext->isMainDeclared())
-    {
-        parseContext->error(kNoSourceLoc, "Missing main()", "");
-        return false;
-    }
-
-    bool success = true;
-
-    for (TType *type : parseContext->getDeferredArrayTypesToSize())
-    {
-        parseContext->error(kNoSourceLoc, "Unsized global array type: ", type->getBasicString());
-        success = false;
-    }
-
-    return success;
-}
-
 bool TCompiler::compile(const char *const shaderStrings[],
                         size_t numStrings,
                         const ShCompileOptions &compileOptionsIn)
@@ -1617,7 +1604,6 @@ void TCompiler::setResourceString()
         << ":EXT_shader_texture_lod:" << mResources.EXT_shader_texture_lod
         << ":EXT_shader_framebuffer_fetch:" << mResources.EXT_shader_framebuffer_fetch
         << ":EXT_shader_framebuffer_fetch_non_coherent:" << mResources.EXT_shader_framebuffer_fetch_non_coherent
-        << ":NV_shader_framebuffer_fetch:" << mResources.NV_shader_framebuffer_fetch
         << ":ARM_shader_framebuffer_fetch:" << mResources.ARM_shader_framebuffer_fetch
         << ":ARM_shader_framebuffer_fetch_depth_stencil:" << mResources.ARM_shader_framebuffer_fetch_depth_stencil
         << ":OVR_multiview2:" << mResources.OVR_multiview2

@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
@@ -33,7 +34,6 @@ class AutofillOfferManager;
 enum class AutofillProgressDialogType;
 class AutofillSaveCardBottomSheetBridge;
 class AutofillSaveIbanBottomSheetBridge;
-class BnplIssuer;
 struct CardUnmaskChallengeOption;
 class CardUnmaskDelegate;
 class AutofillProgressDialogController;
@@ -61,6 +61,7 @@ enum class WebauthnDialogCallbackType;
 
 namespace payments {
 
+struct BnplIssuerContext;
 class BnplStrategy;
 class BnplUiDelegate;
 class MandatoryReauthManager;
@@ -547,6 +548,10 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // defaults to false.
   virtual bool IsRiskBasedAuthEffectivelyAvailable() const = 0;
 
+  // Returns true if Mandatory Reauth is supported on this platform and enabled
+  // by the user, if applicable.
+  virtual bool IsMandatoryReauthEnabled() = 0;
+
   // Prompt the user to enable mandatory reauthentication for payment method
   // autofill. When enabled, the user will be asked to authenticate using
   // biometrics or device unlock before filling in payment method information.
@@ -628,9 +633,10 @@ class PaymentsAutofillClient : public RiskDataLoader {
 
   // Shows the BNPL progress screen, if possible, returning `true` on success.
   // Should be called only on Android if the feature is supported by the
-  // platform. If `delegate` is present, it will be notified of events.
-  virtual bool ShowTouchToFillProgress(
-      base::WeakPtr<TouchToFillDelegate> delegate) = 0;
+  // platform. `cancel_callback` will be run if the screen is dismissed by the
+  // user. This function is not implemented on iOS and iOS WebView, and should
+  // not be used on those platforms.
+  virtual bool ShowTouchToFillProgress(base::OnceClosure cancel_callback) = 0;
 
   // Shows the Touch To Fill surface with BNPL issuer information, if possible,
   // returning `true` on success. `delegate` will be notified of events. This
@@ -638,7 +644,7 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // on those platforms.
   virtual bool ShowTouchToFillBnplIssuers(
       base::WeakPtr<TouchToFillDelegate> delegate,
-      base::span<const BnplIssuer> bnpl_issuers_to_suggest) = 0;
+      base::span<const BnplIssuerContext> bnpl_issuer_contexts) = 0;
 
   // Shows the BNPL error screen, if possible, returning `true` on success.
   // Should be called only on Android if the feature is supported by the

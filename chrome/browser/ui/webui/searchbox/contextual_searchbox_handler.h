@@ -15,6 +15,7 @@
 #include "base/unguessable_token.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
+#include "chrome/browser/ui/webui/searchbox/searchbox_omnibox_client.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/composebox/composebox_metrics_recorder.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
@@ -23,16 +24,28 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 
-class MetricsReporter;
 class Profile;
+class SkBitmap;
 
 namespace lens {
 struct ContextualInputData;
+struct ImageEncodingOptions;
 }
 
 namespace tabs {
 class TabInterface;
 }
+
+class ContextualOmniboxClient : public SearchboxOmniboxClient {
+ public:
+  ContextualOmniboxClient(Profile* profile, content::WebContents* web_contents);
+  ~ContextualOmniboxClient() override;
+
+ private:
+  ComposeboxQueryController* GetQueryController() const;
+  std::optional<lens::proto::LensOverlaySuggestInputs>
+  GetLensOverlaySuggestInputs() const override;
+};
 
 // Abstract class that extends the SearchboxHandler and implements all methods
 // shared between the composebox and realbox to support contextual search.
@@ -41,14 +54,12 @@ class ContextualSearchboxHandler
       public SearchboxHandler {
  public:
   explicit ContextualSearchboxHandler(
-     mojo::PendingReceiver<searchbox::mojom::PageHandler>
-        pending_searchbox_handler,
-     Profile* profile,
-     content::WebContents* web_contents,
-     MetricsReporter* metrics_reporter,
-     std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder,
-     std::unique_ptr<OmniboxController> controller,
-     std::unique_ptr<ComposeboxQueryController> query_controller);
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>
+          pending_searchbox_handler,
+      Profile* profile,
+      content::WebContents* web_contents,
+      std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder,
+      std::unique_ptr<OmniboxController> controller);
   ~ContextualSearchboxHandler() override;
 
   // searchbox::mojom::PageHandler:
@@ -60,6 +71,14 @@ class ContextualSearchboxHandler
   void AddTabContext(int32_t tab_id, AddTabContextCallback) override;
   void DeleteContext(const base::UnguessableToken& file_token) override;
   void ClearFiles() override;
+  void SubmitQuery(const std::string& query_text,
+                   uint8_t mouse_button,
+                   bool alt_key,
+                   bool ctrl_key,
+                   bool meta_key,
+                   bool shift_key) override;
+  void GetRecentTabs(GetRecentTabsCallback callback) override;
+  void GetTabPreview(int32_t tab_id, GetTabPreviewCallback callback) override;
 
   // ComposeboxQueryController::FileUploadStatusObserver:
   void OnFileUploadStatusChanged(
@@ -73,17 +92,34 @@ class ContextualSearchboxHandler
       const gfx::VectorIcon& icon) const override;
 
  protected:
-  std::set<base::UnguessableToken> deleted_context_tokens_;
-  std::unique_ptr<ComposeboxQueryController> query_controller_;
-  std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder_;
+  void ComputeAndOpenQueryUrl(
+      const std::string& query_text,
+      WindowOpenDisposition disposition,
+      std::map<std::string, std::string> additional_params);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerBrowserTest,
+                           CreateTabPreviewEncodingOptions_NotScaled);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerBrowserTestDSF2,
+                           CreateTabPreviewEncodingOptions_Scaled);
+
+  std::optional<lens::ImageEncodingOptions> CreateTabPreviewEncodingOptions(
+      content::WebContents* web_contents);
+
+  ComposeboxQueryController* GetQueryController();
 
  private:
   void OnGetTabPageContext(
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
 
+  void OpenUrl(GURL url, const WindowOpenDisposition disposition);
+
+  void OnPreviewReceived(GetTabPreviewCallback callback,
+                         const SkBitmap& preview_bitmap);
+
   void RecordTabClickedMetric(tabs::TabInterface* const tab);
 
+  std::set<base::UnguessableToken> deleted_context_tokens_;
+  std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder_;
   raw_ptr<content::WebContents> web_contents_;
 
   base::ScopedObservation<ComposeboxQueryController,

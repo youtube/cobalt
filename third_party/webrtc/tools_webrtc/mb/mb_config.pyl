@@ -488,7 +488,7 @@
   # mb should use. See //tools/mb/docs/user_guide.md for more information.
   'mixins': {
     'android': {
-      'gn_args': 'target_os="android" android_static_analysis="off"',
+      'gn_args': 'target_os="android" android_static_analysis="on"',
     },
     'arm': {
       'gn_args': 'target_cpu="arm"',

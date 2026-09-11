@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller_impl.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view.h"
@@ -16,30 +17,49 @@
 #include "components/autofill/content/browser/test_autofill_client_injector.h"
 #include "components/autofill/content/browser/test_autofill_manager_injector.h"
 #include "components/autofill/content/browser/test_content_autofill_client.h"
-#include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
 #include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_delegate.h"
+#include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/test_utils/valuables_data_test_utils.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/range/range.h"
 
 namespace autofill {
 namespace {
 
 using ::testing::_;
+using ::testing::AllOf;
 using ::testing::ElementsAreArray;
+using ::testing::Field;
 using ::testing::Return;
+
+testing::Matcher<const payments::BnplIssuerTosDetail&> EqualBnplIssuerTosDetail(
+    const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
+  return AllOf(Field(&payments::BnplIssuerTosDetail::review_text,
+                     bnpl_issuer_tos_detail.review_text),
+               Field(&payments::BnplIssuerTosDetail::approve_text,
+                     bnpl_issuer_tos_detail.approve_text),
+               Field(&payments::BnplIssuerTosDetail::link_text,
+                     AllOf(Field(&payments::TextWithLink::text,
+                                 bnpl_issuer_tos_detail.link_text.text),
+                           Field(&payments::TextWithLink::offset,
+                                 bnpl_issuer_tos_detail.link_text.offset),
+                           Field(&payments::TextWithLink::url,
+                                 bnpl_issuer_tos_detail.link_text.url))));
+}
 
 class MockTouchToFillPaymentMethodViewImpl : public TouchToFillPaymentMethodView {
  public:
   MockTouchToFillPaymentMethodViewImpl() {
     ON_CALL(*this, ShowPaymentMethods).WillByDefault(Return(true));
     ON_CALL(*this, ShowIbans).WillByDefault(Return(true));
+    ON_CALL(*this, ShowBnplIssuerTos).WillByDefault(Return(true));
   }
   ~MockTouchToFillPaymentMethodViewImpl() override = default;
 
@@ -65,14 +85,18 @@ class MockTouchToFillPaymentMethodViewImpl : public TouchToFillPaymentMethodView
   MOCK_METHOD(bool,
               ShowProgressScreen,
               (TouchToFillPaymentMethodViewController * controller));
-  MOCK_METHOD(bool,
-              ShowBnplIssuers,
-              (base::span<const BnplIssuer> bnpl_issuers_to_suggest));
+  MOCK_METHOD(
+      bool,
+      ShowBnplIssuers,
+      (base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts));
   MOCK_METHOD(bool,
               ShowErrorScreen,
               (TouchToFillPaymentMethodViewController * controller,
                const std::u16string& title,
                const std::u16string& description));
+  MOCK_METHOD(bool,
+              ShowBnplIssuerTos,
+              (const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail));
   MOCK_METHOD(void, Hide, ());
 };
 
@@ -192,8 +216,18 @@ class TouchToFillPaymentMethodControllerTest
           credit_cards_[1].CardNameForAutofillDisplay(),
           credit_cards_[1].ObfuscatedNumberWithVisibleLastFourDigits(),
           /*has_deactivated_style=*/false)};
-  const std::vector<BnplIssuer> bnpl_issuers_ = {
-      test::GetTestLinkedBnplIssuer(), test::GetTestUnlinkedBnplIssuer()};
+  const std::vector<payments::BnplIssuerContext> bnpl_issuer_contexts_ = {
+      payments::BnplIssuerContext(test::GetTestLinkedBnplIssuer(),
+                                  payments::BnplIssuerEligibilityForPage::
+                                      kNotEligibleIssuerDoesNotSupportMerchant),
+      payments::BnplIssuerContext(
+          test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip),
+          payments::BnplIssuerEligibilityForPage::
+              kNotEligibleCheckoutAmountTooLow),
+      payments::BnplIssuerContext(
+          test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAfterpay),
+          payments::BnplIssuerEligibilityForPage::
+              kNotEligibleCheckoutAmountTooHigh)};
   std::unique_ptr<MockTouchToFillPaymentMethodViewImpl> mock_view_;
 
   void OnBeforeAskForValuesToFill() {
@@ -348,7 +382,7 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
   payment_method_controller().ShowPaymentMethods(
       std::move(mock_view_), ttf_delegate().GetWeakPointer(), suggestions_);
   payment_method_controller().ShowProgressScreen(
-      /*view=*/nullptr, ttf_delegate().GetWeakPointer());
+      /*view=*/nullptr, /*cancel_callback=*/base::DoNothing());
   OnAfterAskForValuesToFill();
 }
 
@@ -358,7 +392,7 @@ TEST_F(TouchToFillPaymentMethodControllerTest, ShowProgressScreenOnNewView) {
 
   OnBeforeAskForValuesToFill();
   payment_method_controller().ShowProgressScreen(
-      std::move(mock_view_), ttf_delegate().GetWeakPointer());
+      std::move(mock_view_), /*cancel_callback=*/base::DoNothing());
   OnAfterAskForValuesToFill();
 }
 
@@ -368,7 +402,7 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
 
   OnBeforeAskForValuesToFill();
   payment_method_controller().ShowProgressScreen(
-      /*view=*/nullptr, ttf_delegate().GetWeakPointer());
+      /*view=*/nullptr, /*cancel_callback=*/base::DoNothing());
   OnAfterAskForValuesToFill();
 }
 
@@ -389,7 +423,7 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
   payment_method_controller().ShowPaymentMethods(
       std::move(mock_view_), ttf_delegate().GetWeakPointer(), suggestions_);
   payment_method_controller().ShowProgressScreen(
-      std::move(new_mock_view), ttf_delegate().GetWeakPointer());
+      std::move(new_mock_view), /*cancel_callback=*/base::DoNothing());
   OnAfterAskForValuesToFill();
 }
 
@@ -399,14 +433,15 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
               ShowPaymentMethods(&payment_method_controller(),
                                  ElementsAreArray(suggestions_),
                                  /*should_show_scan_credit_card=*/true));
-  EXPECT_CALL(*mock_view_, ShowBnplIssuers(ElementsAreArray(bnpl_issuers_)))
+  EXPECT_CALL(*mock_view_,
+              ShowBnplIssuers(ElementsAreArray(bnpl_issuer_contexts_)))
       .WillOnce(Return(true));
 
   OnBeforeAskForValuesToFill();
   payment_method_controller().ShowPaymentMethods(
       std::move(mock_view_), ttf_delegate().GetWeakPointer(), suggestions_);
   payment_method_controller().ShowBnplIssuers(ttf_delegate().GetWeakPointer(),
-                                              bnpl_issuers_);
+                                              bnpl_issuer_contexts_);
   OnAfterAskForValuesToFill();
 }
 
@@ -416,7 +451,32 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
 
   OnBeforeAskForValuesToFill();
   payment_method_controller().ShowBnplIssuers(ttf_delegate().GetWeakPointer(),
-                                              bnpl_issuers_);
+                                              bnpl_issuer_contexts_);
+  OnAfterAskForValuesToFill();
+}
+
+TEST_F(TouchToFillPaymentMethodControllerTest,
+       ShowBnplIssuerTosPassesTextsAndIconsToTheView) {
+  const std::u16string review_text = u"test BNPL issuer ToS review text";
+  const std::u16string approve_text = u"test BNPL issuer ToS approve text";
+  payments::TextWithLink link_text;
+  link_text.text = u"test BNPL issuer ToS link text with link";
+  // Index of text with redirect link;
+  link_text.offset = gfx::Range(36, link_text.text.length());
+  link_text.url = GURL("https://wallet.google.com/");
+  const payments::BnplIssuerTosDetail bnpl_issuer_tos_detail(
+      review_text, approve_text, link_text);
+
+  // Test that the BNPL issuer ToS info have propagated to the view.
+  EXPECT_CALL(
+      *mock_view_,
+      ShowBnplIssuerTos(EqualBnplIssuerTosDetail(bnpl_issuer_tos_detail)));
+
+  OnBeforeAskForValuesToFill();
+  payment_method_controller().ShowPaymentMethods(
+      std::move(mock_view_), ttf_delegate().GetWeakPointer(), suggestions_);
+  OnAfterAskForValuesToFill();
+  payment_method_controller().ShowBnplIssuerTos(bnpl_issuer_tos_detail);
   OnAfterAskForValuesToFill();
 }
 
@@ -503,6 +563,40 @@ TEST_F(TouchToFillPaymentMethodControllerTest, OnDismissedIsCalled) {
 
   EXPECT_CALL(ttf_delegate(), OnDismissed);
   payment_method_controller().OnDismissed(nullptr, true);
+}
+
+TEST_F(TouchToFillPaymentMethodControllerTest,
+       OnDismissedPassesDismissedByUserToDelegate) {
+  EXPECT_CALL(*mock_view_, ShowProgressScreen(&payment_method_controller()))
+      .WillOnce(Return(true));
+  EXPECT_CALL(ttf_delegate(), OnDismissed(/*dismissed_by_user=*/true));
+
+  OnBeforeAskForValuesToFill();
+  payment_method_controller().ShowPaymentMethods(
+      std::move(mock_view_), ttf_delegate().GetWeakPointer(), suggestions_);
+  payment_method_controller().ShowProgressScreen(
+      /*view=*/nullptr,
+      /*cancel_callback=*/base::DoNothing());
+  OnAfterAskForValuesToFill();
+
+  payment_method_controller().OnDismissed(nullptr, /*dismissed_by_user=*/true);
+}
+
+TEST_F(TouchToFillPaymentMethodControllerTest,
+       OnDismissedPassesNotDismissedByUserToDelegate) {
+  EXPECT_CALL(*mock_view_, ShowProgressScreen(&payment_method_controller()))
+      .WillOnce(Return(true));
+  EXPECT_CALL(ttf_delegate(), OnDismissed(/*dismissed_by_user=*/false));
+
+  OnBeforeAskForValuesToFill();
+  payment_method_controller().ShowPaymentMethods(
+      std::move(mock_view_), ttf_delegate().GetWeakPointer(), suggestions_);
+  payment_method_controller().ShowProgressScreen(
+      /*view=*/nullptr,
+      /*cancel_callback=*/base::DoNothing());
+  OnAfterAskForValuesToFill();
+
+  payment_method_controller().OnDismissed(nullptr, /*dismissed_by_user=*/false);
 }
 
 }  // namespace

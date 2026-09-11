@@ -22,10 +22,11 @@ LRURendererCache::LRURendererCache(
       in_use_count_(0),
       weak_factory_(this) {
   DCHECK(browser_context_);
-  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-      FROM_HERE, base::MemoryPressureListenerTag::kLruRendererCache,
-      base::BindRepeating(&LRURendererCache::OnMemoryPressure,
-                          weak_factory_.GetWeakPtr()));
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::MemoryPressureListenerRegistration>(
+          FROM_HERE, base::MemoryPressureListenerTag::kLruRendererCache,
+          base::BindRepeating(&LRURendererCache::OnMemoryPressure,
+                              weak_factory_.GetWeakPtr()));
 }
 
 LRURendererCache::~LRURendererCache() = default;
@@ -107,9 +108,8 @@ void LRURendererCache::StartNextPrelauncher(const GURL& page_url) {
 }
 
 void LRURendererCache::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
-  if (memory_pressure_level ==
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    base::MemoryPressureLevel memory_pressure_level) {
+  if (memory_pressure_level == base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
     DLOG(INFO) << "Dropping prelauncher cache due to memory pressure.";
     cache_.clear();
   }

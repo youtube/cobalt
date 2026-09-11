@@ -175,18 +175,16 @@
 
 - (void)documentPicker:(UIDocumentPickerViewController*)controller
     didPickDocumentsAtURLs:(NSArray<NSURL*>*)urls {
-  // Early exit. Workaround for file picker latencies.
+  /// Early exit. Workaround for file picker latencies.
   if (_currentSecurityScopedURL) {
     return;
   }
-  _currentSecurityScopedURL = urls.firstObject;
-  if (!_currentSecurityScopedURL) {
+  NSURL* securityScopedURL = urls.firstObject;
+  if (![securityScopedURL startAccessingSecurityScopedResource]) {
+    [self.importStageTransitionHandler resetToInitialImportStage:NO];
     return;
   }
-  if (![_currentSecurityScopedURL startAccessingSecurityScopedResource]) {
-    _currentSecurityScopedURL = nil;
-    return;
-  }
+  _currentSecurityScopedURL = securityScopedURL;
   [self setUpImportClient];
   _importer->PrepareImport(
       base::apple::NSURLToFilePath(_currentSecurityScopedURL));

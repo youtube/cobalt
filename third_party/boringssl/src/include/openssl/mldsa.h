@@ -65,10 +65,6 @@ struct MLDSA65_prehash {
   } opaque;
 };
 
-// MLDSA65_PRIVATE_KEY_BYTES is the number of bytes in an encoded ML-DSA-65
-// private key.
-#define MLDSA65_PRIVATE_KEY_BYTES 4032
-
 // MLDSA65_PUBLIC_KEY_BYTES is the number of bytes in an encoded ML-DSA-65
 // public key.
 #define MLDSA65_PUBLIC_KEY_BYTES 1952
@@ -208,10 +204,6 @@ struct MLDSA87_prehash {
   } opaque;
 };
 
-// MLDSA87_PRIVATE_KEY_BYTES is the number of bytes in an encoded ML-DSA-87
-// private key.
-#define MLDSA87_PRIVATE_KEY_BYTES 4896
-
 // MLDSA87_PUBLIC_KEY_BYTES is the number of bytes in an encoded ML-DSA-87
 // public key.
 #define MLDSA87_PUBLIC_KEY_BYTES 2592
@@ -347,10 +339,6 @@ struct MLDSA44_prehash {
     uint64_t alignment;
   } opaque;
 };
-
-// MLDSA44_PRIVATE_KEY_BYTES is the number of bytes in an encoded ML-DSA-44
-// private key.
-#define MLDSA44_PRIVATE_KEY_BYTES 2560
 
 // MLDSA44_PUBLIC_KEY_BYTES is the number of bytes in an encoded ML-DSA-44
 // public key.

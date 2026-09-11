@@ -152,8 +152,11 @@ class DtlsTestClient : public sigslot::has_slots<> {
                   const ReceivedIpPacket& packet) {
           OnTransportReadPacket(transport, packet);
         });
-    dtls_transport_->SignalSentPacket.connect(
-        this, &DtlsTestClient::OnTransportSentPacket);
+    dtls_transport_->SubscribeSentPacket(
+        this,
+        [this](PacketTransportInternal* transport, const SentPacketInfo& info) {
+          OnTransportSentPacket(transport, info);
+        });
   }
 
   FakeIceTransport* fake_ice_transport() {

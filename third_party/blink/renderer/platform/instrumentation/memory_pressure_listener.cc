@@ -124,7 +124,7 @@ void MemoryPressureListenerRegistry::UnregisterClient(
 }
 
 void MemoryPressureListenerRegistry::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+    base::MemoryPressureLevel level) {
   TRACE_EVENT1("blink", "MemoryPressureListenerRegistry::onMemoryPressure",
                "level", level);
 #if BUILDFLAG(IS_COBALT)

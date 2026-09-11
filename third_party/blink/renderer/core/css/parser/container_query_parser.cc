@@ -143,9 +143,7 @@ class AnchoredFeatureSet : public MediaQueryParser::FeatureSet {
 ContainerQueryParser::ContainerQueryParser(const CSSParserContext& context)
     : context_(context),
       media_query_parser_(MediaQueryParser::kMediaQuerySetParser,
-                          kHTMLStandardMode,
-                          context.GetExecutionContext(),
-                          MediaQueryParser::SyntaxLevel::kLevel4) {}
+                          context.GetExecutionContext()) {}
 
 const MediaQueryExpNode* ContainerQueryParser::ParseCondition(String value) {
   CSSParserTokenStream stream(value);

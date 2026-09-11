@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/memory/values_equivalent.h"
 #include "base/numerics/clamped_math.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "third_party/blink/renderer/core/css/basic_shape_functions.h"
@@ -64,6 +65,7 @@
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
+#include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/style/coord_box_offset_path_operation.h"
 #include "third_party/blink/renderer/core/style/geometry_box_clip_path_operation.h"
 #include "third_party/blink/renderer/core/style/grid_area.h"
@@ -670,23 +672,23 @@ const CSSValue* AnimationTrigger::CSSValueFromComputedStyleInternal(
         for (const Member<const StyleTriggerAttachment>& attachment :
              *single_animation_attachments) {
           // Get the name.
-          Member<const CSSCustomIdentValue> trigger_name =
+          const CSSCustomIdentValue* trigger_name =
               MakeGarbageCollected<CSSCustomIdentValue>(
                   *attachment->TriggerName());
 
-          // Get the action-behavior settings.
-          HeapVector<std::pair<Member<const CSSCustomIdentValue>,
-                               Member<const CSSCustomIdentValue>>>
-              action_behavior_pairs;
-          for (const auto& pair : attachment->ActionBehaviorPairs()) {
-            action_behavior_pairs.push_back(std::make_pair(
-                MakeGarbageCollected<const CSSCustomIdentValue>(pair.first),
-                MakeGarbageCollected<const CSSCustomIdentValue>(pair.second)));
+          const CSSIdentifierValue* enter_behavior_value =
+              CSSIdentifierValue::Create(attachment->EnterBehavior());
+
+          const CSSIdentifierValue* exit_behavior_value = nullptr;
+          std::optional<EAnimationTriggerBehavior> exit_behavior =
+              attachment->ExitBehavior();
+          if (exit_behavior) {
+            exit_behavior_value = CSSIdentifierValue::Create(*exit_behavior);
           }
 
           attachment_valuelist_for_single_animation->Append(
               *MakeGarbageCollected<cssvalue::CSSTriggerAttachmentValue>(
-                  trigger_name.Get(), action_behavior_pairs));
+                  trigger_name, enter_behavior_value, exit_behavior_value));
         }
       } else {
         attachment_valuelist_for_single_animation->Append(
@@ -1966,6 +1968,24 @@ const CSSValue* BorderTopWidth::CSSValueFromComputedStyleInternal(
   return ZoomAdjustedPixelValue(width, style);
 }
 
+namespace {
+
+const CSSValue* ConsumeBasicShapeAndCoordBox(CSSParserTokenStream& stream,
+                                             const CSSParserContext& context) {
+  CSSValue* shape = css_parsing_utils::ConsumeBasicShape(stream, context);
+  if (!shape) {
+    return nullptr;
+  }
+  CSSValue* coord_box = css_parsing_utils::ConsumeCoordBox(stream);
+  if (coord_box) {
+    return MakeGarbageCollected<CSSValuePair>(
+        shape, coord_box, CSSValuePair::kKeepIdenticalValues);
+  }
+  return shape;
+}
+
+}  // namespace
+
 const CSSValue* BorderShape::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
@@ -1975,17 +1995,20 @@ const CSSValue* BorderShape::ParseSingleValue(
     return css_parsing_utils::ConsumeIdent(stream);
   }
 
-  // TODO(nrosenthal) parse the <<geometry-box>>.
-  CSSValue* outer_shape = css_parsing_utils::ConsumeBasicShape(stream, context);
-  if (!outer_shape) {
+  const CSSValue* outer = ConsumeBasicShapeAndCoordBox(stream, context);
+  if (!outer) {
     return nullptr;
   }
 
-  CSSValue* inner_shape = css_parsing_utils::ConsumeBasicShape(stream, context);
-  return inner_shape
-             ? MakeGarbageCollected<CSSValuePair>(
-                   outer_shape, inner_shape, CSSValuePair::kDropIdenticalValues)
-             : outer_shape;
+  const CSSValue* inner = ConsumeBasicShapeAndCoordBox(stream, context);
+  if (!inner || base::ValuesEquivalent(inner, outer)) {
+    return outer;
+  }
+
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  list->Append(*outer);
+  list->Append(*inner);
+  return list;
 }
 
 const CSSValue* BorderShape::CSSValueFromComputedStyleInternal(
@@ -1997,15 +2020,25 @@ const CSSValue* BorderShape::CSSValueFromComputedStyleInternal(
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
   const StyleBorderShape& border_shape = *style.BorderShape();
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
   const CSSValue* outer_shape =
       ValueForBasicShape(style, &border_shape.OuterShape());
-  if (!border_shape.HasSeparateInnerShape()) {
-    return outer_shape;
+  list->Append(*outer_shape);
+  CoordBox coord_box = border_shape.OuterCoordBox();
+  if (coord_box != CoordBox::kBorderBox) {
+    list->Append(*CSSIdentifierValue::Create(coord_box));
   }
-
-  return MakeGarbageCollected<CSSValuePair>(
-      outer_shape, ValueForBasicShape(style, &border_shape.InnerShape()),
-      CSSValuePair::kDropIdenticalValues);
+  if (!border_shape.HasSeparateInnerShape()) {
+    return list;
+  }
+  const CSSValue* inner_shape =
+      ValueForBasicShape(style, &border_shape.InnerShape());
+  list->Append(*inner_shape);
+  coord_box = border_shape.InnerCoordBox();
+  if (coord_box != CoordBox::kBorderBox) {
+    list->Append(*CSSIdentifierValue::Create(coord_box));
+  }
+  return list;
 }
 
 const CSSValue* Bottom::ParseSingleValue(
@@ -7683,8 +7716,23 @@ const CSSValue* OverscrollArea::ParseSingleValue(
           css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(stream)) {
     return value;
   }
-  return css_parsing_utils::ConsumeCommaSeparatedList(
-      css_parsing_utils::ConsumeDashedIdent, stream, context);
+  HashSet<String> parsed_values;
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
+  do {
+    CSSCustomIdentValue* value =
+        css_parsing_utils::ConsumeDashedIdent(stream, context);
+    if (!value) {
+      return nullptr;
+    }
+
+    if (!parsed_values.Contains(value->Value())) {
+      parsed_values.insert(value->Value());
+      list->Append(*value);
+    }
+  } while (css_parsing_utils::ConsumeCommaIncludingWhitespace(stream));
+
+  DCHECK(list->length());
+  return list;
 }
 
 const CSSValue* OverscrollArea::CSSValueFromComputedStyleInternal(

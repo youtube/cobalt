@@ -20,6 +20,7 @@
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
+#include "chrome/browser/glic/widget/glic_window_controller_impl.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
@@ -576,14 +577,13 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
 
   GlicKeyedService* service =
       GlicKeyedServiceFactory::GetGlicKeyedService(profile_1_);
-  ASSERT_FALSE(service->window_controller().IsShowing());
+  ASSERT_FALSE(service->IsWindowShowing());
 
   // Show the panel as if the glic button was clicked.
   {
     base::test::TestFuture<void> wait_for_panel;
-    PanelStateObserver panel_state_observer(
-        mojom::PanelState::Kind::kDetached,
-        wait_for_panel.GetCallback());
+    PanelStateObserver panel_state_observer(mojom::PanelState::Kind::kDetached,
+                                            wait_for_panel.GetCallback());
     service->window_controller().AddStateObserver(&panel_state_observer);
     service->ToggleUI(/*bwi=*/browser(), /*prevent_close=*/false,
                       /*source=*/mojom::InvocationSource::kOsButton);
@@ -592,7 +592,7 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
     service->window_controller().RemoveStateObserver(&panel_state_observer);
   }
 
-  ASSERT_TRUE(service->window_controller().IsShowing());
+  ASSERT_TRUE(service->IsWindowShowing());
 
   Host* host = GetHost();
   GlicAppStateObserver app_observer(host);
@@ -606,7 +606,7 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
     return host->GetPrimaryWebUiState() == mojom::WebUiState::kDisabledByAdmin;
   })) << "Timed out waiting for unavailable state. Current state: "
       << host->GetPrimaryWebUiState();
-  ASSERT_TRUE(service->window_controller().IsShowing());
+  ASSERT_TRUE(service->IsWindowShowing());
 
 // Flakiness on linux.
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -617,10 +617,12 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
       FROM_HERE, run_loop.QuitClosure(), base::Milliseconds(1000));
   run_loop.Run();
   ClickElementWithId(
-      service->window_controller().GetGlicView()->GetWebContents(),
+      static_cast<GlicWindowControllerImpl&>(service->window_controller())
+          .GetGlicViewForTesting()
+          ->GetWebContents(),
       "disabledByAdminCloseButton");
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !service->window_controller().IsShowing();
+    return !service->IsWindowShowing();
   })) << "Timed out waiting for glic to close";
 #endif
 }

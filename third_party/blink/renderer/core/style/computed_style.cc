@@ -181,34 +181,6 @@ const ComputedStyle* ComputedStyle::GetInitialStyleSingleton() {
   return persistent.Get();
 }
 
-namespace {
-
-const ComputedStyle* BuildInitialStyleForImg(
-    const ComputedStyle& initial_style) {
-  // This matches the img {} declarations in html.css to avoid copy-on-write
-  // when only UA styles apply for these properties. See crbug.com/1369454
-  // for details.
-  ComputedStyleBuilder builder(initial_style);
-  builder.SetOverflowX(EOverflow::kClip);
-  builder.SetOverflowY(EOverflow::kClip);
-  builder.SetOverflowClipMargin(StyleOverflowClipMargin::CreateContent());
-  return builder.TakeStyle();
-}
-
-}  // namespace
-
-const ComputedStyle* ComputedStyle::GetInitialStyleForImgSingleton() {
-  DEFINE_THREAD_SAFE_STATIC_LOCAL(
-      ThreadSpecific<Persistent<const ComputedStyle>>,
-      thread_specific_initial_style, ());
-  Persistent<const ComputedStyle>& persistent = *thread_specific_initial_style;
-  if (!persistent) [[unlikely]] {
-    persistent = BuildInitialStyleForImg(*GetInitialStyleSingleton());
-    LEAK_SANITIZER_IGNORE_OBJECT(&persistent);
-  }
-  return persistent.Get();
-}
-
 Vector<AtomicString>* ComputedStyle::GetVariableNamesCache() const {
   if (cached_data_) {
     return cached_data_->variable_names_.get();
@@ -655,15 +627,13 @@ const ComputedStyle* ComputedStyle::GetCachedPseudoElementStyle(
     return nullptr;
   }
 
-  for (const auto& pseudo_style : *GetPseudoElementStyleCache()) {
-    if (pseudo_style->StyleType() == pseudo_id &&
-        (!PseudoElementHasArguments(pseudo_id) ||
-         pseudo_style->PseudoArgument() == pseudo_argument)) {
-      return pseudo_style.Get();
-    }
+  auto result = GetPseudoElementStyleCache()->find(
+      PseudoElementStyleCacheKey{pseudo_id, pseudo_argument});
+  if (result == GetPseudoElementStyleCache()->end()) {
+    return nullptr;
+  } else {
+    return result->value.Get();
   }
-
-  return nullptr;
 }
 
 const ComputedStyle* ComputedStyle::AddCachedPseudoElementStyle(
@@ -672,21 +642,21 @@ const ComputedStyle* ComputedStyle::AddCachedPseudoElementStyle(
     const AtomicString& pseudo_argument) const {
   DCHECK(pseudo);
 
-  // Confirm that the styles being cached are for the (PseudoId,argument) that
+  // Confirm that the styles being cached are for the PseudoId that
   // the caller intended (and presumably had checked was not present).
   DCHECK_EQ(static_cast<unsigned>(pseudo->StyleType()),
             static_cast<unsigned>(pseudo_id));
-  DCHECK_EQ(pseudo->PseudoArgument(), pseudo_argument);
+
+  const ComputedStyle* result = pseudo;
+
+  auto add_result = EnsurePseudoElementStyleCache().insert(
+      PseudoElementStyleCacheKey{pseudo_id, pseudo_argument},
+      std::move(pseudo));
 
   // The pseudo style cache assumes that only one entry will be added for any
   // any given (PseudoId,argument). Adding more than one entry is a bug, even
   // if the styles being cached are equal.
-  DCHECK(!GetCachedPseudoElementStyle(pseudo->StyleType(),
-                                      pseudo->PseudoArgument()));
-
-  const ComputedStyle* result = pseudo;
-
-  EnsurePseudoElementStyleCache().push_back(std::move(pseudo));
+  DCHECK(add_result.is_new_entry);
 
   return result;
 }
@@ -698,14 +668,13 @@ const ComputedStyle* ComputedStyle::ReplaceCachedPseudoElementStyle(
   DCHECK(pseudo_style->StyleType() != kPseudoIdNone &&
          pseudo_style->StyleType() != kPseudoIdFirstLineInherited);
   if (HasCachedPseudoElementStyles()) {
-    for (auto& cached_style : *GetPseudoElementStyleCache()) {
-      if (cached_style->StyleType() == pseudo_id &&
-          (!PseudoElementHasArguments(pseudo_id) ||
-           cached_style->PseudoArgument() == pseudo_argument)) {
-        SECURITY_CHECK(cached_style->IsEnsuredInDisplayNone());
-        cached_style = pseudo_style;
-        return pseudo_style;
-      }
+    auto slot = GetPseudoElementStyleCache()->find(
+        PseudoElementStyleCacheKey{pseudo_id, pseudo_argument});
+    if (slot != GetPseudoElementStyleCache()->end()) {
+      Member<const ComputedStyle>& cached_style = slot->value;
+      SECURITY_CHECK(cached_style->IsEnsuredInDisplayNone());
+      cached_style = pseudo_style;
+      return pseudo_style;
     }
   }
   return AddCachedPseudoElementStyle(pseudo_style, pseudo_id, pseudo_argument);
@@ -2229,7 +2198,8 @@ static bool HasInitialVariables(const StyleInitialData* initial_data) {
 }
 
 bool ComputedStyle::HasVariables() const {
-  return InheritedVariables() || NonInheritedVariables() ||
+  return !InheritedVariables().IsEmpty() ||
+         !NonInheritedVariables().IsEmpty() ||
          HasInitialVariables(InitialData());
 }
 
@@ -2251,23 +2221,19 @@ const Vector<AtomicString>& ComputedStyle::GetVariableNames() const {
   if (auto* initial_data = InitialData()) {
     initial_data->CollectVariableNames(names);
   }
-  if (auto* inherited_variables = InheritedVariables()) {
-    inherited_variables->CollectNames(names);
-  }
-  if (auto* non_inherited_variables = NonInheritedVariables()) {
-    non_inherited_variables->CollectNames(names);
-  }
+  InheritedVariables().CollectNames(names);
+  NonInheritedVariables().CollectNames(names);
   cache.assign(names);
 
   return cache;
 }
 
-const StyleInheritedVariables* ComputedStyle::InheritedVariables() const {
-  return InheritedVariablesInternal().Get();
+const StyleInheritedVariables& ComputedStyle::InheritedVariables() const {
+  return InheritedVariablesInternal();
 }
 
-const StyleNonInheritedVariables* ComputedStyle::NonInheritedVariables() const {
-  return NonInheritedVariablesInternal().Get();
+const StyleNonInheritedVariables& ComputedStyle::NonInheritedVariables() const {
+  return NonInheritedVariablesInternal();
 }
 
 // static
@@ -2295,21 +2261,19 @@ bool ComputedStyle::HasPropertyDependingOnCurrentColor() const {
   return false;
 }
 
-namespace {
-
 template <typename T>
-CSSVariableData* GetVariableData(
-    const T& style_or_builder,
-    const AtomicString& name,
-    std::optional<bool> inherited_hint = std::nullopt) {
-  if (inherited_hint.value_or(true) && style_or_builder.InheritedVariables()) {
-    if (auto data = style_or_builder.InheritedVariables()->GetData(name)) {
+CSSVariableData* GetVariableDataInternal(const T& style_or_builder,
+                                         const AtomicString& name,
+                                         std::optional<bool> inherited_hint) {
+  if (inherited_hint.value_or(true)) {
+    if (auto data =
+            style_or_builder.InheritedVariablesInternal().GetData(name)) {
       return *data;
     }
   }
-  if (!inherited_hint.value_or(false) &&
-      style_or_builder.NonInheritedVariables()) {
-    if (auto data = style_or_builder.NonInheritedVariables()->GetData(name)) {
+  if (!inherited_hint.value_or(false)) {
+    if (auto data =
+            style_or_builder.NonInheritedVariablesInternal().GetData(name)) {
       return *data;
     }
   }
@@ -2324,14 +2288,13 @@ const CSSValue* GetVariableValue(
     const T& style_or_builder,
     const AtomicString& name,
     std::optional<bool> inherited_hint = std::nullopt) {
-  if (inherited_hint.value_or(true) && style_or_builder.InheritedVariables()) {
-    if (auto data = style_or_builder.InheritedVariables()->GetValue(name)) {
+  if (inherited_hint.value_or(true)) {
+    if (auto data = style_or_builder.InheritedVariables().GetValue(name)) {
       return *data;
     }
   }
-  if (!inherited_hint.value_or(false) &&
-      style_or_builder.NonInheritedVariables()) {
-    if (auto data = style_or_builder.NonInheritedVariables()->GetValue(name)) {
+  if (!inherited_hint.value_or(false)) {
+    if (auto data = style_or_builder.NonInheritedVariables().GetValue(name)) {
       return *data;
     }
   }
@@ -2341,17 +2304,15 @@ const CSSValue* GetVariableValue(
   return nullptr;
 }
 
-}  // namespace
-
 CSSVariableData* ComputedStyle::GetVariableData(
     const AtomicString& name) const {
-  return blink::GetVariableData(*this, name);
+  return blink::GetVariableDataInternal(*this, name, std::nullopt);
 }
 
 CSSVariableData* ComputedStyle::GetVariableData(
     const AtomicString& name,
     bool is_inherited_property) const {
-  return blink::GetVariableData(*this, name, is_inherited_property);
+  return blink::GetVariableDataInternal(*this, name, is_inherited_property);
 }
 
 const CSSValue* ComputedStyle::GetVariableValue(
@@ -3016,8 +2977,6 @@ const ComputedStyle* ComputedStyleBuilder::TakeStyle() {
 
 const ComputedStyle* ComputedStyleBuilder::CloneStyle() const {
   ResetAccess();
-  has_own_inherited_variables_ = false;
-  has_own_non_inherited_variables_ = false;
   has_own_animations_ = false;
   has_own_transitions_ = false;
   return MakeGarbageCollected<ComputedStyle>(ComputedStyle::BuilderPassKey(),
@@ -3029,11 +2988,8 @@ void ComputedStyleBuilder::PropagateIndependentInheritedProperties(
   ComputedStyleBuilderBase::PropagateIndependentInheritedProperties(
       parent_style);
   if (!HasVariableReference() && !HasVariableDeclaration() &&
-      (InheritedVariablesInternal().Get() !=
-       parent_style.InheritedVariables())) {
-    has_own_inherited_variables_ = false;
-    MutableInheritedVariablesInternal() =
-        parent_style.InheritedVariablesInternal();
+      InheritedVariablesInternal() != parent_style.InheritedVariables()) {
+    SetInheritedVariablesInternal(parent_style.InheritedVariablesInternal());
   }
 }
 
@@ -3172,50 +3128,29 @@ void ComputedStyleBuilder::SetUsedColorScheme(
   SetColorSchemeFlagsIsNormal(is_normal);
 }
 
-CSSVariableData* ComputedStyleBuilder::GetVariableData(
-    const AtomicString& name,
-    bool is_inherited_property) const {
-  return blink::GetVariableData(*this, name, is_inherited_property);
-}
-
 StyleInheritedVariables& ComputedStyleBuilder::MutableInheritedVariables() {
-  Member<StyleInheritedVariables>& variables =
-      MutableInheritedVariablesInternal();
-  if (!has_own_inherited_variables_) {
-    variables = variables
-                    ? MakeGarbageCollected<StyleInheritedVariables>(*variables)
-                    : MakeGarbageCollected<StyleInheritedVariables>();
-  }
-  has_own_inherited_variables_ = true;
-  DCHECK(variables);
-  return *variables;
+  return MutableInheritedVariablesInternal();
 }
 
 StyleNonInheritedVariables&
 ComputedStyleBuilder::MutableNonInheritedVariables() {
-  Member<StyleNonInheritedVariables>& variables =
-      MutableNonInheritedVariablesInternal();
-  if (!has_own_non_inherited_variables_) {
-    variables =
-        variables ? MakeGarbageCollected<StyleNonInheritedVariables>(*variables)
-                  : MakeGarbageCollected<StyleNonInheritedVariables>();
-  }
-  has_own_non_inherited_variables_ = true;
-  DCHECK(variables);
-  return *variables;
+  return MutableNonInheritedVariablesInternal();
+}
+
+CSSVariableData* ComputedStyleBuilder::GetVariableData(
+    const AtomicString& name,
+    bool is_inherited_property) const {
+  return blink::GetVariableDataInternal(*this, name, is_inherited_property);
 }
 
 void ComputedStyleBuilder::SetInheritedVariablesFrom(
     const ComputedStyle* style) {
-  MutableInheritedVariablesInternal() = style->InheritedVariablesInternal();
-  has_own_inherited_variables_ = false;
+  SetInheritedVariablesInternal(style->InheritedVariablesInternal());
 }
 
 void ComputedStyleBuilder::SetNonInheritedVariablesFrom(
     const ComputedStyle* style) {
-  MutableNonInheritedVariablesInternal() =
-      style->NonInheritedVariablesInternal();
-  has_own_non_inherited_variables_ = false;
+  SetNonInheritedVariablesInternal(style->NonInheritedVariablesInternal());
 }
 
 STATIC_ASSERT_ENUM(cc::OverscrollBehavior::Type::kAuto,

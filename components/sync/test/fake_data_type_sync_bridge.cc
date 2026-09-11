@@ -63,6 +63,8 @@ class TestMetadataChangeList : public MetadataChangeList {
     db_->RemoveMetadata(storage_key);
   }
 
+  void TransferChangesTo(MetadataChangeList* other) override { NOTREACHED(); }
+
  private:
   const raw_ptr<FakeDataTypeSyncBridge::Store> db_;
 };
@@ -278,11 +280,9 @@ std::optional<ModelError> FakeDataTypeSyncBridge::ApplyIncrementalSyncChanges(
 
 void FakeDataTypeSyncBridge::ApplyMetadataChangeList(
     std::unique_ptr<MetadataChangeList> mcl) {
-  InMemoryMetadataChangeList* in_memory_mcl =
-      static_cast<InMemoryMetadataChangeList*>(mcl.get());
   // Use TestMetadataChangeList to commit all metadata changes to the store.
   TestMetadataChangeList db_mcl(db_.get());
-  in_memory_mcl->TransferChangesTo(&db_mcl);
+  mcl->TransferChangesTo(&db_mcl);
 }
 
 std::unique_ptr<DataBatch> FakeDataTypeSyncBridge::GetDataForCommit(
@@ -399,7 +399,8 @@ FakeDataTypeSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
 bool FakeDataTypeSyncBridge::IsEntityDataValid(
     const EntityData& entity_data) const {
   return invalid_remote_updates_.find(entity_data.client_tag_hash) ==
-         invalid_remote_updates_.end();
+             invalid_remote_updates_.end() &&
+         (!SupportsGetStorageKey() || !GetStorageKey(entity_data).empty());
 }
 
 void FakeDataTypeSyncBridge::SetConflictResolution(

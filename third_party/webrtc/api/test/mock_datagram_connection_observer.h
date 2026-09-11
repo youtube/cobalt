@@ -10,6 +10,10 @@
 #ifndef API_TEST_MOCK_DATAGRAM_CONNECTION_OBSERVER_H_
 #define API_TEST_MOCK_DATAGRAM_CONNECTION_OBSERVER_H_
 
+#include <cstdint>
+
+#include "api/array_view.h"
+#include "api/candidate.h"
 #include "api/datagram_connection.h"
 #include "test/gmock.h"
 
@@ -20,6 +24,10 @@ class MockDatagramConnectionObserver : public DatagramConnection::Observer {
   MOCK_METHOD(void,
               OnCandidateGathered,
               (const Candidate& candidate),
+              (override));
+  MOCK_METHOD(void,
+              OnPacketReceived,
+              (ArrayView<const uint8_t> data, PacketMetadata metadata),
               (override));
   MOCK_METHOD(void,
               OnPacketReceived,

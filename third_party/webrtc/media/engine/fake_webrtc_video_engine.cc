@@ -35,7 +35,6 @@
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -269,25 +268,11 @@ std::unique_ptr<VideoEncoder> FakeWebRtcVideoEncoderFactory::Create(
           env, /*primary_factory=*/this, /*fallback_factory=*/nullptr, format);
     } else {
       num_created_encoders_++;
-      created_video_encoder_event_.Set();
       encoder = std::make_unique<FakeWebRtcVideoEncoder>(this);
       encoders_.push_back(static_cast<FakeWebRtcVideoEncoder*>(encoder.get()));
     }
   }
   return encoder;
-}
-
-bool FakeWebRtcVideoEncoderFactory::WaitForCreatedVideoEncoders(
-    int num_encoders) {
-  int64_t start_offset_ms = TimeMillis();
-  int64_t wait_time = kEventTimeout.ms();
-  do {
-    if (GetNumCreatedEncoders() >= num_encoders)
-      return true;
-    wait_time = kEventTimeout.ms() - (TimeMillis() - start_offset_ms);
-  } while (wait_time > 0 &&
-           created_video_encoder_event_.Wait(TimeDelta::Millis(wait_time)));
-  return false;
 }
 
 void FakeWebRtcVideoEncoderFactory::EncoderDestroyed(

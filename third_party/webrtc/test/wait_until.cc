@@ -59,7 +59,16 @@ namespace webrtc {
                settings.clock);
   };
 
+  if (fn()) {
+    return true;
+  }
+
   Timestamp deadline = now() + settings.timeout;
+
+  // Run pending tasks first as they might change result of the `fn` and
+  // thus avoid unnecessary advancing time.
+  sleep(TimeDelta::Zero());
+
   for (;;) {
     if (fn()) {
       return true;

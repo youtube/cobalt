@@ -44,6 +44,10 @@ namespace url {
 class Origin;
 }  // namespace url
 
+namespace base {
+class Time;
+}  // namespace base
+
 class ScopedKeepAlive;
 class ScopedProfileKeepAlive;
 
@@ -79,6 +83,7 @@ struct IsolatedWebAppUpdatePrepareAndStoreCommandSuccess;
 struct SynchronizeOsOptions;
 struct WebAppIconDiagnosticResult;
 struct WebAppInstallInfo;
+struct ManifestSilentUpdateCompletionInfo;
 
 #if BUILDFLAG(IS_CHROMEOS)
 class CleanupBundleCacheSuccess;
@@ -224,14 +229,15 @@ class WebAppCommandScheduler {
       ManifestUpdateCheckCompletedCallback callback,
       const base::Location& location = FROM_HERE);
 
-  using ManifestSilentUpdateCompletedCallback =
-      base::OnceCallback<void(ManifestSilentUpdateCheckResult check_result)>;
+  using ManifestSilentUpdateCompletedCallback = base::OnceCallback<void(
+      ManifestSilentUpdateCompletionInfo completion_info)>;
   // A newer version of `ScheduleManifestUpdateCheck` that uses a more
   // predictable app updating algorithm. This will eventually replace the
   // original.
   // For more details, go/predictable-app-updating-design-doc.
   void ScheduleManifestSilentUpdate(
       content::WebContents& contents,
+      std::optional<base::Time> previous_time_for_silent_icon_update,
       ManifestSilentUpdateCompletedCallback callback,
       const base::Location& location = FROM_HERE);
 
@@ -684,6 +690,13 @@ class WebAppCommandScheduler {
   void ReadAppUpdateDataFromDisk(
       const webapps::AppId& app_id,
       base::OnceCallback<void(std::optional<WebAppIdentityUpdate>)> callback,
+      const base::Location& location = FROM_HERE);
+
+  // Marks whether the pending update available for the app is ignored by the
+  // user, and notifies changes to the WebAppRegistrar.
+  void MarkAppPendingUpdateAsIgnored(
+      const webapps::AppId& app_id,
+      base::OnceClosure done,
       const base::Location& location = FROM_HERE);
 
   // TODO(crbug.com/40215411): expose all commands for web app

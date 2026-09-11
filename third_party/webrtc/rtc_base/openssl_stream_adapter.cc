@@ -142,8 +142,7 @@ constexpr int kForceDtls13Only = 2;
 int GetForceDtls13(const FieldTrialsView* field_trials) {
 #ifdef DTLS1_3_VERSION
   if (field_trials) {
-#if defined(WEBRTC_CHROMIUM_BUILD) && !defined(CHROMEOS) && \
-    !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_CHROMIUM_BUILD)
     if (field_trials->IsDisabled("WebRTC-ForceDtls13")) {
       RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Disabled";
       return kForceDtls13Off;
@@ -153,23 +152,20 @@ int GetForceDtls13(const FieldTrialsView* field_trials) {
       RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Enabled";
       return kForceDtls13Enabled;
     }
-#endif  // defined(WEBRTC_CHROMIUM_BUILD) && !defined(CHROMEOS) &&
-        // !defined(WEBRTC_ANDROID)
+#endif  // defined(WEBRTC_CHROMIUM_BUILD)
     if (field_trials->Lookup("WebRTC-ForceDtls13") == "Only") {
       RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Only";
       return kForceDtls13Only;
     }
   }
   // Default behavior:
-#if defined(WEBRTC_CHROMIUM_BUILD) && !defined(CHROMEOS) && \
-    !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_CHROMIUM_BUILD)
   RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Enabled";
   return kForceDtls13Enabled;
 #else
   RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Disabled";
   return kForceDtls13Off;
-#endif  // defined(WEBRTC_CHROMIUM_BUILD) && !defined(CHROMEOS) &&
-        // !defined(WEBRTC_ANDROID)
+#endif  // defined(WEBRTC_CHROMIUM_BUILD)
 
 #else
   return kForceDtls13Off;

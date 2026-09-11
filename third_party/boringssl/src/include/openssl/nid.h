@@ -4216,8 +4216,30 @@ extern "C" {
 #define SN_X25519MLKEM768 "X25519MLKEM768"
 #define NID_X25519MLKEM768 965
 
-#define SN_MLKEM1024 "MLKEM1024"
-#define NID_MLKEM1024 966
+#define SN_ML_KEM_1024 "id-alg-ml-kem-1024"
+#define LN_ML_KEM_1024 "ML-KEM-1024"
+#define NID_ML_KEM_1024 966
+#define OBJ_ML_KEM_1024 2L, 16L, 840L, 1L, 101L, 3L, 4L, 4L, 3L
+
+#define SN_ML_DSA_44 "id-ml-dsa-44"
+#define LN_ML_DSA_44 "ML-DSA-44"
+#define NID_ML_DSA_44 967
+#define OBJ_ML_DSA_44 2L, 16L, 840L, 1L, 101L, 3L, 4L, 3L, 17L
+
+#define SN_ML_DSA_65 "id-ml-dsa-65"
+#define LN_ML_DSA_65 "ML-DSA-65"
+#define NID_ML_DSA_65 968
+#define OBJ_ML_DSA_65 2L, 16L, 840L, 1L, 101L, 3L, 4L, 3L, 18L
+
+#define SN_ML_DSA_87 "id-ml-dsa-87"
+#define LN_ML_DSA_87 "ML-DSA-87"
+#define NID_ML_DSA_87 969
+#define OBJ_ML_DSA_87 2L, 16L, 840L, 1L, 101L, 3L, 4L, 3L, 19L
+
+#define SN_ML_KEM_768 "id-alg-ml-kem-768"
+#define LN_ML_KEM_768 "ML-KEM-768"
+#define NID_ML_KEM_768 970
+#define OBJ_ML_KEM_768 2L, 16L, 840L, 1L, 101L, 3L, 4L, 4L, 2L
 
 
 #if defined(__cplusplus)

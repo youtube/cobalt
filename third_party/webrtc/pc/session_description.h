@@ -449,6 +449,7 @@ class ContentGroup {
   ContentGroup(ContentGroup&&);
   ContentGroup& operator=(const ContentGroup&);
   ContentGroup& operator=(ContentGroup&&);
+  bool operator==(const ContentGroup& o) const = default;
   ~ContentGroup();
 
   const std::string& semantics() const { return semantics_; }

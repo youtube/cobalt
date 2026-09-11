@@ -97,6 +97,8 @@ BASE_DECLARE_FEATURE(kDevToolsVerticalDrawer);
 BASE_DECLARE_FEATURE(kDevToolsAiSubmenuPrompts);
 BASE_DECLARE_FEATURE(kDevToolsAiDebugWithAi);
 
+BASE_DECLARE_FEATURE(kDevToolsGreenDevUi);
+
 BASE_DECLARE_FEATURE(kDevToolsGlobalAiButton);
 extern const base::FeatureParam<bool> kDevToolsGlobalAiButtonPromotionEnabled;
 
@@ -111,6 +113,8 @@ BASE_DECLARE_FEATURE(kDevToolsIndividualRequestThrottling);
 BASE_DECLARE_FEATURE(kDevToolsAiPromptApi);
 
 BASE_DECLARE_FEATURE(kDevToolsStartingStyleDebugging);
+
+BASE_DECLARE_FEATURE(kDevToolsEnableDurableMessages);
 
 }  // namespace features
 

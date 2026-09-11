@@ -8,8 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "api/jsep_session_description.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -20,12 +18,12 @@
 #include "absl/strings/str_cat.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
+#include "api/webrtc_sdp.h"
 #include "media/base/codec.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
 #include "pc/session_description.h"
-#include "pc/webrtc_sdp.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/net_helper.h"
 #include "rtc_base/socket_address.h"
@@ -97,8 +95,7 @@ class JsepSessionDescriptionTest : public ::testing::Test {
   }
 
   std::string Serialize(const SessionDescriptionInterface* desc) {
-    std::string sdp;
-    EXPECT_TRUE(desc->ToString(&sdp));
+    std::string sdp = desc->ToString();
     EXPECT_FALSE(sdp.empty());
     return sdp;
   }

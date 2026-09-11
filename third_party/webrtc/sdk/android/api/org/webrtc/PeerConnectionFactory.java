@@ -166,7 +166,7 @@ public class PeerConnectionFactory {
 
   public static class Builder {
     @Nullable private Options options;
-    private Environment.Builder envBuilder = Environment.builder();
+    private final Environment.Builder envBuilder = Environment.builder();
     @Nullable private AudioDeviceModule audioDeviceModule;
     private AudioEncoderFactoryFactory audioEncoderFactoryFactory =
         new BuiltinAudioEncoderFactoryFactory();

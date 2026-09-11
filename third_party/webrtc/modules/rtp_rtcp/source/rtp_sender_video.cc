@@ -68,6 +68,8 @@
 namespace webrtc {
 
 namespace {
+using PacketizationFormat = RtpPacketizer::PacketizationFormat;
+
 constexpr size_t kRedForFecHeaderLength = 1;
 constexpr TimeDelta kMaxUnretransmittableFrameInterval =
     TimeDelta::Millis(33 * 4);
@@ -153,6 +155,28 @@ bool PacketWillLikelyBeRequestedForRestransmissionIfLost(
                      video_header.generic->decode_target_indications,
                      DecodeTargetIndication::kDiscardable)
                : false);
+}
+
+PacketizationFormat GetPacketizationFormat(const VideoCodecType codec_type,
+                                           bool raw_packetization) {
+  if (raw_packetization) {
+    return PacketizationFormat::kRaw;
+  }
+
+  switch (codec_type) {
+    case kVideoCodecH264:
+      return PacketizationFormat::kH264;
+    case kVideoCodecVP8:
+      return PacketizationFormat::kVP8;
+    case kVideoCodecVP9:
+      return PacketizationFormat::kVP9;
+    case kVideoCodecAV1:
+      return PacketizationFormat::kAV1;
+    case kVideoCodecH265:
+      return PacketizationFormat::kH265;
+    case kVideoCodecGeneric:
+      return PacketizationFormat::kGeneric;
+  }
 }
 
 }  // namespace
@@ -490,7 +514,7 @@ void RTPSenderVideo::AddRtpHeaderExtensions(const RTPVideoHeader& video_header,
 }
 
 bool RTPSenderVideo::SendVideo(int payload_type,
-                               std::optional<VideoCodecType> codec_type,
+                               VideoCodecType codec_type,
                                uint32_t rtp_timestamp,
                                Timestamp capture_time,
                                ArrayView<const uint8_t> payload,
@@ -499,9 +523,6 @@ bool RTPSenderVideo::SendVideo(int payload_type,
                                TimeDelta expected_retransmission_time,
                                std::vector<uint32_t> csrcs) {
   RTC_CHECK_RUNS_SERIALIZED(&send_checker_);
-
-  // TODO(b/446768451): Add a check that Codec type can only be absent when
-  // using raw packetization once downstream projects have been updated.
 
   if (video_header.frame_type == VideoFrameType::kEmptyFrame)
     return true;
@@ -678,9 +699,9 @@ bool RTPSenderVideo::SendVideo(int payload_type,
            "one is required since require_frame_encryptor is set";
   }
 
-  std::unique_ptr<RtpPacketizer> packetizer =
-      RtpPacketizer::Create(raw_packetization_ ? std::nullopt : codec_type,
-                            payload, limits, video_header);
+  std::unique_ptr<RtpPacketizer> packetizer = RtpPacketizer::Create(
+      GetPacketizationFormat(codec_type, raw_packetization_), payload, limits,
+      video_header);
 
   const size_t num_packets = packetizer->NumPackets();
 
@@ -784,7 +805,7 @@ bool RTPSenderVideo::SendVideo(int payload_type,
 }
 
 bool RTPSenderVideo::SendEncodedImage(int payload_type,
-                                      std::optional<VideoCodecType> codec_type,
+                                      VideoCodecType codec_type,
                                       uint32_t rtp_timestamp,
                                       const EncodedImage& encoded_image,
                                       RTPVideoHeader video_header,

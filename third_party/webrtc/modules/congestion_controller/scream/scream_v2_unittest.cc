@@ -11,7 +11,6 @@
 
 #include <algorithm>
 
-#include "absl/strings/str_cat.h"
 #include "api/environment/environment.h"
 #include "api/transport/ecn_marking.h"
 #include "api/transport/network_types.h"
@@ -37,6 +36,7 @@ TransportPacketsFeedback CreateFeedback(Timestamp feedback_time,
                                         TimeDelta smoothed_rtt,
                                         int number_of_ect1_packets,
                                         int number_of_packets_in_flight) {
+  int sequence_number = 0;
   TransportPacketsFeedback feedback;
   feedback.feedback_time = feedback_time;
   feedback.smoothed_rtt = smoothed_rtt;
@@ -50,6 +50,7 @@ TransportPacketsFeedback CreateFeedback(Timestamp feedback_time,
     result.sent_packet.size = kPacketSize;
     result.ecn = EcnMarking::kEct1;
     result.receive_time = send_time;
+    result.sent_packet.sequence_number = sequence_number++;
     feedback.packet_feedbacks.push_back(result);
   }
 
@@ -209,76 +210,134 @@ TEST(ScreamV2Test, CalculatesL4sAlpha) {
 struct AdaptsToLinkCapacityParams {
   SimulatedNetwork::Config network_config;
   bool send_as_ect1 = true;
-  TimeDelta expected_adaption_time;
+  TimeDelta adaption_time;
+  TimeDelta time_to_run_after_adaption_time = TimeDelta::Seconds(5);
 };
 
-class AdaptsToLinkCapacityTest
-    : public TestWithParam<AdaptsToLinkCapacityParams> {};
+struct AdaptsToLinkCapacityResult {
+  DataRate data_rate_after_adaption;
+  DataRate min_rate_after_adaption;
+  DataRate max_rate_after_adaption;
+  TimeDelta max_smoothed_rtt_after_adaptation = TimeDelta::Zero();
+};
 
-TEST_P(AdaptsToLinkCapacityTest, AdaptsToLinkCapacity) {
-  const AdaptsToLinkCapacityParams& params = GetParam();
+AdaptsToLinkCapacityResult RunAdaptToLinkCapacityTest(
+    const AdaptsToLinkCapacityParams& params) {
+  AdaptsToLinkCapacityResult result;
   const Timestamp kStartTime = Timestamp::Seconds(1'234);
   SimulatedClock clock(kStartTime);
   Environment env = CreateTestEnvironment({.time = &clock});
   ScreamV2 scream(env);
   CcFeedbackGenerator feedback_generator(
       {.network_config = params.network_config,
-       .send_as_ect1 = params.send_as_ect1});
+       .send_as_ect1 = params.send_as_ect1,
+       .packet_size = DataSize::Bytes(1000)});
 
   DataRate send_rate = DataRate::KilobitsPerSec(100);
-  while (clock.CurrentTime() < kStartTime + params.expected_adaption_time) {
+  while (clock.CurrentTime() < kStartTime + params.adaption_time) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
     send_rate = scream.OnTransportPacketsFeedback(feedback);
   }
+  result.data_rate_after_adaption = send_rate;
+  result.min_rate_after_adaption = send_rate;
+  result.max_rate_after_adaption = send_rate;
 
-  EXPECT_LT(send_rate, 1.1 * params.network_config.link_capacity);
-  EXPECT_GT(send_rate, 0.7 * params.network_config.link_capacity);
-
-  DataRate min_rate_after_adaption = send_rate;
-  DataRate max_rate_after_adaption = send_rate;
   Timestamp time_after_adaption = clock.CurrentTime();
-  while (clock.CurrentTime() < time_after_adaption + TimeDelta::Seconds(5)) {
+  while (clock.CurrentTime() <
+         time_after_adaption + params.time_to_run_after_adaption_time) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
     send_rate = scream.OnTransportPacketsFeedback(feedback);
-    min_rate_after_adaption = std::min(min_rate_after_adaption, send_rate);
-    max_rate_after_adaption = std::max(max_rate_after_adaption, send_rate);
+    result.min_rate_after_adaption =
+        std::min(result.min_rate_after_adaption, send_rate);
+    result.max_rate_after_adaption =
+        std::max(result.max_rate_after_adaption, send_rate);
+    result.max_smoothed_rtt_after_adaptation = std::max(
+        result.max_smoothed_rtt_after_adaptation, feedback.smoothed_rtt);
   }
-  EXPECT_LT(max_rate_after_adaption, 1.1 * params.network_config.link_capacity);
-  EXPECT_GT(min_rate_after_adaption, 0.7 * params.network_config.link_capacity);
-
-  RTC_LOG(LS_INFO) << " min_rate_after_adaption: " << min_rate_after_adaption
-                   << " max_rate_after_adaption: " << max_rate_after_adaption;
+  RTC_LOG(LS_INFO) << " rate_after_adaption " << result.data_rate_after_adaption
+                   << " max_rate_after_adaption: "
+                   << result.max_rate_after_adaption
+                   << " min_rate_after_adaption: "
+                   << result.min_rate_after_adaption;
+  return result;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ScreamV2Test,
-    AdaptsToLinkCapacityTest,
-    testing::Values(
-        // Adapt to link capacity using CE marks.
-        AdaptsToLinkCapacityParams{
-            .network_config = {.queue_delay_ms = 25,
-                               .link_capacity = DataRate::KilobitsPerSec(1000)},
-            .send_as_ect1 = true,
-            .expected_adaption_time = TimeDelta::Seconds(2),
-        },
-        AdaptsToLinkCapacityParams{
-            .network_config = {.queue_delay_ms = 50,
-                               .link_capacity = DataRate::KilobitsPerSec(5000)},
-            .send_as_ect1 = true,
-            .expected_adaption_time = TimeDelta::Seconds(10)}),
-    [](const testing::TestParamInfo<AdaptsToLinkCapacityParams>& info) {
-      const AdaptsToLinkCapacityParams& params = info.param;
-      return absl::StrCat(
-          "LinkCapacity", params.network_config.link_capacity.kbps(),
-          "kbps_Rtt", 2 * params.network_config.queue_delay_ms,
-          "ms_QueueLength",
-          (params.network_config.queue_length_packets == 0)
-              ? "Infinite"
-              : absl::StrCat(params.network_config.queue_length_packets),
-          "_SendAsEct", params.send_as_ect1 ? "1" : "0");
-    });
+TEST(ScreamV2Test, AdaptsToEcnLinkCapacity1Mbps) {
+  AdaptsToLinkCapacityParams params{
+      .network_config = {.queue_delay_ms = 25,
+                         .link_capacity = DataRate::KilobitsPerSec(1000)},
+      .send_as_ect1 = true,
+      .adaption_time = TimeDelta::Seconds(3)};
+  AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
+
+  EXPECT_LT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(1100));
+  EXPECT_GT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(650));
+  EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(1100));
+  EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(650));
+
+  EXPECT_LT(result.max_smoothed_rtt_after_adaptation,
+            TimeDelta::Millis(25 * 2 + 20));
+}
+
+TEST(ScreamV2Test, AdaptsToLossLinkCapacity5Mbps) {
+  AdaptsToLinkCapacityParams params{
+      .network_config = {.queue_length_packets = 3,
+                         .queue_delay_ms = 10,
+                         .link_capacity = DataRate::KilobitsPerSec(5000)},
+      .send_as_ect1 = false,  // Adapt only due to loss when queues overflow.
+      .adaption_time = TimeDelta::Seconds(10)};
+
+  AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
+
+  EXPECT_LT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(5200));
+  EXPECT_GT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(4000));
+  EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(5200));
+  EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(3500));
+
+  EXPECT_LT(result.max_smoothed_rtt_after_adaptation,
+            TimeDelta::Millis(10 * 2 + 40));
+}
+
+TEST(ScreamV2Test, AdaptsToDelayLinkCapacity2Mbps) {
+  // TODO: bugs.webrtc.org/447037083  - investigate why target rate and rtt vary
+  // much more if `queue_delay_ms` is set to 10ms.
+  AdaptsToLinkCapacityParams params{
+      .network_config = {.queue_delay_ms = 5,
+                         .link_capacity = DataRate::KilobitsPerSec(2000)},
+      .send_as_ect1 = false,  // Adapt only due to delay increase.
+      .adaption_time = TimeDelta::Seconds(3)};
+
+  AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
+
+  EXPECT_LT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(2100));
+  EXPECT_GT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(1700));
+  EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(2300));
+  EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(1700));
+
+  EXPECT_LT(result.max_smoothed_rtt_after_adaptation,
+            TimeDelta::Millis(10 * 2 + 50 + 10));
+}
+
+// TODO: bugs.webrtc.org/447037083 - implement support for resetting base delay
+// if a standing queue has been build up.
+// https://github.com/EricssonResearch/scream/blob/master/code/ScreamV2Tx.cpp#L1127
+TEST(ScreamV2Test, DISABLED_AdaptsToDelayLinkCapacity2MbpsLongRunning) {
+  AdaptsToLinkCapacityParams params{
+      .network_config = {.queue_delay_ms = 10,
+                         .link_capacity = DataRate::KilobitsPerSec(2000)},
+      .send_as_ect1 = false,  // Adapt only due to delay increase.
+      .adaption_time = TimeDelta::Seconds(3),
+      .time_to_run_after_adaption_time = TimeDelta::Minutes(15)};
+
+  AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
+
+  EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(2300));
+  EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(1700));
+  EXPECT_LT(result.max_smoothed_rtt_after_adaptation,
+            TimeDelta::Millis(10 * 2 + 50 + 10));
+}
 
 }  // namespace
 }  // namespace webrtc

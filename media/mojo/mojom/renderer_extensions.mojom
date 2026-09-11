@@ -51,6 +51,10 @@ struct FramePoolInitializationParameters {
 // that the MediaFoundationRenderer can signal to the video stream sink that
 // the specific texture is ready to be displayed.
 interface MediaFoundationRendererClientExtension {
+<<<<<<< HEAD
+  // TODO(448103582): This is referenced in lots of places, so will remove
+  // separately.
+=======
   // Provide the GPU textures (ID3D11Texture2D) to the
   // MediaFoundationRendererClient with the associated token so that the
   // MediaFoundationRendererClient can create the shared images in the GPU
@@ -107,6 +111,7 @@ interface StarboardRendererClientExtension {
 enum MediaFoundationRenderingMode {
   DirectComposition,
   FrameServer
+>>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 [EnableIf=is_win]
@@ -134,17 +139,6 @@ interface MediaFoundationRendererExtension {
   // output area.). In case of failure, caller should not use the `rect` for
   // further operations.
   SetOutputRect(gfx.mojom.Rect rect) => (bool success);
-
-  // Notify that the frame has been displayed and can be reused.
-  NotifyFrameReleased(mojo_base.mojom.UnguessableToken frame_token);
-
-  // Request a frame from the media engine if it is available
-  // The frame will be returned async via the
-  // MediaFoundationRendererClientExtension::OnFrameAvailable callback.
-  RequestNextFrame();
-
-  // Notify which rendering mode to be using for future video frames.
-  SetMediaFoundationRenderingMode(MediaFoundationRenderingMode mode);
 };
 
 [EnableIf=use_starboard_media]

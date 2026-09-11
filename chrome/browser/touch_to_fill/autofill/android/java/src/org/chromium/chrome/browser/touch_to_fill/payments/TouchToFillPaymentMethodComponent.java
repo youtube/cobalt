@@ -14,6 +14,7 @@ import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.LoyaltyCard;
+import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 
 import java.util.List;
@@ -142,11 +143,11 @@ interface TouchToFillPaymentMethodComponent {
     /**
      * Displays a new BNPL issuers bottom sheet.
      *
-     * @param bnplIssuers A list of {@link PersonalDataManager.BnplIssuer} objects, each
-     *     representing a BNPL issuer, to be displayed on the bottom sheet for the user to select
-     *     from.
+     * @param bnplIssuerContexts A list of {@link PersonalDataManager.BnplIssuerContext} objects,
+     *     each representing a BNPL issuer context, to be displayed on the bottom sheet for the user
+     *     to select from.
      */
-    void showBnplIssuers(List<PersonalDataManager.BnplIssuer> bnplIssuers);
+    void showBnplIssuers(List<PersonalDataManager.BnplIssuerContext> bnplIssuerContexts);
 
     /**
      * Displays an error screen bottom sheet.
@@ -155,6 +156,13 @@ interface TouchToFillPaymentMethodComponent {
      * @param description The description to be displayed on the error screen.
      */
     void showErrorScreen(String title, String description);
+
+    /**
+     * Displays a new BNPL issuer ToS bottom sheet.
+     *
+     * @param bnplIssuerTosDetail The struct that holds info for showing the ToS screen.
+     */
+    void showBnplIssuerTos(BnplIssuerTosDetail bnplIssuerTosDetail);
 
     /** Hides the bottom sheet if shown. */
     void hideSheet();

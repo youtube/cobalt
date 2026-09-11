@@ -308,7 +308,8 @@ class Builtins {
   V8_EXPORT_PRIVATE Tagged<Code> code(Builtin builtin);
   V8_EXPORT_PRIVATE Handle<Code> code_handle(Builtin builtin);
 
-  static CallInterfaceDescriptor CallInterfaceDescriptorFor(Builtin builtin);
+  V8_EXPORT_PRIVATE static CallInterfaceDescriptor CallInterfaceDescriptorFor(
+      Builtin builtin);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate,
                                                 Builtin builtin);
   V8_EXPORT_PRIVATE static bool HasJSLinkage(Builtin builtin);
@@ -532,6 +533,19 @@ class Builtins {
   };
   using JSBuiltinStateFlags = base::Flags<JSBuiltinStateFlag>;
   static JSBuiltinStateFlags GetJSBuiltinState(Builtin builtin);
+
+  // Returns true for disabled builtins with JS linkage (all non-JS builtins
+  // are considered enabled).
+  static bool IsDisabled(Builtin builtin) {
+    auto flags = Builtins::GetJSBuiltinState(builtin);
+    DCHECK_EQ(Builtins::HasJSLinkage(builtin),
+              !(flags & Builtins::JSBuiltinStateFlag::kNonJSLinkage));
+    if (!(flags & Builtins::JSBuiltinStateFlag::kNonJSLinkage) &&
+        !(flags & Builtins::JSBuiltinStateFlag::kEnabled)) {
+      return true;
+    }
+    return false;
+  }
 
 #ifdef DEBUG
   // Verify correctness of GetJSBuiltinState() which has to be maintained

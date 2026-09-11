@@ -1226,6 +1226,24 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // Dtor protected as objects shouldn't be deleted via this interface.
   ~PeerConnectionInterface() override = default;
 };
+
+template <typename Sink>
+void AbslStringify(Sink& sink, PeerConnectionInterface::SignalingState state) {
+  sink.Append(PeerConnectionInterface::AsString(state));
+}
+
+template <typename Sink>
+void AbslStringify(Sink& sink,
+                   PeerConnectionInterface::IceGatheringState state) {
+  sink.Append(PeerConnectionInterface::AsString(state));
+}
+
+template <typename Sink>
+void AbslStringify(Sink& sink,
+                   PeerConnectionInterface::PeerConnectionState state) {
+  sink.Append(PeerConnectionInterface::AsString(state));
+}
+
 template <typename Sink>
 void AbslStringify(Sink& sink,
                    PeerConnectionInterface::IceConnectionState state) {

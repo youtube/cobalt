@@ -734,7 +734,6 @@ void SendStatisticsProxy::OnEncodedFrameTimeMeasured(int encode_time_ms,
                                                      int encode_usage_percent) {
   RTC_DCHECK_GE(encode_time_ms, 0);
   MutexLock lock(&mutex_);
-  uma_container_->encode_time_counter_.Add(encode_time_ms);
   encode_time_.Apply(1.0f, encode_time_ms);
   stats_.avg_encode_time_ms = std::round(encode_time_.filtered());
   stats_.total_encode_time_ms += encode_time_ms;
@@ -804,6 +803,9 @@ VideoSendStream::Stats SendStatisticsProxy::GetStats() {
 void SendStatisticsProxy::SetStats(const VideoSendStream::Stats& stats) {
   MutexLock lock(&mutex_);
   stats_ = stats;
+  quality_limitation_reason_tracker_.SetReason(stats.quality_limitation_reason);
+  quality_limitation_reason_tracker_.SetDurationMs(
+      stats.quality_limitation_durations_ms);
 }
 
 void SendStatisticsProxy::PurgeOldStats() {
@@ -1012,8 +1014,10 @@ void SendStatisticsProxy::OnSendEncodedImage(
   Trackers& track = trackers_[ssrc];
 
   stats->frames_encoded++;
-  stats->total_encode_time_ms += encoded_image.timing_.encode_finish_ms -
-                                 encoded_image.timing_.encode_start_ms;
+  int64_t encode_time_ms = encoded_image.timing_.encode_finish_ms -
+                           encoded_image.timing_.encode_start_ms;
+  stats->total_encode_time_ms += encode_time_ms;
+  uma_container_->encode_time_counter_.Add(encode_time_ms);
   stats->scalability_mode =
       codec_info ? codec_info->scalability_mode : std::nullopt;
   // Report resolution of the top spatial layer.

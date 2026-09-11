@@ -2636,8 +2636,10 @@ void DidCloseFedCmDialog(RenderFrameHost& render_frame_host) {
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
-void WillSendFedCmNetworkRequest(FrameTreeNodeId frame_tree_node_id,
-                                 const network::ResourceRequest& request) {
+void WillSendFedCmNetworkRequest(
+    FrameTreeNodeId frame_tree_node_id,
+    const network::ResourceRequest& request,
+    const std::optional<std::string>& request_body) {
   FrameTreeNode* ftn = FrameTreeNode::GloballyFindByID(frame_tree_node_id);
   if (!ftn) {
     return;
@@ -2659,15 +2661,11 @@ void WillSendFedCmNetworkRequest(FrameTreeNodeId frame_tree_node_id,
     initiator_url = request.request_initiator->GetURL();
   }
 
-  network::mojom::URLRequestDevToolsInfoPtr request_info =
-      network::ExtractDevToolsInfo(request);
-
-  DispatchToAgents(frame_tree_node_id, &protocol::NetworkHandler::RequestSent,
+  DispatchToAgents(frame_tree_node_id,
+                   &protocol::NetworkHandler::FedCmRequestWillBeSent,
                    request.devtools_request_id.value(),
-                   loader_id.value().ToString(), request.headers, *request_info,
-                   protocol::Network::ResourceTypeEnum::FedCM, initiator_url,
-                   /*initiator_devtools_request_id=*/"", frame_token,
-                   base::TimeTicks::Now());
+                   loader_id.value().ToString(), request, request_body,
+                   initiator_url, frame_token, base::TimeTicks::Now());
 }
 
 void DidReceiveFedCmNetworkResponse(

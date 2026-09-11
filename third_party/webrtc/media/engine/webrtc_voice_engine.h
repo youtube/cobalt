@@ -19,7 +19,6 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -66,6 +65,7 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/system/file_wrapper.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
@@ -158,21 +158,24 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
 
   // The audio device module.
   const scoped_refptr<AudioDeviceModule> adm_;
-  scoped_refptr<AudioEncoderFactory> encoder_factory_;
-  scoped_refptr<AudioDecoderFactory> decoder_factory_;
+  const scoped_refptr<AudioEncoderFactory> encoder_factory_;
+  const scoped_refptr<AudioDecoderFactory> decoder_factory_;
   // The audio processing module.
-  scoped_refptr<AudioProcessing> apm_;
+  scoped_refptr<AudioProcessing> apm_ RTC_GUARDED_BY(worker_thread_checker_);
   // The primary instance of WebRtc VoiceEngine.
-  scoped_refptr<AudioState> audio_state_;
+  scoped_refptr<AudioState> audio_state_ RTC_GUARDED_BY(worker_thread_checker_);
   const std::vector<Codec> legacy_send_codecs_;
   const std::vector<Codec> legacy_recv_codecs_;
-  bool is_dumping_aec_ = false;
-  bool initialized_ = false;
+  bool is_dumping_aec_ RTC_GUARDED_BY(worker_thread_checker_) = false;
+  bool initialized_ RTC_GUARDED_BY(worker_thread_checker_) = false;
 
   // Jitter buffer settings for new streams.
-  size_t audio_jitter_buffer_max_packets_ = 200;
-  bool audio_jitter_buffer_fast_accelerate_ = false;
-  int audio_jitter_buffer_min_delay_ms_ = 0;
+  size_t audio_jitter_buffer_max_packets_
+      RTC_GUARDED_BY(worker_thread_checker_) = 200;
+  bool audio_jitter_buffer_fast_accelerate_
+      RTC_GUARDED_BY(worker_thread_checker_) = false;
+  int audio_jitter_buffer_min_delay_ms_ RTC_GUARDED_BY(worker_thread_checker_) =
+      0;
 };
 
 class WebRtcVoiceSendChannel final : public MediaChannelUtil,
@@ -258,24 +261,12 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
       uint32_t ssrc,
       scoped_refptr<FrameTransformerInterface> frame_transformer) override;
 
-  bool SenderNackEnabled() const override {
-    if (!send_codec_spec_) {
-      return false;
-    }
-    return send_codec_spec_->nack_enabled;
-  }
-  bool SenderNonSenderRttEnabled() const override {
-    if (!send_codec_spec_) {
-      return false;
-    }
-    return send_codec_spec_->enable_non_sender_rtt;
-  }
+  bool SenderNackEnabled() const override;
+  bool SenderNonSenderRttEnabled() const override;
   bool SendCodecHasNack() const override { return SenderNackEnabled(); }
 
   void SetSendCodecChangedCallback(
-      absl::AnyInvocable<void()> callback) override {
-    send_codec_changed_callback_ = std::move(callback);
-  }
+      absl::AnyInvocable<void()> callback) override;
 
  private:
   bool SetOptions(const AudioOptions& options);
@@ -287,6 +278,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   WebRtcVoiceEngine* engine() { return engine_; }
   bool SetMaxSendBitrate(int bps);
   void SetupRecording();
+  void FillSendCodecStats(VoiceMediaSendInfo* voice_media_info);
 
   const Environment env_;
   TaskQueueBase* const worker_thread_;
@@ -294,27 +286,29 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   SequenceChecker network_thread_checker_{SequenceChecker::kDetached};
 
   WebRtcVoiceEngine* const engine_ = nullptr;
-  std::vector<Codec> send_codecs_;
+  std::vector<Codec> send_codecs_ RTC_GUARDED_BY(worker_thread_);
 
-  int max_send_bitrate_bps_ = 0;
-  AudioOptions options_;
-  std::optional<int> dtmf_payload_type_;
-  int dtmf_payload_freq_ = -1;
-  bool enable_non_sender_rtt_ = false;
-  bool send_ = false;
+  int max_send_bitrate_bps_ RTC_GUARDED_BY(worker_thread_) = 0;
+  AudioOptions options_ RTC_GUARDED_BY(worker_thread_);
+  std::optional<int> dtmf_payload_type_ RTC_GUARDED_BY(worker_thread_);
+  int dtmf_payload_freq_ RTC_GUARDED_BY(worker_thread_) = -1;
+  bool enable_non_sender_rtt_ RTC_GUARDED_BY(worker_thread_) = false;
+  bool send_ RTC_GUARDED_BY(worker_thread_) = false;
   Call* const call_ = nullptr;
 
   const MediaConfig::Audio audio_config_;
 
   class WebRtcAudioSendStream;
+  std::map<uint32_t, WebRtcAudioSendStream*> send_streams_
+      RTC_GUARDED_BY(worker_thread_);
+  std::vector<RtpExtension> send_rtp_extensions_ RTC_GUARDED_BY(worker_thread_);
+  std::optional<RtcpFeedbackType> rtcp_cc_ack_type_
+      RTC_GUARDED_BY(worker_thread_);
+  std::string mid_ RTC_GUARDED_BY(worker_thread_);
+  RtcpMode rtcp_mode_ RTC_GUARDED_BY(worker_thread_);
 
-  std::map<uint32_t, WebRtcAudioSendStream*> send_streams_;
-  std::vector<RtpExtension> send_rtp_extensions_;
-  std::optional<RtcpFeedbackType> rtcp_cc_ack_type_;
-  std::string mid_;
-  RtcpMode rtcp_mode_;
-
-  std::optional<AudioSendStream::Config::SendCodecSpec> send_codec_spec_;
+  std::optional<AudioSendStream::Config::SendCodecSpec> send_codec_spec_
+      RTC_GUARDED_BY(worker_thread_);
 
   // TODO(kwiberg): Per-SSRC codec pair IDs?
   const AudioCodecPairId codec_pair_id_;
@@ -322,16 +316,16 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   // Per peer connection crypto options that last for the lifetime of the peer
   // connection.
   const CryptoOptions crypto_options_;
-  scoped_refptr<FrameTransformerInterface> unsignaled_frame_transformer_;
-
-  void FillSendCodecStats(VoiceMediaSendInfo* voice_media_info);
+  scoped_refptr<FrameTransformerInterface> unsignaled_frame_transformer_
+      RTC_GUARDED_BY(worker_thread_);
 
   // Callback invoked whenever the send codec changes.
   // TODO(bugs.webrtc.org/13931): Remove again when coupling isn't needed.
-  absl::AnyInvocable<void()> send_codec_changed_callback_;
+  absl::AnyInvocable<void()> send_codec_changed_callback_
+      RTC_GUARDED_BY(worker_thread_);
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
-      ssrc_list_changed_callback_;
+      ssrc_list_changed_callback_ RTC_GUARDED_BY(worker_thread_);
 };
 
 class WebRtcVoiceReceiveChannel final
@@ -416,8 +410,8 @@ class WebRtcVoiceReceiveChannel final
       uint32_t ssrc,
       scoped_refptr<FrameTransformerInterface> frame_transformer) override;
 
-  ::webrtc::RtcpMode RtcpMode() const override { return recv_rtcp_mode_; }
-  void SetRtcpMode(::webrtc::RtcpMode mode) override;
+  enum RtcpMode RtcpMode() const override;
+  void SetRtcpMode(enum RtcpMode mode) override;
   void SetReceiveNackEnabled(bool enabled) override;
   void SetReceiveNonSenderRttEnabled(bool enabled) override;
 
@@ -437,6 +431,7 @@ class WebRtcVoiceReceiveChannel final
   // Check if 'ssrc' is an unsignaled stream, and if so mark it as not being
   // unsignaled anymore (i.e. it is now removed, or signaled), and return true.
   bool MaybeDeregisterUnsignaledRecvStream(uint32_t ssrc);
+  void FillReceiveCodecStats(VoiceMediaReceiveInfo* voice_media_info);
 
   const Environment env_;
   TaskQueueBase* const worker_thread_;
@@ -447,49 +442,52 @@ class WebRtcVoiceReceiveChannel final
 
   // TODO(kwiberg): decoder_map_ and recv_codecs_ store the exact same
   // information, in slightly different formats. Eliminate recv_codecs_.
-  std::map<int, SdpAudioFormat> decoder_map_;
-  std::vector<Codec> recv_codecs_;
+  std::map<int, SdpAudioFormat> decoder_map_ RTC_GUARDED_BY(worker_thread_);
+  std::vector<Codec> recv_codecs_ RTC_GUARDED_BY(worker_thread_);
 
-  AudioOptions options_;
-  bool recv_nack_enabled_ = false;
-  ::webrtc::RtcpMode recv_rtcp_mode_ = RtcpMode::kCompound;
-  bool enable_non_sender_rtt_ = false;
-  bool playout_ = false;
+  AudioOptions options_ RTC_GUARDED_BY(worker_thread_);
+  bool recv_nack_enabled_ RTC_GUARDED_BY(worker_thread_) = false;
+  enum RtcpMode recv_rtcp_mode_ RTC_GUARDED_BY(worker_thread_) =
+      RtcpMode::kCompound;
+  bool enable_non_sender_rtt_ RTC_GUARDED_BY(worker_thread_) = false;
+  bool playout_ RTC_GUARDED_BY(worker_thread_) = false;
   Call* const call_ = nullptr;
 
   const MediaConfig::Audio audio_config_;
 
   // Queue of unsignaled SSRCs; oldest at the beginning.
-  std::vector<uint32_t> unsignaled_recv_ssrcs_;
+  std::vector<uint32_t> unsignaled_recv_ssrcs_ RTC_GUARDED_BY(worker_thread_);
 
   // This is a stream param that comes from the remote description, but wasn't
   // signaled with any a=ssrc lines. It holds the information that was signaled
   // before the unsignaled receive stream is created when the first packet is
   // received.
-  StreamParams unsignaled_stream_params_;
+  StreamParams unsignaled_stream_params_ RTC_GUARDED_BY(worker_thread_);
 
   // Volume for unsignaled streams, which may be set before the stream exists.
-  double default_recv_volume_ = 1.0;
+  double default_recv_volume_ RTC_GUARDED_BY(worker_thread_) = 1.0;
 
   // Delay for unsignaled streams, which may be set before the stream exists.
-  int default_recv_base_minimum_delay_ms_ = 0;
+  int default_recv_base_minimum_delay_ms_ RTC_GUARDED_BY(worker_thread_) = 0;
 
   // Sink for latest unsignaled stream - may be set before the stream exists.
-  std::unique_ptr<AudioSinkInterface> default_sink_;
+  std::unique_ptr<AudioSinkInterface> default_sink_
+      RTC_GUARDED_BY(worker_thread_);
   // Default SSRC to use for RTCP receiver reports in case of no signaled
   // send streams. See: https://code.google.com/p/webrtc/issues/detail?id=4740
   // and https://code.google.com/p/chromium/issues/detail?id=547661
-  uint32_t receiver_reports_ssrc_ = 0xFA17FA17u;
+  uint32_t receiver_reports_ssrc_ RTC_GUARDED_BY(worker_thread_) = 0xFA17FA17u;
 
-  std::string mid_;
+  std::string mid_ RTC_GUARDED_BY(worker_thread_);
 
   class WebRtcAudioReceiveStream;
+  std::map<uint32_t, WebRtcAudioReceiveStream*> recv_streams_
+      RTC_GUARDED_BY(worker_thread_);
+  std::vector<RtpExtension> recv_rtp_extensions_ RTC_GUARDED_BY(worker_thread_);
+  RtpHeaderExtensionMap recv_rtp_extension_map_ RTC_GUARDED_BY(worker_thread_);
 
-  std::map<uint32_t, WebRtcAudioReceiveStream*> recv_streams_;
-  std::vector<RtpExtension> recv_rtp_extensions_;
-  RtpHeaderExtensionMap recv_rtp_extension_map_;
-
-  std::optional<AudioSendStream::Config::SendCodecSpec> send_codec_spec_;
+  std::optional<AudioSendStream::Config::SendCodecSpec> send_codec_spec_
+      RTC_GUARDED_BY(worker_thread_);
 
   // TODO(kwiberg): Per-SSRC codec pair IDs?
   const AudioCodecPairId codec_pair_id_;
@@ -498,10 +496,10 @@ class WebRtcVoiceReceiveChannel final
   // connection.
   const CryptoOptions crypto_options_;
   // Unsignaled streams have an option to have a frame decryptor set on them.
-  scoped_refptr<FrameDecryptorInterface> unsignaled_frame_decryptor_;
-  scoped_refptr<FrameTransformerInterface> unsignaled_frame_transformer_;
-
-  void FillReceiveCodecStats(VoiceMediaReceiveInfo* voice_media_info);
+  scoped_refptr<FrameDecryptorInterface> unsignaled_frame_decryptor_
+      RTC_GUARDED_BY(worker_thread_);
+  scoped_refptr<FrameTransformerInterface> unsignaled_frame_transformer_
+      RTC_GUARDED_BY(worker_thread_);
 };
 
 }  //  namespace webrtc

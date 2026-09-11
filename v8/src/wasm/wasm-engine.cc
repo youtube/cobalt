@@ -847,7 +847,7 @@ void WasmEngine::AsyncCompile(
       isolate, enabled, std::move(compile_imports), std::move(bytes),
       isolate->native_context(), api_method_name_for_errors,
       std::move(resolver), compilation_id);
-  job->Start();
+  job->StartAsyncDecoding();
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
@@ -1631,15 +1631,15 @@ void WasmEngine::UseNativeModuleInIsolate(NativeModule* native_module,
 
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-    const CompileTimeImports& compile_imports, Isolate* isolate) {
+    const CompileTimeImports& compile_imports) {
   TRACE_EVENT1("v8.wasm", "wasm.GetNativeModuleFromCache", "wire_bytes",
                wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes,
                                                 compile_imports);
   if (native_module) {
+    // Create a marker in the trace.
     TRACE_EVENT0("v8.wasm", "CacheHit");
-    UseNativeModuleInIsolate(native_module.get(), isolate);
   }
   return native_module;
 }
@@ -1652,27 +1652,8 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
   void* prev = native_module.get();
   native_module =
       native_module_cache_.Update(std::move(native_module), has_error);
-  if (prev == native_module.get()) return native_module;
-  bool remove_all_code = false;
-  {
-    base::MutexGuard guard(&mutex_);
-    DCHECK(native_modules_.contains(native_module.get()));
-    native_modules_[native_module.get()]->isolates.insert(isolate);
-    DCHECK(isolates_.contains(isolate));
-    auto* isolate_data = isolates_[isolate].get();
-    isolate_data->native_modules.insert(native_module.get());
-    if (isolate_data->keep_in_debug_state && !native_module->IsInDebugState()) {
-      remove_all_code = true;
-      native_module->SetDebugState(kDebugging);
-    }
-    if (isolate_data->log_codes && !native_module->log_code()) {
-      EnableCodeLogging(native_module.get());
-    }
-  }
-  if (remove_all_code) {
-    WasmCodeRefScope ref_scope;
-    native_module->RemoveCompiledCode(
-        NativeModule::RemoveFilter::kRemoveNonDebugCode);
+  if (prev != native_module.get()) {
+    UseNativeModuleInIsolate(native_module.get(), isolate);
   }
   return native_module;
 }
