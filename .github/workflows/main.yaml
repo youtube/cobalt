@@ -162,6 +162,13 @@ jobs:
           set -x
           test_e2e=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_e2e')
           echo "test_e2e=${test_e2e}" >> "${GITHUB_OUTPUT}"
+      - name: Set Linux E2E tests
+        id: set-test-linux-e2e
+        shell: bash
+        run: |
+          set -x
+          test_linux_e2e=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_linux_e2e // false')
+          echo "test_linux_e2e=${test_linux_e2e}" >> "${GITHUB_OUTPUT}"
       - name: Set YTS tests
         id: set-test-yts
         shell: bash
@@ -368,6 +375,7 @@ jobs:
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
       test_package: ${{ steps.set-test-package.outputs.test_package }}
       test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
+      test_linux_e2e: ${{ steps.set-test-linux-e2e.outputs.test_linux_e2e }}
       test_yts: ${{ steps.set-test-yts.outputs.test_yts }}
       test_yts_playback: ${{ steps.set-test-yts-playback.outputs.test_yts_playback }}
       test_browser: ${{ steps.set-test-browser.outputs.test_browser }}
@@ -415,7 +423,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.test_linux_e2e == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -567,6 +575,35 @@ jobs:
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
+
+      - name: Archive Linux E2E Test Artifacts
+        if: (matrix.config == 'qa' || matrix.config == 'devel') && needs.initialize.outputs.test_linux_e2e == 'true'
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
+        run: |
+          set -x
+          mkdir -p "${GITHUB_WORKSPACE}/artifacts"
+          cd cobalt/src
+          python3 ./cobalt/build/archive_test_artifacts.py \
+            --source-dir . \
+            --out-dir "out/${PLATFORM}_${CONFIG}" \
+            --destination-dir "${GITHUB_WORKSPACE}/artifacts" \
+            --targets //cobalt:cobalt_loader \
+            --compression zstd --compression-level=1
+          if [ -f "${GITHUB_WORKSPACE}/artifacts/test_artifacts.tar.zstd" ]; then
+            mv "${GITHUB_WORKSPACE}/artifacts/test_artifacts.tar.zstd" "${GITHUB_WORKSPACE}/artifacts/e2e_artifacts.tar.zstd"
+          fi
+
+
+      - name: Upload Linux E2E Test Artifacts
+        if: (matrix.config == 'qa' || matrix.config == 'devel') && needs.initialize.outputs.test_linux_e2e == 'true'
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: ${{ matrix.platform }}_${{ matrix.name }}_${{ matrix.config }}_e2e_artifacts
+          path: artifacts/e2e_artifacts.tar.zstd
+          retention-days: 3
 
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
@@ -743,6 +780,35 @@ jobs:
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
+
+  linux-e2e-test:
+    needs: [initialize, build, docker-unittest-image]
+    if: needs.initialize.outputs.test_linux_e2e == 'true'
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_${{ matrix.config }}_linux_e2e_tests
+    container:
+      image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [qa, devel]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Run Linux E2E Tests
+        uses: ./.github/actions/linux_e2e_tests
+        with:
+          test_artifacts_key: ${{ matrix.platform }}_${{ matrix.name }}_${{ matrix.config }}_e2e_artifacts
+          test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_${{ matrix.config }}_e2e_results
+          platform: ${{ matrix.platform }}
+          config: ${{ matrix.config }}
+
 
   yts-wpt-test:
     needs: [initialize, build]
@@ -1059,6 +1125,7 @@ jobs:
       - e2e-test
       - yts-test
       - browser-test-on-host
+      - linux-e2e-test
     if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest

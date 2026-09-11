@@ -96,8 +96,9 @@ unit tests in the `cobalt_unittests` binary:
 
 ### Integration Testing
 
-A robust integration test is provided in `cobalt/tools/test_preload.sh`. This
-test:
+A robust integration test is provided in `cobalt/tools/test_lifecycle_e2e.py`
+(see `cobalt/tools/linux_e2e_tests.md`). This test:
+
 
 1.  Launches Cobalt in preload mode.
 2.  Uses the Chrome DevTools Protocol (CDP) to verify that
