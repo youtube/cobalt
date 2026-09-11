@@ -1,2 +1,0 @@
-
-uniform float x;
