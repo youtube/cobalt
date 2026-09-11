@@ -1,7 +1,0 @@
-{
-  "failing_tests": [
-    "ZlibTest.GzipWrapper",
-    "ZlibTest.LargePayloads",
-    "ZlibTest.RawWrapper"
-  ]
-}

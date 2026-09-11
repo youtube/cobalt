@@ -1,0 +1,2 @@
+-CobaltWebContentsObserverTest.NoErrorOnSuccessfulNavigation
+-HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly
