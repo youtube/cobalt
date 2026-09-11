@@ -1,0 +1,6 @@
+[2026-09-01 01:28:54:229 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]: =================================================================
+[2026-09-01 01:28:54:230 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]: ==2001==ERROR: AddressSanitizer: heap-use-after-free on address 0x602000000010 at pc 0x7f48e7a45120
+[2026-09-01 01:28:54:231 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]: [loader_app] Load start=0x7f48e7a44000
+[2026-09-01 01:28:54:232 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]:     #0 0x7f48e7a45120  (<unknown module>)
+[2026-09-01 01:28:54:233 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]:     #1 0x7f48e7a46234  (<unknown module>)
+[2026-09-01 01:28:54:234 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]: =================================================================

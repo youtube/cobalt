@@ -1,0 +1,10 @@
+=================================================================
+==19283==ERROR: AddressSanitizer: SEGV on unknown address 0x000000000000 (pc 0x7f48e7a45120 bp 0x7ffe5d1b3290 sp 0x7ffe5d1b3288 T0)
+[loader_app/19283:0909/002303.151756(UTC):INFO:program_table.cc(426)] Load start=0x7f48e7a44000 base_memory_address=0x7f48e7a44000
+    #0 0x7f48e7a45120  (<unknown module>)
+    #1 0x7f48e7a46234  (<unknown module>)
+    #2 0x7f48e7a47345  (<unknown module>)
+    #3 0x564821e3cf8c  (/home/user/cobalt/src/out/evergreen-x64_devel/loader_app+0x12cf8c)
+    #4 0x7f495c0330d7  (/lib/x86_64-linux-gnu/libc.so.6+0x240d7)
+SUMMARY: AddressSanitizer: SEGV (<unknown module>)
+=================================================================

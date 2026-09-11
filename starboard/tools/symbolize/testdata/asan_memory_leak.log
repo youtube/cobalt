@@ -1,0 +1,16 @@
+=================================================================
+==28491==ERROR: LeakSanitizer: detected memory leaks
+
+Direct leak of 128 byte(s) in 1 object(s) allocated from:
+    #0 0x7f8b248a1567 in malloc /build/llvm/projects/compiler-rt/lib/asan/asan_malloc_linux.cpp:145
+    #1 0x7f8b22c01122 in cobalt::loader::ResourceCache::Store(std::string const&, void*) /home/user/cobalt/src/out/Release/../../cobalt/loader/resource_cache.cc:64:18
+    #2 0x7f8b21856712 in cobalt::network::URLFetcher::OnReadCompleted() /home/user/cobalt/src/out/Release/../../cobalt/network/url_fetcher.cc:210:9
+    #3 0x564821e3cf8c in SbEventHandle /home/user/cobalt/src/starboard/shared/starboard/application.cc:350:7
+
+Indirect leak of 256 byte(s) in 2 object(s) allocated from:
+    #0 0x7f8b248a1567 in malloc /build/llvm/projects/compiler-rt/lib/asan/asan_malloc_linux.cpp:145
+    #1 0x7f8b22c02345 in cobalt::loader::ResourceCacheEntry::ResourceCacheEntry() /home/user/cobalt/src/out/Release/../../cobalt/loader/resource_cache_entry.cc:25:7
+    #2 0x7f8b22c01150 in cobalt::loader::ResourceCache::Store(std::string const&, void*) /home/user/cobalt/src/out/Release/../../cobalt/loader/resource_cache.cc:70:12
+
+SUMMARY: AddressSanitizer: 384 byte(s) leaked in 3 allocation(s).
+=================================================================
