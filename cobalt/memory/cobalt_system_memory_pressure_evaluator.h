@@ -33,25 +33,17 @@ namespace switches {
 inline constexpr char kProcessMemoryBudgetMB[] = "process-memory-budget-mb";
 }  // namespace switches
 
-// Dual-heuristic memory pressure evaluator for Cobalt on Linux, RDK, and
-// Starboard platforms.
+// Process-budget memory pressure evaluator unified across all Cobalt platforms
+// (Starboard/Evergreen, Android TV).
 //
-// Primary Heuristic (Process-Budget):
-//   Evaluates Cobalt's own private anonymous footprint against a target
-//   process memory budget. Casts MODERATE at 85% of budget and CRITICAL at 95%.
-//
-// Secondary Heuristic (System-Available):
-//   Evaluates global OS available memory via /proc/meminfo. Casts MODERATE when
-//   available memory drops below 30% and CRITICAL when below 15%.
-//
-// The effective vote is std::max(process_level, system_level).
+// Evaluates Cobalt's own private anonymous footprint against a target
+// process memory budget (expanded dynamically by active media buffer
+// allowance). Casts MODERATE at 85% of budget and CRITICAL at 95%.
 class CobaltSystemMemoryPressureEvaluator
     : public ::memory_pressure::SystemMemoryPressureEvaluator {
  public:
-  static constexpr float kDefaultModerateMemoryFraction = 0.30f;
-  static constexpr float kDefaultCriticalMemoryFraction = 0.15f;
-  static constexpr float kDefaultModerateBudgetRatio = 0.85f;
-  static constexpr float kDefaultCriticalBudgetRatio = 0.95f;
+  static constexpr float kDefaultModerateProcessMemoryFraction = 0.85f;
+  static constexpr float kDefaultCriticalProcessMemoryFraction = 0.95f;
   static constexpr int kDefaultBudgetMbLowEnd = 180;
   static constexpr int kDefaultBudgetMbStandard = 200;
   static constexpr base::TimeDelta kDefaultPollInterval = base::Seconds(5);
@@ -59,8 +51,6 @@ class CobaltSystemMemoryPressureEvaluator
 
   using ProcessMemoryInfoGetter = base::RepeatingCallback<
       base::expected<base::ProcessMemoryInfo, base::ProcessUsageError>()>;
-  using SystemMemoryInfoGetter =
-      base::RepeatingCallback<bool(base::SystemMemoryInfoKB*)>;
   using MediaAllowanceGetter = base::RepeatingCallback<uint64_t()>;
 
   explicit CobaltSystemMemoryPressureEvaluator(
@@ -72,25 +62,19 @@ class CobaltSystemMemoryPressureEvaluator
   CobaltSystemMemoryPressureEvaluator(
       std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
       ProcessMemoryInfoGetter process_memory_info_getter,
-      SystemMemoryInfoGetter system_memory_info_getter,
       MediaAllowanceGetter media_allowance_getter,
       uint64_t process_memory_budget_bytes,
-      float moderate_budget_ratio,
-      float critical_budget_ratio,
-      float moderate_system_fraction,
-      float critical_system_fraction,
+      float moderate_process_memory_fraction,
+      float critical_process_memory_fraction,
       base::TimeDelta poll_interval,
       base::TimeDelta cooldown);
 
   CobaltSystemMemoryPressureEvaluator(
       std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
       ProcessMemoryInfoGetter process_memory_info_getter,
-      SystemMemoryInfoGetter system_memory_info_getter,
       uint64_t process_memory_budget_bytes,
-      float moderate_budget_ratio,
-      float critical_budget_ratio,
-      float moderate_system_fraction,
-      float critical_system_fraction,
+      float moderate_process_memory_fraction,
+      float critical_process_memory_fraction,
       base::TimeDelta poll_interval,
       base::TimeDelta cooldown);
 
@@ -108,13 +92,7 @@ class CobaltSystemMemoryPressureEvaluator
   void Stop();
 
   base::MemoryPressureListener::MemoryPressureLevel
-  CalculateCurrentPressureLevel();
-
-  base::MemoryPressureListener::MemoryPressureLevel
-  CalculateProcessPressureLevel();
-
-  base::MemoryPressureListener::MemoryPressureLevel
-  CalculateSystemPressureLevel();
+  CalculateCurrentMemoryPressureLevel();
 
   uint64_t process_memory_budget_bytes() const {
     return process_memory_budget_bytes_;
@@ -133,13 +111,10 @@ class CobaltSystemMemoryPressureEvaluator
 
   std::unique_ptr<base::ProcessMetrics> process_metrics_;
   ProcessMemoryInfoGetter process_memory_info_getter_;
-  SystemMemoryInfoGetter system_memory_info_getter_;
   MediaAllowanceGetter media_allowance_getter_;
   const uint64_t process_memory_budget_bytes_;
-  const float moderate_budget_ratio_;
-  const float critical_budget_ratio_;
-  const float moderate_system_fraction_;
-  const float critical_system_fraction_;
+  const float moderate_process_memory_fraction_;
+  const float critical_process_memory_fraction_;
   const base::TimeDelta poll_interval_;
   const base::TimeDelta cooldown_;
 

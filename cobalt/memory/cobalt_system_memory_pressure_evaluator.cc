@@ -28,14 +28,10 @@ namespace memory {
 
 namespace {
 
-constexpr char kSwitchModerateFraction[] =
-    "cobalt-memory-pressure-moderate-fraction";
-constexpr char kSwitchCriticalFraction[] =
-    "cobalt-memory-pressure-critical-fraction";
-constexpr char kSwitchModerateBudgetRatio[] =
-    "cobalt-memory-pressure-moderate-budget-ratio";
-constexpr char kSwitchCriticalBudgetRatio[] =
-    "cobalt-memory-pressure-critical-budget-ratio";
+constexpr char kSwitchModerateProcessMemoryFraction[] =
+    "cobalt-memory-pressure-moderate-process-memory-fraction";
+constexpr char kSwitchCriticalProcessMemoryFraction[] =
+    "cobalt-memory-pressure-critical-process-memory-fraction";
 constexpr char kSwitchPollIntervalMs[] =
     "cobalt-memory-pressure-poll-interval-ms";
 constexpr char kSwitchCooldownMs[] = "cobalt-memory-pressure-cooldown-ms";
@@ -102,17 +98,12 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
     : CobaltSystemMemoryPressureEvaluator(
           std::move(voter),
           /*process_memory_info_getter=*/{},
-          base::BindRepeating(&base::GetSystemMemoryInfo),
           std::move(media_allowance_getter),
           /*process_memory_budget_bytes=*/0,
-          GetSwitchValueFloat(kSwitchModerateBudgetRatio,
-                              kDefaultModerateBudgetRatio),
-          GetSwitchValueFloat(kSwitchCriticalBudgetRatio,
-                              kDefaultCriticalBudgetRatio),
-          GetSwitchValueFloat(kSwitchModerateFraction,
-                              kDefaultModerateMemoryFraction),
-          GetSwitchValueFloat(kSwitchCriticalFraction,
-                              kDefaultCriticalMemoryFraction),
+          GetSwitchValueFloat(kSwitchModerateProcessMemoryFraction,
+                              kDefaultModerateProcessMemoryFraction),
+          GetSwitchValueFloat(kSwitchCriticalProcessMemoryFraction,
+                              kDefaultCriticalProcessMemoryFraction),
           GetSwitchValueTimeDeltaMs(kSwitchPollIntervalMs,
                                     kDefaultPollInterval),
           GetSwitchValueTimeDeltaMs(kSwitchCooldownMs, kDefaultCooldown)) {}
@@ -120,53 +111,41 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
 CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
     std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
     ProcessMemoryInfoGetter process_memory_info_getter,
-    SystemMemoryInfoGetter system_memory_info_getter,
     uint64_t process_memory_budget_bytes,
-    float moderate_budget_ratio,
-    float critical_budget_ratio,
-    float moderate_system_fraction,
-    float critical_system_fraction,
+    float moderate_process_memory_fraction,
+    float critical_process_memory_fraction,
     base::TimeDelta poll_interval,
     base::TimeDelta cooldown)
     : CobaltSystemMemoryPressureEvaluator(std::move(voter),
                                           std::move(process_memory_info_getter),
-                                          std::move(system_memory_info_getter),
                                           /*media_allowance_getter=*/{},
                                           process_memory_budget_bytes,
-                                          moderate_budget_ratio,
-                                          critical_budget_ratio,
-                                          moderate_system_fraction,
-                                          critical_system_fraction,
+                                          moderate_process_memory_fraction,
+                                          critical_process_memory_fraction,
                                           poll_interval,
                                           cooldown) {}
 
 CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
     std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
     ProcessMemoryInfoGetter process_memory_info_getter,
-    SystemMemoryInfoGetter system_memory_info_getter,
     MediaAllowanceGetter media_allowance_getter,
     uint64_t process_memory_budget_bytes,
-    float moderate_budget_ratio,
-    float critical_budget_ratio,
-    float moderate_system_fraction,
-    float critical_system_fraction,
+    float moderate_process_memory_fraction,
+    float critical_process_memory_fraction,
     base::TimeDelta poll_interval,
     base::TimeDelta cooldown)
     : ::memory_pressure::SystemMemoryPressureEvaluator(std::move(voter)),
       process_memory_info_getter_(std::move(process_memory_info_getter)),
-      system_memory_info_getter_(std::move(system_memory_info_getter)),
       media_allowance_getter_(std::move(media_allowance_getter)),
       process_memory_budget_bytes_(process_memory_budget_bytes > 0
                                        ? process_memory_budget_bytes
                                        : ResolveProcessMemoryBudget()),
-      moderate_budget_ratio_(moderate_budget_ratio),
-      critical_budget_ratio_(critical_budget_ratio),
-      moderate_system_fraction_(moderate_system_fraction),
-      critical_system_fraction_(critical_system_fraction),
+      moderate_process_memory_fraction_(moderate_process_memory_fraction),
+      critical_process_memory_fraction_(critical_process_memory_fraction),
       poll_interval_(poll_interval),
       cooldown_(cooldown) {
-  DCHECK_GE(critical_budget_ratio_, moderate_budget_ratio_);
-  DCHECK_GE(moderate_system_fraction_, critical_system_fraction_);
+  DCHECK_GE(critical_process_memory_fraction_,
+            moderate_process_memory_fraction_);
 
   if (!process_memory_info_getter_) {
     process_metrics_ = base::ProcessMetrics::CreateCurrentProcessMetrics();
@@ -195,11 +174,11 @@ void CobaltSystemMemoryPressureEvaluator::Stop() {
 }
 
 void CobaltSystemMemoryPressureEvaluator::CheckMemoryPressure() {
-  UpdateMemoryPressureLevel(CalculateCurrentPressureLevel());
+  UpdateMemoryPressureLevel(CalculateCurrentMemoryPressureLevel());
 }
 
 base::MemoryPressureListener::MemoryPressureLevel
-CobaltSystemMemoryPressureEvaluator::CalculateProcessPressureLevel() {
+CobaltSystemMemoryPressureEvaluator::CalculateCurrentMemoryPressureLevel() {
   uint64_t effective_budget = process_memory_budget_bytes_;
   if (media_allowance_getter_) {
     effective_budget += media_allowance_getter_.Run();
@@ -216,8 +195,7 @@ CobaltSystemMemoryPressureEvaluator::CalculateProcessPressureLevel() {
 
   const auto& info = maybe_info.value();
   uint64_t private_bytes = 0;
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
   private_bytes = info.rss_anon_bytes;
 #endif
   if (private_bytes == 0) {
@@ -231,48 +209,13 @@ CobaltSystemMemoryPressureEvaluator::CalculateProcessPressureLevel() {
   const float ratio =
       static_cast<float>(private_bytes) / static_cast<float>(effective_budget);
 
-  if (ratio >= critical_budget_ratio_) {
+  if (ratio >= critical_process_memory_fraction_) {
     return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL;
   }
-  if (ratio >= moderate_budget_ratio_) {
+  if (ratio >= moderate_process_memory_fraction_) {
     return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE;
   }
   return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
-}
-
-base::MemoryPressureListener::MemoryPressureLevel
-CobaltSystemMemoryPressureEvaluator::CalculateSystemPressureLevel() {
-  if (!system_memory_info_getter_) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
-  }
-
-  base::SystemMemoryInfoKB info;
-  if (!system_memory_info_getter_.Run(&info) || info.total <= 0) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
-  }
-
-  const int total_available = (info.available != 0)
-                                  ? info.available
-                                  : (info.free + info.buffers + info.cached);
-  const float ratio =
-      static_cast<float>(total_available) / static_cast<float>(info.total);
-
-  if (ratio < critical_system_fraction_) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL;
-  }
-  if (ratio < moderate_system_fraction_) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE;
-  }
-  return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
-}
-
-base::MemoryPressureListener::MemoryPressureLevel
-CobaltSystemMemoryPressureEvaluator::CalculateCurrentPressureLevel() {
-  base::MemoryPressureListener::MemoryPressureLevel process_level =
-      CalculateProcessPressureLevel();
-  base::MemoryPressureListener::MemoryPressureLevel system_level =
-      CalculateSystemPressureLevel();
-  return std::max(process_level, system_level);
 }
 
 void CobaltSystemMemoryPressureEvaluator::UpdateMemoryPressureLevel(

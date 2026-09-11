@@ -39,17 +39,9 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   void SetUp() override {
-    // Normal system: 1000 MB total, 500 MB available (50% free).
-    sys_info_.total = 1000 * 1024;
-    sys_info_.available = 500 * 1024;
-    sys_info_.free = 500 * 1024;
-    sys_info_.buffers = 0;
-    sys_info_.cached = 0;
-
     // Normal process: 120 MB private dirty (60% of 200 MB budget).
     proc_info_.resident_set_bytes = 150ULL * 1024 * 1024;
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
     proc_info_.rss_anon_bytes = 120ULL * 1024 * 1024;
 #endif
 
@@ -62,16 +54,11 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
             &CobaltSystemMemoryPressureEvaluatorTest::GetProcessMemoryInfo,
             base::Unretained(this)),
         base::BindRepeating(
-            &CobaltSystemMemoryPressureEvaluatorTest::GetSystemMemoryInfo,
-            base::Unretained(this)),
-        base::BindRepeating(
             &CobaltSystemMemoryPressureEvaluatorTest::GetMediaAllowance,
             base::Unretained(this)),
         kTestBudgetBytes,
-        /*moderate_budget_ratio=*/0.85f,
-        /*critical_budget_ratio=*/0.95f,
-        /*moderate_system_fraction=*/0.30f,
-        /*critical_system_fraction=*/0.15f,
+        /*moderate_process_memory_fraction=*/0.85f,
+        /*critical_process_memory_fraction=*/0.95f,
         /*poll_interval=*/base::Seconds(5),
         /*cooldown=*/base::Seconds(15));
 
@@ -96,14 +83,6 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
     return proc_info_;
   }
 
-  bool GetSystemMemoryInfo(base::SystemMemoryInfoKB* info) {
-    if (get_sys_info_should_fail_) {
-      return false;
-    }
-    *info = sys_info_;
-    return true;
-  }
-
   uint64_t GetMediaAllowance() const { return media_allowance_bytes_; }
 
   void OnMemoryPressure(
@@ -112,16 +91,10 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
   }
 
   void SetProcessPrivateMemoryMB(uint64_t mb) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
     proc_info_.rss_anon_bytes = mb * 1024 * 1024;
 #endif
     proc_info_.resident_set_bytes = mb * 1024 * 1024;
-  }
-
-  void SetSystemAvailableMemoryMB(int available_mb) {
-    sys_info_.available = available_mb * 1024;
-    sys_info_.free = available_mb * 1024;
   }
 
   void SetMediaAllowanceMB(uint64_t mb) {
@@ -131,10 +104,8 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
  protected:
   base::test::TaskEnvironment task_environment_;
   base::ProcessMemoryInfo proc_info_;
-  base::SystemMemoryInfoKB sys_info_;
   uint64_t media_allowance_bytes_ = 0;
   bool get_proc_info_should_fail_ = false;
-  bool get_sys_info_should_fail_ = false;
 
   std::unique_ptr<::memory_pressure::MultiSourceMemoryPressureMonitor> monitor_;
   std::unique_ptr<CobaltSystemMemoryPressureEvaluator> evaluator_;
@@ -210,58 +181,6 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ProcessLifecycleRecovery) {
 }
 
 // -----------------------------------------------------------------------------
-// System Memory Fallback Tests
-// -----------------------------------------------------------------------------
-
-TEST_F(CobaltSystemMemoryPressureEvaluatorTest, SystemFallbackModerate) {
-  // Process is normal (120 MB), but system drops to 25% (< 30%) -> MODERATE.
-  SetSystemAvailableMemoryMB(250);
-  evaluator_->CheckMemoryPressure();
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
-            evaluator_->current_vote());
-  ASSERT_EQ(1u, notifications_.size());
-}
-
-TEST_F(CobaltSystemMemoryPressureEvaluatorTest, SystemFallbackCritical) {
-  // Process is normal (120 MB), but system drops to 10% (< 15%) -> CRITICAL.
-  SetSystemAvailableMemoryMB(100);
-  evaluator_->CheckMemoryPressure();
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
-            evaluator_->current_vote());
-  ASSERT_EQ(1u, notifications_.size());
-}
-
-// -----------------------------------------------------------------------------
-// Dual Heuristic Max Tests
-// -----------------------------------------------------------------------------
-
-TEST_F(CobaltSystemMemoryPressureEvaluatorTest, DualMaxProcessWins) {
-  // Process is CRITICAL (195 MB), System is MODERATE (250 MB / 25%).
-  SetProcessPrivateMemoryMB(195);
-  SetSystemAvailableMemoryMB(250);
-  evaluator_->CheckMemoryPressure();
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
-            evaluator_->current_vote());
-}
-
-TEST_F(CobaltSystemMemoryPressureEvaluatorTest, DualMaxSystemWins) {
-  // Process is MODERATE (175 MB), System is CRITICAL (100 MB / 10%).
-  SetProcessPrivateMemoryMB(175);
-  SetSystemAvailableMemoryMB(100);
-  evaluator_->CheckMemoryPressure();
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
-            evaluator_->current_vote());
-}
-
-// -----------------------------------------------------------------------------
 // Cooldown & Resiliency Tests
 // -----------------------------------------------------------------------------
 
@@ -328,7 +247,6 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
 
 TEST_F(CobaltSystemMemoryPressureEvaluatorTest, HandlesErrorsGracefully) {
   get_proc_info_should_fail_ = true;
-  get_sys_info_should_fail_ = true;
   evaluator_->CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
 
