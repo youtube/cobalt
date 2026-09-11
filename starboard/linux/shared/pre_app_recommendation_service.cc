@@ -14,12 +14,14 @@
 
 #include "starboard/linux/shared/pre_app_recommendation_service.h"
 
+#include <cstdlib>
 #include <memory>
 #include <string>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/platform_service.h"
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/application.h"
 
@@ -38,6 +40,9 @@ typedef struct PreAppRecommendationsPlatformServiceImpl
   PreAppRecommendationsPlatformServiceImpl() = default;
 
 } PreAppRecommendationsPlatformServiceImpl;
+
+constexpr uint64_t kMaxMessageLength =
+    kCobaltExtensionPlatformServiceMaxMessageLength;
 
 // Use HTTP status code in response to YouTube application's method recommend
 // call.
@@ -97,6 +102,21 @@ std::string extractJsonValue(const std::string& jsonLikeString,
   return result;
 }
 
+// Copies |response| into a buffer allocated with malloc(), as the caller of
+// Send() in cobalt/browser/h5vcc_platform_service/platform_service_impl.cc
+// frees it. Returns nullptr if the allocation fails.
+void* AllocateResponse(const std::string& response, uint64_t* output_length) {
+  *output_length = response.length();
+  void* ptr = malloc(*output_length);
+  if (ptr == nullptr) {
+    SB_LOG(ERROR) << "Send() failed to allocate " << *output_length
+                  << " bytes for the response.";
+    return nullptr;
+  }
+  response.copy(reinterpret_cast<char*>(ptr), response.length());
+  return ptr;
+}
+
 void* Send(PlatformServiceImpl* service,
            const void* data,
            uint64_t length,
@@ -106,11 +126,16 @@ void* Send(PlatformServiceImpl* service,
   SB_DCHECK(data);
   SB_DCHECK(output_length);
 
-  char message[length + 1];
-  std::memcpy(message, data, length);
-  message[length] = '\0';
-
   std::string response = "";
+
+  if (data == nullptr || length > kMaxMessageLength) {
+    SB_LOG(ERROR) << "Send() rejecting a message of " << length
+                  << " bytes, the limit is " << kMaxMessageLength << " bytes.";
+    response = kBadRequest;
+    return AllocateResponse(response, output_length);
+  }
+
+  const std::string message(static_cast<const char*>(data), length);
 
   // TODO: Replace extractJsonValue function with a robust JSON parsing
   // library for production use. The current implementation has limited
@@ -167,10 +192,7 @@ void* Send(PlatformServiceImpl* service,
     }
   }
 
-  *output_length = response.length();
-  auto ptr = malloc(*output_length);
-  response.copy(reinterpret_cast<char*>(ptr), response.length());
-  return ptr;
+  return AllocateResponse(response, output_length);
 }
 
 const CobaltPlatformServiceApi kGetPreappRecommendationServiceApi = {

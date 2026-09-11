@@ -14,6 +14,7 @@
 
 #include "starboard/linux/shared/soft_mic_platform_service.h"
 
+#include <cstdlib>
 #include <memory>
 #include <string>
 
@@ -21,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/platform_service.h"
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/application.h"
 
@@ -38,6 +40,9 @@ typedef struct SoftMicPlatformServiceImpl : public PlatformServiceImpl {
   SoftMicPlatformServiceImpl() = default;
 
 } SoftMicPlatformServiceImpl;
+
+constexpr uint64_t kMaxMessageLength =
+    kCobaltExtensionPlatformServiceMaxMessageLength;
 
 const char kGetMicSupport[] = "\"getMicSupport\"";
 const char kNotifySearchActive[] = "\"notifySearchActive\"";
@@ -83,13 +88,17 @@ void* Send(PlatformServiceImpl* service,
   // failure.
   auto valid_message_received = false;
 
-  char message[length + 1];
-  std::memcpy(message, data, length);
-  message[length] = '\0';
+  std::string message;
+  if (length > kMaxMessageLength) {
+    SB_LOG(ERROR) << "Send() ignoring oversized message of " << length
+                  << " bytes, the limit is " << kMaxMessageLength << ".";
+  } else if (data != nullptr) {
+    message.assign(static_cast<const char*>(data), length);
+  }
 
   SB_LOG(INFO) << "Send() message: " << message;
 
-  if (strcmp(message, kGetMicSupport) == 0) {
+  if (message == kGetMicSupport) {
     // Process "getMicSupport" web app message.
     SB_LOG(INFO) << "Send() kGetMicSupport message received.";
 
@@ -148,11 +157,11 @@ void* Send(PlatformServiceImpl* service,
         response.length());
 
     valid_message_received = true;
-  } else if (strcmp(message, kNotifySearchActive) == 0) {
+  } else if (message == kNotifySearchActive) {
     // Process "notifySearchActive" web app message.
     SB_LOG(INFO) << "Send() kNotifySearchActive message received";
     valid_message_received = true;
-  } else if (strcmp(message, kNotifySearchInactive) == 0) {
+  } else if (message == kNotifySearchInactive) {
     // Process "notifySearchInactive" web app message.
     SB_LOG(INFO) << "Send() kNotifySearchInactive message received";
     valid_message_received = true;
@@ -164,6 +173,11 @@ void* Send(PlatformServiceImpl* service,
   // in cobalt/h5vcc/h5vcc_platform_service.cc Send() uses
   // free().
   bool* ptr = reinterpret_cast<bool*>(malloc(sizeof(bool)));
+  if (ptr == nullptr) {
+    SB_LOG(ERROR) << "Send() failed to allocate the response.";
+    *output_length = 0;
+    return nullptr;
+  }
   *ptr = valid_message_received;
   *output_length = sizeof(bool);
   return static_cast<void*>(ptr);
