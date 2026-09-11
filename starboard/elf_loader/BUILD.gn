@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/sanitizers/sanitizers.gni")
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/config/starboard_executable.gni")
 
@@ -68,6 +69,13 @@ static_library("elf_loader") {
   if (current_toolchain == starboard_toolchain) {
     deps += [ "//starboard/shared/modular:starboard_layer_posix_abi_wrappers" ]
   }
+
+  if (is_linux && is_asan) {
+    sources += [
+      "dl_iterate_phdr_override.cc",
+      "dl_iterate_phdr_override.h",
+    ]
+  }
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
@@ -123,6 +131,9 @@ if (current_toolchain == starboard_toolchain) {
         "relocations_test.cc",
         "zstd_file_impl_test.cc",
       ]
+      if (is_linux && is_asan) {
+        sources += [ "dl_iterate_phdr_override_test.cc" ]
+      }
       deps += [
         ":copy_elf_loader_testdata",
         ":elf_loader",
