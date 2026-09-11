@@ -178,6 +178,27 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
        ```
      * When to use `cobalt_modules_stubs.cc`: Use `cobalt_modules_stubs.cc` ONLY when a non-pruned subsystem (or core Blink) requires a specific single symbol from a stripped module (e.g. a minimal constructor/destructor or `STUB_V8_WRAPPER`).
 
+10. HOST TOOLCHAIN VS TARGET RUNTIME RESOURCE MISMATCHES (HOST ACTION FAILURES):
+    - When a build action fails during code generation or host tool execution (e.g. `character_data_generator`, `v8_context_snapshot_generator`, or other host binaries failing with `Check failed: U_SUCCESS(error)` or missing resource/table assertions):
+    - ROOT CAUSE: Cobalt builds strip runtime datasets (e.g. `third_party/icu/cobalt/icudtl.dat`, timezone data) for embedded TV platforms. If a Cobalt GN argument or override applies globally without checking `current_toolchain != host_toolchain`, Ninja copies stripped data to `clang_x64/`. Host compile tools require complete upstream tables and metadata.
+    - ANTI-PATTERN: NEVER patch the upstream C++ source file of the host generator (e.g. `character_property_data_generator.cc`). It is an unmodified third-party source file and edits will be rejected by the safety guard.
+    - HEALING PROCEDURE:
+      1. Scope the Cobalt data/configuration override in the referencing `BUILD.gn` to target toolchains only using `if (is_cobalt && current_toolchain != host_toolchain)`.
+      2. Allow host toolchains (`current_toolchain == host_toolchain`) to fall through to standard upstream defaults (e.g. `data_dir = "common"` in `third_party/icu/BUILD.gn`), ensuring host binaries receive complete unstripped resources with zero third-party code modifications.
+      3. Concrete Reference (`third_party/icu/BUILD.gn`):
+         ```gn
+         FILE: third_party/icu/BUILD.gn
+         <<<<<<< SEARCH
+         if (is_cobalt) {
+           data_dir = "cobalt"
+         } else if (is_android) {
+         =======
+         if (is_cobalt && current_toolchain != host_toolchain) {
+           data_dir = "cobalt"
+         } else if (is_android) {
+         >>>>>>> REPLACE
+         ```
+
 ---
 
 ## Expert Review Insights

@@ -73,3 +73,45 @@ Cobalt deliberately strips heavy upstream Chromium subsystems (WebXR, WebGPU, We
 4. **When to use `cobalt_modules_stubs.cc`**:
    - Use `cobalt_modules_stubs.cc` ONLY when a non-pruned subsystem (or core Blink) references a specific method or constructor that is missing because a single class implementation was stripped.
    - For entire modules whose bindings are compiled into `libv8.a`, use `bindings.gni` exclude patterns.
+
+---
+
+### Host Toolchain vs Target Runtime Resource Mismatches (Host Action Failures)
+
+Cobalt optimizes and strips runtime data bundles (such as `third_party/icu/cobalt/icudtl.dat`, timezone data, or fonts) to minimize memory and binary footprint for embedded TV platforms.
+
+1. **Architectural Principle: Host Tools Require Upstream Resources**:
+   - Host tools (`current_toolchain == host_toolchain`, such as `clang_x64/character_data_generator`, V8 snapshot tools, or font generators) execute on the Linux compile host during build time.
+   - Host tools expect complete upstream data and metadata (e.g., CLDR localization tables, full Unicode maps).
+   - Stripped Cobalt datasets are strictly intended for the **target runtime device** (`current_toolchain != host_toolchain`).
+
+2. **Crucial Rule: Never Patch Upstream Host Generators**:
+   - When a host build tool crashes during code generation (e.g. `Check failed: U_SUCCESS(error)` or missing resource error), do NOT patch the upstream C++ source file.
+   - Modifying upstream tools creates unnecessary divergence and will be blocked by the third-party safety guard:
+     `[GUARD] Rejecting patch on unmodified third-party source file: ... Patch the referencing BUILD.gn instead.`
+   - The root cause is almost always that a Cobalt-specific GN build argument or override is inadvertently applying target settings or stripped datasets to the host toolchain.
+
+3. **Resolution Strategy: Scope Cobalt Overrides to Target Toolchains in `BUILD.gn`**:
+   - In the referencing `BUILD.gn`, scope Cobalt data and configuration overrides using `current_toolchain != host_toolchain`.
+   - Host toolchains (`current_toolchain == host_toolchain`) should fall through to standard upstream defaults.
+
+4. **Case Study: ICU Data & Blink Host Actions**:
+   - **Symptom**: `character_data_generator` crashes during `compiled_action("character_data")`:
+     ```text
+     [FATAL:third_party/blink/renderer/platform/text/character_property_data_generator.cc:48] Check failed: U_SUCCESS(error). ulocdata_getCLDRVersion: (2)U_MISSING_RESOURCE_ERROR
+     ```
+   - **Root Cause**: `third_party/icu/BUILD.gn` set `data_dir = "cobalt"` globally, copying the stripped runtime ICU table into `clang_x64/icudtl.dat`.
+   - **Fix in `third_party/icu/BUILD.gn`**:
+     ```gn
+     FILE: third_party/icu/BUILD.gn
+     <<<<<<< SEARCH
+     if (is_cobalt) {
+       data_dir = "cobalt"
+     } else if (is_android) {
+     =======
+     if (is_cobalt && current_toolchain != host_toolchain) {
+       data_dir = "cobalt"
+     } else if (is_android) {
+     >>>>>>> REPLACE
+     ```
+   - This ensures `clang_x64/icudtl.dat` receives the full common ICU dataset containing CLDR tables, allowing `character_data_generator` to succeed with zero modifications to third-party Blink code.
