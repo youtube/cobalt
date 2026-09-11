@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -66,16 +65,16 @@ class SymbolizerRunner:
       if self._proc.stdin:
         try:
           self._proc.stdin.close()
-        except Exception:  # pylint: disable=broad-except
+        except (OSError, ValueError):
           pass
       if self._proc.stdout:
         try:
           self._proc.stdout.close()
-        except Exception:  # pylint: disable=broad-except
+        except (OSError, ValueError):
           pass
       try:
         self._proc.wait()
-      except Exception:  # pylint: disable=broad-except
+      except (OSError, ValueError):
         pass
       self._proc = None
 
@@ -165,7 +164,7 @@ class SymbolizerRunner:
       self._cache[cache_key] = res
       return res
 
-    except Exception:  # pylint: disable=broad-except
+    except (OSError, ValueError):
       self.close()
       return None
 

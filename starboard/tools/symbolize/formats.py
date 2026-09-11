@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +13,7 @@
 # limitations under the License.
 """Format handlers and registries for parsing and formatting stack traces."""
 
+import abc
 import dataclasses
 import re
 from typing import List, Optional, Tuple, Union
@@ -62,7 +62,7 @@ def strip_path_prefix(file_line: str,
   all_prefixes.append('out/')
   for prefix in all_prefixes:
     if prefix in cleaned:
-      cleaned = cleaned[cleaned.find(prefix) + len(prefix):]
+      cleaned = cleaned.partition(prefix)[2]
   return cleaned
 
 
@@ -78,18 +78,18 @@ class FrameMatch:
   extra: Optional[str] = None
 
 
-class FormatHandler:
+class FormatHandler(abc.ABC):
   """Base class for matching and formatting stack trace frames."""
 
+  @abc.abstractmethod
   def match(self, line: str) -> Optional[FrameMatch]:
     """Returns parsed frame metadata if the line matches this format."""
-    raise NotImplementedError()
 
+  @abc.abstractmethod
   def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
                                                      List[str]],
              resolved_offset: int) -> List[str]:
     """Formats symbolized frames preserving the input style."""
-    raise NotImplementedError()
 
 
 class AsanMode1FormatHandler(FormatHandler):

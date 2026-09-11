@@ -219,6 +219,19 @@ class SymbolizeUnitTests(unittest.TestCase):
     self.assertIn(str(0x1000), fake_runner.calls)
     self.assertIn(str(0x2000), fake_runner.calls)
 
+  def test_integer_base_address_handling(self):
+    line = '        <unknown> [0x1000]\n'
+    fake_runner = _FakeSymbolizerRunner({str(0x1000): ['func_rel()']})
+    in_stream = io.StringIO(line)
+    out_stream = io.StringIO()
+    # Ensure integer 0 and 0x1000 don't raise TypeError
+    symbolize._Symbolize(
+        in_stream=in_stream,
+        out_stream=out_stream,
+        runner=fake_runner,
+        base_address=0)
+    self.assertIn('func_rel()', out_stream.getvalue())
+
   def test_symbolizer_runner_dead_pipe_recovery(self):
     test_runner = runner.SymbolizerRunner(
         library='/nonexistent/lib.so', symbolizer_path='/bin/false')

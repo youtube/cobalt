@@ -13,6 +13,7 @@
 # limitations under the License.
 """Unified symbolization package for Cobalt and Starboard."""
 
+from starboard.tools.symbolize.detector import AddressMode
 from starboard.tools.symbolize.detector import StreamingSessionTracker
 from starboard.tools.symbolize.formats import FormatHandler
 from starboard.tools.symbolize.formats import FormatRegistry
@@ -22,8 +23,11 @@ from starboard.tools.symbolize.runner import SymbolizerRunner
 from starboard.tools.symbolize.runner import _SymbolizerRunner
 from starboard.tools.symbolize.symbolize import _Symbolize
 from starboard.tools.symbolize.symbolize import main
+from starboard.tools.symbolize.symbolize import symbolize_stream
+from starboard.tools.symbolize.symbolize import symbolize_string
 
 __all__ = [
+    'AddressMode',
     'SymbolizerRunner',
     '_SymbolizerRunner',
     'FormatHandler',
@@ -31,6 +35,8 @@ __all__ = [
     'FrameMatch',
     'StreamingSessionTracker',
     'process_test_summary_json',
+    'symbolize_stream',
+    'symbolize_string',
     '_Symbolize',
     'main',
 ]

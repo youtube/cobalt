@@ -23,7 +23,7 @@ import argparse
 import io
 import os
 import sys
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Union
 
 _SRC_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
@@ -62,7 +62,7 @@ __all__ = [
 # pylint: disable=too-many-arguments,too-many-positional-arguments,invalid-name,unused-argument
 def _Symbolize(filename: Optional[str] = None,
                library: Optional[str] = None,
-               base_address: Optional[str] = '0',
+               base_address: Optional[Union[str, int]] = '0',
                in_stream: Optional[Iterable[str]] = None,
                out_stream: Optional[io.TextIOBase] = None,
                runner: Optional[SymbolizerRunner] = None,
@@ -72,7 +72,7 @@ def _Symbolize(filename: Optional[str] = None,
   Args:
     filename: Path to the file containing stack traces.
     library: Path to the default library containing debug symbols.
-    base_address: Base address string ('0x...' or decimal) or None for auto.
+    base_address: Base address string ('0x...' or decimal), int, or None.
     in_stream: Optional input iterable/stream of lines.
     out_stream: Optional output stream (defaults to sys.stdout).
     runner: Optional SymbolizerRunner instance.
@@ -86,7 +86,12 @@ def _Symbolize(filename: Optional[str] = None,
       raise ValueError(f'Library not found: {library}.')
 
   out = out_stream if out_stream is not None else sys.stdout
-  base = int(base_address, 0) if base_address is not None else None
+  if base_address is None:
+    base = None
+  elif isinstance(base_address, int):
+    base = base_address
+  else:
+    base = int(str(base_address), 0)
 
   active_runner = runner if runner is not None else SymbolizerRunner(library)
   tracker = StreamingSessionTracker(default_base_address=base)
@@ -145,7 +150,7 @@ def symbolize_stream(in_stream: Iterable[str],
                      out_stream: io.TextIOBase,
                      library: Optional[str] = None,
                      runner: Optional[SymbolizerRunner] = None,
-                     base_address: Optional[str] = '0',
+                     base_address: Optional[Union[str, int]] = '0',
                      strip_prefixes: Optional[List[str]] = None):
   """Convenience function to symbolize from an in-stream to an out-stream."""
   return _Symbolize(
@@ -160,7 +165,7 @@ def symbolize_stream(in_stream: Iterable[str],
 def symbolize_string(text: str,
                      library: Optional[str] = None,
                      runner: Optional[SymbolizerRunner] = None,
-                     base_address: Optional[str] = '0',
+                     base_address: Optional[Union[str, int]] = '0',
                      strip_prefixes: Optional[List[str]] = None) -> str:
   """Convenience function to symbolize an in-memory string."""
   in_stream = io.StringIO(text)
@@ -202,16 +207,14 @@ def main():
       'strip_path_prefix',
       nargs='*',
       help='When printing source file names, prefixes to strip.')
-  args, _ = arg_parser.parse_known_args()
+  args = arg_parser.parse_args()
 
   if not os.path.exists(_SYMBOLIZER):
     raise ValueError(
         f'Please update {__file__} with a valid llvm-symbolizer path.')
 
   default_lib = args.library or args.extra_binary
-  base_address = (
-      args.base_address[0]
-      if isinstance(args.base_address, list) else args.base_address)
+  base_address = args.base_address
 
   if args.test_summary_json_file:
     with SymbolizerRunner(default_library=default_lib) as runner:
