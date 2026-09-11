@@ -31,7 +31,6 @@
     "MojoDecryptorTest.*",
     "MP4StreamParserTest.*",
     "MPEG1AudioStreamParserTest.*",
-    "RendererImplTest.*",
     "SimpleSources.*",
     "Vp8ParserTest.*",
     "Vp9ParserTest.*",
