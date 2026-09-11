@@ -120,6 +120,12 @@ class CobaltSystemMemoryPressureEvaluator
     return process_memory_budget_bytes_;
   }
 
+  // Resolves the baseline process memory budget in bytes based on command-line
+  // switches or device hardware RAM tiering. If total_physical_memory_bytes is
+  // 0, it queries base::SysInfo::AmountOfPhysicalMemory().
+  static uint64_t ResolveProcessMemoryBudget(
+      uint64_t total_physical_memory_bytes = 0);
+
  private:
   void Start();
   void UpdateMemoryPressureLevel(

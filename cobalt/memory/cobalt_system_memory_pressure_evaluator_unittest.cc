@@ -337,6 +337,32 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, HandlesErrorsGracefully) {
   EXPECT_TRUE(notifications_.empty());
 }
 
+TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
+       ResolveProcessMemoryBudgetTiers) {
+  // Low-end tier (<= 1 GB total RAM) -> 180 MB
+  uint64_t low_end_ram = 1024ULL * 1024 * 1024;
+  EXPECT_EQ(180ULL * 1024 * 1024,
+            CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
+                low_end_ram));
+
+  uint64_t stick_ram = 512ULL * 1024 * 1024;
+  EXPECT_EQ(180ULL * 1024 * 1024,
+            CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
+                stick_ram));
+
+  // Standard tier (> 1 GB total RAM, e.g. 2 GB) -> 200 MB
+  uint64_t standard_ram = 2ULL * 1024 * 1024 * 1024;
+  EXPECT_EQ(200ULL * 1024 * 1024,
+            CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
+                standard_ram));
+
+  // 4 GB RAM -> 200 MB standard default
+  uint64_t high_end_ram = 4ULL * 1024 * 1024 * 1024;
+  EXPECT_EQ(200ULL * 1024 * 1024,
+            CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
+                high_end_ram));
+}
+
 }  // namespace
 }  // namespace memory
 }  // namespace cobalt

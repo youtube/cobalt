@@ -21,6 +21,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/system/sys_info.h"
 
 namespace cobalt {
 namespace memory {
@@ -66,9 +67,11 @@ base::TimeDelta GetSwitchValueTimeDeltaMs(const char* switch_name,
   return default_value;
 }
 
-uint64_t ResolveProcessMemoryBudget(
-    const CobaltSystemMemoryPressureEvaluator::SystemMemoryInfoGetter&
-        sys_info_getter) {
+}  // namespace
+
+// static
+uint64_t CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
+    uint64_t total_physical_memory_bytes) {
   const base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
   if (cmd && cmd->HasSwitch(switches::kProcessMemoryBudgetMB)) {
     int budget_mb = 0;
@@ -80,20 +83,18 @@ uint64_t ResolveProcessMemoryBudget(
     }
   }
 
-  base::SystemMemoryInfoKB sys_info;
-  if (sys_info_getter && sys_info_getter.Run(&sys_info) && sys_info.total > 0) {
-    if (sys_info.total <= 1024 * 1024) {
-      return static_cast<uint64_t>(
-                 CobaltSystemMemoryPressureEvaluator::kDefaultBudgetMbLowEnd) *
-             1024 * 1024;
-    }
+  if (total_physical_memory_bytes == 0) {
+    total_physical_memory_bytes = base::SysInfo::AmountOfPhysicalMemory();
   }
-  return static_cast<uint64_t>(
-             CobaltSystemMemoryPressureEvaluator::kDefaultBudgetMbStandard) *
-         1024 * 1024;
-}
 
-}  // namespace
+  // Devices with <= 1 GB total RAM belong to the low-end hardware tier.
+  if (total_physical_memory_bytes > 0 &&
+      total_physical_memory_bytes <= 1024ULL * 1024 * 1024) {
+    return static_cast<uint64_t>(kDefaultBudgetMbLowEnd) * 1024 * 1024;
+  }
+
+  return static_cast<uint64_t>(kDefaultBudgetMbStandard) * 1024 * 1024;
+}
 
 CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
     std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
@@ -155,10 +156,9 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
       process_memory_info_getter_(std::move(process_memory_info_getter)),
       system_memory_info_getter_(std::move(system_memory_info_getter)),
       media_allowance_getter_(std::move(media_allowance_getter)),
-      process_memory_budget_bytes_(
-          process_memory_budget_bytes > 0
-              ? process_memory_budget_bytes
-              : ResolveProcessMemoryBudget(system_memory_info_getter_)),
+      process_memory_budget_bytes_(process_memory_budget_bytes > 0
+                                       ? process_memory_budget_bytes
+                                       : ResolveProcessMemoryBudget()),
       moderate_budget_ratio_(moderate_budget_ratio),
       critical_budget_ratio_(critical_budget_ratio),
       moderate_system_fraction_(moderate_system_fraction),
