@@ -20,6 +20,13 @@ static_library("fake_graphics_context_provider") {
     "fake_graphics_context_provider.h",
   ]
 
+  if (!is_starboard) {
+    sources += [
+      "//starboard/shared/stub/window_create.cc",
+      "//starboard/shared/stub/window_destroy.cc",
+    ]
+  }
+
   deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
