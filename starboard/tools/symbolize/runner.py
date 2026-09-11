@@ -59,6 +59,11 @@ class SymbolizerRunner:
   def __exit__(self, exc_type, exc_val, exc_tb):
     self.close()
 
+  @property
+  def default_library(self) -> Optional[str]:
+    """Returns the default library path configured for this runner."""
+    return self._default_library
+
   def close(self):
     """Terminates the symbolizer subprocess and closes open pipe streams."""
     if self._proc:
