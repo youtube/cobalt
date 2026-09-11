@@ -1,0 +1,18 @@
+=== Session 1 ===
+[loader_app] Loading Evergreen library...
+[loader_app] Load start=0x7f1000000000 base_memory_address=0x7f1000000000
+    #0 0x7f1000001234  (<unknown module>)
+    #1 0x7f1000002345  (<unknown module>)
+
+=== Session 2 (Reload after update) ===
+[loader_app] Unloading previous library.
+[loader_app] Loading updated Evergreen library...
+[loader_app] Load start=0x7f2000000000 base_memory_address=0x7f2000000000
+    #0 0x7f2000001234  (<unknown module>)
+    #1 0x7f2000003456  (<unknown module>)
+
+=== Session 3 (Second reload) ===
+[loader_app] Reloading Evergreen library...
+[loader_app] Load start=0x7f3000000000 base_memory_address=0x7f3000000000
+    #0 0x7f3000001234  (<unknown module>)
+    #1 0x7f3000004567  (<unknown module>)

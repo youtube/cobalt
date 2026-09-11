@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
 # Copyright 2019 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,155 +14,69 @@
 # limitations under the License.
 """Lightweight utility to simplify resolving stack traces and crashes.
 
-This tool supports three different formats for crashes and stack traces, but can
-easily be expanded for addition cases. Examples of current formats are as
-follows:
-
-  Address Sanitizer
-    #1 0x7fdc59bbaa6b  (<unknown module>)
-
-  Cobalt
-    <unknown> [0x7efcdf1fd52b]
-
-  Raw
-    0x7efcdf1fd52b
-
-  GDB
-    #1  0x742a51b6 in ?? () from /home/pi/content/app/cobalt/lib/libcobalt.so
-
-
-The results of the symbolizer will only be included if it was able to find the
-name of the symbol, and it does not appear to be malformed. The only exception
-is when the line was matched with the |_RAW| regular expression in which case it
-will always output the results of the symbolizer.
+This tool supports multiple formats for crashes and stack traces (ASan,
+Cobalt stack dumps, Android logcat/tombstones, GDB, and raw addresses) across
+multiple dynamically loaded libraries and persistent streaming sessions.
 """
 
 import argparse
+import io
 import os
-import re
-import subprocess
 import sys
+from typing import Iterable, List, Optional, Union
 
 _SRC_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 if _SRC_DIR not in sys.path:
   sys.path.insert(0, _SRC_DIR)
 
-from starboard.tools import paths  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.detector import StreamingSessionTracker  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.formats import FormatRegistry  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.formats import RawFormatHandler  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.formats import _RE_ANDROID  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.formats import _RE_ASAN_MODE1 as _RE_ASAN  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.formats import _RE_COBALT  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.formats import _RE_GDB  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.formats import _RE_RAW  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.json_processor import process_test_summary_json  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.runner import DEFAULT_SYMBOLIZER as _SYMBOLIZER  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.runner import SymbolizerRunner  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.runner import _SymbolizerRunner  # pylint: disable=wrong-import-position
 
-_SYMBOLIZER = os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'llvm-build',
-                           'Release+Asserts', 'bin', 'llvm-symbolizer')
-
-_RE_ASAN = re.compile(
-    r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s+\(<unknown\s+module>\)')
-_RE_ANDROID = re.compile(
-    r'^(.*?)(#[0-9]{1,3})\s+pc\s+(?:0x)?([a-fA-F0-9]+)\s+(.*)$')
-_RE_COBALT = re.compile(
-    r'^(.*?(?:\s|\t|^))(<unknown>|[^\s\[\]]+(?:\(.*?\))?)\s+'
-    r'\[(0x[0-9a-fA-F]+)\]\s*$')
-_RE_RAW = re.compile(r'^(0x[a-fA-F0-9]+)$')
-_RE_GDB = re.compile(r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s*')
-
-
-class _SymbolizerRunner:
-  """Runs llvm-symbolizer in interactive mode with caching for fast lookups.
-
-  Lifetime and Ownership:
-    Typically managed as a context manager using a `with` statement to ensure
-    the underlying subprocess is properly closed.
-
-  Threading Model:
-    This class is not thread-safe and is thread-affine. It should only be
-    accessed from a single thread.
-  """
-
-  def __init__(self, library, symbolizer_path=None):
-    self._library = library
-    self._symbolizer_path = symbolizer_path or _SYMBOLIZER
-    self._proc = None
-    self._cache = {}
-
-  def __enter__(self):
-    return self
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    self.close()
-
-  def close(self):
-    if self._proc:
-      if self._proc.stdin:
-        try:
-          self._proc.stdin.close()
-        except Exception:  # pylint: disable=broad-except
-          pass
-      if self._proc.stdout:
-        try:
-          self._proc.stdout.close()
-        except Exception:  # pylint: disable=broad-except
-          pass
-      try:
-        self._proc.wait()
-      except Exception:  # pylint: disable=broad-except
-        pass
-      self._proc = None
-
-  def symbolize(self, offset):
-    """Resolves an offset using llvm-symbolizer."""
-    if int(offset) < 0:
-      return None
-    if offset in self._cache:
-      return self._cache[offset]
-    try:
-      if self._proc is None:
-        self._proc = subprocess.Popen(  # pylint: disable=consider-using-with
-            [self._symbolizer_path, '-e', self._library, '-f'],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            text=True,
-            encoding='utf-8',
-            errors='replace')
-      self._proc.stdin.write(f'{offset}\n')
-      self._proc.stdin.flush()
-      lines = []
-      while True:
-        line = self._proc.stdout.readline()
-        if not line:
-          self.close()
-          break
-        if line == '\n':
-          break
-        lines.append(line.rstrip('\r\n'))
-      if lines:
-        self._cache[offset] = lines
-        return lines
-    except Exception:  # pylint: disable=broad-except
-      self.close()
-    return None
+__all__ = [
+    '_SymbolizerRunner',
+    'SymbolizerRunner',
+    '_Symbolize',
+    'symbolize_stream',
+    'symbolize_string',
+    'main',
+    '_RE_ASAN',
+    '_RE_ANDROID',
+    '_RE_COBALT',
+    '_RE_RAW',
+    '_RE_GDB',
+    '_SYMBOLIZER',
+]
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
-def _Symbolize(filename=None,
-               library=None,
-               base_address='0',
-               in_stream=None,
-               out_stream=None,
-               runner=None):
-  """Attempts to resolve memory addresses within the file specified.
-
-  This function iterates through lines of a stack trace. When a line is found
-  that matches one of our regular expressions it will stop and invoke
-  llvm-symbolizer with the offset of the symbol and the library specified. The
-  results are verified and the output formatted to match whichever crash-style
-  is being used.
+# pylint: disable=too-many-arguments,too-many-positional-arguments,invalid-name,unused-argument
+def _Symbolize(filename: Optional[str] = None,
+               library: Optional[str] = None,
+               base_address: Optional[Union[str, int]] = '0',
+               in_stream: Optional[Iterable[str]] = None,
+               out_stream: Optional[io.TextIOBase] = None,
+               runner: Optional[SymbolizerRunner] = None,
+               strip_prefixes: Optional[List[str]] = None):
+  """Attempts to resolve memory addresses within the file or stream specified.
 
   Args:
-    filename:     The path to the file containing the stack trace.
-    library:      The path to the library that is believed to have the symbol.
-    base_address: The base address of the library when it was loaded and
-      crashed, typically found in the logs.
-    in_stream:    Optional input iterable/stream of lines.
-    out_stream:   Optional output stream (defaults to sys.stdout).
-    runner:       Optional _SymbolizerRunner instance.
+    filename: Path to the file containing stack traces.
+    library: Path to the default library containing debug symbols.
+    base_address: Base address string ('0x...' or decimal), int, or None.
+    in_stream: Optional input iterable/stream of lines.
+    out_stream: Optional output stream (defaults to sys.stdout).
+    runner: Optional SymbolizerRunner instance.
+    strip_prefixes: Optional list of source directory prefixes to strip.
   """
   if in_stream is None:
     if not filename or not os.path.exists(filename):
@@ -173,111 +86,180 @@ def _Symbolize(filename=None,
       raise ValueError(f'Library not found: {library}.')
 
   out = out_stream if out_stream is not None else sys.stdout
-  base = int(base_address, 0) if base_address else 0
+  if base_address is None:
+    base = None
+  elif isinstance(base_address, int):
+    base = base_address
+  else:
+    base = int(str(base_address), 0)
 
-  def _ProcessLines(lines, active_runner):
+  active_runner = runner if runner is not None else SymbolizerRunner(library)
+  tracker = StreamingSessionTracker(default_base_address=base)
+  registry = FormatRegistry()
+
+  def _process_lines(lines):
     for line in lines:
-      # Address Sanitizer
-      match = _RE_ASAN.match(line)
-      if match:
-        addr = int(match.group(3), 0)
-        offset = addr if addr < base else addr - base
-        results = active_runner.symbolize(str(offset))
-        if results and '?' not in results[0]:
-          file_line = (f' {results[1]}'
-                       if len(results) > 1 and '?' not in results[1] else '')
-          out.write(f'{match.group(1)}{match.group(2)} {hex(offset)} in '
-                    f'{results[0]}{file_line}\n')
-          continue
-      # Android
-      match = _RE_ANDROID.match(line)
-      if match:
-        addr = int(match.group(3), 16)
-        offset = addr if addr < base else addr - base
-        results = active_runner.symbolize(str(offset))
-        if results and '?' not in results[0]:
-          file_line = (f' {results[1]}'
-                       if len(results) > 1 and '?' not in results[1] else '')
-          out.write(f'{match.group(1)}{match.group(2)} pc {hex(offset)} in '
-                    f'{results[0]}{file_line} ({match.group(4)})\n')
-          continue
-      # Cobalt
-      match = _RE_COBALT.match(line)
-      if match:
-        addr = int(match.group(3), 0)
-        offset = addr if addr < base else addr - base
-        results = active_runner.symbolize(str(offset))
-        if results and '?' not in results[0]:
-          prefix = match.group(1) or '        '
-          out.write(f'{prefix}{hex(offset)} [{results[0]}]\n')
-          continue
-      # Raw
-      match = _RE_RAW.match(line)
-      if match:
-        addr = int(match.group(1), 0)
-        offset = addr if addr < base else addr - base
-        results = active_runner.symbolize(str(offset))
-        if results:
-          file_line = (f' in {results[1]}'
-                       if len(results) > 1 and '?' not in results[1] else '')
-          out.write(f'{hex(offset)} {results[0]}{file_line}\n')
-          continue
-      # GDB
-      match = _RE_GDB.match(line)
-      if match:
-        addr = int(match.group(3), 0)
-        offset = addr if addr < base else addr - base
-        results = active_runner.symbolize(str(offset))
-        if results and '?' not in results[0]:
-          file_line = (f' {results[1]}'
-                       if len(results) > 1 and '?' not in results[1] else '')
-          out.write(f'{match.group(1)}{match.group(2)} {hex(offset)} in '
-                    f'{results[0]}{file_line}\n')
+      tracker.check_line(line)
+      match_pair = registry.match(line)
+      if not match_pair:
+        out.write(line)
+        continue
+
+      handler, frame_match = match_pair
+
+      default_lib = getattr(active_runner, 'default_library', None)
+      if frame_match.binary and default_lib:
+        frame_base = os.path.basename(frame_match.binary)
+        default_base = os.path.basename(default_lib)
+        if frame_base != default_base:
+          out.write(line)
           continue
 
-      out.write(line)
+      offset, _ = tracker.resolve_offset(
+          address=frame_match.address,
+          explicit_offset=frame_match.explicit_offset,
+          runner=active_runner,
+          binary=frame_match.binary)
 
-  active_runner = runner if runner is not None else _SymbolizerRunner(library)
+      if offset is None:
+        out.write(line)
+        continue
+
+      query_binary = None
+      if frame_match.binary and not default_lib:
+        query_binary = frame_match.binary
+
+      try:
+        results = active_runner.symbolize(str(offset), query_binary)
+      except TypeError:
+        results = active_runner.symbolize(str(offset))
+
+      if isinstance(handler, RawFormatHandler) and (not results or
+                                                    '?' in results[0][0]):
+        out.write(f'{hex(offset)} ??\n')
+        continue
+
+      if not results or '?' in results[0][0]:
+        out.write(line)
+        continue
+
+      formatted_lines = handler.format(frame_match, results, offset)
+      for fl in formatted_lines:
+        out.write(fl)
+
   try:
     if in_stream is not None:
-      _ProcessLines(in_stream, active_runner)
+      _process_lines(in_stream)
     else:
-      with open(filename, encoding='utf-8') as f:
-        _ProcessLines(f, active_runner)
+      with open(filename, 'r', encoding='utf-8') as f:
+        _process_lines(f)
   finally:
     if runner is None:
       active_runner.close()
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def symbolize_stream(in_stream: Iterable[str],
+                     out_stream: io.TextIOBase,
+                     library: Optional[str] = None,
+                     runner: Optional[SymbolizerRunner] = None,
+                     base_address: Optional[Union[str, int]] = '0',
+                     strip_prefixes: Optional[List[str]] = None):
+  """Convenience function to symbolize from an in-stream to an out-stream."""
+  return _Symbolize(
+      in_stream=in_stream,
+      out_stream=out_stream,
+      library=library,
+      runner=runner,
+      base_address=base_address,
+      strip_prefixes=strip_prefixes)
+
+
+def symbolize_string(text: str,
+                     library: Optional[str] = None,
+                     runner: Optional[SymbolizerRunner] = None,
+                     base_address: Optional[Union[str, int]] = '0',
+                     strip_prefixes: Optional[List[str]] = None) -> str:
+  """Convenience function to symbolize an in-memory string."""
+  in_stream = io.StringIO(text)
+  out_stream = io.StringIO()
+  symbolize_stream(
+      in_stream=in_stream,
+      out_stream=out_stream,
+      library=library,
+      runner=runner,
+      base_address=base_address,
+      strip_prefixes=strip_prefixes)
+  return out_stream.getvalue()
+
+
 def main():
-  arg_parser = argparse.ArgumentParser()
+  arg_parser = argparse.ArgumentParser(description='Symbolize stack traces.')
   arg_parser.add_argument(
       '-f',
       '--filename',
-      required=True,
-      help='The path to the file that contains the stack traces, crashes, or '
-      'raw addresses.')
+      help='Path to file containing stack traces, crashes, or raw addresses.')
   arg_parser.add_argument(
       '-l',
       '--library',
-      required=True,
-      help='The path to the library that is believed to contain the addresses.')
+      help='Path to library believed to contain the addresses.')
   arg_parser.add_argument(
       'base_address',
       type=str,
       nargs='?',
       default='0',
       help='The base address of the library.')
-  args, _ = arg_parser.parse_known_args()
+  arg_parser.add_argument(
+      '--extra-binary',
+      default=None,
+      help='Path to dynamic binary for which to symbolize stack traces.')
+  arg_parser.add_argument(
+      '--test-summary-json-file',
+      help='Path to a JSON file produced by the test launcher.')
+  arg_parser.add_argument(
+      'strip_path_prefix',
+      nargs='*',
+      help='When printing source file names, prefixes to strip.')
+  args = arg_parser.parse_args()
 
   if not os.path.exists(_SYMBOLIZER):
     raise ValueError(
         f'Please update {__file__} with a valid llvm-symbolizer path.')
 
-  base_address = (
-      args.base_address[0]
-      if isinstance(args.base_address, list) else args.base_address)
-  return _Symbolize(args.filename, args.library, base_address)
+  default_lib = args.library or args.extra_binary
+  base_address = args.base_address
+
+  if args.test_summary_json_file:
+    with SymbolizerRunner(default_library=default_lib) as runner:
+
+      def symbolize_lines_fn(lines):
+        return symbolize_string(
+            ''.join(lines),
+            runner=runner,
+            base_address=base_address,
+            strip_prefixes=args.strip_path_prefix)
+
+      process_test_summary_json(args.test_summary_json_file, symbolize_lines_fn)
+    return 0
+
+  if args.filename:
+    if args.strip_path_prefix:
+      return _Symbolize(
+          args.filename,
+          default_lib,
+          base_address,
+          strip_prefixes=args.strip_path_prefix)
+    return _Symbolize(args.filename, default_lib, base_address)
+
+  if args.strip_path_prefix:
+    return _Symbolize(
+        args.filename,
+        default_lib,
+        base_address,
+        in_stream=sys.stdin,
+        strip_prefixes=args.strip_path_prefix)
+  return _Symbolize(
+      args.filename, default_lib, base_address, in_stream=sys.stdin)
 
 
 if __name__ == '__main__':

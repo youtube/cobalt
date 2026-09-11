@@ -5,22 +5,24 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Unit and integration tests for symbolize.py."""
+"""Unit, integration, and benchmark tests for the symbolize package."""
 
 # pylint: disable=protected-access,wrong-import-position,consider-using-with
 
+import base64
 import io
 import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -30,6 +32,10 @@ if _SRC_DIR not in sys.path:
   sys.path.insert(0, _SRC_DIR)
 
 from starboard.tools import paths
+from starboard.tools.symbolize import detector
+from starboard.tools.symbolize import formats
+from starboard.tools.symbolize import json_processor
+from starboard.tools.symbolize import runner
 from starboard.tools.symbolize import symbolize
 
 _CLANG = os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'llvm-build',
@@ -44,9 +50,13 @@ _TESTDATA_DIR = os.path.join(os.path.dirname(__file__), 'testdata')
 class _FakeSymbolizerRunner:
   """Mock runner to supply deterministic responses without spawning LLVM."""
 
-  def __init__(self, responses=None, default_response=None):
+  def __init__(self,
+               responses=None,
+               default_response=None,
+               default_library=None):
     self._responses = responses or {}
     self._default_response = default_response
+    self.default_library = default_library
     self.calls = []
     self.closed = False
 
@@ -59,7 +69,7 @@ class _FakeSymbolizerRunner:
   def close(self):
     self.closed = True
 
-  def symbolize(self, offset):
+  def symbolize(self, offset, binary=None):  # pylint: disable=unused-argument
     self.calls.append(offset)
     if offset in self._responses:
       return self._responses[offset]
@@ -72,7 +82,7 @@ class SymbolizeUnitTests(unittest.TestCase):
   def test_rdk_syslog_prefix_preservation(self):
     line = ('[2026-09-01 01:28:54:229 PDT] Sep 01 08:28:53 AmlogicFirebolt '
             'YouTube[2001]: \t<unknown> [0x10e2de2]\n')
-    runner = _FakeSymbolizerRunner({
+    fake_runner = _FakeSymbolizerRunner({
         str(0x10e2de2): [
             'cobalt::CobaltBrowserMainParts::PreCreateThreads()',
             'cobalt_browser_main_parts.cc:316'
@@ -83,7 +93,7 @@ class SymbolizeUnitTests(unittest.TestCase):
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     expected = ('[2026-09-01 01:28:54:229 PDT] Sep 01 08:28:53 AmlogicFirebolt '
                 'YouTube[2001]: \t0x10e2de2 '
@@ -98,7 +108,7 @@ class SymbolizeUnitTests(unittest.TestCase):
         '09-08 17:27:46.387  8283  8283 F DEBUG   :       #00 pc 01115620  '
         '/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so (BuildId: 3abe1846)\n'
     )
-    runner = _FakeSymbolizerRunner({
+    fake_runner = _FakeSymbolizerRunner({
         str(0x3bef795): [
             'base::debug::StackTrace::StackTrace()', 'stack_trace.cc:255'
         ],
@@ -112,7 +122,7 @@ class SymbolizeUnitTests(unittest.TestCase):
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     output = out_stream.getvalue().splitlines(keepends=True)
     self.assertEqual(len(output), 2)
@@ -127,16 +137,98 @@ class SymbolizeUnitTests(unittest.TestCase):
         '(/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so '
         '(BuildId: 3abe1846))\n', output[1])
 
+  def test_android_mixed_libraries_disambiguation(self):
+    cobalt_line = (
+        '09-08 17:27:44.416  8169  8169 F DEBUG   :       #00 pc 0x01115620  '
+        '/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so\n')
+    libc_line = (
+        '09-08 17:27:44.416  8169  8169 F DEBUG   :       #01 pc 0x00094b2f  '
+        '/apex/com.android.runtime/lib/bionic/libc.so (__pthread_start+40)\n')
+    fake_runner = _FakeSymbolizerRunner(
+        responses={
+            str(0x1115620): [
+                'cobalt::CobaltBrowserMainParts::PreCreateThreads()',
+                'cobalt_browser_main_parts.cc:319'
+            ],
+            str(0x94b2f): ['false_positive_symbol()', 'unrelated.cc:10']
+        },
+        default_library='/path/to/host/out/libchrobalt.so')
+
+    in_stream = io.StringIO(cobalt_line + libc_line)
+    out_stream = io.StringIO()
+    symbolize._Symbolize(
+        in_stream=in_stream,
+        out_stream=out_stream,
+        runner=fake_runner,
+        base_address='0')
+    output = out_stream.getvalue().splitlines(keepends=True)
+    self.assertEqual(len(output), 2)
+    self.assertIn('cobalt::CobaltBrowserMainParts::PreCreateThreads()',
+                  output[0])
+    # Unrelated libc.so frame must remain untouched
+    self.assertEqual(output[1], libc_line)
+    self.assertNotIn(str(0x94b2f), fake_runner.calls)
+
+  def test_cli_stdin_support(self):
+    cobalt_line = (
+        '09-08 17:27:44.416  8169  8169 F DEBUG   :       #00 pc 0x01115620  '
+        '/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so\n')
+    target_runner = 'starboard.tools.symbolize.symbolize.SymbolizerRunner'
+    with mock.patch('sys.stdin', io.StringIO(cobalt_line)), \
+         mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout, \
+         mock.patch(target_runner) as mock_runner_cls:
+      mock_runner = mock.MagicMock()
+      mock_runner.default_library = '/tmp/libchrobalt.so'
+      mock_runner.symbolize.return_value = [('cobalt::PreCreateThreads()',
+                                             'main.cc:1')]
+      mock_runner_cls.return_value = mock_runner
+      with mock.patch(
+          'sys.argv', ['symbolize.py', '-l', '/tmp/libchrobalt.so']), \
+           mock.patch('os.path.exists', return_value=True):
+        symbolize.main()
+      self.assertIn('cobalt::PreCreateThreads()', mock_stdout.getvalue())
+
+  def test_android_binary_path_extraction(self):
+    handler = formats.AndroidFormatHandler()
+
+    line1 = (
+        '09-11 12:40:59.557  4614  4614 F DEBUG   :       #00 pc 03d1eeee  '
+        '/data/app/~~pkg==/base.apk!libcobalt_browsertests__library.so\n')
+    m1 = handler.match(line1)
+    self.assertIsNotNone(m1)
+    self.assertEqual(m1.binary, 'libcobalt_browsertests__library.so')
+
+    line2 = (
+        '09-08 17:27:46.387  8283  8283 F DEBUG   :       #00 pc 01115620  '
+        '/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so (BuildId: 3abe)\n')
+    m2 = handler.match(line2)
+    self.assertIsNotNone(m2)
+    self.assertEqual(m2.binary, 'libchrobalt.so')
+
+    line3 = (
+        '09-11 12:40:59.558  4614  4614 F DEBUG   :       #16 pc 00094b2f  '
+        '/apex/com.android.runtime/lib/bionic/libc.so (__pthread_start+40)\n')
+    m3 = handler.match(line3)
+    self.assertIsNotNone(m3)
+    self.assertEqual(m3.binary, 'libc.so')
+
+    line4 = (
+        '09-08 17:27:44.416  8169  8169 F DEBUG   :       #00 pc 00012345  '
+        '/system/bin/app_process32\n')
+    m4 = handler.match(line4)
+    self.assertIsNotNone(m4)
+    self.assertEqual(m4.binary, 'app_process32')
+
   def test_asan_format(self):
     line = '    #1 0x7fdc59bbaa6b  (<unknown module>)\n'
-    runner = _FakeSymbolizerRunner(
+    fake_runner = _FakeSymbolizerRunner(
         {str(0x7fdc59bbaa6b): ['asan_detected_leak()', 'asan.cc:42']})
     in_stream = io.StringIO(line)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(
         out_stream.getvalue(),
@@ -144,53 +236,53 @@ class SymbolizeUnitTests(unittest.TestCase):
 
   def test_gdb_format(self):
     line = '    #1  0x742a51b6 in ?? () from /lib/libcobalt.so\n'
-    runner = _FakeSymbolizerRunner(
+    fake_runner = _FakeSymbolizerRunner(
         {str(0x742a51b6): ['gdb_resolved_func()', 'gdb.cc:10']})
     in_stream = io.StringIO(line)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(out_stream.getvalue(),
                      '    #1 0x742a51b6 in gdb_resolved_func() gdb.cc:10\n')
 
   def test_raw_format(self):
     line = '0x7efcdf1fd52b\n'
-    runner = _FakeSymbolizerRunner(
+    fake_runner = _FakeSymbolizerRunner(
         {str(0x7efcdf1fd52b): ['raw_symbol()', 'raw.cc:99']})
     in_stream = io.StringIO(line)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(out_stream.getvalue(),
                      '0x7efcdf1fd52b raw_symbol() in raw.cc:99\n')
 
   def test_unresolved_question_marks_left_unmodified(self):
     line = '        <unknown> [0x12345]\n'
-    runner = _FakeSymbolizerRunner({str(0x12345): ['??', '??:0']})
+    fake_runner = _FakeSymbolizerRunner({str(0x12345): ['??', '??:0']})
     in_stream = io.StringIO(line)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(out_stream.getvalue(), line)
 
   def test_single_line_response_no_index_error(self):
     line = '        <unknown> [0x12345]\n'
-    runner = _FakeSymbolizerRunner({str(0x12345): ['only_func_name']})
+    fake_runner = _FakeSymbolizerRunner({str(0x12345): ['only_func_name']})
     in_stream = io.StringIO(line)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(out_stream.getvalue(),
                      '        0x12345 [only_func_name]\n')
@@ -199,7 +291,7 @@ class SymbolizeUnitTests(unittest.TestCase):
     base_addr = '0x7f0000000000'
     rel_line = '        <unknown> [0x1000]\n'
     abs_line = '        <unknown> [0x7f0000002000]\n'
-    runner = _FakeSymbolizerRunner({
+    fake_runner = _FakeSymbolizerRunner({
         str(0x1000): ['func_rel()'],
         str(0x2000): ['func_abs()']
     })
@@ -208,44 +300,57 @@ class SymbolizeUnitTests(unittest.TestCase):
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address=base_addr)
-    self.assertIn(str(0x1000), runner.calls)
-    self.assertIn(str(0x2000), runner.calls)
+    self.assertIn(str(0x1000), fake_runner.calls)
+    self.assertIn(str(0x2000), fake_runner.calls)
+
+  def test_integer_base_address_handling(self):
+    line = '        <unknown> [0x1000]\n'
+    fake_runner = _FakeSymbolizerRunner({str(0x1000): ['func_rel()']})
+    in_stream = io.StringIO(line)
+    out_stream = io.StringIO()
+    # Ensure integer 0 and 0x1000 don't raise TypeError
+    symbolize._Symbolize(
+        in_stream=in_stream,
+        out_stream=out_stream,
+        runner=fake_runner,
+        base_address=0)
+    self.assertIn('func_rel()', out_stream.getvalue())
 
   def test_symbolizer_runner_dead_pipe_recovery(self):
-    """Verifies that if the symbolizer process dies, it safely closes."""
-    runner = symbolize._SymbolizerRunner(
+    test_runner = runner.SymbolizerRunner(
         library='/nonexistent/lib.so', symbolizer_path='/bin/false')
-    res = runner.symbolize('4096')
+    res = test_runner.symbolize('4096')
     self.assertIsNone(res)
-    self.assertIsNone(runner._proc)
+    self.assertIsNone(test_runner._proc)
 
   def test_symbolizer_runner_caching(self):
-    runner = symbolize._SymbolizerRunner(library='/nonexistent/lib.so')
-    runner._cache['1234'] = ['cached_func()', 'file.cc:1']
-    self.assertEqual(runner.symbolize('1234'), ['cached_func()', 'file.cc:1'])
-    self.assertIsNone(runner._proc)
+    test_runner = runner.SymbolizerRunner(library='/nonexistent/lib.so')
+    test_runner._cache[('/nonexistent/lib.so', 1234)] = [('cached_func()',
+                                                          'file.cc:1')]
+    self.assertEqual(
+        test_runner.symbolize('1234'), [('cached_func()', 'file.cc:1')])
+    self.assertIsNone(test_runner._proc)
 
   def test_golden_collected_files_process_cleanly(self):
-    """Verifies all collected hardware and platform logs parse cleanly."""
     for filename in [
         'rdk_syslog_stack.log', 'rdk_device_live.log',
         'evergreen_linux_stack.log', 'android_chromecast_stack.log'
     ]:
       log_path = os.path.join(_TESTDATA_DIR, filename)
       if os.path.exists(log_path):
-        runner = _FakeSymbolizerRunner(
+        fake_runner = _FakeSymbolizerRunner(
             default_response=['mock_resolved_symbol()', 'file.cc:1'])
         out_stream = io.StringIO()
         with open(log_path, 'r', encoding='utf-8') as f:
           symbolize._Symbolize(
               in_stream=f,
               out_stream=out_stream,
-              runner=runner,
+              runner=fake_runner,
               base_address='0')
         self.assertGreater(len(out_stream.getvalue()), 0)
-        self.assertGreater(len(runner.calls), 0)
+        self.assertGreater(len(fake_runner.calls), 0)
         self.assertIn('mock_resolved_symbol', out_stream.getvalue())
 
   def test_symbolize_raises_on_missing_file(self):
@@ -265,13 +370,13 @@ class SymbolizeUnitTests(unittest.TestCase):
     with tempfile.NamedTemporaryFile(mode='w+', encoding='utf-8') as f:
       f.write('        <unknown> [0x1000]\n')
       f.flush()
-      runner = _FakeSymbolizerRunner(
+      fake_runner = _FakeSymbolizerRunner(
           {str(0x1000): ['func_from_file()', 'file.cc:10']})
       out_stream = io.StringIO()
       symbolize._Symbolize(
           filename=f.name,
           out_stream=out_stream,
-          runner=runner,
+          runner=fake_runner,
           base_address='0')
       self.assertIn('func_from_file()', out_stream.getvalue())
 
@@ -297,73 +402,73 @@ class SymbolizeUnitTests(unittest.TestCase):
       self.assertIn('Please update', str(ctx.exception))
 
   def test_symbolizer_runner_negative_offset(self):
-    runner = symbolize._SymbolizerRunner(library='/nonexistent/lib.so')
-    self.assertIsNone(runner.symbolize('-1'))
-    self.assertIsNone(runner.symbolize('-4096'))
+    test_runner = runner.SymbolizerRunner(library='/nonexistent/lib.so')
+    self.assertIsNone(test_runner.symbolize('-1'))
+    self.assertIsNone(test_runner.symbolize('-4096'))
 
   def test_symbolizer_runner_context_manager(self):
-    runner = symbolize._SymbolizerRunner(library='/nonexistent/lib.so')
+    test_runner = runner.SymbolizerRunner(library='/nonexistent/lib.so')
     mock_proc = mock.MagicMock()
-    with runner:
-      runner._proc = mock_proc
+    with test_runner:
+      test_runner._proc = mock_proc
     mock_proc.stdin.close.assert_called_once()
     mock_proc.stdout.close.assert_called_once()
     mock_proc.wait.assert_called_once()
-    self.assertIsNone(runner._proc)
+    self.assertIsNone(test_runner._proc)
 
   def test_symbolizer_runner_exception_during_write_closes_proc(self):
-    runner = symbolize._SymbolizerRunner(library='/nonexistent/lib.so')
+    test_runner = runner.SymbolizerRunner(library='/nonexistent/lib.so')
     mock_proc = mock.MagicMock()
     mock_proc.stdin.write.side_effect = BrokenPipeError('Broken pipe')
-    runner._proc = mock_proc
-    result = runner.symbolize('100')
+    test_runner._proc = mock_proc
+    result = test_runner.symbolize('100')
     self.assertIsNone(result)
-    self.assertIsNone(runner._proc)
+    self.assertIsNone(test_runner._proc)
     mock_proc.wait.assert_called_once()
 
   def test_symbolizer_runner_close_handles_exceptions_gracefully(self):
-    runner = symbolize._SymbolizerRunner(library='/nonexistent/lib.so')
+    test_runner = runner.SymbolizerRunner(library='/nonexistent/lib.so')
     mock_proc = mock.MagicMock()
     mock_proc.stdin.close.side_effect = OSError('Stream error')
-    runner._proc = mock_proc
-    runner.close()
-    self.assertIsNone(runner._proc)
+    test_runner._proc = mock_proc
+    test_runner.close()
+    self.assertIsNone(test_runner._proc)
     mock_proc.stdout.close.assert_called_once()
     mock_proc.wait.assert_called_once()
 
   def test_symbolizer_runner_popen_failure_returns_none(self):
-    runner = symbolize._SymbolizerRunner(
+    test_runner = runner.SymbolizerRunner(
         library='/nonexistent/lib.so',
         symbolizer_path='/nonexistent/path/to/llvm-symbolizer')
     with mock.patch(
         'subprocess.Popen', side_effect=FileNotFoundError('No such file')):
-      result = runner.symbolize('100')
+      result = test_runner.symbolize('100')
       self.assertIsNone(result)
-      self.assertIsNone(runner._proc)
+      self.assertIsNone(test_runner._proc)
 
   def test_unresolved_all_formats_left_unmodified(self):
     lines = ('    #1 0x7fdc59bbaa6b  (<unknown module>)\n'
              '#00 pc 0x03bef795 /lib/libcobalt.so\n'
              '    #1  0x742a51b6 in ?? () from /lib/libcobalt.so\n')
-    runner = _FakeSymbolizerRunner(default_response=['??', '??:0'])
+    fake_runner = _FakeSymbolizerRunner(default_response=['??', '??:0'])
     in_stream = io.StringIO(lines)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(out_stream.getvalue(), lines)
 
   def test_raw_format_includes_unresolved_symbols(self):
     line = '0x7efcdf1fd52b\n'
-    runner = _FakeSymbolizerRunner({str(0x7efcdf1fd52b): ['??', '??:0']})
+    fake_runner = _FakeSymbolizerRunner({str(0x7efcdf1fd52b): ['??', '??:0']})
     in_stream = io.StringIO(line)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(out_stream.getvalue(), '0x7efcdf1fd52b ??\n')
 
@@ -372,7 +477,7 @@ class SymbolizeUnitTests(unittest.TestCase):
                   '#00 pc 0x03bef795 /lib/libcobalt.so\n'
                   '    #1  0x742a51b6 in ?? () from /lib/libcobalt.so\n'
                   '0x7efcdf1fd52b\n')
-    runner = _FakeSymbolizerRunner({
+    fake_runner = _FakeSymbolizerRunner({
         str(0x7fdc59bbaa6b): ['asan_func'],
         str(0x3bef795): ['android_func'],
         str(0x742a51b6): ['gdb_func'],
@@ -383,7 +488,7 @@ class SymbolizeUnitTests(unittest.TestCase):
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     output = out_stream.getvalue().splitlines()
     self.assertIn('asan_func', output[0])
@@ -393,14 +498,14 @@ class SymbolizeUnitTests(unittest.TestCase):
 
   def test_cobalt_format_with_existing_symbol_name(self):
     line = '        SbEventHandle [0x9c17b5]\n'
-    runner = _FakeSymbolizerRunner(
+    fake_runner = _FakeSymbolizerRunner(
         {str(0x9c17b5): ['NewSymbolName()', 'event.cc:50']})
     in_stream = io.StringIO(line)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(out_stream.getvalue(),
                      '        0x9c17b5 [NewSymbolName()]\n')
@@ -410,23 +515,23 @@ class SymbolizeUnitTests(unittest.TestCase):
              '[0909/002302.313880:INFO:thread.cc(154)] Thread started\n'
              'Check failed: g_sb_event_func.\n'
              'Some arbitrary console output\n')
-    runner = _FakeSymbolizerRunner()
+    fake_runner = _FakeSymbolizerRunner()
     in_stream = io.StringIO(lines)
     out_stream = io.StringIO()
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     self.assertEqual(out_stream.getvalue(), lines)
-    self.assertEqual(len(runner.calls), 0)
+    self.assertEqual(len(fake_runner.calls), 0)
 
   def test_hex_casing_variations(self):
     lines = ('    #1 0x7FDC59BBAA6B  (<unknown module>)\n'
              '#00 pc 0x03BEF795 /lib/libcobalt.so\n'
              '        <unknown> [0x10E2DE2]\n'
              '0x7EFCDF1FD52B\n')
-    runner = _FakeSymbolizerRunner({
+    fake_runner = _FakeSymbolizerRunner({
         str(0x7fdc59bbaa6b): ['asan_fn()'],
         str(0x3bef795): ['android_fn()'],
         str(0x10e2de2): ['cobalt_fn()'],
@@ -437,13 +542,236 @@ class SymbolizeUnitTests(unittest.TestCase):
     symbolize._Symbolize(
         in_stream=in_stream,
         out_stream=out_stream,
-        runner=runner,
+        runner=fake_runner,
         base_address='0')
     output = out_stream.getvalue()
     self.assertIn('asan_fn()', output)
     self.assertIn('android_fn()', output)
     self.assertIn('cobalt_fn()', output)
     self.assertIn('raw_fn()', output)
+
+
+class RunnerUnitTests(unittest.TestCase):
+  """Unit tests for runner.py."""
+
+  def test_inlined_frames_parsing(self):
+    test_runner = runner.SymbolizerRunner(library='/mock/lib.so')
+    mock_proc = mock.MagicMock()
+    # Return two pairs of lines representing inlined frames terminated by
+    # an empty line.
+    mock_proc.stdout.readline.side_effect = [
+        'inlined_child()\n',
+        'child.h:12:4\n',
+        'parent_func()\n',
+        'parent.cc:88:2\n',
+        '\n',
+    ]
+    test_runner._proc = mock_proc
+
+    res = test_runner.symbolize('0x1000')
+    self.assertEqual(len(res), 2)
+    self.assertEqual(res[0], ('inlined_child()', 'child.h:12:4'))
+    self.assertEqual(res[1], ('parent_func()', 'parent.cc:88:2'))
+
+  def test_lru_cache_eviction(self):
+    test_runner = runner.SymbolizerRunner(
+        library='/mock/lib.so', max_cache_size=2)
+    test_runner._cache[('/mock/lib.so', 1)] = [('f1', 'l1')]
+    test_runner._cache[('/mock/lib.so', 2)] = [('f2', 'l2')]
+    # Query key 1 to move it to end
+    test_runner.symbolize('1')
+    mock_proc = mock.MagicMock()
+    mock_proc.stdout.readline.side_effect = ['f3\n', 'l3\n', '\n']
+    test_runner._proc = mock_proc
+    test_runner.symbolize('3')
+
+    self.assertNotIn(('/mock/lib.so', 2), test_runner._cache)
+    self.assertIn(('/mock/lib.so', 1), test_runner._cache)
+    self.assertIn(('/mock/lib.so', 3), test_runner._cache)
+
+
+class FormatsUnitTests(unittest.TestCase):
+  """Unit tests for formats.py."""
+
+  def test_asan_inlined_frame_expansion(self):
+    handler = formats.AsanMode1FormatHandler()
+    match = handler.match('    #0 0x7f48e7a45000  (<unknown module>)\n')
+    self.assertIsNotNone(match)
+
+    results = [
+        ('inlined_leaf()', '/out/Release/../../leaf.h:10'),
+        ('outer_caller()', '/out/Release/../../caller.cc:50'),
+    ]
+    formatted = handler.format(match, results, resolved_offset=0x1000)
+    self.assertEqual(len(formatted), 2)
+    self.assertEqual(formatted[0],
+                     '    #0 0x1000 in inlined_leaf() leaf.h:10\n')
+    self.assertEqual(formatted[1],
+                     '    #1 0x1000 in outer_caller() caller.cc:50\n')
+
+  def test_strip_path_prefix(self):
+    path = '/usr/local/cobalt/src/out/Release/../../cobalt/dom/node.cc:154'
+    self.assertEqual(formats.strip_path_prefix(path), 'cobalt/dom/node.cc:154')
+
+
+class DetectorUnitTests(unittest.TestCase):
+  """Unit tests for detector.py."""
+
+  def test_multi_session_tracking(self):
+    tracker = detector.StreamingSessionTracker()
+    self.assertIsNone(tracker.current_base_address)
+    self.assertEqual(tracker.session_id, 0)
+
+    tracker.check_line('Load start=0x7f1000000000')
+    self.assertEqual(tracker.current_base_address, 0x7f1000000000)
+    self.assertEqual(tracker.session_id, 1)
+
+    tracker.check_line('Load start=0x7f2000000000')
+    self.assertEqual(tracker.current_base_address, 0x7f2000000000)
+    self.assertEqual(tracker.session_id, 2)
+
+  def test_three_tier_resolution_modes(self):
+    tracker = detector.StreamingSessionTracker(
+        default_base_address=0x7f1000000000)
+
+    # Tier 1: 64-bit ASLR address
+    offset, mode = tracker.resolve_offset(0x7f1000005000)
+    self.assertEqual(offset, 0x5000)
+    self.assertEqual(mode, 'base_subtracted')
+
+    # Tier 1: Relative offset (< 100MB)
+    offset, mode = tracker.resolve_offset(0x2000)
+    self.assertEqual(offset, 0x2000)
+    self.assertEqual(mode, 'base_relative')
+
+    # Tier 3: Missing base address
+    tracker_no_base = detector.StreamingSessionTracker(
+        default_base_address=None)
+    offset, mode = tracker_no_base.resolve_offset(0x7f1000005000)
+    self.assertIsNone(offset)
+    self.assertEqual(mode, 'missing_base')
+
+
+class JsonProcessorUnitTests(unittest.TestCase):
+  """Unit tests for json_processor.py."""
+
+  def test_prefilter_skips_non_trace_snippets(self):
+    test_run = {
+        'output_snippet':
+            'All unit tests passed with 0 errors.',
+        'output_snippet_base64':
+            base64.b64encode(b'All unit tests passed with 0 errors.').decode()
+    }
+    mock_sym_fn = mock.MagicMock()
+    modified = json_processor.process_test_run(test_run, mock_sym_fn)
+    self.assertFalse(modified)
+    mock_sym_fn.assert_not_called()
+
+  def test_prefilter_processes_trace_snippets(self):
+    test_run = {
+        'output_snippet':
+            'CRASH LOG: #0 0x1000 in test',
+        'output_snippet_base64':
+            base64.b64encode(b'CRASH LOG: #0 0x1000 in test').decode()
+    }
+    mock_sym_fn = mock.MagicMock(
+        return_value='CRASH LOG: #0 0x1000 in Symbolized()')
+    modified = json_processor.process_test_run(test_run, mock_sym_fn)
+    self.assertTrue(modified)
+    self.assertEqual(test_run['output_snippet'],
+                     'CRASH LOG: #0 0x1000 in Symbolized()')
+
+
+class MultiBinaryIntegrationTests(unittest.TestCase):
+  """Compiles two synthetic C shared libraries to test multi-binary dispatch."""
+
+  temp_dir = None
+  alpha_so = None
+  beta_so = None
+  alpha_offset = None
+  beta_offset = None
+
+  @classmethod
+  def setUpClass(cls):
+    if not (os.path.exists(_CLANG) and os.path.exists(_LLVM_NM) and
+            os.path.exists(_SYMBOLIZER)):
+      return
+
+    cls.temp_dir = tempfile.TemporaryDirectory()
+    alpha_c = os.path.join(cls.temp_dir.name, 'alpha.c')
+    beta_c = os.path.join(cls.temp_dir.name, 'beta.c')
+    cls.alpha_so = os.path.join(cls.temp_dir.name, 'libalpha.so')
+    cls.beta_so = os.path.join(cls.temp_dir.name, 'libbeta.so')
+
+    with open(alpha_c, 'w', encoding='utf-8') as f:
+      f.write('int alpha_function(int x) { return x + 10; }\n')
+    with open(beta_c, 'w', encoding='utf-8') as f:
+      f.write('int beta_function(int y) { return y * 20; }\n')
+
+    subprocess.check_call(
+        [_CLANG, '-shared', '-fPIC', '-g', '-O0', alpha_c, '-o', cls.alpha_so])
+    subprocess.check_call(
+        [_CLANG, '-shared', '-fPIC', '-g', '-O0', beta_c, '-o', cls.beta_so])
+
+    nm_alpha = subprocess.check_output([_LLVM_NM, '-n', cls.alpha_so],
+                                       text=True)
+    for line in nm_alpha.splitlines():
+      parts = line.split()
+      if len(parts) >= 3 and parts[2] == 'alpha_function':
+        cls.alpha_offset = hex(int(parts[0], 16))
+
+    nm_beta = subprocess.check_output([_LLVM_NM, '-n', cls.beta_so], text=True)
+    for line in nm_beta.splitlines():
+      parts = line.split()
+      if len(parts) >= 3 and parts[2] == 'beta_function':
+        cls.beta_offset = hex(int(parts[0], 16))
+
+  @classmethod
+  def tearDownClass(cls):
+    if cls.temp_dir:
+      cls.temp_dir.cleanup()
+
+  def setUp(self):
+    if not (os.path.exists(_CLANG) and os.path.exists(_LLVM_NM) and
+            os.path.exists(_SYMBOLIZER)):
+      self.skipTest('LLVM toolchain binaries not found.')
+
+  def test_persistent_runner_switches_binaries(self):
+    with runner.SymbolizerRunner() as sym_runner:
+      res_alpha = sym_runner.symbolize(self.alpha_offset, binary=self.alpha_so)
+      res_beta = sym_runner.symbolize(self.beta_offset, binary=self.beta_so)
+
+      self.assertIsNotNone(res_alpha)
+      self.assertIsNotNone(res_beta)
+      self.assertIn('alpha_function', res_alpha[0][0])
+      self.assertIn('beta_function', res_beta[0][0])
+
+
+class PerformanceBenchmarkTest(unittest.TestCase):
+  """Performance test asserting 1,000+ frame symbolization under 2.0s."""
+
+  def test_thousand_frame_crash_benchmark(self):
+    fake_runner = _FakeSymbolizerRunner(
+        default_response=['benchmarked_symbol()', 'benchmark.cc:100'])
+    lines = [
+        f'    #{i} 0x{1000 + i:x}  (<unknown module>)\n' for i in range(1000)
+    ]
+    in_stream = io.StringIO(''.join(lines))
+    out_stream = io.StringIO()
+
+    start_time = time.time()
+    symbolize._Symbolize(
+        in_stream=in_stream,
+        out_stream=out_stream,
+        runner=fake_runner,
+        base_address='0')
+    elapsed = time.time() - start_time
+
+    self.assertLess(
+        elapsed, 2.0,
+        f'Symbolizing 1,000 frames took {elapsed:.3f}s (expected < 2.0s)')
+    self.assertEqual(len(fake_runner.calls), 1000)
+    self.assertIn('benchmarked_symbol', out_stream.getvalue())
 
 
 class SymbolizeIntegrationTests(unittest.TestCase):
@@ -516,6 +844,29 @@ class SymbolizeIntegrationTests(unittest.TestCase):
     self.assertIn('fixture_func_alpha', output)
     self.assertIn('fixture_func_beta', output)
     self.assertIn('fixture.c', output)
+
+  def test_real_llvm_symbolizer_mixed_binaries(self):
+    beta_offset = self.symbols['fixture_func_beta']
+    so_name = os.path.basename(self.so_path)
+    input_text = (
+        f'09-08 17:27:44.416  8169  8169 E chromium: #00 pc {beta_offset} '
+        f'/data/app/dev.cobalt.coat/base.apk!{so_name}\n'
+        '09-08 17:27:44.416  8169  8169 E chromium: #01 pc 0x00094b2f '
+        '/apex/com.android.runtime/lib/bionic/libc.so (__pthread_start+40)\n')
+    in_stream = io.StringIO(input_text)
+    out_stream = io.StringIO()
+
+    symbolize._Symbolize(
+        library=self.so_path,
+        base_address='0',
+        in_stream=in_stream,
+        out_stream=out_stream)
+
+    lines = out_stream.getvalue().splitlines(keepends=True)
+    self.assertEqual(len(lines), 2)
+    self.assertIn('fixture_func_beta', lines[0])
+    self.assertIn('libc.so (__pthread_start+40)', lines[1])
+    self.assertNotIn('fixture', lines[1])
 
   def test_real_llvm_symbolizer_with_file_and_base_address(self):
     alpha_offset = int(self.symbols['fixture_func_alpha'], 16)
