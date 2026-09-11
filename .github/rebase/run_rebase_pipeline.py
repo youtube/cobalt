@@ -13,6 +13,7 @@ Executes all rebase phases in sequence:
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from typing import List
@@ -325,6 +326,38 @@ def run_pipeline(args: argparse.Namespace) -> int:
       write_report("FAILED (Phase 1: Conflict Resolution)")
       return 1
     print("[OK] Phase 1 Completed Successfully.", file=sys.stderr)
+    # Checkpoint Phase 1 resolutions into a clean commit so HEAD is valid
+    try:
+      subprocess.run(["git", "add", "-u"], cwd=args.repo_path, check=False)
+      diff_proc = subprocess.run(
+          ["git", "diff", "--cached", "--quiet"],
+          cwd=args.repo_path,
+          check=False,
+      )
+      if diff_proc.returncode != 0:
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=Cobalt Rebase Agent",
+                "-c",
+                "user.email=cobalt-rebase-agent@google.com",
+                "commit",
+                "-m",
+                "[AI] Checkpoint: Resolved Phase 1 merge conflicts",
+            ],
+            cwd=args.repo_path,
+            check=False,
+        )
+        print(
+            "  [OK] Created clean baseline checkpoint commit for Phase 1.",
+            file=sys.stderr,
+        )
+    except Exception as cp_err:  # pylint: disable=broad-exception-caught
+      print(
+          f"  [WARNING] Failed to create Phase 1 checkpoint commit: {cp_err}",
+          file=sys.stderr,
+      )
 
   # -------------------------------------------------------------------------
   # PHASE 2: Toolchain & Dependency Sync: gclient sync -D

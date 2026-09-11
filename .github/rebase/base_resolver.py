@@ -20,6 +20,10 @@ import warnings
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
+# Precompiled pattern matching investigation tool directives (e.g.,
+# TOOL_READ_FILE: ...)
+_TOOL_CMD_PATTERN = re.compile(r"\b(TOOL_[A-Z_]+:\s*[^\n<`]+)")
+
 
 @dataclasses.dataclass
 class AgentChangeRecord:
@@ -702,17 +706,33 @@ def sanitize_filepath_token(raw_target: str) -> str:
 
 
 def extract_tool_commands(text: str) -> List[str]:
-  """Extracts all TOOL_ commands, stripping think tags/backticks."""
+  """Extracts all TOOL_ commands, stripping think tags/backticks/preambles."""
   clean = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
   clean = re.sub(r"</?think>.*$", "", clean, flags=re.MULTILINE)
   clean = re.sub(r"</?think>", "", clean)
+
+  # If model has already provided a full SEARCH/REPLACE block or unified diff,
+  # do not treat it as an investigation tool command.
+  if ("<<<<<<< SEARCH" in clean and ">>>>>>> REPLACE" in clean) or (re.search(
+      r"^@@\s+-\d+.*?\s+\+\d+.*?@@", clean, re.MULTILINE)):
+    return []
+
   commands: List[str] = []
   seen = set()
   for line in clean.splitlines():
     l_strip = line.strip()
-    if m := re.match(r"^(TOOL_[A-Z_]+:\s*[^\n<`]+)", l_strip):
-      cmd = m.group(1).strip()
-      cmd = re.sub(r"[`'\"]+$", "", cmd).strip()
+    # Strip markdown formatting / prefixes like:
+    # "Tool Call: `TOOL_READ_FILE: ...`", "- `TOOL_...`", "* TOOL_..."
+    l_clean = re.sub(
+        r"^(?:[-*]\s+)?(?:Tool Call:\s*|Tool:\s*)?",
+        "",
+        l_strip,
+        flags=re.IGNORECASE,
+    ).strip()
+    l_clean = l_clean.strip("`'\"")
+    m = _TOOL_CMD_PATTERN.search(l_clean) or _TOOL_CMD_PATTERN.search(l_strip)
+    if m:
+      cmd = re.sub(r"[`'\"]+$", "", m.group(1)).strip()
       if cmd and cmd not in seen:
         seen.add(cmd)
         commands.append(cmd)
@@ -1026,7 +1046,8 @@ def execute_local_tool(
     except Exception as e:  # pylint: disable=broad-exception-caught
       return f"[ERROR] gclient sync failed: {e}"
 
-  # 10. TOOL_GET_HISTORY: <count | all | iteration_number | start-end>
+  # 10. TOOL_GET_HISTORY: <count | all | iteration_number | start-end |
+  # filepath>
   if clean_cmd.startswith(
       ("TOOL_GET_HISTORY:", "TOOL_CHANGE_HISTORY:", "TOOL_HISTORY:")):
     raw_args = clean_cmd.split(":", 1)[1].strip()
@@ -1038,6 +1059,24 @@ def execute_local_tool(
       return (
           f"=== Full Change History ({len(session_changes)} records) ===\n\n" +
           "\n\n".join(r.to_prompt_str() for r in session_changes))
+
+    clean_target = raw_args.strip("`'\"")
+    # Check if raw_args specifies a file path (or substring matching a file
+    # path)
+    if not re.match(
+        r"^(?:iteration|iter|#)?\s*\d+(?:\s*(?:-|to|\.\.)\s*\d+)?$",
+        clean_target,
+        re.IGNORECASE,
+    ):
+      matched_files = [
+          r for r in session_changes if (clean_target in r.target_file or any(
+              clean_target in f for f in r.modified_files))
+      ]
+      if matched_files:
+        return (f"=== Change Records for '{clean_target}' "
+                f"({len(matched_files)} records) ===\n\n" +
+                "\n\n".join(r.to_prompt_str() for r in matched_files))
+      return f"[NOTICE] No change records found matching file '{clean_target}'."
 
     # Check for iteration range: e.g. "1-5" or "1..5"
     m_range = re.search(r"(\d+)\s*(?:-|to|\.\.)\s*(\d+)", raw_args)
@@ -1069,10 +1108,6 @@ def execute_local_tool(
       return (f"=== Last {len(matched)} Change Records (out of "
               f"{len(session_changes)}) ===\n\n" +
               "\n\n".join(r.to_prompt_str() for r in matched))
-
-    return (
-        f"=== Full Change History ({len(session_changes)} records) ===\n\n" +
-        "\n\n".join(r.to_prompt_str() for r in session_changes))
 
   return f"[ERROR] Unknown tool command: {clean_cmd}"
 
@@ -1169,6 +1204,26 @@ def write_rebase_report(
   return report_path
 
 
+def extract_meaningful_error_summary(raw_msg: str) -> str:
+  """Extracts the first substantive error line, ignoring generic headers."""
+  if not raw_msg:
+    return ""
+  ignored_prefixes = (
+      "Siso output:",
+      "Build stdout/stderr:",
+      "ninja: Entering directory",
+      "ninja: build stopped",
+  )
+  for line in raw_msg.strip().splitlines():
+    l_strip = line.strip()
+    if not l_strip:
+      continue
+    if any(l_strip.startswith(p) for p in ignored_prefixes):
+      continue
+    return l_strip
+  return raw_msg.strip().splitlines()[0]
+
+
 class BaseResolver(abc.ABC):
   """Abstract base class for all self-healing rebase command execution loops."""
 
@@ -1259,6 +1314,9 @@ class BaseResolver(abc.ABC):
       with open(file_path, "r", encoding="utf-8", errors="replace") as f:
         lines = f.readlines()
       if 1 <= target_line <= len(lines):
+        full_content = "".join(lines)
+        if "<<<<<<<" in full_content and "=======" in full_content:
+          return None
         err_line = lines[target_line - 1].strip()
         if err_line.startswith(("=======", "<<<<<<<", ">>>>>>>")):
           rel_f = os.path.relpath(file_path, self.repo_path)
@@ -1400,7 +1458,7 @@ class BaseResolver(abc.ABC):
           rel_f = diag_file
           loc_str = f" in {diag_file}:{diag_line}"
 
-      error_summary = diag_msg.strip().splitlines()[0] if diag_msg else ""
+      error_summary = extract_meaningful_error_summary(diag_msg)
 
       # Update the outcome of the previous patch attempt
       if pending_record is not None:
@@ -1461,38 +1519,53 @@ class BaseResolver(abc.ABC):
             file=sys.stderr,
         )
         try:
-          subprocess.run(
-              ["git", "checkout", "HEAD", "--", rel_target_file],
+          head_check = subprocess.run(
+              ["git", "show", f"HEAD:{rel_target_file}"],
               cwd=self.repo_path,
               capture_output=True,
               text=True,
               check=False,
           )
-          self.on_patch_applied([target_f])
-          revert_msg = (
-              f"Reverted {rel_target_file} to clean baseline due to "
-              f"repeated failed fix attempts ({error_summary}). Please "
-              "re-investigate with an alternative approach.")
-          history_records.append({
-              "iteration": iteration,
-              "file": rel_target_file,
-              "error": revert_msg,
-              "status": "REVERTED_TO_BASELINE",
-          })
-          self.session_changes.append(
-              AgentChangeRecord(
-                  phase=self.name,
-                  iteration=iteration,
-                  target_file=rel_target_file,
-                  file_changes={
-                      rel_target_file: (
-                          f"# Reverted {rel_target_file} to clean baseline HEAD"
-                      )
-                  },
-                  error=(f"Repeated failure ({error_summary}); reverted to "
-                         "baseline"),
-                  applied_cleanly=True,
-              ))
+          if head_check.returncode == 0 and "<<<<<<<" in head_check.stdout:
+            print(
+                f"  [{self.name}] [Anti-Loop GUARD] Cannot revert "
+                f"{rel_target_file} to HEAD: HEAD contains raw conflict "
+                "markers. Keeping current working file.",
+                file=sys.stderr,
+            )
+          else:
+            subprocess.run(
+                ["git", "checkout", "HEAD", "--", rel_target_file],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.on_patch_applied([target_f])
+            revert_msg = (
+                f"Reverted {rel_target_file} to clean baseline due to "
+                f"repeated failed fix attempts ({error_summary}). Please "
+                "re-investigate with an alternative approach.")
+            history_records.append({
+                "iteration": iteration,
+                "file": rel_target_file,
+                "error": revert_msg,
+                "status": "REVERTED_TO_BASELINE",
+            })
+            self.session_changes.append(
+                AgentChangeRecord(
+                    phase=self.name,
+                    iteration=iteration,
+                    target_file=rel_target_file,
+                    file_changes={
+                        rel_target_file:
+                            (f"# Reverted {rel_target_file} to clean "
+                             "baseline HEAD")
+                    },
+                    error=(f"Repeated failure ({error_summary}); reverted to "
+                           "baseline"),
+                    applied_cleanly=True,
+                ))
         except (OSError, subprocess.SubprocessError) as rev_err:
           print(
               f"  [{self.name}] Notice: Revert failed for "
@@ -1525,27 +1598,52 @@ class BaseResolver(abc.ABC):
             file=sys.stderr,
         )
         working_diff = self.get_working_diff(max_chars=200000)
-        default_count = 10
-        total_records = len(self.session_changes)
-        if total_records > default_count:
-          header = (
-              f"Showing the last {default_count} of {total_records} changes in "
-              "this session. Use "
-              "`TOOL_GET_HISTORY: <count_or_iteration_number>` to inspect "
-              "earlier records or specific iterations.")
-          trajectory_slice = self.session_changes[-default_count:]
-          full_trajectory = header + "\n\n" + "\n\n".join(
-              r.to_prompt_str() for r in trajectory_slice)
-        else:
-          full_trajectory = "\n\n".join(
-              r.to_prompt_str() for r in self.session_changes)
-        if total_records > 0:
-          injected_count = min(total_records, default_count)
+
+        # Collect modified files sorted by iteration number
+        entries_by_iter: List[str] = []
+        seen_files = set()
+        for rec in sorted(
+            self.session_changes,
+            key=lambda r: (
+                0 if getattr(r, "phase", "") in
+                ("resolve_conflicts", "conflicts") else 1,
+                r.iteration,
+            ),
+        ):
+          if not rec.file_changes:
+            continue
+          files = list(rec.file_changes.keys())
+          seen_files.update(files)
+          files_str = ", ".join(f"`{f}`" for f in files)
+          phase_lbl = (f"[{rec.phase}] " if getattr(rec, "phase", "") and
+                       rec.phase != self.name else "")
+          entries_by_iter.append(
+              f"- {phase_lbl}Iteration {rec.iteration}: {files_str}")
+
+        if entries_by_iter:
+          files_list_str = "\n".join(entries_by_iter)
+          full_trajectory = (
+              f"=== Files Modified in Current Session "
+              f"({len(seen_files)} files) ===\n"
+              f"{files_list_str}\n\n"
+              "FIRST-ROUND INVESTIGATION DIRECTIVE:\n"
+              "Review the failure and the list of modified files above.\n"
+              "Decide which file(s) you need to read and think about before "
+              "determining the fix.\n"
+              "Use investigation tools to inspect them on demand:\n"
+              "- `TOOL_READ_FILE: <filepath> [line_range]` to read source "
+              "context.\n"
+              "- `TOOL_GET_HISTORY: <filepath>` to view earlier "
+              "modifications/diffs for that file.\n"
+              "- `TOOL_UPSTREAM_DIFF: <filepath>` to inspect upstream "
+              "Chromium diff.\n")
           print(
-              f"  [{self.name}] [TIER-2 ARCHITECT] Injected {injected_count} "
-              f"of {total_records} session change records into expert prompt.",
+              f"  [{self.name}] [TIER-2 ARCHITECT] Injected list of "
+              f"{len(seen_files)} modified session files into expert prompt.",
               file=sys.stderr,
           )
+        else:
+          full_trajectory = ""
         raw_cmd_tail = (output + "\n" + (siso_out or ""))[-30000:]
 
         def _format_diag(d: Any) -> str:
@@ -1648,7 +1746,7 @@ class BaseResolver(abc.ABC):
       )
 
       # Check for multi-turn tool commands
-      if re.search(r"^(TOOL_[A-Z_]+:.*)$", patch.strip(), re.MULTILINE):
+      if extract_tool_commands(patch):
         patch, model_used = self.execute_investigation_tools(
             initial_patch=patch,
             diagnostic=first_diag,

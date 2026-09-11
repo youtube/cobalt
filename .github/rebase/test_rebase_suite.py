@@ -21,6 +21,7 @@ from base_resolver import (
     apply_patch_or_replacement,
     execute_local_tool,
     extract_build_progress,
+    extract_meaningful_error_summary,
     extract_tool_commands,
     get_chromium_milestone,
     has_cobalt_git_history,
@@ -598,6 +599,40 @@ void Foo() {{}}
     self.assertEqual(len(cmds2), 1)
     self.assertEqual(cmds2[0],
                      "TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075")
+
+    # Test conversational preambles, markdown backticks, and bullet points
+    conversational_output = (
+        "Let's investigate how `character_data` action works.\n\n"
+        "Tool Call: `TOOL_FIND_FILE: icudtl.dat`\n"
+        "Tool Call: `TOOL_READ_FILE: "
+        "third_party/blink/renderer/platform/text/"
+        "character_property_data_generator.cc 50-105`\n"
+        "- `TOOL_GREP: character_data "
+        "third_party/blink/renderer/platform/BUILD.gn`\n"
+        "* Tool: TOOL_LIST_DIR: third_party/icu/common\n")
+    cmds3 = extract_tool_commands(conversational_output)
+    self.assertEqual(len(cmds3), 4)
+    self.assertEqual(cmds3[0], "TOOL_FIND_FILE: icudtl.dat")
+    self.assertEqual(
+        cmds3[1],
+        "TOOL_READ_FILE: third_party/blink/renderer/platform/text/"
+        "character_property_data_generator.cc 50-105",
+    )
+    self.assertEqual(
+        cmds3[2],
+        "TOOL_GREP: character_data "
+        "third_party/blink/renderer/platform/BUILD.gn",
+    )
+    self.assertEqual(cmds3[3], "TOOL_LIST_DIR: third_party/icu/common")
+
+    # Test that valid SEARCH/REPLACE block is not mistaken for a tool command
+    patch_output = ("Here is the patch to fix the file:\n"
+                    "<<<<<<< SEARCH\n"
+                    "void InitializeIcu();\n"
+                    "=======\n"
+                    "void InitializeIcu(const char* exec_path);\n"
+                    ">>>>>>> REPLACE\n")
+    self.assertEqual(extract_tool_commands(patch_output), [])
 
   def test_parse_linker_undefined_symbol_ignores_command_line_noise(self):
     """Tests that linker parser does not match noise in command line."""
@@ -1797,6 +1832,98 @@ target("foo") {{}}
       self.assertTrue(rec.applied_cleanly)
       self.assertIn("InitChromiumDefaultMediaPipeline()", rec.changes)
 
+  def test_expert_prompt_modified_files_sorted_by_iteration(self):
+    """Verifies modified files in prompt are sorted by iteration number."""
+    mock_engine = mock.MagicMock()
+    captured_kwargs = {}
+
+    def mock_guidance(**kwargs):
+      captured_kwargs.update(kwargs)
+      return {"status": "SUCCESS", "guidance": "Fix it."}
+
+    mock_engine.generate_expert_guidance.side_effect = mock_guidance
+
+    session_changes = [
+        AgentChangeRecord(
+            phase="resolve_conflicts",
+            iteration=2,
+            target_file="z_conflict.cc",
+            file_changes={"z_conflict.cc": "// diff z"},
+        ),
+        AgentChangeRecord(
+            phase="resolve_conflicts",
+            iteration=1,
+            target_file="a_conflict.cc",
+            file_changes={"a_conflict.cc": "// diff a"},
+        ),
+        AgentChangeRecord(
+            phase="autoninja",
+            iteration=2,
+            target_file="z_compiler.cc",
+            file_changes={"z_compiler.cc": "// diff z compiler"},
+        ),
+        AgentChangeRecord(
+            phase="autoninja",
+            iteration=1,
+            target_file="a_compiler.cc",
+            file_changes={"a_compiler.cc": "// diff a compiler"},
+        ),
+    ]
+
+    class TestResolver(BaseResolver):
+      """Mock resolver for testing expert prompt injection."""
+
+      @property
+      def name(self):
+        return "autoninja"
+
+      def run_command(self, iteration):
+        if iteration == 1:
+          return False, "FAILED: test.o\ntest.cc:1: error: test", ""
+        return True, "Build succeeded", ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del build_output, siso_output
+        return ["test.cc:1: error: test"]
+
+      def resolve_diagnostic(self, diagnostic, history_records, **kwargs):
+        del diagnostic, history_records, kwargs
+        return "patch", "flash", "test.cc"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "test.cc")
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write("int a = 1;\n")
+
+      resolver = TestResolver(
+          repo_path=tmpdir,
+          max_iterations=2,
+          engine=mock_engine,
+          session_changes=session_changes,
+      )
+
+      ok = resolver.run_resolution_loop()
+      self.assertTrue(ok)
+      self.assertGreaterEqual(len(captured_kwargs),
+                              1)  # Captured expert guidance calls
+      traj = captured_kwargs.get("trajectory_history", "")
+      self.assertIn("=== Files Modified in Current Session (4 files) ===", traj)
+
+    # Verify order is by phase and iteration number, not alphabetically
+    # by filename
+    lines = [
+        line.strip()
+        for line in traj.splitlines()
+        if line.strip().startswith("- ") and "Iteration" in line
+    ]
+    self.assertEqual(len(lines), 4)
+    self.assertEqual(lines[0],
+                     "- [resolve_conflicts] Iteration 1: `a_conflict.cc`")
+    self.assertEqual(lines[1],
+                     "- [resolve_conflicts] Iteration 2: `z_conflict.cc`")
+    self.assertEqual(lines[2], "- Iteration 1: `a_compiler.cc`")
+    self.assertEqual(lines[3], "- Iteration 2: `z_compiler.cc`")
+
   def test_tool_get_history_and_last_ten_default(self):
     """Verifies trajectory defaults to 10 and TOOL_GET_HISTORY handler."""
     session_changes = [
@@ -1840,6 +1967,95 @@ target("foo") {{}}
     self.assertIn("=== Full Change History (25 records) ===", res_all)
     self.assertIn("file_1.cc", res_all)
     self.assertIn("file_25.cc", res_all)
+
+    # 5. TOOL_GET_HISTORY: file_7.cc (filepath lookup)
+    res_file = execute_local_tool(
+        "TOOL_GET_HISTORY: file_7.cc", ".", session_changes=session_changes)
+    self.assertIn("=== Change Records for 'file_7.cc' (1 records) ===",
+                  res_file)
+    self.assertIn("file_7.cc", res_file)
+    self.assertNotIn("file_8.cc", res_file)
+
+    # 6. TOOL_GET_HISTORY: non_existent.cc
+    res_none = execute_local_tool(
+        "TOOL_GET_HISTORY: non_existent.cc",
+        ".",
+        session_changes=session_changes)
+    self.assertIn("No change records found matching file 'non_existent.cc'",
+                  res_none)
+
+  def test_parse_compiler_errors_fatal_and_action_failures(self):
+    """Verifies parse_compiler_errors matches FATAL logs and action errors."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      # Set up mock blink directory and BUILD.gn
+      blink_dir = os.path.join(tmpdir, "third_party", "blink", "renderer",
+                               "platform")
+      os.makedirs(blink_dir, exist_ok=True)
+      gn_path = os.path.join(blink_dir, "BUILD.gn")
+      with open(gn_path, "w", encoding="utf-8") as f:
+        f.write("# Dummy BUILD.gn\n"
+                "compiled_action(\"character_data\") {\n"
+                "  tool = \":character_data_generator\"\n"
+                "}\n")
+
+      # Case 1: FATAL crash inside compiled action generator
+      siso_output = (
+          "FAILED: ./gen/third_party/blink/renderer/platform/"
+          "character_property_data.cc ACTION "
+          "//third_party/blink/renderer/platform:character_data\n"
+          "[0910/211026.345187:FATAL:third_party/blink/renderer/platform/text/"
+          "character_property_data_generator.cc:48] Check failed: "
+          "U_SUCCESS(error). ulocdata_getCLDRVersion: "
+          "(2)U_MISSING_RESOURCE_ERROR\n")
+      diags = parse_compiler_errors(siso_output, tmpdir)
+      self.assertEqual(len(diags), 1)
+      d = diags[0]
+      self.assertIn("character_property_data_generator.cc", d.file_path)
+      self.assertEqual(d.line_number, 48)
+      self.assertIn("ulocdata_getCLDRVersion", d.error_message)
+      self.assertTrue(
+          any("Failing Action: "
+              "//third_party/blink/renderer/platform:character_data" in n
+              for n in d.notes))
+
+      # Case 2: Pure GN Action failure without fatal log (fallback to BUILD.gn)
+      action_only_output = (
+          "FAILED: obj/stamp ACTION "
+          "//third_party/blink/renderer/platform:character_data\n"
+          "command failed with exit code 1\n")
+      diags_act = parse_compiler_errors(action_only_output, tmpdir)
+      self.assertEqual(len(diags_act), 1)
+      self.assertEqual(diags_act[0].file_path, gn_path)
+      self.assertEqual(diags_act[0].line_number, 2)
+      self.assertIn("character_data", diags_act[0].error_message)
+
+      # Case 3: Python traceback in action script
+      py_script = os.path.join(tmpdir, "generate.py")
+      with open(py_script, "w", encoding="utf-8") as f:
+        f.write("print('hello')\n")
+      py_output = ("FAILED: out/gen.cc ACTION "
+                   "//third_party/blink/renderer/platform:character_data\n"
+                   "Traceback (most recent call last):\n"
+                   f"  File \"{py_script}\", line 1, in <module>\n"
+                   "    raise ValueError('broken config')\n"
+                   "ValueError: broken config\n")
+      diags_py = parse_compiler_errors(py_output, tmpdir)
+      self.assertEqual(len(diags_py), 1)
+      self.assertEqual(diags_py[0].file_path, py_script)
+      self.assertEqual(diags_py[0].line_number, 1)
+      self.assertIn("ValueError: broken config", diags_py[0].error_message)
+
+  def test_extract_meaningful_error_summary(self):
+    """Verifies generic headers are stripped from error_summary."""
+    raw = ("Siso output:\n"
+           "ninja: Entering directory out/android\n"
+           "FAILED: out/obj.o\n"
+           "foo.cc:10: error: undefined bar\n")
+    summary = extract_meaningful_error_summary(raw)
+    self.assertEqual(summary, "FAILED: out/obj.o")
+
+    direct_err = "foo.cc:10: error: undefined bar"
+    self.assertEqual(extract_meaningful_error_summary(direct_err), direct_err)
 
 
 if __name__ == "__main__":

@@ -369,29 +369,6 @@ def resolve_file_conflicts(
 
     # Step 1: Pre-Flight Strategic Review by Expert Agent
     trajectory_str = git_context
-    if session_changes:
-      default_count = 10
-      total_records = len(session_changes)
-      if total_records > default_count:
-        header = (
-            f"Showing the last {default_count} of {total_records} changes in "
-            "this session. Use `TOOL_GET_HISTORY: <count_or_iteration_number>` "
-            "to inspect earlier records or specific iterations.")
-        traj_slice = session_changes[-default_count:]
-        trajectory_str = (f"{git_context}\n\n{header}\n\n" +
-                          "\n\n".join(r.to_prompt_str() for r in traj_slice))
-      else:
-        trajectory_str = (
-            f"{git_context}\n\n" +
-            "\n\n".join(r.to_prompt_str() for r in session_changes))
-      if total_records > 0:
-        injected_count = min(total_records, default_count)
-        print(
-            f"  [resolve_conflicts] [TIER-2 ARCHITECT] Injected "
-            f"{injected_count} of {total_records} session change records "
-            "into expert prompt.",
-            file=sys.stderr,
-        )
 
     expert_guidance = ""
     if engine is not None and not mock_mode:
