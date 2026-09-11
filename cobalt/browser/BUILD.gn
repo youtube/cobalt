@@ -110,6 +110,8 @@ source_set("browser") {
     "//components/prefs",
     "//components/variations/service",
     "//components/viz/common",
+    "//media",
+    "//media:media_buildflags",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
   ]

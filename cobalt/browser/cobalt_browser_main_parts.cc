@@ -53,6 +53,11 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+#include "media/media_buildflags.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_client.h"
+#endif
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -424,9 +429,15 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
       static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
           base::MemoryPressureMonitor::Get());
   if (monitor) {
+    cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
+        media_allowance_getter;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    media_allowance_getter = base::BindRepeating(
+        &::media::MediaClient::GetMediaSourceTotalAllocatedMemory);
+#endif
     monitor->SetSystemEvaluator(
         std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
-            monitor->CreateVoter()));
+            monitor->CreateVoter(), std::move(media_allowance_getter)));
     LOG(INFO) << "CobaltSystemMemoryPressureEvaluator registered successfully.";
   }
 #endif
