@@ -16,8 +16,10 @@
 #define COBALT_BROWSER_COBALT_BROWSER_MAIN_PARTS_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/weak_ptr.h"
+#include "base/process/process_handle.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
 
@@ -90,6 +92,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  std::optional<base::ProcessId> prior_session_pid_;
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };

@@ -244,23 +244,6 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
-void RecordPriorSessionExitReasons() {
-  base::FilePath base_dir;
-  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
-    return;
-  }
-  base::FilePath metrics_dir =
-      base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
-    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
-        pid, "Cobalt.Stability.Android.SystemExitReason");
-  }
-}
-#endif
-
 }  // namespace
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
@@ -285,10 +268,14 @@ int CobaltBrowserMainParts::PreEarlyInitialization() {
 
       base::CreateDirectory(metrics_dir);
 
-      base::FilePath active_file =
-          base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
-              metrics_dir, kBrowserStabilityMetricsName, base::Time::Now(),
-              base::GetCurrentProcId());
+      // Prior to writing the new PMA file, clear other PMA files to ensure
+      // only one single prior PMA exists at a time, and capture the PID of
+      // the single retained prior session.
+      prior_session_pid_ = cobalt::ClearOtherStabilityMetricsPmaFiles(
+          metrics_dir, kBrowserStabilityMetricsName, base::GetCurrentProcId());
+
+      base::FilePath active_file = cobalt::ConstructStabilityMetricsFilePath(
+          metrics_dir, kBrowserStabilityMetricsName, base::GetCurrentProcId());
 
       // Instantiate 512 KB memory-mapped PMA
       if (base::GlobalHistogramAllocator::CreateWithFile(
@@ -367,13 +354,16 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SDK_VERSION_R) {
+  if (prior_session_pid_.has_value() &&
+      base::android::BuildInfo::GetInstance()->sdk_int() >=
+          base::android::SDK_VERSION_R) {
     base::ThreadPool::PostTask(
         FROM_HERE,
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-        base::BindOnce(&RecordPriorSessionExitReasons));
+        base::BindOnce(
+            &crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma,
+            *prior_session_pid_, "Cobalt.Stability.Android.SystemExitReason"));
   }
 #endif
 
