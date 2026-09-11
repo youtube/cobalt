@@ -3999,18 +3999,16 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
   }
 
   // Maintain a consolidated list of accepted asset MIME types (exact or suffix).
-  static const base::NoDestructor<std::vector<std::string_view>> accepted_asset_types([] {
-    return std::vector<std::string_view>{
-        "text/html",
-        "javascript",
-        "ecmascript",
-        "text/css",
-        "application/wasm",
-    };
-  }());
+  static constexpr std::string_view accepted_asset_types[] = {
+      "text/html",
+      "javascript",
+      "ecmascript",
+      "text/css",
+      "application/wasm",
+  };
 
   bool is_accepted_mime_type = false;
-  for (std::string_view type : *accepted_asset_types) {
+  for (std::string_view type : accepted_asset_types) {
     if (mime_type == type ||
         base::EndsWith(mime_type, type, base::CompareCase::SENSITIVE)) {
       is_accepted_mime_type = true;
@@ -4023,8 +4021,9 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
   }
 
   // Exclude Ad Impression Pings & Telemetry reporting endpoints.
-  for (std::string_view excluded :
-       {"/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"}) {
+  static constexpr std::string_view kExcludedPaths[] = {
+      "/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"};
+  for (std::string_view excluded : kExcludedPaths) {
     if (request_->url.spec().find(excluded) != std::string::npos) {
       return true;
     }
