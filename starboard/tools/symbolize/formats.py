@@ -15,6 +15,7 @@
 
 import abc
 import dataclasses
+import os
 import re
 from typing import List, Optional, Tuple, Union
 
@@ -167,13 +168,20 @@ class AndroidFormatHandler(FormatHandler):
     m = _RE_ANDROID.match(line)
     if not m:
       return None
+    extra = m.group(4)
+    binary = None
+    if extra:
+      first_token = extra.split()[0]
+      if '/' in first_token or first_token.endswith('.so'):
+        binary = os.path.basename(first_token.split('!')[-1])
     return FrameMatch(
         original_line=line,
         prefix=m.group(1),
         frame_index_str=m.group(2),
         address=int(m.group(3), 16),
         explicit_offset=int(m.group(3), 16),
-        extra=m.group(4))
+        binary=binary,
+        extra=extra)
 
   def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
                                                      List[str]],
