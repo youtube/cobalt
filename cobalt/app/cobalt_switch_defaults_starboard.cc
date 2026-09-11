@@ -16,7 +16,6 @@
 
 #include "base/base_switches.h"
 #include "build/buildflag.h"
-#include "cc/base/switches.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -132,8 +131,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "--no-concurrent-marking"},
       // Limit GPU memory available to 64MB.
       {::switches::kForceGpuMemAvailableMb, "64"},
-      // Disable CC image cache items limit.
-      {::switches::kCCImageCacheLimitItems, "0"},
   };
   return kCobaltSwitchDefaults;
 }
