@@ -23,6 +23,7 @@
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/feature_visitor.h"
+#include "base/features.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/memory_mapped_file.h"
@@ -393,6 +394,24 @@ void SetFeatureFlags() {
     SetV8FlagsFormatted("--preconfigured-old-space-size=%i",
                         features::kV8PreconfigureOldGenSize.Get());
   }
+#if BUILDFLAG(IS_COBALT)
+  int max_old_space_mb = 512;
+  if (base::FeatureList::IsEnabled(base::features::kCobaltV8MaxOldSpaceSize)) {
+    max_old_space_mb = base::features::kCobaltV8MaxOldSpaceSizeMb.Get();
+  }
+  if (max_old_space_mb > 0) {
+    SetV8FlagsFormatted("--max-old-space-size=%i", max_old_space_mb);
+  }
+
+  int initial_old_space_mb = 16;
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltV8InitialOldSpaceSize)) {
+    initial_old_space_mb = base::features::kCobaltV8InitialOldSpaceSizeMb.Get();
+  }
+  if (initial_old_space_mb > 0) {
+    SetV8FlagsFormatted("--initial-old-space-size=%i", initial_old_space_mb);
+  }
+#endif
   SetV8FlagsIfOverridden(features::kV8IncrementalMarkingStartUserVisible,
                          "--incremental-marking-start-user-visible",
                          "--no-incremental-marking-start-user-visible");
