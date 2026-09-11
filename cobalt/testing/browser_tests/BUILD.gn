@@ -164,6 +164,7 @@ if (is_android) {
       "//base:content_uri_utils_java",
       "//cobalt/android:cobalt_main_java",
       "//cobalt/shell/android:cobalt_shell_java",
+      "//components/crash/android:java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
       "//components/viz/service:service_java",
