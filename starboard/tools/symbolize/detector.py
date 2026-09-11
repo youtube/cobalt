@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +13,7 @@
 # limitations under the License.
 """Dynamic session tracking and address resolution for streaming."""
 
+import enum
 import logging
 import re
 from typing import Optional, Tuple
@@ -27,6 +27,12 @@ _ASLR_64BIT_THRESHOLD = 0x100000000
 _MAX_RELATIVE_VSIZE = 100 * 1024 * 1024
 
 
+class AddressMode(str, enum.Enum):
+  """Latched resolution mode for ambiguous address spaces."""
+  ABSOLUTE = 'absolute'
+  RELATIVE = 'relative'
+
+
 class StreamingSessionTracker:
   """Tracks dynamically loaded binary base addresses across streaming log lines.
 
@@ -38,7 +44,7 @@ class StreamingSessionTracker:
   def __init__(self, default_base_address: Optional[int] = None):
     self.current_base_address = default_base_address
     self.session_id = 0
-    self.latched_mode = None  # Optional['absolute' | 'relative']
+    self.latched_mode: Optional[AddressMode] = None
 
   def check_line(self, line: str) -> Optional[int]:
     """Inspects a line for 'Load start=' markers and updates active session."""
@@ -88,9 +94,9 @@ class StreamingSessionTracker:
       return address, 'tier1_relative'
 
     # Ambiguous 32-bit range (100 MB <= address <= 4 GB)
-    if self.latched_mode == 'relative':
+    if self.latched_mode == AddressMode.RELATIVE:
       return address, 'latched_relative'
-    if (self.latched_mode == 'absolute' and
+    if (self.latched_mode == AddressMode.ABSOLUTE and
         self.current_base_address is not None):
       return address - self.current_base_address, 'latched_absolute'
 
@@ -104,23 +110,26 @@ class StreamingSessionTracker:
         res_abs = runner.symbolize(address - self.current_base_address)
 
       if res_abs and not res_rel:
-        self.latched_mode = 'absolute'
+        self.latched_mode = AddressMode.ABSOLUTE
         return address - self.current_base_address, 'tier2_probe_absolute'
       if res_rel and not res_abs:
-        self.latched_mode = 'relative'
+        self.latched_mode = AddressMode.RELATIVE
         return address, 'tier2_probe_relative'
 
       entry_keywords = ('main', 'SbEventHandle', 'MessageLoop', 'Run', 'start')
-      abs_has_entry = res_abs and any(
-          any(k in frame[0] for k in entry_keywords) for frame in res_abs)
-      rel_has_entry = res_rel and any(
-          any(k in frame[0] for k in entry_keywords) for frame in res_rel)
+
+      def _has_entry_keyword(frames):
+        return bool(frames) and any(
+            k in frame[0] for frame in frames for k in entry_keywords)
+
+      abs_has_entry = _has_entry_keyword(res_abs)
+      rel_has_entry = _has_entry_keyword(res_rel)
 
       if abs_has_entry and not rel_has_entry:
-        self.latched_mode = 'absolute'
+        self.latched_mode = AddressMode.ABSOLUTE
         return address - self.current_base_address, 'tier2_entry_absolute'
       if rel_has_entry and not abs_has_entry:
-        self.latched_mode = 'relative'
+        self.latched_mode = AddressMode.RELATIVE
         return address, 'tier2_entry_relative'
 
     if (self.current_base_address is not None and

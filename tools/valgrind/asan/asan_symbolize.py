@@ -32,7 +32,7 @@ from starboard.tools.symbolize.symbolize import symbolize_string
 from tools.valgrind.asan.third_party import asan_symbolize
 
 
-class LineBuffered(object):
+class LineBuffered:
   """Disable buffering on a file object."""
 
   def __init__(self, stream):
@@ -134,7 +134,7 @@ def chrome_dsym_hints(binary):
   return [result]
 
 
-class JSONTestRunSymbolizer(object):
+class JSONTestRunSymbolizer:
   """Symbolizer for test run snippets within test_summary.json."""
 
   def __init__(self, symbolization_loop):
@@ -151,7 +151,7 @@ class JSONTestRunSymbolizer(object):
         test_run['output_snippet_base64']).decode('utf-8', 'replace')
 
     # replace non-ascii character with '?'.
-    original_snippet = ''.join(i if i <= u'~' else u'?'
+    original_snippet = ''.join(i if i <= '~' else '?'
                                for i in original_snippet)
 
     symbolized_snippet = self.symbolize_snippet(original_snippet)
