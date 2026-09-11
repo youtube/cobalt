@@ -41,9 +41,7 @@ runs:
 
         device_archive_flags=""
         browser_archive_flags=""
-        if [[ "${PLATFORM}" == *aosp* ]]; then
-          device_archive_flags="${android_archive_flags}"
-        elif [[ "${PLATFORM}" == *android* ]]; then
+        if [[ "${PLATFORM}" == *aosp* || "${PLATFORM}" == *android* ]]; then
           device_archive_flags="${android_archive_flags}"
           browser_archive_flags="${android_archive_flags}"
         elif [[ "${PLATFORM}" == *rdk* ]]; then
