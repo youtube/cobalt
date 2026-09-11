@@ -115,3 +115,46 @@ Cobalt optimizes and strips runtime data bundles (such as `third_party/icu/cobal
      >>>>>>> REPLACE
      ```
    - This ensures `clang_x64/icudtl.dat` receives the full common ICU dataset containing CLDR tables, allowing `character_data_generator` to succeed with zero modifications to third-party Blink code.
+
+---
+
+### JNI Zero Registration & Missing Native Stubs (`libchrobalt__jni_registration`)
+
+Chromium milestones frequently introduce Java classes annotated with `@NativeMethods` (such as `PermissionsAndroidFeatureMap`, `WebXrAndroidFeatureMap`, `CameraAvailabilityObserver`, `VideoCapture`) into transitive APK dependencies. However, Cobalt strips or does not link their native C++ implementations into `libchrobalt.so`.
+
+1. **Symptom**:
+   Action failure on `//cobalt/android:libchrobalt__jni_registration`:
+   ```text
+   FAILED: ./gen/cobalt/android/libchrobalt__jni_registration.srcjar ACTION //cobalt/android:libchrobalt__jni_registration(//build/toolchain/android:android_clang_arm)
+   python3 ../../third_party/jni_zero/jni_zero.py generate-final ...
+   stderr:
+   Failed JNI assertion!
+   We reference Java files which use JNI, but our native library does not depend on the corresponding generate_jni().
+   To bypass this check, add stubs to Java with --add-stubs-for-missing-jni.
+   Excess Java files:
+   ../../components/permissions/android/java/src/org/chromium/components/permissions/PermissionsAndroidFeatureMap.java
+   ../../components/webxr/android/java/src/org/chromium/components/webxr/WebXrAndroidFeatureMap.java
+   ../../media/capture/video/android/java/src/org/chromium/media/CameraAvailabilityObserver.java
+   ../../media/capture/video/android/java/src/org/chromium/media/VideoCapture.java
+   ```
+
+2. **Root Cause & Architectural Mapping**:
+   - The failing action `//cobalt/android:libchrobalt__jni_registration` is generated internally by the GN template `shared_library_with_jni("libchrobalt")` from `//third_party/jni_zero/jni_zero.gni`.
+   - There is **NO standalone target** named `generate_jni("libchrobalt__jni_registration")` or `action("libchrobalt__jni_registration")` in `cobalt/android/BUILD.gn`.
+   - When `jni_zero.py generate-final` runs, it checks whether all Java classes with native methods referenced by `cobalt_apk` have registered native methods. If unlinked classes are found, it asserts unless stub generation is enabled.
+
+3. **Resolution in `cobalt/android/BUILD.gn`**:
+   - In `cobalt/android/BUILD.gn`, locate `shared_library_with_jni("libchrobalt")` (which already defines `remove_uncalled_jni = true`).
+   - Add `add_stubs_for_missing_jni = true` directly inside `shared_library_with_jni("libchrobalt")`:
+     ```gn
+     FILE: cobalt/android/BUILD.gn
+     <<<<<<< SEARCH
+     shared_library_with_jni("libchrobalt") {
+       remove_uncalled_jni = true
+     =======
+     shared_library_with_jni("libchrobalt") {
+       remove_uncalled_jni = true
+       add_stubs_for_missing_jni = true
+     >>>>>>> REPLACE
+     ```
+   - GN template `shared_library_with_jni` forwards `add_stubs_for_missing_jni` to `generate_jni_registration`, which appends `--add-stubs-for-missing-native` to `jni_zero.py generate-final`. This generates native stubs for the missing bindings and cleanly satisfies the assertion without modifying upstream Java or C++ sources.
