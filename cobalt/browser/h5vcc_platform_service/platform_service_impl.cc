@@ -33,6 +33,11 @@ namespace h5vcc_platform_service {
 
 namespace {
 
+// The limit is defined by the platform service extension, so that Cobalt and
+// the platform service implementations agree on it.
+constexpr uint64_t kMaxMessageLength =
+    kCobaltExtensionPlatformServiceMaxMessageLength;
+
 const CobaltExtensionPlatformServiceApi* GetPlatformServiceApi() {
   static const CobaltExtensionPlatformServiceApi* s_api = []() {
     auto api = static_cast<const CobaltExtensionPlatformServiceApi*>(
@@ -74,6 +79,19 @@ void PlatformServiceImpl::StarboardReceiveMessageCallback(void* context,
     LOG(WARNING) << "StarboardReceiveMessageCallback has null context.";
     return;
   }
+
+  if (length > kMaxMessageLength) {
+    LOG(ERROR) << "Dropping a received message of " << length
+               << " bytes, the limit is " << kMaxMessageLength << " bytes.";
+    return;
+  }
+
+  if (length > 0 && !data) {
+    LOG(ERROR) << "Dropping a received message with null data and a length of "
+               << length << " bytes.";
+    return;
+  }
+
   PlatformServiceImpl* instance = static_cast<PlatformServiceImpl*>(context);
 
   const uint8_t* byte_data = static_cast<const uint8_t*>(data);
@@ -133,6 +151,14 @@ bool PlatformServiceImpl::OpenStarboardService() {
 
 void PlatformServiceImpl::Send(base::span<const uint8_t> data,
                                SendCallback callback) {
+  if (data.size() > kMaxMessageLength) {
+    LOG(ERROR) << "Rejecting a message of " << data.size()
+               << " bytes, the limit is " << kMaxMessageLength << " bytes, for "
+               << service_name_;
+    std::move(callback).Run(std::nullopt, "Message too large");
+    return;
+  }
+
   const CobaltExtensionPlatformServiceApi* api = GetPlatformServiceApi();
   if (!api) {
     LOG(WARNING) << "The platform service extension is not implemented on this "
