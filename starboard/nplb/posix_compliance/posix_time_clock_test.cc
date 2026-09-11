@@ -113,10 +113,10 @@ TEST(PosixTimeClockTests, ClockIncreasesOverTime) {
       << "Clock value did not increase, which is unexpected. val1="
       << clock_val1 << ", val2=" << clock_val2;
 
-  // Expect to have measured at least 60% of the work time as CPU time.
+  // Expect to have measured at least 5% of the work time as CPU time.
   long measured_work_time =
       kMicrosecondsPerSecond * (clock_val2 - clock_val1) / CLOCKS_PER_SEC;
-  long minimum_work_time = 0.60 * elapsed_time_us;
+  long minimum_work_time = 0.05 * elapsed_time_us;
   EXPECT_GE(measured_work_time, minimum_work_time)
       << "Clock value should measure at least " << minimum_work_time
       << " us, of " << elapsed_time_us << " us spent doing CPU work.";

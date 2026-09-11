@@ -31,7 +31,6 @@
     "PosixSocketShutdownTest.ShutdownWR",
     "PosixThreadAttrTest.SchedParam",
     "PosixThreadDetachTest.SunnyDay",
-    "PosixTimeClockTests.ClockIncreasesOverTime",
     "PosixTimeClockTests.ClockReturnsNonNegative",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro",
