@@ -3998,27 +3998,15 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     return true;  // Reject unknown MIME types.
   }
 
-  // Cache command line evaluations statically once per process runtime to avoid
-  // redundant map lookups and string comparisons on every transaction.
-  static const bool enable_css_and_wasm_caching =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-css-and-wasm-for-http-cache");
-  static const bool enable_cache_tuning =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-http-and-v8-cache-tuning");
-
   // Maintain a consolidated list of accepted asset MIME types (exact or suffix).
   static const base::NoDestructor<std::vector<std::string_view>> accepted_asset_types([] {
-    std::vector<std::string_view> types = {
+    return std::vector<std::string_view>{
         "text/html",
         "javascript",
         "ecmascript",
+        "text/css",
+        "application/wasm",
     };
-    if (enable_css_and_wasm_caching) {
-      types.push_back("text/css");
-      types.push_back("application/wasm");
-    }
-    return types;
   }());
 
   bool is_accepted_mime_type = false;
@@ -4034,25 +4022,23 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     return true;  // Do not write to cache / doom existing entry
   }
 
-  if (enable_cache_tuning) {
-    // Exclude Ad Impression Pings & Telemetry reporting endpoints.
-    for (std::string_view excluded :
-         {"/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"}) {
-      if (request_->url.spec().find(excluded) != std::string::npos) {
-        return true;
-      }
-    }
-
-    // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
-    if (headers.response_code() < 200 || headers.response_code() >= 400) {
+  // Exclude Ad Impression Pings & Telemetry reporting endpoints.
+  for (std::string_view excluded :
+       {"/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"}) {
+    if (request_->url.spec().find(excluded) != std::string::npos) {
       return true;
     }
+  }
 
-    // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
-    int64_t len = headers.GetContentLength();
-    if (len >= 0 && len < 512) {
-      return true;
-    }
+  // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
+  if (headers.response_code() < 200 || headers.response_code() >= 400) {
+    return true;
+  }
+
+  // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
+  int64_t len = headers.GetContentLength();
+  if (len >= 0 && len < 512) {
+    return true;
   }
 #endif
 
