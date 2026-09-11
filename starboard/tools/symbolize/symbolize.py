@@ -106,6 +106,15 @@ def _Symbolize(filename: Optional[str] = None,
         continue
 
       handler, frame_match = match_pair
+
+      default_lib = getattr(active_runner, 'default_library', None)
+      if frame_match.binary and default_lib:
+        frame_base = os.path.basename(frame_match.binary)
+        default_base = os.path.basename(default_lib)
+        if frame_base != default_base:
+          out.write(line)
+          continue
+
       offset, _ = tracker.resolve_offset(
           address=frame_match.address,
           explicit_offset=frame_match.explicit_offset,
@@ -116,8 +125,12 @@ def _Symbolize(filename: Optional[str] = None,
         out.write(line)
         continue
 
+      query_binary = None
+      if frame_match.binary and not default_lib:
+        query_binary = frame_match.binary
+
       try:
-        results = active_runner.symbolize(str(offset), frame_match.binary)
+        results = active_runner.symbolize(str(offset), query_binary)
       except TypeError:
         results = active_runner.symbolize(str(offset))
 
@@ -229,13 +242,24 @@ def main():
       process_test_summary_json(args.test_summary_json_file, symbolize_lines_fn)
     return 0
 
+  if args.filename:
+    if args.strip_path_prefix:
+      return _Symbolize(
+          args.filename,
+          default_lib,
+          base_address,
+          strip_prefixes=args.strip_path_prefix)
+    return _Symbolize(args.filename, default_lib, base_address)
+
   if args.strip_path_prefix:
     return _Symbolize(
         args.filename,
         default_lib,
         base_address,
+        in_stream=sys.stdin,
         strip_prefixes=args.strip_path_prefix)
-  return _Symbolize(args.filename, default_lib, base_address)
+  return _Symbolize(
+      args.filename, default_lib, base_address, in_stream=sys.stdin)
 
 
 if __name__ == '__main__':
