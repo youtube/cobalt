@@ -20,6 +20,7 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
@@ -28,6 +29,8 @@
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
+#include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/file_metrics_provider.h"
@@ -513,6 +516,186 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_EQ(parsed_stamp.ToTimeT(), simulated_stamp.ToTimeT());
   EXPECT_EQ(parsed_pid, simulated_pid);
   EXPECT_GT(parsed_pid, 0);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       ProcessStateSummaryManagerInBrowserProcess) {
+  auto* manager = CobaltProcessStateSummaryManager::GetInstance();
+  ASSERT_TRUE(manager != nullptr);
+
+  // Update memory footprint with realistic numbers (in KB)
+  manager->UpdateMemoryFootprint(450 * 1024, 380 * 1024, 64 * 1024);
+  manager->UpdateTrimMemoryLevel(15);  // TRIM_MEMORY_RUNNING_CRITICAL
+  manager->SetFlags(kFlagForeground | kFlagMediaPlaying);
+
+  // Verify roundtrip serialization in browser process environment
+  ProcessStateSnapshot snapshot;
+  snapshot.peak_rss_kb = 450 * 1024;
+  snapshot.peak_pmf_kb = 380 * 1024;
+  snapshot.peak_v8_code_kb = 64 * 1024;
+  snapshot.uptime_sec = 1800;  // 30 minutes
+  snapshot.last_trim_level = 15;
+  snapshot.flags = kFlagForeground | kFlagMediaPlaying;
+
+  std::vector<uint8_t> payload =
+      CobaltProcessStateSummaryManager::SerializeSnapshot(snapshot);
+  EXPECT_EQ(payload.size(), kProcessStateSummaryPayloadSize);
+
+  auto deserialized =
+      CobaltProcessStateSummaryManager::DeserializeSnapshot(payload);
+  ASSERT_TRUE(deserialized.has_value());
+  EXPECT_EQ(*deserialized, snapshot);
+  EXPECT_EQ(deserialized->uptime_minutes(), 30u);
+}
+
+struct PriorSessionAttributionTestParams {
+  int exit_reason;
+  const char* expected_suffix;
+  uint32_t peak_rss_kb;
+  uint32_t peak_pmf_kb;
+  uint32_t peak_v8_code_kb;
+  uint32_t uptime_sec;
+  uint8_t last_trim_level;
+  uint8_t flags;
+};
+
+const PriorSessionAttributionTestParams kPriorSessionAttributionTestCases[] = {
+    // Standard Android ApplicationExitInfo reason codes (0 through 17)
+    {0, "Anr", 350 * 1024, 300 * 1024, 50 * 1024, 1800, 10, kFlagForeground},
+    {1, "Crash", 250 * 1024, 200 * 1024, 35 * 1024, 300, 0, kFlagForeground},
+    {2, "CrashNative", 400 * 1024, 340 * 1024, 60 * 1024, 1200, 5,
+     kFlagForeground | kFlagMediaPlaying},
+    {3, "DependencyDied", 220 * 1024, 180 * 1024, 25 * 1024, 600, 15, 0},
+    {4, "ExcessiveResourceUsage", 550 * 1024, 480 * 1024, 85 * 1024, 7200, 80,
+     kFlagForeground},
+    {5, "ExitSelf", 180 * 1024, 150 * 1024, 20 * 1024, 900, 0, 0},
+    {6, "InitializationFailure", 120 * 1024, 90 * 1024, 10 * 1024, 30, 0, 0},
+    {7, "LowMemory", 512 * 1024, 450 * 1024, 80 * 1024, 3600, 80,
+     kFlagForeground},
+    {8, "Other", 300 * 1024, 240 * 1024, 40 * 1024, 1500, 20,
+     kFlagMediaPlaying},
+    {9, "PermissionChange", 210 * 1024, 170 * 1024, 25 * 1024, 750, 40, 0},
+    {10, "Signaled", 280 * 1024, 230 * 1024, 38 * 1024, 1100, 0,
+     kFlagForeground},
+    {11, "Unknown", 190 * 1024, 160 * 1024, 22 * 1024, 400, 0, 0},
+    {12, "UserRequested", 260 * 1024, 210 * 1024, 30 * 1024, 2400, 60,
+     kFlagForeground},
+    {13, "UserStopped", 230 * 1024, 190 * 1024, 28 * 1024, 1800, 40, 0},
+    {14, "ApiFailed", 170 * 1024, 140 * 1024, 18 * 1024, 500, 0, 0},
+    {15, "Freezer", 310 * 1024, 270 * 1024, 45 * 1024, 4200, 20, 0},
+    {16, "PackageStateChange", 200 * 1024, 160 * 1024, 24 * 1024, 600, 0, 0},
+    {17, "PackageUpdated", 205 * 1024, 165 * 1024, 26 * 1024, 700, 0, 0},
+    // Unmapped/fallback exit reason code -> "Other"
+    {99, "Other", 290 * 1024, 235 * 1024, 39 * 1024, 1300, 5, kFlagForeground},
+};
+
+class CobaltPriorSessionMemoryAttributionBrowserTest
+    : public content::ContentBrowserTest,
+      public testing::WithParamInterface<PriorSessionAttributionTestParams> {};
+
+IN_PROC_BROWSER_TEST_P(CobaltPriorSessionMemoryAttributionBrowserTest,
+                       VerifyStateAttribution) {
+  const PriorSessionAttributionTestParams& params = GetParam();
+  base::HistogramTester histogram_tester;
+
+  ProcessStateSnapshot snapshot;
+  snapshot.peak_rss_kb = params.peak_rss_kb;
+  snapshot.peak_pmf_kb = params.peak_pmf_kb;
+  snapshot.peak_v8_code_kb = params.peak_v8_code_kb;
+  snapshot.uptime_sec = params.uptime_sec;
+  snapshot.last_trim_level = params.last_trim_level;
+  snapshot.flags = params.flags;
+
+  EmitPriorSessionExitSummaryHistograms(params.exit_reason, snapshot);
+
+  std::string suffix = params.expected_suffix;
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakRssMB." + suffix, params.peak_rss_kb / 1024,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakPmfMB." + suffix, params.peak_pmf_kb / 1024,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakV8CodeMB." + suffix,
+      params.peak_v8_code_kb / 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeMinutes." + suffix,
+      params.uptime_sec / 60, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.LastTrimLevel." + suffix,
+      params.last_trim_level, 1);
+
+  // Verify aggregate AllExits baseline for this exit
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakRssMB.AllExits", params.peak_rss_kb / 1024,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakPmfMB.AllExits", params.peak_pmf_kb / 1024,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakV8CodeMB.AllExits",
+      params.peak_v8_code_kb / 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeMinutes.AllExits", params.uptime_sec / 60,
+      1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AllExitReasonStates,
+    CobaltPriorSessionMemoryAttributionBrowserTest,
+    testing::ValuesIn(kPriorSessionAttributionTestCases),
+    [](const testing::TestParamInfo<PriorSessionAttributionTestParams>& info) {
+      return base::StringPrintf("%s_Code%d", info.param.expected_suffix,
+                                info.param.exit_reason);
+    });
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       PriorSessionMemoryAttributionHistograms) {
+  base::HistogramTester cumulative_tester;
+
+  int total_emitted = 0;
+  for (const auto& test_case : kPriorSessionAttributionTestCases) {
+    base::HistogramTester iteration_tester;
+
+    ProcessStateSnapshot snapshot;
+    snapshot.peak_rss_kb = test_case.peak_rss_kb;
+    snapshot.peak_pmf_kb = test_case.peak_pmf_kb;
+    snapshot.peak_v8_code_kb = test_case.peak_v8_code_kb;
+    snapshot.uptime_sec = test_case.uptime_sec;
+    snapshot.last_trim_level = test_case.last_trim_level;
+    snapshot.flags = test_case.flags;
+
+    EmitPriorSessionExitSummaryHistograms(test_case.exit_reason, snapshot);
+    total_emitted++;
+
+    std::string suffix = test_case.expected_suffix;
+    iteration_tester.ExpectBucketCount(
+        "Cobalt.Stability.Android.PeakRssMB." + suffix,
+        test_case.peak_rss_kb / 1024, 1);
+    iteration_tester.ExpectBucketCount(
+        "Cobalt.Stability.Android.PeakPmfMB." + suffix,
+        test_case.peak_pmf_kb / 1024, 1);
+    iteration_tester.ExpectBucketCount(
+        "Cobalt.Stability.Android.PeakV8CodeMB." + suffix,
+        test_case.peak_v8_code_kb / 1024, 1);
+    iteration_tester.ExpectBucketCount(
+        "Cobalt.Stability.Android.UptimeMinutes." + suffix,
+        test_case.uptime_sec / 60, 1);
+    iteration_tester.ExpectBucketCount(
+        "Cobalt.Stability.Android.LastTrimLevel." + suffix,
+        test_case.last_trim_level, 1);
+  }
+
+  // Verify aggregate AllExits histograms contain all sequentially emitted
+  // samples
+  cumulative_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.PeakRssMB.AllExits", total_emitted);
+  cumulative_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.PeakPmfMB.AllExits", total_emitted);
+  cumulative_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.PeakV8CodeMB.AllExits", total_emitted);
+  cumulative_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.UptimeMinutes.AllExits", total_emitted);
 }
 
 }  // namespace cobalt

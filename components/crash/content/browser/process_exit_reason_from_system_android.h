@@ -8,6 +8,8 @@
 #include <string>
 
 #include "base/process/process_handle.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 
 namespace crash_reporter {
 
@@ -18,6 +20,12 @@ class ProcessExitReasonFromSystem {
   // histogram to UMA with |uma_name|.
   static void RecordExitReasonToUma(base::ProcessId pid,
                                     const std::string& uma_name);
+
+#if BUILDFLAG(IS_COBALT)
+  // Returns the integer exit reason from ActivityManager for the given PID, or
+  // -1 if unknown / not found.
+  static int GetExitReason(base::ProcessId pid);
+#endif
 };
 
 }  // namespace crash_reporter
