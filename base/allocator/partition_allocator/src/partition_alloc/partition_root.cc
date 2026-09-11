@@ -1046,16 +1046,13 @@ void PartitionRoot::Init(PartitionOptions opts) {
     scheduler_loop_quarantine.Configure(
         scheduler_loop_quarantine_root,
         opts.scheduler_loop_quarantine_global_config);
-<<<<<<< HEAD
     scheduler_loop_quarantine_for_advanced_memory_safety_checks.Configure(
         scheduler_loop_quarantine_root,
         opts.scheduler_loop_quarantine_for_advanced_memory_safety_checks_config);
-=======
 #if BUILDFLAG(IS_COBALT)
     settings.scheduler_loop_quarantine_global_config =
         opts.scheduler_loop_quarantine_global_config;
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 0f75257e756 (cobalt: Skip PartitionRoot re-creation when options match (#12423))
     settings.scheduler_loop_quarantine_thread_local_config =
         opts.scheduler_loop_quarantine_thread_local_config;
 
@@ -1132,15 +1129,6 @@ void PartitionRoot::Init(PartitionOptions opts) {
     // This is a "magic" value so we can test if a root pointer is valid.
     inverted_self = ~reinterpret_cast<uintptr_t>(this);
 
-<<<<<<< HEAD
-=======
-    const bool use_small_single_slot_spans =
-        opts.use_small_single_slot_spans == PartitionOptions::kEnabled;
-#if BUILDFLAG(IS_COBALT)
-    settings.use_small_single_slot_spans = use_small_single_slot_spans;
-#endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> 0f75257e756 (cobalt: Skip PartitionRoot re-creation when options match (#12423))
     // Set up the actual usable buckets first.
     for (size_t bucket_index = 0; bucket_index < BucketIndexLookup::kNumBuckets;
          ++bucket_index) {

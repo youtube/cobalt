@@ -158,14 +158,9 @@ class MainPartitionConstructor {
     // Cobalt initializes PartitionAlloc with known fixed options:
     // - use_cookie_if_supported: standard cookie support when enabled by build.
     // - backup_ref_ptr: disabled for the main malloc partition.
-    // - fewer_memory_regions: enabled to minimize address space reservations.
-    // - use_small_single_slot_spans: enabled to reduce single-slot span overhead.
     // Initializing the root with these options up front allows ConfigurePartitions()
     // to match settings and avoid re-creating a duplicate PartitionRoot.
     opts.use_cookie_if_supported = partition_alloc::PartitionOptions::kEnabled;
-    opts.fewer_memory_regions = partition_alloc::PartitionOptions::kEnabled;
-    opts.use_small_single_slot_spans =
-        partition_alloc::PartitionOptions::kEnabled;
 #endif  // BUILDFLAG(IS_COBALT)
     opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
     auto* new_root = new (buffer) partition_alloc::PartitionRoot(opts);
@@ -670,11 +665,10 @@ bool QuarantineConfigMatches(
   if (!a.enable_quarantine) {
     return true;  // Both disabled; capacity and other settings are inactive.
   }
-  return a.enable_zapping == b.enable_zapping &&
-         a.quarantine_config.branch_capacity_in_bytes ==
-             b.quarantine_config.branch_capacity_in_bytes &&
-         a.quarantine_config.lock_required ==
-             b.quarantine_config.lock_required;
+  return a.branch_capacity_in_bytes ==
+             b.branch_capacity_in_bytes &&
+         a.enable_zapping ==
+             b.enable_zapping;
 }
 
 bool SettingsMatch(
@@ -687,9 +681,7 @@ bool SettingsMatch(
         scheduler_loop_quarantine_global_config,
     const partition_alloc::internal::SchedulerLoopQuarantineConfig&
         scheduler_loop_quarantine_thread_local_config,
-    EventuallyZeroFreedMemory eventually_zero_freed_memory,
-    FewerMemoryRegions fewer_memory_regions,
-    UseSmallSingleSlotSpans use_small_single_slot_spans) {
+    EventuallyZeroFreedMemory eventually_zero_freed_memory) {
   // BRP is not supported on Cobalt.
   if (enable_brp.value()) {
     return false;
@@ -714,16 +706,6 @@ bool SettingsMatch(
 
   if (current_root->settings.eventually_zero_freed_memory !=
       eventually_zero_freed_memory.value()) {
-    return false;
-  }
-
-  if (current_root->settings.fewer_memory_regions !=
-      fewer_memory_regions.value()) {
-    return false;
-  }
-
-  if (current_root->settings.use_small_single_slot_spans !=
-      use_small_single_slot_spans.value()) {
     return false;
   }
 
@@ -757,8 +739,7 @@ void ConfigurePartitions(
           enable_memory_tagging, memory_tagging_reporting_mode,
           scheduler_loop_quarantine_global_config,
           scheduler_loop_quarantine_thread_local_config,
-          eventually_zero_freed_memory, fewer_memory_regions,
-          use_small_single_slot_spans)) {
+          eventually_zero_freed_memory)) {
     if (distribution == BucketDistribution::kDenser) {
       current_root->SwitchToDenserBucketDistribution();
     }
