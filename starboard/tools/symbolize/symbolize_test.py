@@ -50,9 +50,13 @@ _TESTDATA_DIR = os.path.join(os.path.dirname(__file__), 'testdata')
 class _FakeSymbolizerRunner:
   """Mock runner to supply deterministic responses without spawning LLVM."""
 
-  def __init__(self, responses=None, default_response=None):
+  def __init__(self,
+               responses=None,
+               default_response=None,
+               default_library=None):
     self._responses = responses or {}
     self._default_response = default_response
+    self.default_library = default_library
     self.calls = []
     self.closed = False
 
@@ -132,6 +136,88 @@ class SymbolizeUnitTests(unittest.TestCase):
         'cobalt_browser_main_parts.cc:319 '
         '(/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so '
         '(BuildId: 3abe1846))\n', output[1])
+
+  def test_android_mixed_libraries_disambiguation(self):
+    cobalt_line = (
+        '09-08 17:27:44.416  8169  8169 F DEBUG   :       #00 pc 0x01115620  '
+        '/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so\n')
+    libc_line = (
+        '09-08 17:27:44.416  8169  8169 F DEBUG   :       #01 pc 0x00094b2f  '
+        '/apex/com.android.runtime/lib/bionic/libc.so (__pthread_start+40)\n')
+    fake_runner = _FakeSymbolizerRunner(
+        responses={
+            str(0x1115620): [
+                'cobalt::CobaltBrowserMainParts::PreCreateThreads()',
+                'cobalt_browser_main_parts.cc:319'
+            ],
+            str(0x94b2f): ['false_positive_symbol()', 'unrelated.cc:10']
+        },
+        default_library='/path/to/host/out/libchrobalt.so')
+
+    in_stream = io.StringIO(cobalt_line + libc_line)
+    out_stream = io.StringIO()
+    symbolize._Symbolize(
+        in_stream=in_stream,
+        out_stream=out_stream,
+        runner=fake_runner,
+        base_address='0')
+    output = out_stream.getvalue().splitlines(keepends=True)
+    self.assertEqual(len(output), 2)
+    self.assertIn('cobalt::CobaltBrowserMainParts::PreCreateThreads()',
+                  output[0])
+    # Unrelated libc.so frame must remain untouched
+    self.assertEqual(output[1], libc_line)
+    self.assertNotIn(str(0x94b2f), fake_runner.calls)
+
+  def test_cli_stdin_support(self):
+    cobalt_line = (
+        '09-08 17:27:44.416  8169  8169 F DEBUG   :       #00 pc 0x01115620  '
+        '/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so\n')
+    target_runner = 'starboard.tools.symbolize.symbolize.SymbolizerRunner'
+    with mock.patch('sys.stdin', io.StringIO(cobalt_line)), \
+         mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout, \
+         mock.patch(target_runner) as mock_runner_cls:
+      mock_runner = mock.MagicMock()
+      mock_runner.default_library = '/tmp/libchrobalt.so'
+      mock_runner.symbolize.return_value = [('cobalt::PreCreateThreads()',
+                                             'main.cc:1')]
+      mock_runner_cls.return_value = mock_runner
+      with mock.patch(
+          'sys.argv', ['symbolize.py', '-l', '/tmp/libchrobalt.so']), \
+           mock.patch('os.path.exists', return_value=True):
+        symbolize.main()
+      self.assertIn('cobalt::PreCreateThreads()', mock_stdout.getvalue())
+
+  def test_android_binary_path_extraction(self):
+    handler = formats.AndroidFormatHandler()
+
+    line1 = (
+        '09-11 12:40:59.557  4614  4614 F DEBUG   :       #00 pc 03d1eeee  '
+        '/data/app/~~pkg==/base.apk!libcobalt_browsertests__library.so\n')
+    m1 = handler.match(line1)
+    self.assertIsNotNone(m1)
+    self.assertEqual(m1.binary, 'libcobalt_browsertests__library.so')
+
+    line2 = (
+        '09-08 17:27:46.387  8283  8283 F DEBUG   :       #00 pc 01115620  '
+        '/data/app/dev.cobalt.coat/lib/arm/libchrobalt.so (BuildId: 3abe)\n')
+    m2 = handler.match(line2)
+    self.assertIsNotNone(m2)
+    self.assertEqual(m2.binary, 'libchrobalt.so')
+
+    line3 = (
+        '09-11 12:40:59.558  4614  4614 F DEBUG   :       #16 pc 00094b2f  '
+        '/apex/com.android.runtime/lib/bionic/libc.so (__pthread_start+40)\n')
+    m3 = handler.match(line3)
+    self.assertIsNotNone(m3)
+    self.assertEqual(m3.binary, 'libc.so')
+
+    line4 = (
+        '09-08 17:27:44.416  8169  8169 F DEBUG   :       #00 pc 00012345  '
+        '/system/bin/app_process32\n')
+    m4 = handler.match(line4)
+    self.assertIsNotNone(m4)
+    self.assertEqual(m4.binary, 'app_process32')
 
   def test_asan_format(self):
     line = '    #1 0x7fdc59bbaa6b  (<unknown module>)\n'
@@ -758,6 +844,29 @@ class SymbolizeIntegrationTests(unittest.TestCase):
     self.assertIn('fixture_func_alpha', output)
     self.assertIn('fixture_func_beta', output)
     self.assertIn('fixture.c', output)
+
+  def test_real_llvm_symbolizer_mixed_binaries(self):
+    beta_offset = self.symbols['fixture_func_beta']
+    so_name = os.path.basename(self.so_path)
+    input_text = (
+        f'09-08 17:27:44.416  8169  8169 E chromium: #00 pc {beta_offset} '
+        f'/data/app/dev.cobalt.coat/base.apk!{so_name}\n'
+        '09-08 17:27:44.416  8169  8169 E chromium: #01 pc 0x00094b2f '
+        '/apex/com.android.runtime/lib/bionic/libc.so (__pthread_start+40)\n')
+    in_stream = io.StringIO(input_text)
+    out_stream = io.StringIO()
+
+    symbolize._Symbolize(
+        library=self.so_path,
+        base_address='0',
+        in_stream=in_stream,
+        out_stream=out_stream)
+
+    lines = out_stream.getvalue().splitlines(keepends=True)
+    self.assertEqual(len(lines), 2)
+    self.assertIn('fixture_func_beta', lines[0])
+    self.assertIn('libc.so (__pthread_start+40)', lines[1])
+    self.assertNotIn('fixture', lines[1])
 
   def test_real_llvm_symbolizer_with_file_and_base_address(self):
     alpha_offset = int(self.symbols['fixture_func_alpha'], 16)
