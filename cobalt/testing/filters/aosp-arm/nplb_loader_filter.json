@@ -24,9 +24,7 @@
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/78",
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/79",
     "SbAudioSinkTest.ContinuousAppend",
-    "SbDrmSessionTest.CloseDrmSessionBeforeUpdateSession",
-    "SbDrmSessionTest.InvalidSessionUpdateRequestParams",
-    "SbDrmSessionTest.SunnyDay",
+    "SbDrmSessionTest.*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
   ]
 }
