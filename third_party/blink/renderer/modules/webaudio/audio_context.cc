@@ -350,10 +350,7 @@ AudioContext::AudioContext(LocalDOMWindow& window,
             << (sink_descriptor_.Type() == WebAudioSinkDescriptor::kAudible
                     ? "Audible"
                     : "Silent")
-            << "]"
-            << " [Is Default Sink? = "
-            << (sink_descriptor_.IsDefaultSinkId() ? "Yes" : "No") << "]"
-            << " [Sink ID = '" << sink_descriptor_.SinkId().Utf8() << "']";
+            << "]";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Compute the base latency now and cache the value since it doesn't change
