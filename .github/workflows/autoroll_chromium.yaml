@@ -38,7 +38,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: src
-          ref: main
+          ref: ${{ matrix.branch.target }}
           fetch-depth: 1000
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
@@ -53,10 +53,9 @@ jobs:
           git config --global submodule.recurse false
 
           # Copy script from main branch.
+          git fetch --depth=1 --no-recurse-submodules origin main:main
           git show main:.github/scripts/autoroll_chromium.py > "${RUNNER_TEMP}/autoroll_chromium.py"
           git show main:.github/scripts/autoroll_lib.py > "${RUNNER_TEMP}/autoroll_lib.py"
-
-          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           # Use existing branch from remote if it exists, otherwise start from target branch.
           if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
