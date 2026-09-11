@@ -1217,6 +1217,14 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
       scheduler_loop_quarantine_for_advanced_memory_safety_checks_config,
       allocator_shim::EventuallyZeroFreedMemory(eventually_zero_freed_memory));
 
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "PartitionAlloc: main root re-creation "
+            << (allocator_shim::internal::PartitionAllocMalloc::
+                        OriginalAllocator() == nullptr
+                    ? "skipped (reused initial root)"
+                    : "executed (new root created)");
+#endif  // BUILDFLAG(IS_COBALT)
+
   const uint32_t extras_size = allocator_shim::GetMainPartitionRootExtrasSize();
   // As per description, extras are optional and are expected not to
   // exceed (cookie + max(BRP ref-count)) == 16 + 16 == 32 bytes.

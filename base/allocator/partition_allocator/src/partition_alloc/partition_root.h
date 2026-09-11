@@ -266,8 +266,19 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
     internal::ReservationOffsetTable reservation_offset_table;
 
     bool eventually_zero_freed_memory = false;
+#if BUILDFLAG(IS_COBALT)
+    internal::SchedulerLoopQuarantineConfig
+        scheduler_loop_quarantine_global_config;
+#endif  // BUILDFLAG(IS_COBALT)
     internal::SchedulerLoopQuarantineConfig
         scheduler_loop_quarantine_thread_local_config;
+<<<<<<< HEAD
+=======
+    bool fewer_memory_regions = false;
+#if BUILDFLAG(IS_COBALT)
+    bool use_small_single_slot_spans = false;
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> 0f75257e75 (cobalt: Skip PartitionRoot re-creation when options match (#12423))
 #if PA_BUILDFLAG(HAS_MEMORY_TAGGING)
     bool memory_tagging_enabled_ = false;
     bool use_random_memory_tagging_ = false;
