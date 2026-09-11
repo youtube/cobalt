@@ -20,13 +20,17 @@
 
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/process/process_handle.h"
+#include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include <optional>
+
 #include "base/android/build_info.h"
 #include "base/base_paths.h"
 #include "base/functional/bind.h"
@@ -41,6 +45,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #include "components/crash/content/browser/process_exit_reason_from_system_android.h"
 #endif
 
@@ -75,6 +80,40 @@ base::OnceCallback<void(bool)> WrapCallbackForCaller(
 
 }  // namespace
 
+void EmitPriorSessionExitSummaryHistograms(
+    int exit_reason,
+    const ProcessStateSnapshot& snapshot) {
+  std::string suffix(ExitReasonToHistogramSuffix(exit_reason));
+
+  // 1. Emit pre-joined histograms for the specific exit reason
+  base::UmaHistogramMemoryLargeMB(
+      base::StrCat({"Cobalt.Stability.Android.PeakRssMB.", suffix}),
+      snapshot.peak_rss_kb / 1024);
+  base::UmaHistogramMemoryLargeMB(
+      base::StrCat({"Cobalt.Stability.Android.PeakPmfMB.", suffix}),
+      snapshot.peak_pmf_kb / 1024);
+  base::UmaHistogramMemoryLargeMB(
+      base::StrCat({"Cobalt.Stability.Android.PeakV8CodeMB.", suffix}),
+      snapshot.peak_v8_code_kb / 1024);
+  base::UmaHistogramCustomCounts(
+      base::StrCat({"Cobalt.Stability.Android.UptimeMinutes.", suffix}),
+      snapshot.uptime_minutes(), 1, 2880, 50);
+  base::UmaHistogramExactLinear(
+      base::StrCat({"Cobalt.Stability.Android.LastTrimLevel.", suffix}),
+      snapshot.last_trim_level, 100);
+
+  // 2. Emit baseline aggregate across all exits
+  base::UmaHistogramMemoryLargeMB("Cobalt.Stability.Android.PeakRssMB.AllExits",
+                                  snapshot.peak_rss_kb / 1024);
+  base::UmaHistogramMemoryLargeMB("Cobalt.Stability.Android.PeakPmfMB.AllExits",
+                                  snapshot.peak_pmf_kb / 1024);
+  base::UmaHistogramMemoryLargeMB(
+      "Cobalt.Stability.Android.PeakV8CodeMB.AllExits",
+      snapshot.peak_v8_code_kb / 1024);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Stability.Android.UptimeMinutes.AllExits",
+      snapshot.uptime_minutes(), 1, 2880, 50);
+}
 #if BUILDFLAG(IS_ANDROID)
 void RecordPriorSessionExitReasons() {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
@@ -87,11 +126,29 @@ void RecordPriorSessionExitReasons() {
   }
   base::FilePath metrics_dir =
       base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
+  std::vector<base::ProcessId> prior_pids = ExtractPriorSessionPids(
+      metrics_dir, kBrowserStabilityMetricsName, base::GetCurrentProcId());
+
+  for (base::ProcessId pid : prior_pids) {
+    // 1. Record original SystemExitReason histogram
     crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
         pid, kSystemExitReasonHistogram);
+
+    // 2. Read prior session state summary snapshot
+    std::optional<ProcessStateSnapshot> snapshot =
+        CobaltProcessStateSummaryManager::GetInstance()
+            ->ReadPriorSessionSnapshot(pid);
+
+    if (!snapshot.has_value()) {
+      continue;
+    }
+
+    // 3. Resolve exit reason to determine histogram suffix
+    int exit_reason =
+        crash_reporter::ProcessExitReasonFromSystem::GetExitReason(pid);
+
+    // 4. Emit pre-joined memory and stability metrics
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *snapshot);
   }
 }
 

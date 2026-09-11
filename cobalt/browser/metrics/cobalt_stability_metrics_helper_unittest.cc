@@ -25,14 +25,15 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/process/process_handle.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
 #endif
-
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -372,6 +373,116 @@ TEST_F(CobaltStabilityMetricsHelperTest,
   }
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+TEST(CobaltProcessStateSummaryTest, SnapshotSerializationRoundtrip) {
+  ProcessStateSnapshot original;
+  original.peak_rss_kb = 450 * 1024;
+  original.peak_pmf_kb = 380 * 1024;
+  original.peak_v8_code_kb = 64 * 1024;
+  original.uptime_sec = 3600;
+  original.last_trim_level = 15;
+  original.flags = kFlagForeground | kFlagMediaPlaying;
+
+  std::vector<uint8_t> serialized =
+      CobaltProcessStateSummaryManager::SerializeSnapshot(original);
+  EXPECT_EQ(serialized.size(), kProcessStateSummaryPayloadSize);
+  EXPECT_EQ(serialized.size(), 20u);
+
+  std::optional<ProcessStateSnapshot> deserialized =
+      CobaltProcessStateSummaryManager::DeserializeSnapshot(serialized);
+  ASSERT_TRUE(deserialized.has_value());
+  EXPECT_EQ(*deserialized, original);
+  EXPECT_EQ(deserialized->uptime_minutes(), 60u);
+}
+
+TEST(CobaltProcessStateSummaryTest, RejectsTruncatedAndCorruptPayloads) {
+  // Truncated payload (< 20 bytes).
+  std::vector<uint8_t> short_buffer(19, 0);
+  EXPECT_FALSE(
+      CobaltProcessStateSummaryManager::DeserializeSnapshot(short_buffer)
+          .has_value());
+
+  ProcessStateSnapshot original;
+  original.peak_rss_kb = 100 * 1024;
+  std::vector<uint8_t> valid_buffer =
+      CobaltProcessStateSummaryManager::SerializeSnapshot(original);
+
+  // Invalid magic byte.
+  std::vector<uint8_t> corrupt_magic = valid_buffer;
+  corrupt_magic[0] = 0xAA;
+  EXPECT_FALSE(
+      CobaltProcessStateSummaryManager::DeserializeSnapshot(corrupt_magic)
+          .has_value());
+
+  // Unsupported version.
+  std::vector<uint8_t> corrupt_version = valid_buffer;
+  corrupt_version[1] = 2;
+  EXPECT_FALSE(
+      CobaltProcessStateSummaryManager::DeserializeSnapshot(corrupt_version)
+          .has_value());
+}
+
+TEST(CobaltProcessStateSummaryTest, ExitReasonToHistogramSuffixMapping) {
+  EXPECT_EQ(ExitReasonToHistogramSuffix(0), "Anr");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(1), "Crash");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(2), "CrashNative");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(3), "DependencyDied");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(4), "ExcessiveResourceUsage");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(5), "ExitSelf");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(6), "InitializationFailure");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(7), "LowMemory");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(8), "Other");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(9), "PermissionChange");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(10), "Signaled");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(11), "Unknown");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(12), "UserRequested");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(13), "UserStopped");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(14), "ApiFailed");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(15), "Freezer");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(16), "PackageStateChange");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(17), "PackageUpdated");
+  // Default / fallback for unrecognized code
+  EXPECT_EQ(ExitReasonToHistogramSuffix(99), "Other");
+  EXPECT_EQ(ExitReasonToHistogramSuffix(-1), "Other");
+}
+
+TEST(CobaltProcessStateSummaryTest,
+     HistogramEmissionAllExitsAndReasonSpecific) {
+  base::HistogramTester histogram_tester;
+
+  ProcessStateSnapshot snapshot;
+  snapshot.peak_rss_kb = 400 * 1024;     // 400 MB
+  snapshot.peak_pmf_kb = 350 * 1024;     // 350 MB
+  snapshot.peak_v8_code_kb = 60 * 1024;  // 60 MB
+  snapshot.uptime_sec = 7200;            // 120 minutes
+  snapshot.last_trim_level = 80;         // TRIM_MEMORY_COMPLETE
+  snapshot.flags = kFlagForeground;
+
+  // Test LowMemory (exit_reason = 7)
+  EmitPriorSessionExitSummaryHistograms(7, snapshot);
+
+  // Suffix-specific histograms
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakRssMB.LowMemory", 400, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakPmfMB.LowMemory", 350, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakV8CodeMB.LowMemory", 60, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeMinutes.LowMemory", 120, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.LastTrimLevel.LowMemory", 80, 1);
+
+  // AllExits baseline histograms
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakRssMB.AllExits", 400, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakPmfMB.AllExits", 350, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakV8CodeMB.AllExits", 60, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeMinutes.AllExits", 120, 1);
+}
 
 }  // namespace
 }  // namespace cobalt

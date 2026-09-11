@@ -31,6 +31,28 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<variants name="AndroidExitReasonToken">
+  <variant name="AllExits" summary="aggregate across all exit reasons"/>
+  <variant name="Anr" summary="Application Not Responding"/>
+  <variant name="ApiFailed" summary="API query failed"/>
+  <variant name="Crash" summary="Java unhandled exception"/>
+  <variant name="CrashNative" summary="Native crash / SIGSEGV"/>
+  <variant name="DependencyDied" summary="Dependency died"/>
+  <variant name="ExcessiveResourceUsage" summary="Excessive resource usage"/>
+  <variant name="ExitSelf" summary="Cobalt requested exit via System.exit"/>
+  <variant name="Freezer" summary="Killed by app freezer"/>
+  <variant name="InitializationFailure" summary="Initialization failure"/>
+  <variant name="LowMemory" summary="Killed by lmkd (Low Memory Killer)"/>
+  <variant name="Other" summary="Uncategorized exit reason"/>
+  <variant name="PackageStateChange" summary="Package state changed"/>
+  <variant name="PackageUpdated" summary="Package was updated"/>
+  <variant name="PermissionChange" summary="Runtime permissions revoked"/>
+  <variant name="Signaled" summary="Killed by Linux OS signal"/>
+  <variant name="Unknown" summary="Unknown exit reason"/>
+  <variant name="UserRequested" summary="Killed by user action"/>
+  <variant name="UserStopped" summary="Stopped by user"/>
+</variants>
+
 <histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
     enum="Android.MemoryPressureNotification" expires_after="never">
   <owner>sideboard@google.com</owner>
@@ -374,6 +396,50 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Stability.Android.LastTrimLevel.{ExitReason}"
+    enum="AndroidTrimMemoryLevel" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The most severe Android onTrimMemory() level received prior to process
+    termination for processes ending with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.PeakPmfMB.{ExitReason}" units="MB"
+    expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    Peak Private Memory Footprint (PMF) in MB recorded in the prior Cobalt
+    session for processes terminating with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.PeakRssMB.{ExitReason}" units="MB"
+    expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    Peak Resident Set Size (RSS) in MB recorded in the prior Cobalt session for
+    processes terminating with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.PeakV8CodeMB.{ExitReason}" units="MB"
+    expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    Peak V8 code memory footprint in MB recorded in the prior Cobalt session for
+    processes terminating with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
+</histogram>
+
 <histogram name="Cobalt.Stability.Android.SystemExitReason"
     enum="AndroidProcessExitReason" expires_after="never">
   <owner>avvall@google.com</owner>
@@ -383,6 +449,17 @@ Always run the pretty print utility on this file after editing:
     Extracted from the previous session's persistent memory allocator file PID.
     Records Android API failed when ActivityManager does not return a reason.
   </summary>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.UptimeMinutes.{ExitReason}"
+    units="minutes" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    Session lifetime in minutes prior to process termination for processes
+    ending with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
 </histogram>
 
 <histogram name="Cobalt.StabilityMetrics.IsNearCapacity" enum="Boolean"

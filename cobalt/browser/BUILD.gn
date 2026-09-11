@@ -278,10 +278,13 @@ source_set("metrics") {
     "metrics/cobalt_metrics_service_client.h",
     "metrics/cobalt_metrics_services_manager_client.cc",
     "metrics/cobalt_metrics_services_manager_client.h",
+    "metrics/cobalt_process_state_summary_manager.cc",
+    "metrics/cobalt_process_state_summary_manager.h",
   ]
   deps = [
     ":features",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/build/configs:buildflags",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
@@ -292,6 +295,12 @@ source_set("metrics") {
     "//third_party/metrics_proto",
     "//url",
   ]
+  if (is_android) {
+    deps += [
+      "//cobalt/android:jni_headers",
+      "//components/crash/content/browser",
+    ]
+  }
 }
 
 source_set("command_line_logger") {

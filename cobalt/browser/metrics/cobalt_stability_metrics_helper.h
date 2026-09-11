@@ -22,6 +22,7 @@
 #include "base/process/process_handle.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/functional/callback.h"
@@ -31,6 +32,12 @@ namespace cobalt {
 
 inline constexpr char kBrowserStabilityMetricsName[] =
     "BrowserStabilityMetrics";
+
+// Emits pre-joined memory and stability histograms for a prior session snapshot
+// according to |exit_reason|.
+void EmitPriorSessionExitSummaryHistograms(
+    int exit_reason,
+    const ProcessStateSnapshot& snapshot);
 
 #if BUILDFLAG(IS_ANDROID)
 // UMA histogram name for recording Android system exit reasons.
