@@ -308,7 +308,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 std::unique_ptr<content::DevToolsManagerDelegate>
 CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
-#if defined(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return nullptr;
 #else
   return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
@@ -366,11 +366,11 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
     content::SiteInstance& main_frame_site,
     blink::web_pref::WebPreferences* prefs) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !defined(COBALT_IS_RELEASE_BUILD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
-#endif  // !defined(COBALT_IS_RELEASE_BUILD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
       web_contents, main_frame_site, prefs);
 }
@@ -459,6 +459,12 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
+
+  // Avoid closing idle HTTP/2 sessions on memory pressure signals. On resource-
+  // constrained TV hardware, PartitionAlloc memory compaction cycles repeatedly
+  // trigger memory pressure, which otherwise results in high connection churn
+  // and aborted session spikes (ERR_ABORTED).
+  network_context_params->disable_idle_sockets_close_on_memory_pressure = true;
 
   // All consumers of the main NetworkContext must provide
   // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a

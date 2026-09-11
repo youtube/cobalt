@@ -33,6 +33,8 @@ class BASE_EXPORT SbSysInfo {
   static std::string Brand();
 
   static std::string OSFriendlyName();
+
+  static std::string OSPlatformName();
 };
 
 }  // namespace starboard

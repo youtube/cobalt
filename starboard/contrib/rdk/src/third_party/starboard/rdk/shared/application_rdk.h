@@ -42,6 +42,9 @@
 #include "third_party/starboard/rdk/shared/hang_detector.h"
 
 #include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_set>
 #include <essos-app.h>
 #include <chrono>
 
@@ -73,6 +76,8 @@ class ApplicationRdk : public QueueApplication {
   void InjectAccessibilityCaptionSettingsChanged();
   void InjectAccessibilityTextToSpeechSettingsChanged();
 
+  const char* GetLocaleId();
+
  protected:
   // --- Application overrides ---
   void Initialize() override;
@@ -94,8 +99,6 @@ class ApplicationRdk : public QueueApplication {
   void OnDisplaySize(int width, int height);
 
  private:
-  void MaterializeNativeWindow();
-  void DestroyNativeWindow();
   void BuildEssosContext();
   void FatalError();
 
@@ -114,7 +117,6 @@ class ApplicationRdk : public QueueApplication {
   int window_width_ { 0 };
   int window_height_ { 0 };
   bool resize_pending_ { false };
-  bool essos_context_destroy_ { false };
 
   std::chrono::time_point<std::chrono::steady_clock> ess_loop_last_ts_;
   int ess_timer_fd_ { -1 };
@@ -122,6 +124,9 @@ class ApplicationRdk : public QueueApplication {
   int monitor_timer_fd_ { -1 };
 
   std::unique_ptr<HangMonitor> hang_monitor_ { nullptr };
+
+  mutable std::mutex locale_mutex_;
+  std::unordered_set<std::string> locale_pool_;
 };
 
 }  // namespace starboard

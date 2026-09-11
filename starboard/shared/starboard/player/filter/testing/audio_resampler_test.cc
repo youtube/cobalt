@@ -27,22 +27,12 @@ namespace {
 using ::testing::Combine;
 using ::testing::ValuesIn;
 
-typedef ::testing::tuple<SbMediaAudioSampleType,
-                         SbMediaAudioFrameStorageType,
-                         int,
-                         SbMediaAudioSampleType,
-                         SbMediaAudioFrameStorageType,
-                         int,
-                         int>
-    AudioResamplerTestParam;
+using AudioResamplerTestParam = ::testing::
+    tuple<SbMediaAudioSampleType, int, SbMediaAudioSampleType, int, int>;
 
 SbMediaAudioSampleType kSampleTypesToTest[] = {
     kSbMediaAudioSampleTypeInt16Deprecated,
     kSbMediaAudioSampleTypeFloat32,
-};
-SbMediaAudioFrameStorageType kStorageTypesToTest[] = {
-    kSbMediaAudioFrameStorageTypeInterleaved,
-    kSbMediaAudioFrameStorageTypePlanar,
 };
 int kSampleRatesToTest[] = {22050, 44100, 48000};
 int kChannelsToTest[] = {1, 2, 6};
@@ -57,29 +47,16 @@ const char* ConvertSampleTypeToString(SbMediaAudioSampleType sample_type) {
   return "";
 }
 
-const char* ConvertStorageTypeToString(
-    SbMediaAudioFrameStorageType storage_type) {
-  if (storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
-    return "interleaved";
-  } else if (storage_type == kSbMediaAudioFrameStorageTypePlanar) {
-    return "planar";
-  }
-  SB_NOTREACHED();
-  return "";
-}
-
 class AudioResamplerTest
     : public ::testing::TestWithParam<AudioResamplerTestParam> {
  protected:
   AudioResamplerTest() {
     const AudioResamplerTestParam& param = GetParam();
     source_sample_type_ = std::get<0>(param);
-    source_storage_type_ = std::get<1>(param);
-    source_sample_rate_ = std::get<2>(param);
-    destination_sample_type_ = std::get<3>(param);
-    destination_storage_type_ = std::get<4>(param);
-    destination_sample_rate_ = std::get<5>(param);
-    channels_ = std::get<6>(param);
+    source_sample_rate_ = std::get<1>(param);
+    destination_sample_type_ = std::get<2>(param);
+    destination_sample_rate_ = std::get<3>(param);
+    channels_ = std::get<4>(param);
 
     GenerateAudioInputs();
   }
@@ -104,10 +81,8 @@ class AudioResamplerTest
   }
 
   SbMediaAudioSampleType source_sample_type_;
-  SbMediaAudioFrameStorageType source_storage_type_;
   int source_sample_rate_;
   SbMediaAudioSampleType destination_sample_type_;
-  SbMediaAudioFrameStorageType destination_storage_type_;
   int destination_sample_rate_;
   int channels_;
 
@@ -116,8 +91,7 @@ class AudioResamplerTest
 
 TEST_P(AudioResamplerTest, SunnyDay) {
   std::unique_ptr<AudioResampler> resampler = AudioResampler::Create(
-      source_sample_type_, source_storage_type_, source_sample_rate_,
-      destination_sample_type_, destination_storage_type_,
+      source_sample_type_, source_sample_rate_, destination_sample_type_,
       destination_sample_rate_, channels_);
 
   int total_input_frames = 0;
@@ -157,18 +131,14 @@ std::string GetTestConfigName(
     ::testing::TestParamInfo<AudioResamplerTestParam> info) {
   const AudioResamplerTestParam& param = info.param;
   SbMediaAudioSampleType source_sample_type = std::get<0>(param);
-  SbMediaAudioFrameStorageType source_storage_type = std::get<1>(param);
-  int source_sample_rate = std::get<2>(param);
-  SbMediaAudioSampleType destination_sample_type = std::get<3>(param);
-  SbMediaAudioFrameStorageType destination_storage_type = std::get<4>(param);
-  int destination_sample_rate = std::get<5>(param);
-  int channels = std::get<6>(param);
+  int source_sample_rate = std::get<1>(param);
+  SbMediaAudioSampleType destination_sample_type = std::get<2>(param);
+  int destination_sample_rate = std::get<3>(param);
+  int channels = std::get<4>(param);
   std::string name = FormatString(
-      "%s_%s_%d_to_%s_%s_%d_channels_%d",
-      ConvertSampleTypeToString(source_sample_type),
-      ConvertStorageTypeToString(source_storage_type), source_sample_rate,
+      "%s_%d_to_%s_%d_channels_%d",
+      ConvertSampleTypeToString(source_sample_type), source_sample_rate,
       ConvertSampleTypeToString(destination_sample_type),
-      ConvertStorageTypeToString(destination_storage_type),
       destination_sample_rate, channels);
   return name;
 }
@@ -176,10 +146,8 @@ std::string GetTestConfigName(
 INSTANTIATE_TEST_SUITE_P(AudioResamplerTests,
                          AudioResamplerTest,
                          Combine(ValuesIn(kSampleTypesToTest),
-                                 ValuesIn(kStorageTypesToTest),
                                  ValuesIn(kSampleRatesToTest),
                                  ValuesIn(kSampleTypesToTest),
-                                 ValuesIn(kStorageTypesToTest),
                                  ValuesIn(kSampleRatesToTest),
                                  ValuesIn(kChannelsToTest)),
                          GetTestConfigName);

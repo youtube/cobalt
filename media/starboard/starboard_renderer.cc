@@ -312,6 +312,13 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
   std::move(cdm_attached_cb).Run(true);
   LOG(INFO) << "CDM set successfully.";
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Wire DRM to URL player bridge if it was created before CDM arrived.
+  if (IsUrlPlayer() && player_bridge_ && SbDrmSystemIsValid(drm_system_)) {
+    player_bridge_->SetDrmSystem(drm_system_);
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   if (state_ != STATE_INIT_PENDING_CDM) {
     return;
   }
@@ -642,10 +649,12 @@ void StarboardRenderer::SetSourceUrl(const std::string& source_url) {
 }
 
 void StarboardRenderer::OnEncryptedMediaInitDataEncountered(
-    const char* init_data_type,
-    const unsigned char* init_data,
-    unsigned int init_data_length) {
-  // TODO: Forward encrypted media init data to the EME/DRM layer.
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (encrypted_media_init_data_cb_) {
+    encrypted_media_init_data_cb_.Run(init_data_type, init_data);
+  }
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
@@ -770,6 +779,10 @@ void StarboardRenderer::CreatePlayerBridge() {
         /*pipeline_identifier=*/""
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
         ));
+    // Wire DRM if CDM arrived before bridge creation.
+    if (SbDrmSystemIsValid(drm_system_)) {
+      player_bridge_->SetDrmSystem(drm_system_);
+    }
   } else {
 #endif  // BUILDFLAG(IS_IOS_TVOS)
     player_bridge_.reset(new SbPlayerBridge(

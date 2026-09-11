@@ -312,8 +312,10 @@ static_library("starboard_platform_sources") {
 source_set("starboard_platform_tests") {
   testonly = true
 
-  sources = media_tests_sources + player_tests_sources +
-            [ "//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc" ]
+  sources = media_tests_sources + player_tests_sources + [
+              "//starboard/linux/shared/low_memory_kill_test.cc",
+              "//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc",
+            ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 

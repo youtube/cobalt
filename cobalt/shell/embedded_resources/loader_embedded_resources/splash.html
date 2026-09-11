@@ -79,12 +79,22 @@
         })
         .then(imageBlob => {
           const imageUrl = URL.createObjectURL(imageBlob);
-          placeholderEl.style.backgroundImage = `url(${imageUrl})`;
-          placeholderEl.style.opacity = '100%';
+          const image = new Image();
+          image.onload = () => {
+            const scale = (window.innerWidth > 0 && window.innerHeight > 0)
+                ? Math.max(window.innerWidth / 1920, window.innerHeight / 1080)
+                : 1;
+            const width = image.naturalWidth * scale;
+            const height = image.naturalHeight * scale;
+            placeholderEl.style.backgroundSize = `${width}px ${height}px`;
+            placeholderEl.style.backgroundImage = `url(${imageUrl})`;
+            placeholderEl.style.opacity = '100%';
+          };
+          image.src = imageUrl;
           // set timeout to align with timeout for splash video
           setTimeout(() => {
-              afterImageLoad && afterImageLoad();
-            }, 1000);
+            afterImageLoad && afterImageLoad();
+          }, 1000);
         })
         .catch(error => {
           console.error('Failed to fetch splash image:', error);
