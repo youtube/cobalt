@@ -12,7 +12,7 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "third_party/ashmem/ashmem.h"
+#include "base/android/linker/ashmem.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace base {
