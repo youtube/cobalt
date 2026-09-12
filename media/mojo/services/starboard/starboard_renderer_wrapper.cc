@@ -29,6 +29,10 @@
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gl/gl_bindings.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/video_window.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace media {
 
 namespace {
@@ -723,6 +727,19 @@ void StarboardRendererWrapper::GraphicsContextRunner(
   if (!provider || !provider->is_gpu_factory_initialized_) {
     return;
   }
+#if BUILDFLAG(IS_ANDROID)
+  // ClearNativeWindow creates its own temporary EGLContext/EGLSurface directly
+  // on ANativeWindow and does not need Chromium's stub_ context or synchronous
+  // wait.
+  if (target_function == &starboard::ClearNativeWindow) {
+    provider->gpu_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce([](SbDecodeTargetGlesContextRunnerTarget func,
+                                     void* context) { func(context); },
+                                  target_function, target_function_context));
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   if (provider->gpu_task_runner_->RunsTasksInCurrentSequence()) {
     // If it is on the gpu thread, post target_function() directly on it.
     target_function(target_function_context);
