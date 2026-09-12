@@ -95,6 +95,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
         const ab = new ArrayBuffer(1024 * 1024);
         const div = document.createElement('div');
         div.style.width = '100px';
+        div.textContent = 'a'.repeat(1024 * 1024 + 1);
         document.body.appendChild(div);
       </script>
     </body>
@@ -195,6 +196,17 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.VirtualAddress.LargestFreeGapMb"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"));
+  EXPECT_TRUE(
+      check_histogram("Memory.Experimental.VirtualAddress.FragmentationRatio"));
+  EXPECT_TRUE(
+      check_non_zero_histogram("Memory.Experimental.VirtualAddress.VmaCount"));
+#endif
+
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
   check_histogram("Memory.Browser.PartitionAllocRss");
@@ -233,6 +245,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
         const ab = new ArrayBuffer(1024 * 1024);
         const div = document.createElement('div');
         div.style.width = '100px';
+        div.textContent = 'a'.repeat(1024 * 1024 + 1);
         document.body.appendChild(div);
       </script>
     </body>
@@ -316,6 +329,18 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       "Memory.Experimental.Browser2.Malloc.AllocatedObjects.Allocator"));
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.VirtualAddress.LargestFreeGapMb"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"));
+  EXPECT_TRUE(
+      check_histogram("Memory.Experimental.VirtualAddress.FragmentationRatio"));
+  EXPECT_TRUE(
+      check_non_zero_histogram("Memory.Experimental.VirtualAddress.VmaCount"));
+#endif
+
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 
@@ -514,5 +539,33 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_EQ(parsed_pid, simulated_pid);
   EXPECT_GT(parsed_pid, 0);
 }
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       VirtualAddressSpaceMetricsCalculation) {
+  // Synthetic /proc/self/maps content simulating 3 VMAs with known gaps:
+  // VMA 1: 0x00400000 - 0x00450000 (320 KB)
+  // [Gap 1: 0x00450000 to 0x01450000 = 0x01000000 = 16 MB]
+  // VMA 2: 0x01450000 - 0x01550000 (1 MB)
+  // [Gap 2: 0x01550000 to 0x05550000 = 0x04000000 = 64 MB]
+  // VMA 3: 0x05550000 - 0x05650000 (1 MB)
+  // Total unmapped VA = 16 MB + 64 MB = 80 MB.
+  // Largest free gap = 64 MB.
+  // Fragmentation ratio = 1.0 - (64 / 80) = 1.0 - 0.80 = 0.20 (20%).
+  std::string fake_maps =
+      "00400000-00450000 r-xp 00000000 08:02 173521 /bin/app\n"
+      "01450000-01550000 rw-p 00000000 00:00 0      [anon:heap]\n"
+      "05550000-05650000 rw-p 00000000 00:00 0      [stack]\n";
+
+  auto metrics =
+      CobaltMemoryMetricsEmitter::CalculateVirtualAddressSpaceMetricsForTesting(
+          fake_maps);
+  ASSERT_TRUE(metrics.has_value());
+  EXPECT_EQ(3u, metrics->vma_count);
+  EXPECT_EQ(64u, metrics->largest_free_gap_mb);
+  EXPECT_EQ(80u, metrics->total_unmapped_va_mb);
+  EXPECT_EQ(20, metrics->fragmentation_ratio_pct);
+}
+#endif
 
 }  // namespace cobalt
