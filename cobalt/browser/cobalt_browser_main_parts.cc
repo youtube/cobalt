@@ -20,6 +20,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
+#include "base/memory/memory_pressure_monitor.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/no_destructor.h"
@@ -40,9 +41,11 @@
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
@@ -50,6 +53,11 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+#include "media/media_buildflags.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_client.h"
+#endif
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -332,6 +340,8 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
+CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
+
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   LOG(INFO) << "Native CommandLine: "
@@ -412,6 +422,32 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     LOG(ERROR) << "PreMainMessageLoopRun failed with result: " << result
                << ". Aborting storage migration.";
     return result;
+  }
+
+  // Register the Cobalt system memory pressure evaluator with
+  // MultiSourceMemoryPressureMonitor across all platforms.
+  // On platforms where BrowserMainLoop did not create a MemoryPressureMonitor
+  // (e.g. Android TV), create and own one here so that process-budget memory
+  // pressure evaluation is active uniformly across all Cobalt targets.
+  if (!base::MemoryPressureMonitor::Get()) {
+    memory_pressure_monitor_ =
+        std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
+  }
+
+  auto* monitor =
+      static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+          base::MemoryPressureMonitor::Get());
+  if (monitor) {
+    cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
+        media_allowance_getter;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    media_allowance_getter = base::BindRepeating(
+        &::media::MediaClient::GetMediaSourceTotalAllocatedMemory);
+#endif
+    monitor->SetSystemEvaluator(
+        std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
+            monitor->CreateVoter(), std::move(media_allowance_getter)));
+    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator registered successfully.";
   }
 
   StartStorageMigration();
