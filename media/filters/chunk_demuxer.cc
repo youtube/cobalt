@@ -207,8 +207,6 @@ bool ChunkDemuxerStream::EvictCodedFrames(base::TimeDelta media_time,
   return stream_->GarbageCollectIfNeeded(media_time, newDataSize);
 }
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
   base::AutoLock auto_lock(lock_);
@@ -229,10 +227,7 @@ void ChunkDemuxerStream::OnMemoryPressure(
   base::AutoLock auto_lock(lock_);
   return stream_->OnMemoryPressure(media_time, memory_pressure_level,
                                    force_instant_gc);
-}
-
->>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-void ChunkDemuxerStream::OnSetDuration(base::TimeDelta duration) {
+}void ChunkDemuxerStream::OnSetDuration(base::TimeDelta duration) {
   base::AutoLock auto_lock(lock_);
   stream_->OnSetDuration(duration);
 }

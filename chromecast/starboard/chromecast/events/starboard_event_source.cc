@@ -58,21 +58,7 @@ const base::flat_map<SbKey, ui::DomCode>& GetSbKeyToDomCodeMap() {
       {kSbKeyOem6, ui::DomCode::BRACKET_RIGHT},
       {kSbKeyOem7, ui::DomCode::QUOTE},
 
-<<<<<<< HEAD
-      // Media Keys
-      {kSbKeyMediaPlayPause, ui::DomCode::MEDIA_PLAY_PAUSE},
-      {kSbKeyMediaRewind, ui::DomCode::MEDIA_REWIND},
-      {kSbKeyMediaFastForward, ui::DomCode::MEDIA_FAST_FORWARD},
-      {kSbKeyMediaNextTrack, ui::DomCode::MEDIA_TRACK_NEXT},
-      {kSbKeyMediaPrevTrack, ui::DomCode::MEDIA_TRACK_PREVIOUS},
-      {kSbKeyPause, ui::DomCode::PAUSE},
-      {kSbKeyPlay, ui::DomCode::MEDIA_PLAY},
-      {kSbKeyMediaStop, ui::DomCode::MEDIA_STOP},
-      {kSbKeyChannelUp, ui::DomCode::CHANNEL_UP},
-      {kSbKeyChannelDown, ui::DomCode::CHANNEL_DOWN},
-      {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},
-=======
-    // Keys which are used by the Cast SDK.
+// Keys which are used by the Cast SDK.
     {kSbKeyReturn, ui::DomCode::ENTER},
     {kSbKeySelect, ui::DomCode::SELECT},
     {kSbKeyUp, ui::DomCode::ARROW_UP},
@@ -88,7 +74,7 @@ const base::flat_map<SbKey, ui::DomCode>& GetSbKeyToDomCodeMap() {
     {kSbKeyMediaFastForward, ui::DomCode::MEDIA_FAST_FORWARD},
     {kSbKeyMediaNextTrack, ui::DomCode::MEDIA_TRACK_NEXT},
     {kSbKeyMediaPrevTrack, ui::DomCode::MEDIA_TRACK_PREVIOUS},
-    {kSbKeyPause, ui::DomCode::MEDIA_PAUSE},
+    {kSbKeyPause, ui::DomCode::PAUSE},
     {kSbKeyPlay, ui::DomCode::MEDIA_PLAY},
     {kSbKeyMediaStop, ui::DomCode::MEDIA_STOP},
 
@@ -97,9 +83,7 @@ const base::flat_map<SbKey, ui::DomCode>& GetSbKeyToDomCodeMap() {
     {kSbKeyMenu, ui::DomCode::HOME},
     {kSbKeyChannelUp, ui::DomCode::CHANNEL_UP},
     {kSbKeyChannelDown, ui::DomCode::CHANNEL_DOWN},
-    {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},
->>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#if SB_API_VERSION >= 15
+    {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},#if SB_API_VERSION >= 15
       {kSbKeyRecord, ui::DomCode::MEDIA_RECORD},
 #endif  // SB_API_VERSION >=15
       {kSbKeyVolumeUp, ui::DomCode::VOLUME_UP},
