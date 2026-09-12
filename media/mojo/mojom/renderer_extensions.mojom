@@ -51,22 +51,8 @@ struct FramePoolInitializationParameters {
 // that the MediaFoundationRenderer can signal to the video stream sink that
 // the specific texture is ready to be displayed.
 interface MediaFoundationRendererClientExtension {
-<<<<<<< HEAD
-  // TODO(448103582): This is referenced in lots of places, so will remove
+// TODO(448103582): This is referenced in lots of places, so will remove
   // separately.
-=======
-  // Provide the GPU textures (ID3D11Texture2D) to the
-  // MediaFoundationRendererClient with the associated token so that the
-  // MediaFoundationRendererClient can create the shared images in the GPU
-  // process using the SharedImageInterface.
-  InitializeFramePool(FramePoolInitializationParameters pool_info);
-
-  // Signal to the MediaFoundationRendererClient that the texture associated
-  // with the frame_token is ready to be displayed with the corresponding
-  // frame size and timestamp which is the delta between the start of the
-  // AV presentation and the time that the frame is to be presented.
-  OnFrameAvailable(mojo_base.mojom.UnguessableToken frame_token,
-    gfx.mojom.Size size, mojo_base.mojom.TimeDelta timestamp);
 };
 
 [EnableIf=use_starboard_media]
@@ -100,19 +86,7 @@ interface StarboardRendererClientExtension {
 
   [EnableIf=is_android]
   // Request OverlayInfo from StarboardRendererClient.
-  RequestOverlayInfo();
-};
-
-// The Media Foundation Media Engine has two modes for playback.
-// DirectComposition is when the media engine will render directly to a
-// direct composition visual, skipping the Chromium compositor.
-// FrameServer is when the media engine will render to a texture and
-// that textured is provided to the Chromium compositor.
-enum MediaFoundationRenderingMode {
-  DirectComposition,
-  FrameServer
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-};
+  RequestOverlayInfo();};
 
 [EnableIf=is_win]
 // Extension of the mojo::Renderer communication layer for MediaFoundation-based

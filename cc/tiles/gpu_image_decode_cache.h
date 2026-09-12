@@ -810,11 +810,8 @@ class CC_EXPORT GpuImageDecodeCache
   std::vector<uint32_t> ids_pending_unlock_;
   std::vector<uint32_t> ids_pending_deletion_;
 
-<<<<<<< HEAD
-  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
+std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
       memory_pressure_listener_registration_;
-=======
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
 #if BUILDFLAG(IS_COBALT)
   // `weak_ptr_factory_.GetWeakPtr()` must be called on the sequence that
   // created the factory (the compositor thread) to avoid sequence checker
@@ -822,9 +819,7 @@ class CC_EXPORT GpuImageDecodeCache
   // threads to safely copy and pass it to in-process image transfer completion
   // callbacks.
   base::WeakPtr<GpuImageDecodeCache> weak_ptr_;
-#endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
+#endif  // BUILDFLAG(IS_COBALT)  base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
 };
 
 }  // namespace cc

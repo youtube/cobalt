@@ -58,13 +58,8 @@ void GpuFence::Wait() {
 GpuFence::FenceStatus GpuFence::GetStatusChangeTime(int fd,
                                                     base::TimeTicks* time) {
   DCHECK_NE(fd, -1);
-<<<<<<< HEAD
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(IS_CHROMEOS_DEVICE)
-=======
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  auto info =
+#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS_DEVICE)  auto info =
       std::unique_ptr<sync_fence_info_data, void (*)(sync_fence_info_data*)>{
           sync_fence_info(fd), sync_fence_info_free};
 #else   // !BUILDFLAG(IS_CHROMEOS_DEVICE)
