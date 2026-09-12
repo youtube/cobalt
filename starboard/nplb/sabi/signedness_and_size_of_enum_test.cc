@@ -28,14 +28,12 @@ typedef enum GenericEnumType {
 
 // Verify that the compiler's default underlying integral type for standard
 // enumerations matches the Starboard ABI configuration specification.
-SB_COMPILE_ASSERT(
+static_assert(
     std::is_signed<std::underlying_type<GenericEnumType>::type>::value ==
-        SB_HAS_SIGNED_ENUM,
-    SB_HAS_SIGNED_ENUM_is_inconsistent_with_sign_of_enum);
+    SB_HAS_SIGNED_ENUM);
 
 // Verify that the size of standard enumerations matches the ABI specification.
-SB_COMPILE_ASSERT(sizeof(GenericEnumType) == SB_SIZE_OF_ENUM,
-                  SB_SIZE_OF_ENUM_is_inconsistent_with_sizeof_enum);
+static_assert(sizeof(GenericEnumType) == SB_SIZE_OF_ENUM);
 
 }  // namespace
 }  // namespace nplb
