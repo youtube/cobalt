@@ -287,6 +287,51 @@ class SymbolizeUnitTests(unittest.TestCase):
     self.assertEqual(out_stream.getvalue(),
                      '        0x12345 [only_func_name]\n')
 
+  def test_cobalt_format_inverted_matching(self):
+    handler = formats.CobaltFormatHandler()
+    raw_line = '        <unknown> [0x10e2de2]\n'
+    m_raw = handler.match(raw_line)
+    self.assertIsNotNone(m_raw)
+    self.assertEqual(m_raw.address, 0x10e2de2)
+    self.assertEqual(m_raw.extra, '<unknown>')
+
+    inverted_line = '        0x10e2de2 [__libcpp_hardening_failure]\n'
+    m_inv = handler.match(inverted_line)
+    self.assertIsNotNone(m_inv)
+    self.assertEqual(m_inv.address, 0x10e2de2)
+    self.assertEqual(m_inv.extra, '__libcpp_hardening_failure')
+
+    unresolved_inverted = '        0x14041d8 [<unknown>]\n'
+    m_unres = handler.match(unresolved_inverted)
+    self.assertIsNotNone(m_unres)
+    self.assertEqual(m_unres.address, 0x14041d8)
+
+    syslog_line = (
+        '[2026-03-09T08:52:19.467866] wpeframework[2956]: \t0x10e2de2 '
+        '[__libcpp_hardening_failure]\n')
+    m_syslog = handler.match(syslog_line)
+    self.assertIsNotNone(m_syslog)
+    self.assertEqual(m_syslog.address, 0x10e2de2)
+    self.assertEqual(m_syslog.prefix,
+                     '[2026-03-09T08:52:19.467866] wpeframework[2956]: \t')
+
+  def test_cobalt_format_inverted_symbolize(self):
+    line = '        0x10e2de2 [__libcpp_hardening_failure]\n'
+    fake_runner = _FakeSymbolizerRunner({
+        str(0x10e2de2): [('void __libcpp_hardening_failure(char const*)',
+                          'abort.cpp:15')]
+    })
+    in_stream = io.StringIO(line)
+    out_stream = io.StringIO()
+    symbolize._Symbolize(
+        in_stream=in_stream,
+        out_stream=out_stream,
+        runner=fake_runner,
+        base_address='0')
+    self.assertEqual(
+        out_stream.getvalue(),
+        '        0x10e2de2 [void __libcpp_hardening_failure(char const*)]\n')
+
   def test_offset_arithmetic_relative_vs_absolute(self):
     base_addr = '0x7f0000000000'
     rel_line = '        <unknown> [0x1000]\n'

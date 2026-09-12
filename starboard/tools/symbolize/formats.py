@@ -28,6 +28,8 @@ _RE_ANDROID = re.compile(
 _RE_COBALT = re.compile(
     r'^(.*?(?:\s|\t|^))(<unknown>|[^\s\[\]]+(?:\(.*?\))?)\s+'
     r'\[(0x[0-9a-fA-F]+)\]\s*$')
+_RE_COBALT_INVERTED = re.compile(r'^(.*?(?:\s|\t|^))(0x[0-9a-fA-F]+)\s+'
+                                 r'\[(.*?)\]\s*$')
 _RE_RAW = re.compile(r'^(0x[a-fA-F0-9]+)$')
 _RE_GDB = re.compile(r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s*')
 
@@ -202,18 +204,26 @@ class AndroidFormatHandler(FormatHandler):
 
 
 class CobaltFormatHandler(FormatHandler):
-  """Handles Cobalt stack dump format ('<unknown> [0x...]')."""
+  """Handles Cobalt stack dumps ('<unknown> [0x...]' or '0x... [<symbol>]')."""
 
   def match(self, line: str) -> Optional[FrameMatch]:
     m = _RE_COBALT.match(line)
-    if not m:
-      return None
-    return FrameMatch(
-        original_line=line,
-        prefix=m.group(1),
-        frame_index_str=None,
-        address=int(m.group(3), 0),
-        extra=m.group(2))
+    if m:
+      return FrameMatch(
+          original_line=line,
+          prefix=m.group(1),
+          frame_index_str=None,
+          address=int(m.group(3), 0),
+          extra=m.group(2))
+    m = _RE_COBALT_INVERTED.match(line)
+    if m:
+      return FrameMatch(
+          original_line=line,
+          prefix=m.group(1),
+          frame_index_str=None,
+          address=int(m.group(2), 0),
+          extra=m.group(3))
+    return None
 
   def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
                                                      List[str]],
