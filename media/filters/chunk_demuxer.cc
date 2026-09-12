@@ -214,20 +214,7 @@ base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-void ChunkDemuxerStream::OnMemoryPressure(
-    base::TimeDelta media_time,
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
-    bool force_instant_gc) {
-  // TODO(sebmarchand): Check if MEMORY_PRESSURE_LEVEL_MODERATE should also be
-  // ignored.
-  if (memory_pressure_level ==
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
-    return;
-  }
-  base::AutoLock auto_lock(lock_);
-  return stream_->OnMemoryPressure(media_time, memory_pressure_level,
-                                   force_instant_gc);
-}void ChunkDemuxerStream::OnSetDuration(base::TimeDelta duration) {
+void ChunkDemuxerStream::OnSetDuration(base::TimeDelta duration) {
   base::AutoLock auto_lock(lock_);
   stream_->OnSetDuration(duration);
 }

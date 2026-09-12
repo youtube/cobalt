@@ -151,10 +151,10 @@ bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
 
   // 2. Check the fragment part if it looks like a query (starts with '?')
   if (link_url.has_ref()) {
-    std::string ref = link_url.ref();
+    std::string_view ref = link_url.ref();
     if (!ref.empty() && ref[0] == '?') {
       // Skip the leading '?'
-      if (check_query_string(std::string_view(ref).substr(1))) {
+      if (check_query_string(ref.substr(1))) {
         return true;
       }
     }

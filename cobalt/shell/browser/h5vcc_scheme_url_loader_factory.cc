@@ -202,7 +202,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     client_.set_disconnect_handler(
         base::BindOnce(&H5vccSchemeURLLoader::OnClientDisconnected,
                        weak_factory_.GetWeakPtr()));
-    std::string key = url_.host();
+    std::string key(url_.host());
     // The key to query the resource map. It is usually the same as the host,
     // but can be overridden by the "fallback" query param for png/webm
     // resources, so that callers can specify a different file for fallback.

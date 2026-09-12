@@ -33,7 +33,7 @@ void OverlayStrategyUnderlayStarboard::Propose(
     const DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_pass_list,
     SurfaceDamageRectList* surface_damage_rect_list,
-    const PrimaryPlane* primary_plane,
+    const std::optional<OverlayCandidate>& primary_plane,
     std::vector<OverlayProposedCandidate>* candidates,
     std::vector<gfx::Rect>* content_bounds) {
   auto* render_pass = render_pass_list->back().get();
@@ -81,7 +81,7 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
     const DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_pass_list,
     SurfaceDamageRectList* surface_damage_rect_list,
-    const PrimaryPlane* primary_plane,
+    const std::optional<OverlayCandidate>& primary_plane,
     OverlayCandidateList* candidate_list,
     std::vector<gfx::Rect>* content_bounds,
     const OverlayProposedCandidate& proposed_candidate) {
@@ -184,10 +184,9 @@ void OverlayStrategyUnderlayStarboard::CommitCandidate(
 // Turn on blending for the output surface plane so the underlay could show
 // through.
 void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
-    OverlayProcessorInterface::OutputSurfaceOverlayPlane*
-        output_surface_plane) {
+    std::optional<OverlayCandidate>& output_surface_plane) {
   if (output_surface_plane) {
-    output_surface_plane->enable_blending = true;
+    output_surface_plane->is_opaque = false;
   }
 }
 
