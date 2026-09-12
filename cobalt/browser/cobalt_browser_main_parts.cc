@@ -252,11 +252,16 @@ void RecordPriorSessionExitReasons() {
   }
   base::FilePath metrics_dir =
       base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
+  base::FilePath prior_file;
+  std::optional<base::ProcessId> prior_pid =
+      cobalt::ExtractPriorSessionPid(metrics_dir, kBrowserStabilityMetricsName,
+                                     base::GetCurrentProcId(), &prior_file);
+  if (prior_pid.has_value()) {
     crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
-        pid, "Cobalt.Stability.Android.SystemExitReason");
+        *prior_pid, "Cobalt.Stability.Android.SystemExitReason");
+    if (!prior_file.empty()) {
+      base::DeleteFile(prior_file);
+    }
   }
 }
 #endif
@@ -285,10 +290,13 @@ int CobaltBrowserMainParts::PreEarlyInitialization() {
 
       base::CreateDirectory(metrics_dir);
 
-      base::FilePath active_file =
-          base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
-              metrics_dir, kBrowserStabilityMetricsName, base::Time::Now(),
-              base::GetCurrentProcId());
+      // Prior to writing the new PMA file, clear other PMA files to ensure
+      // only one single prior PMA exists at a time.
+      cobalt::ClearOtherStabilityMetricsPmaFiles(
+          metrics_dir, kBrowserStabilityMetricsName, base::GetCurrentProcId());
+
+      base::FilePath active_file = cobalt::ConstructStabilityMetricsFilePath(
+          metrics_dir, kBrowserStabilityMetricsName, base::GetCurrentProcId());
 
       // Instantiate 512 KB memory-mapped PMA
       if (base::GlobalHistogramAllocator::CreateWithFile(
