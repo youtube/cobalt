@@ -246,6 +246,10 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
 
 #if BUILDFLAG(IS_ANDROID)
 void RecordPriorSessionExitReasons() {
+  if (base::android::BuildInfo::GetInstance()->sdk_int() <
+      base::android::SDK_VERSION_R) {
+    return;
+  }
   base::FilePath base_dir;
   if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
     return;
