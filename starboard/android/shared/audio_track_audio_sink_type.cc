@@ -291,6 +291,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     last_playback_head_position = -1;
     last_playback_head_event_at = -1;
     is_flushed_ = true;
+    was_playing = false;
   };
 
   while (!quit_) {
@@ -318,7 +319,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       // queued audio to reset timestamps and latency. Unconsumed frames in the
       // buffer will be re-fed on the next iteration when playback resumes.
       reset_and_flush();
-      was_playing = false;
       continue;
     }
 
