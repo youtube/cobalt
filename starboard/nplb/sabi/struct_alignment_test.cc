@@ -40,17 +40,12 @@ typedef struct Struct1 {
   int64_t d;
 } Struct1;
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(Struct1) == ALIGNMENT_8_BYTE_INT,
-                  SB_ALIGNOF_Struct1_is_inconsistent_with_expectations);
+static_assert(SB_ALIGNOF(Struct1) == ALIGNMENT_8_BYTE_INT);
 
-SB_COMPILE_ASSERT(offsetof(Struct1, a) == 0,
-                  offsetof_Struct1_a_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct1, b) == 2,
-                  offsetof_Struct1_b_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct1, c) == 4,
-                  offsetof_Struct1_c_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct1, d) == 8,
-                  offsetof_Struct1_d_is_inconsistent_with_expectations);
+static_assert(offsetof(Struct1, a) == 0);
+static_assert(offsetof(Struct1, b) == 2);
+static_assert(offsetof(Struct1, c) == 4);
+static_assert(offsetof(Struct1, d) == 8);
 
 // Checks the trailing padding of members of descending data type sizes.
 typedef struct Struct2 {
@@ -60,17 +55,12 @@ typedef struct Struct2 {
   int8_t d;
 } Struct2;
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(Struct2) == ALIGNMENT_8_BYTE_INT,
-                  ALIGNOF_Struct2_is_inconsistent_with_expectations);
+static_assert(SB_ALIGNOF(Struct2) == ALIGNMENT_8_BYTE_INT);
 
-SB_COMPILE_ASSERT(offsetof(Struct2, a) == 0,
-                  offsetof_Struct2_a_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct2, b) == 8,
-                  offsetof_Struct2_b_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct2, c) == 12,
-                  offsetof_Struct2_c_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct2, d) == 14,
-                  offsetof_Struct2_d_is_inconsistent_with_expectations);
+static_assert(offsetof(Struct2, a) == 0);
+static_assert(offsetof(Struct2, b) == 8);
+static_assert(offsetof(Struct2, c) == 12);
+static_assert(offsetof(Struct2, d) == 14);
 
 // Checks the trailing padding of nested struct members.
 typedef struct Struct3 {
@@ -83,17 +73,12 @@ typedef struct Struct3 {
   int8_t d;
 } Struct3;
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(Struct3) == 4,
-                  ALIGNOF_Struct3_is_inconsistent_with_expectations);
+static_assert(SB_ALIGNOF(Struct3) == 4);
 
-SB_COMPILE_ASSERT(offsetof(Struct3, a) == 0,
-                  offsetof_Struct3_a_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct3, c) == 4,
-                  offsetof_Struct3_c_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct3, c.b) == 4,
-                  offsetof_Struct3_c_b_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct3, d) == 8,
-                  offsetof_Struct3_d_is_inconsistent_with_expectations);
+static_assert(offsetof(Struct3, a) == 0);
+static_assert(offsetof(Struct3, c) == 4);
+static_assert(offsetof(Struct3, c.b) == 4);
+static_assert(offsetof(Struct3, d) == 8);
 
 // Checks the trailing padding of nested union members.
 typedef struct Struct4 {
@@ -106,17 +91,12 @@ typedef struct Struct4 {
   int8_t d;
 } Struct4;
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(Struct4) == 4,
-                  ALIGNOF_Struct4_is_inconsistent_with_expectations);
+static_assert(SB_ALIGNOF(Struct4) == 4);
 
-SB_COMPILE_ASSERT(offsetof(Struct4, a) == 0,
-                  offsetof_Struct4_a_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct4, c) == 4,
-                  offsetof_Struct4_c_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct4, c.b) == 4,
-                  offsetof_Struct4_c_b_is_inconsistent_with_expectations);
-SB_COMPILE_ASSERT(offsetof(Struct4, d) == 8,
-                  offsetof_Struct4_d_is_inconsistent_with_expectations);
+static_assert(offsetof(Struct4, a) == 0);
+static_assert(offsetof(Struct4, c) == 4);
+static_assert(offsetof(Struct4, c.b) == 4);
+static_assert(offsetof(Struct4, d) == 8);
 
 }  // namespace
 

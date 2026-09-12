@@ -21,29 +21,14 @@
 namespace nplb {
 namespace {
 
-SB_COMPILE_ASSERT(sizeof(char) == SB_SIZE_OF_CHAR,
-                  SB_SIZE_OF_CHAR_is_inconsistent_with_sizeof_char);
-
-SB_COMPILE_ASSERT(sizeof(double) == SB_SIZE_OF_DOUBLE,
-                  SB_SIZE_OF_DOUBLE_is_inconsistent_with_sizeof_double);
-
-SB_COMPILE_ASSERT(sizeof(float) == SB_SIZE_OF_FLOAT,
-                  SB_SIZE_OF_FLOAT_is_inconsistent_with_sizeof_float);
-
-SB_COMPILE_ASSERT(sizeof(int) == SB_SIZE_OF_INT,
-                  SB_SIZE_OF_INT_is_inconsistent_with_sizeof_int);
-
-SB_COMPILE_ASSERT(sizeof(int*) == SB_SIZE_OF_POINTER,
-                  SB_SIZE_OF_POINTER_is_inconsistent_with_sizeof_intptr_t);
-
-SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
-                  SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_long);
-
-SB_COMPILE_ASSERT(sizeof(long long) == SB_SIZE_OF_LLONG,  // NOLINT(runtime/int)
-                  SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_llong);
-
-SB_COMPILE_ASSERT(sizeof(short) == SB_SIZE_OF_SHORT,  // NOLINT(runtime/int)
-                  SB_SIZE_OF_SHORT_is_inconsistent_with_sizeof_short);
+static_assert(sizeof(char) == SB_SIZE_OF_CHAR);
+static_assert(sizeof(double) == SB_SIZE_OF_DOUBLE);
+static_assert(sizeof(float) == SB_SIZE_OF_FLOAT);
+static_assert(sizeof(int) == SB_SIZE_OF_INT);
+static_assert(sizeof(int*) == SB_SIZE_OF_POINTER);
+static_assert(sizeof(long) == SB_SIZE_OF_LONG);        // NOLINT(runtime/int)
+static_assert(sizeof(long long) == SB_SIZE_OF_LLONG);  // NOLINT(runtime/int)
+static_assert(sizeof(short) == SB_SIZE_OF_SHORT);      // NOLINT(runtime/int)
 
 // --- Standard Include Emulation Audits ---------------------------------------
 
@@ -60,23 +45,19 @@ SB_COMPILE_ASSERT(sizeof(short) == SB_SIZE_OF_SHORT,  // NOLINT(runtime/int)
 // --- Standard Type Audits ----------------------------------------------------
 
 #if SB_IS(WCHAR_T_UTF16)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
-                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
+static_assert(sizeof(wchar_t) == 2);
 #endif
 
 #if SB_IS(WCHAR_T_UTF32)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 4,
-                  SB_IS_WCHAR_T_UTF32_is_inconsistent_with_sizeof_wchar_t);
+static_assert(sizeof(wchar_t) == 4);
 #endif
 
 #if SB_IS(WCHAR_T_SIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) < 0,
-                  SB_IS_WCHAR_T_SIGNED_is_defined_incorrectly);
+static_assert((wchar_t)(-1) < 0);
 #endif
 
 #if SB_IS(WCHAR_T_UNSIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) > 0,
-                  SB_IS_WCHAR_T_UNSIGNED_is_defined_incorrectly);
+static_assert((wchar_t)(-1) > 0);
 #endif
 
 }  // namespace
