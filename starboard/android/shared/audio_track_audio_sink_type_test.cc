@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -49,6 +50,9 @@ class AudioTrackAudioSinkTest : public ::testing::Test {
                                    bool* is_eos_reached,
                                    void* context) {
     auto* fixture = static_cast<AudioTrackAudioSinkTest*>(context);
+    if (fixture->on_update_source_status_) {
+      fixture->on_update_source_status_();
+    }
     *frames_in_buffer = fixture->frames_in_buffer_;
     *offset_in_frames = fixture->offset_in_frames_;
     *is_playing = fixture->is_playing_;
@@ -83,6 +87,7 @@ class AudioTrackAudioSinkTest : public ::testing::Test {
   std::atomic<bool> error_reported_ = false;
   std::atomic<bool> capability_changed_ = false;
   std::string error_msg_;
+  std::function<void()> on_update_source_status_;
 };
 
 TEST_F(AudioTrackAudioSinkTest, CreateAndDestroy) {
@@ -320,6 +325,68 @@ TEST_F(AudioTrackAudioSinkTest,
     std::lock_guard<std::mutex> lock(error_mutex_);
     EXPECT_EQ(error_msg_, "AudioTrack expected written frames is negative.");
   }
+
+  sink.reset();
+}
+
+TEST_F(AudioTrackAudioSinkTest,
+       FlushDuringSeekAvoidsNegativeExpectedWrittenFrames) {
+  AudioTrackAudioSinkType type;
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      /*channels=*/2, /*sampling_frequency_hz=*/48000,
+      kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  // Start with 512 frames in buffer.
+  frames_in_buffer_ = 512;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      &type, /*channels=*/2, /*sampling_frequency_hz=*/48000,
+      kSbMediaAudioSampleTypeFloat32, frame_buffers_,
+      /*frames_per_channel=*/1024, /*preferred_buffer_size=*/512, callbacks,
+      /*start_media_time=*/0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      /*allow_audio_writing_on_pause=*/false,
+      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+
+  ASSERT_NE(sink, nullptr);
+
+  // Wait until the initial 512 frames are written to the audio track.
+  int elapsed_ms = 0;
+  while (track_ptr->written_frames() < 512 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_GE(track_ptr->written_frames(), 512);
+
+  // Simulate a seek race: Flush() is requested while frames_in_audio_track is
+  // 512, and the new post-seek stream produces 256 frames (< 512).
+  bool flush_triggered = false;
+  on_update_source_status_ = [&]() {
+    if (!flush_triggered) {
+      flush_triggered = true;
+      sink->Flush();
+      frames_in_buffer_ = 256;
+    }
+  };
+
+  // Wait for the sink thread to process the flush and reset without reporting
+  // an error.
+  elapsed_ms = 0;
+  while (track_ptr->pause_and_flush_count() == 0 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_GE(track_ptr->pause_and_flush_count(), 1);
+
+  // Verify that flush was handled properly and no negative frame error was
+  // reported.
+  EXPECT_FALSE(error_reported_);
 
   sink.reset();
 }
