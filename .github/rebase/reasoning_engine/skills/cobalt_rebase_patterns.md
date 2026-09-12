@@ -158,3 +158,72 @@ Chromium milestones frequently introduce Java classes annotated with `@NativeMet
      >>>>>>> REPLACE
      ```
    - GN template `shared_library_with_jni` forwards `add_stubs_for_missing_jni` to `generate_jni_registration`, which appends `--add-stubs-for-missing-native` to `jni_zero.py generate-final`. This generates native stubs for the missing bindings and cleanly satisfies the assertion without modifying upstream Java or C++ sources.
+
+---
+
+### Mojom `[EnableIf]` Members Stripped by a Split `mojom()` GN Target
+
+Cobalt gates Starboard-only mojom fields, enum values, and interfaces behind `[EnableIf=use_starboard_media]`. The mojom bindings generator only keeps an `[EnableIf=foo]` entity if the **specific `mojom()` GN target that lists that `.mojom` file in its `sources`** declares `foo` in its `enabled_features`. `enabled_features` is **per-target, not global and not inherited through `deps` or `public_deps`**.
+
+Chromium milestones routinely split one large `mojom()` target into several smaller ones. When a `.mojom` file migrates to a newly created target, upstream has no reason to copy Cobalt's `enabled_features`, so every `[EnableIf]` entity in that file silently disappears from the generated bindings.
+
+1. **Symptom**:
+   Compile errors in **checked-in `*_mojom_traits.h` / `*_mojom_traits.cc`** files that reference a member which is plainly present in the `.mojom` source:
+   ```text
+   media/mojo/mojom/media_types_enum_mojom_traits.h:455:44: error: no member named 'kStarboard' in 'media::mojom::RendererType'
+           return media::mojom::RendererType::kStarboard;
+   ```
+   Other shapes of the same root cause:
+   ```text
+   error: no member named 'ReadMimeType' in 'media::mojom::AudioDecoderConfigDataView'
+   error: no member named 'mime_type' in 'media::mojom::VideoDecoderConfig'
+   ```
+
+2. **Critical Anti-Patterns (these waste the entire iteration budget)**:
+   - **DO NOT** add the member to the `.mojom` file. It is already there. Re-adding it produces a `SEARCH` block that can never match, or a duplicate-definition error. Always `TOOL_GREP: <member_name> <path_to_mojom>` to confirm it exists before concluding it is missing.
+   - **DO NOT** edit the generated header under `out/*/gen/`. It is a build artifact and will be regenerated.
+   - **DO NOT** delete the `#if` / `if (is_cobalt && use_starboard_media)` guarded block, the traits header reference, or the `cpp_typemaps` entry in order to make the error go away. Deleting Cobalt platform code to silence a build error is a regression, not a fix, even though it compiles and passes GN gen.
+   - **DO NOT** trust a remembered line number for the enum or struct. Read the file.
+
+3. **Diagnosis Procedure**:
+   - Confirm the entity exists and is feature-gated:
+     ```text
+     TOOL_GREP: EnableIf media/mojo/mojom/media_types.mojom
+     ```
+   - Identify which `mojom()` target owns the `.mojom` file. Search for the filename inside `sources` lists, not just the target name:
+     ```text
+     TOOL_GREP: media_types.mojom media/mojo/mojom/BUILD.gn
+     ```
+   - Inspect `enabled_features` on **that** target. If the target has no `enabled_features` block at all, or has one that omits the required feature, that is the bug:
+     ```text
+     TOOL_GREP: enabled_features media/mojo/mojom/BUILD.gn
+     ```
+   - Compare against the pre-roll layout to see which target previously owned the file:
+     ```text
+     TOOL_UPSTREAM_DIFF: media/mojo/mojom/BUILD.gn
+     ```
+
+4. **Resolution**: add the feature to the owning target, guarded exactly as the original target guarded it.
+   ```gn
+   FILE: media/mojo/mojom/BUILD.gn
+   <<<<<<< SEARCH
+   mojom("media_types") {
+     generate_java = true
+     sources = [ "media_types.mojom" ]
+   =======
+   mojom("media_types") {
+     generate_java = true
+     sources = [ "media_types.mojom" ]
+
+     enabled_features = []
+     if (is_cobalt && use_starboard_media) {
+       enabled_features += [ "use_starboard_media" ]
+     }
+   >>>>>>> REPLACE
+   ```
+   If the target already declares `enabled_features`, append to it instead of redeclaring it, since GN forbids overwriting a non-empty list.
+
+5. **Generalization**:
+   - This applies to any Cobalt mojom feature flag, not only `use_starboard_media`.
+   - When a roll splits a `mojom()` target, audit **every** Cobalt-specific attribute on the original target and replicate the relevant ones onto the new target: `enabled_features`, `cpp_typemaps`, `traits_headers`, `traits_public_deps`, and any `if (is_cobalt)` block. Losing a `cpp_typemaps` entry produces a different but equally confusing error about a missing or mismatched typemap.
+   - Also ensure `import("//starboard/build/buildflags.gni")` is present at the top of the `BUILD.gn` if the new guard references `use_starboard_media`, otherwise GN gen fails with an undefined-identifier error.

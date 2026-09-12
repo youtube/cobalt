@@ -610,20 +610,24 @@ void Foo() {{}}
         "- `TOOL_GREP: character_data "
         "third_party/blink/renderer/platform/BUILD.gn`\n"
         "* Tool: TOOL_LIST_DIR: third_party/icu/common\n")
+    # Default cap truncates a batch to _MAX_TOOL_CMDS_PER_TURN directives.
     cmds3 = extract_tool_commands(conversational_output)
-    self.assertEqual(len(cmds3), 4)
-    self.assertEqual(cmds3[0], "TOOL_FIND_FILE: icudtl.dat")
+    self.assertEqual(len(cmds3), 3)
+    # Raising the cap parses every directive in the batch.
+    cmds3_all = extract_tool_commands(conversational_output, max_commands=10)
+    self.assertEqual(len(cmds3_all), 4)
+    self.assertEqual(cmds3_all[0], "TOOL_FIND_FILE: icudtl.dat")
     self.assertEqual(
-        cmds3[1],
+        cmds3_all[1],
         "TOOL_READ_FILE: third_party/blink/renderer/platform/text/"
         "character_property_data_generator.cc 50-105",
     )
     self.assertEqual(
-        cmds3[2],
+        cmds3_all[2],
         "TOOL_GREP: character_data "
         "third_party/blink/renderer/platform/BUILD.gn",
     )
-    self.assertEqual(cmds3[3], "TOOL_LIST_DIR: third_party/icu/common")
+    self.assertEqual(cmds3_all[3], "TOOL_LIST_DIR: third_party/icu/common")
 
     # Test that valid SEARCH/REPLACE block is not mistaken for a tool command
     patch_output = ("Here is the patch to fix the file:\n"
@@ -633,6 +637,58 @@ void Foo() {{}}
                     "void InitializeIcu(const char* exec_path);\n"
                     ">>>>>>> REPLACE\n")
     self.assertEqual(extract_tool_commands(patch_output), [])
+
+  def test_extract_tool_commands_run_on_directives(self):
+    """Tests recovery of directives concatenated without separators.
+
+    Regression for the Phase 4 circuit-breaker stall on
+    media/mojo/mojom/audio_decoder_config_mojom_traits.cc, where the model
+    emitted several TOOL_ directives run together on one line with a trailing
+    FILE: patch header glued onto the last one.
+    """
+    run_on = (
+        "TOOL_GREP: struct AudioDecoderConfig media/mojo/mojom/media_types."
+        "mojom"
+        "TOOL_READ_FILE: media/mojo/mojom/media_types.mojom 240 320"
+        "TOOL_READ_FILE: media/mojo/mojom/audio_decoder_config_mojom_traits.h"
+        " 1 50")
+    cmds = extract_tool_commands(run_on)
+    self.assertEqual(len(cmds), 3)
+    self.assertEqual(
+        cmds[0], "TOOL_GREP: struct AudioDecoderConfig media/mojo/mojom/"
+        "media_types.mojom")
+    self.assertEqual(
+        cmds[1], "TOOL_READ_FILE: media/mojo/mojom/media_types.mojom "
+        "240 320")
+
+    # A FILE: patch header glued to the last directive must terminate it.
+    run_on_with_header = (
+        "TOOL_GREP: mime_type media/mojo/mojom/media_types.mojom"
+        "FILE: media/mojo/mojom/media_types.mojom\n"
+        "some trailing text")
+    cmds_hdr = extract_tool_commands(run_on_with_header)
+    self.assertEqual(
+        cmds_hdr, ["TOOL_GREP: mime_type media/mojo/mojom/media_types.mojom"])
+
+    # Directives mixed with a patch block yield no tool commands: the patch
+    # wins so the investigation loop terminates instead of cycling.
+    mixed = (
+        run_on + "FILE: media/mojo/mojom/media_types.mojom\n"
+        "<<<<<<< SEARCH\n"
+        "  bool should_discard_decoder_delay;\n"
+        "=======\n"
+        "  bool should_discard_decoder_delay;\n"
+        "  string mime_type;\n"
+        ">>>>>>> REPLACE\n")
+    self.assertEqual(extract_tool_commands(mixed), [])
+
+    # DELETE blocks are likewise treated as terminal patches.
+    delete_block = ("TOOL_GREP: foo bar\n"
+                    "FILE: a.cc\n"
+                    "<<<<<<< DELETE\n"
+                    "int x = 1;\n"
+                    ">>>>>>> DELETE\n")
+    self.assertEqual(extract_tool_commands(delete_block), [])
 
   def test_parse_linker_undefined_symbol_ignores_command_line_noise(self):
     """Tests that linker parser does not match noise in command line."""

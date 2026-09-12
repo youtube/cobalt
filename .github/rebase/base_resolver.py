@@ -21,8 +21,24 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
 # Precompiled pattern matching investigation tool directives (e.g.,
-# TOOL_READ_FILE: ...)
-_TOOL_CMD_PATTERN = re.compile(r"\b(TOOL_[A-Z_]+:\s*[^\n<`]+)")
+# TOOL_READ_FILE: ...).
+#
+# Models occasionally emit several directives run together on a single line
+# without separators (e.g. "TOOL_GREP: fooTOOL_READ_FILE: bar 1 20"), or glue a
+# trailing "FILE:" patch header onto the last directive. The negative lookahead
+# terminates each match at the next directive or patch header so malformed
+# batches still parse into individual commands.
+_TOOL_CMD_TERMINATORS = r"TOOL_[A-Z_]+:|FILE:|TARGET FILE:|<<<<<<<|>>>>>>>"
+# No leading word-boundary anchor: in run-on responses a directive begins
+# immediately after an alphanumeric character (e.g. "...mojomTOOL_READ_FILE:"),
+# where \b does not hold and every directive after the first would be lost.
+_TOOL_CMD_PATTERN = re.compile(r"(TOOL_[A-Z_]+:\s*"
+                               r"(?:(?!" + _TOOL_CMD_TERMINATORS + r")"
+                               r"[^\n<`])+)")
+
+# Upper bound on investigation directives honored from a single model response.
+# Prevents a speculative dump of a dozen commands from stalling the loop.
+_MAX_TOOL_CMDS_PER_TURN = 3
 
 
 @dataclasses.dataclass
@@ -705,37 +721,48 @@ def sanitize_filepath_token(raw_target: str) -> str:
   return clean.lstrip("./")
 
 
-def extract_tool_commands(text: str) -> List[str]:
-  """Extracts all TOOL_ commands, stripping think tags/backticks/preambles."""
+def extract_tool_commands(text: str,
+                          max_commands: int = _MAX_TOOL_CMDS_PER_TURN
+                         ) -> List[str]:
+  """Extracts TOOL_ commands, stripping think tags/backticks/preambles.
+
+  Tolerates malformed batches: directives may be wrapped in backticks, prefixed
+  with markdown bullets or "Tool Call:", or run together on a single line with
+  no separators. At most `max_commands` directives are honored per response so
+  a speculative dump of a dozen commands cannot stall the investigation loop.
+  """
   clean = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
   clean = re.sub(r"</?think>.*$", "", clean, flags=re.MULTILINE)
   clean = re.sub(r"</?think>", "", clean)
 
   # If model has already provided a full SEARCH/REPLACE block or unified diff,
   # do not treat it as an investigation tool command.
-  if ("<<<<<<< SEARCH" in clean and ">>>>>>> REPLACE" in clean) or (re.search(
-      r"^@@\s+-\d+.*?\s+\+\d+.*?@@", clean, re.MULTILINE)):
+  if (("<<<<<<< SEARCH" in clean and ">>>>>>> REPLACE" in clean) or
+      ("<<<<<<< DELETE" in clean and ">>>>>>> DELETE" in clean) or
+      re.search(r"^@@\s+-\d+.*?\s+\+\d+.*?@@", clean, re.MULTILINE)):
     return []
+
+  # Drop markdown bullets / "Tool Call:" preambles so directives start cleanly.
+  clean = re.sub(
+      r"^(?:[-*]\s+)?(?:Tool Call:\s*|Tool:\s*)",
+      "",
+      clean,
+      flags=re.IGNORECASE | re.MULTILINE,
+  )
 
   commands: List[str] = []
   seen = set()
-  for line in clean.splitlines():
-    l_strip = line.strip()
-    # Strip markdown formatting / prefixes like:
-    # "Tool Call: `TOOL_READ_FILE: ...`", "- `TOOL_...`", "* TOOL_..."
-    l_clean = re.sub(
-        r"^(?:[-*]\s+)?(?:Tool Call:\s*|Tool:\s*)?",
-        "",
-        l_strip,
-        flags=re.IGNORECASE,
-    ).strip()
-    l_clean = l_clean.strip("`'\"")
-    m = _TOOL_CMD_PATTERN.search(l_clean) or _TOOL_CMD_PATTERN.search(l_strip)
-    if m:
-      cmd = re.sub(r"[`'\"]+$", "", m.group(1)).strip()
-      if cmd and cmd not in seen:
-        seen.add(cmd)
-        commands.append(cmd)
+  # Scan the whole response rather than one match per line: models sometimes
+  # concatenate directives without newlines.
+  for match in _TOOL_CMD_PATTERN.finditer(clean):
+    cmd = re.sub(r"[`'\"]+$", "", match.group(1)).strip()
+    cmd = cmd.strip("`'\"").strip()
+    if not cmd or cmd in seen:
+      continue
+    seen.add(cmd)
+    commands.append(cmd)
+    if len(commands) >= max_commands:
+      break
   return commands
 
 

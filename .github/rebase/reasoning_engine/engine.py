@@ -49,6 +49,58 @@ SKILLS_DIR = os.path.join(
 )
 _SKILL_CACHE: Dict[str, str] = {}
 
+# Shared investigation-tool protocol injected into agent prompts.
+#
+# Rationale: prompts that only illustrated TOOL_ directives inline within prose
+# (e.g. "output TOOL_ commands (e.g. `TOOL_READ_FILE: ...`, `TOOL_GREP: ...`)")
+# taught models to emit directives as inline, backtick-wrapped tokens. Observed
+# failures included a dozen speculative directives in one response and several
+# directives concatenated onto a single line with a `FILE:` patch header glued
+# to the end, which the resolver could not parse or apply. These rules are
+# stated explicitly and identically everywhere so the contract is unambiguous.
+MAX_TOOL_CALLS_PER_TURN = 3
+
+_TOOL_CALL_RULES_HEADER = "TOOL CALL PROTOCOL (MANDATORY):\n"
+
+# Batching rule: caps speculative directive dumps.
+_TOOL_CALL_BUDGET_RULE = (
+    f"- Request AT MOST {MAX_TOOL_CALLS_PER_TURN} TOOL_ directives per "
+    "response. Request only what you will actually reason over; you will be "
+    "called again with the results and may request more. Do NOT speculatively "
+    "enumerate directives.\n")
+
+# Formatting rule: keeps directives machine-parseable.
+_TOOL_CALL_FORMAT_RULE = (
+    "- Each TOOL_ directive must be on its OWN line, starting at the first "
+    "character of that line, in plain text. No backticks, no code fences, no "
+    "markdown bullets or numbering, no 'Tool Call:' prefix, and no trailing "
+    "prose on the same line.\n")
+
+# Exclusivity rule: only Tier-1 workers emit patch blocks.
+_TOOL_CALL_EXCLUSIVITY_RULE = (
+    "- EITHER investigate OR patch, never both. A single response contains "
+    "either TOOL_ directives or exactly one patch block (SEARCH/REPLACE or "
+    "DELETE). Never emit a TOOL_ directive in the same response as a patch "
+    "block; a response containing a patch block ends the investigation.\n")
+
+_TOOL_CALL_EXAMPLES = ("Correct:\n"
+                       "TOOL_READ_FILE: media/mojo/mojom/BUILD.gn 1-60\n"
+                       "TOOL_GREP: use_starboard_media "
+                       "media/mojo/mojom/BUILD.gn\n"
+                       "Incorrect (rejected):\n"
+                       "- `TOOL_READ_FILE: a.gn 1-60`, `TOOL_GREP: foo`\n"
+                       "TOOL_GREP: fooTOOL_READ_FILE: a.gn 1 60\n")
+
+# Applies to every agent that emits directives, including the Tier-2 Architect.
+TOOL_CALL_FORMAT_RULES = (
+    _TOOL_CALL_RULES_HEADER + _TOOL_CALL_BUDGET_RULE + _TOOL_CALL_FORMAT_RULE +
+    _TOOL_CALL_EXAMPLES)
+
+# Tier-1 worker protocol: adds mutual exclusivity with patch blocks.
+TOOL_CALL_PROTOCOL = (
+    _TOOL_CALL_RULES_HEADER + _TOOL_CALL_BUDGET_RULE + _TOOL_CALL_FORMAT_RULE +
+    _TOOL_CALL_EXCLUSIVITY_RULE + _TOOL_CALL_EXAMPLES)
+
 
 def load_skill(skill_name: str, skills_dir: Optional[str] = None) -> str:
   """Loads and caches domain instructions from a skill markdown file."""
@@ -666,16 +718,16 @@ class CobaltReasoningEngine:
         "- Upstream Roll Commits: Commit #3 contains pure Chromium changes. "
         "Use TOOL_UPSTREAM_DIFF to inspect upstream Chromium evolutions.\n"
         "- If you need to inspect files, symbols, or git history, output:\n"
-        "    TOOL_FIND_FILE: <pattern>\n"
-        "    TOOL_GREP: <symbol>\n"
-        "    TOOL_READ_FILE: <path> <start>-<end>\n"
-        "    TOOL_UPSTREAM_DIFF: <filepath>\n"
-        "    TOOL_GIT_LOG: <count> <filepath>\n"
-        "    TOOL_GIT_SHOW: <commit_hash>\n"
-        "    TOOL_GIT_DIFF: <rev1>..<rev2>\n"
-        "    TOOL_READ_PR: <pr_number>\n"
-        "    TOOL_PR_DIFF: <pr_number>\n"
-        "    TOOL_GET_HISTORY: <count | all | iteration_number>\n"
+        "TOOL_FIND_FILE: <pattern>\n"
+        "TOOL_GREP: <symbol>\n"
+        "TOOL_READ_FILE: <path> <start>-<end>\n"
+        "TOOL_UPSTREAM_DIFF: <filepath>\n"
+        "TOOL_GIT_LOG: <count> <filepath>\n"
+        "TOOL_GIT_SHOW: <commit_hash>\n"
+        "TOOL_GIT_DIFF: <rev1>..<rev2>\n"
+        "TOOL_READ_PR: <pr_number>\n"
+        "TOOL_PR_DIFF: <pr_number>\n"
+        "TOOL_GET_HISTORY: <count | all | iteration_number | filepath>\n"
         "- Change History: By default you are shown the last 10 change "
         "records. If you need to inspect earlier records or a specific "
         "iteration that caused the issue, call TOOL_GET_HISTORY: <count> or "
@@ -686,6 +738,7 @@ class CobaltReasoningEngine:
         "or combine both.\n"
         "  * For build breaks: first-party file(s) to edit, precise logic, "
         "type substitution, or header include to apply.\n\n"
+        f"{TOOL_CALL_FORMAT_RULES}\n"
         f"--- Rebase Guidelines ---\n{rebase_skill}\n\n"
         f"--- Domain Skill ---\n{domain_skill}\n\n"
         f"--- Cobalt Rebase Patterns & Stubs Hygiene ---\n{patterns_skill}\n\n"
@@ -870,8 +923,10 @@ class CobaltReasoningEngine:
         f"Relevant File Definitions:\n{file_context}\n\n"
         "Instructions:\n"
         "- If you need to inspect files or search paths, output TOOL_ "
-        "commands (e.g. `TOOL_READ_FILE: <path> <start>-<end>`, "
-        "`TOOL_GREP: <query> [path]`, `TOOL_FIND_FILE: <pattern>`).\n"
+        "directives, one per line:\n"
+        "TOOL_READ_FILE: <path> <start>-<end>\n"
+        "TOOL_GREP: <query> [path]\n"
+        "TOOL_FIND_FILE: <pattern>\n"
         "- Otherwise output the final SEARCH / REPLACE block:\n"
         "FILE: <relative_filepath>\n"
         "<<<<<<< SEARCH\n"
@@ -879,6 +934,7 @@ class CobaltReasoningEngine:
         "=======\n"
         "<fixed replacement lines WITHOUT line numbers>\n"
         ">>>>>>> REPLACE\n\n"
+        f"{TOOL_CALL_PROTOCOL}\n"
         "CRITICAL RULES:\n"
         "- DO NOT attach line numbers (e.g. `1060: `) inside SEARCH or "
         "REPLACE blocks. Include only clean code lines.\n"
@@ -976,8 +1032,10 @@ class CobaltReasoningEngine:
         "find the defining header in Chromium:\n"
         "  TOOL_GREP: <symbol>\n"
         "- If you need to inspect referencing BUILD.gn files or read "
-        "headers, output TOOL_ commands (e.g. `TOOL_READ_FILE: <path> "
-        "<start>-<end>`, `TOOL_GREP: <query>`, `TOOL_FIND_FILE: <pattern>`).\n"
+        "headers, output TOOL_ directives, one per line:\n"
+        "TOOL_READ_FILE: <path> <start>-<end>\n"
+        "TOOL_GREP: <query> [path]\n"
+        "TOOL_FIND_FILE: <pattern>\n"
         "- Otherwise output the final SEARCH / REPLACE or DELETE block:\n"
         "  * To replace / add include / modify BUILD.gn:\n"
         "  FILE: <relative_filepath>\n"
@@ -991,6 +1049,7 @@ class CobaltReasoningEngine:
         "  <<<<<<< DELETE\n"
         "  <exact lines to delete WITHOUT line numbers>\n"
         "  >>>>>>> DELETE\n\n"
+        f"{TOOL_CALL_PROTOCOL}\n"
         "CRITICAL RULES:\n"
         "- DO NOT attach line numbers (e.g. `1060: `) inside SEARCH or "
         "REPLACE blocks. Include only clean code lines.\n"
