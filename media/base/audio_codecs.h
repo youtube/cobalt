@@ -5,7 +5,8 @@
 #ifndef MEDIA_BASE_AUDIO_CODECS_H_
 #define MEDIA_BASE_AUDIO_CODECS_H_
 
-#include <stdint.h>#include <string>
+#include <stdint.h>
+#include <string>
 #include <string_view>
 
 #include "media/base/media_export.h"

@@ -27,7 +27,8 @@ using Atomic32 = SbAtomic32;
 using Atomic64 = SbAtomic64;
 #endif
 
-#elseusing Atomic8 = char;
+#else
+using Atomic8 = char;
 using Atomic16 = int16_t;
 using Atomic32 = int32_t;
 #if defined(V8_HOST_ARCH_64_BIT)

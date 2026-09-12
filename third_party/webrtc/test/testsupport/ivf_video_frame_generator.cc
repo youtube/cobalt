@@ -16,8 +16,6 @@
 #include <memory>
 #include <optional>
 
-#include "build/build_config.h"
-
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
@@ -31,10 +29,8 @@
 #include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/codecs/av1/dav1d_decoder.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
-#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
-#include "modules/video_coding/codecs/vp8/include/vp8.h" //nogncheck
-#include "modules/video_coding/codecs/vp9/include/vp9.h" //nogncheck
-#endif
+#include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/utility/ivf_file_reader.h"
 #include "rtc_base/checks.h"
