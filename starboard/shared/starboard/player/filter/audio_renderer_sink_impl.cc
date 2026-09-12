@@ -63,8 +63,6 @@ void AudioRendererSinkImpl::GetAudioRendererParams(
     int* min_frames_per_append) const {
   SB_CHECK(max_cached_frames);
   SB_CHECK(min_frames_per_append);
-  SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
-            0);
   *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
   // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
