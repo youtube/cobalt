@@ -397,6 +397,13 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     bool is_eos_reached;
     callbacks_.update_source_status(&frames_in_buffer, &offset_in_frames,
                                     &is_playing, &is_eos_reached, context_);
+    // If a flush was requested (e.g., during seek), frames_in_buffer may
+    // already reflect the newly decoded stream while frames_in_audio_track is
+    // still stale from before the flush. Restart the loop so reset_and_flush()
+    // can reset frames_in_audio_track before any data is written.
+    if (flush_requested_) {
+      continue;
+    }
     {
       std::lock_guard lock(mutex_);
       if (playback_rate_ == 0.0) {
