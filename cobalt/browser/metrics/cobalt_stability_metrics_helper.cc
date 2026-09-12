@@ -23,8 +23,137 @@
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/process/process_handle.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
+#include "base/base_paths.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/metrics/histogram_base.h"
+#include "base/metrics/histogram_samples.h"
+#include "base/metrics/statistics_recorder.h"
+#include "base/no_destructor.h"
+#include "base/path_service.h"
+#include "base/synchronization/lock.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
+#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
+#endif
 
 namespace cobalt {
+
+namespace {
+
+#if BUILDFLAG(IS_ANDROID)
+base::Lock& GetLock() {
+  static base::NoDestructor<base::Lock> s_lock;
+  return *s_lock;
+}
+
+// Guarded by GetLock(). Indicates whether prior session exit reasons have been
+// recorded to UMA.
+bool g_exit_reasons_recorded = false;
+
+std::vector<base::OnceCallback<void(bool)>>* GetPendingCallbacks() {
+  static base::NoDestructor<std::vector<base::OnceCallback<void(bool)>>>
+      s_pending_callbacks;
+  return s_pending_callbacks.get();
+}
+
+base::OnceCallback<void(bool)> WrapCallbackForCaller(
+    base::OnceCallback<void(bool)> callback) {
+  if (base::SequencedTaskRunner::HasCurrentDefault()) {
+    return base::BindPostTaskToCurrentDefault(std::move(callback));
+  }
+  return callback;
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
+}  // namespace
+
+#if BUILDFLAG(IS_ANDROID)
+void RecordPriorSessionExitReasons() {
+  if (base::android::BuildInfo::GetInstance()->sdk_int() <
+      base::android::SDK_VERSION_R) {
+    return;
+  }
+  base::FilePath base_dir;
+  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
+    return;
+  }
+  base::FilePath metrics_dir =
+      base_dir.AppendASCII(kBrowserStabilityMetricsName);
+  for (base::ProcessId pid :
+       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
+                               base::GetCurrentProcId())) {
+    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
+        pid, kSystemExitReasonHistogram);
+  }
+}
+
+bool WasPriorSessionLowMemoryKilled() {
+  base::HistogramBase* histogram =
+      base::StatisticsRecorder::FindHistogram(kSystemExitReasonHistogram);
+  if (!histogram) {
+    return false;
+  }
+  auto samples = histogram->SnapshotSamples();
+  if (!samples) {
+    return false;
+  }
+  return samples->GetCount(kAndroidExitReasonLowMemory) > 0;
+}
+
+void OnPriorSessionExitReasonsRecorded() {
+  std::vector<base::OnceCallback<void(bool)>> callbacks;
+  {
+    base::AutoLock lock(GetLock());
+    g_exit_reasons_recorded = true;
+    callbacks.swap(*GetPendingCallbacks());
+  }
+  // Compute WasPriorSessionLowMemoryKilled() on the background thread.
+  bool was_lmk = WasPriorSessionLowMemoryKilled();
+  for (auto& cb : callbacks) {
+    std::move(cb).Run(was_lmk);
+  }
+}
+
+void GetWasPriorSessionLowMemoryKilledAsync(
+    base::OnceCallback<void(bool)> callback) {
+  if (base::android::BuildInfo::GetInstance()->sdk_int() <
+      base::android::SDK_VERSION_R) {
+    if (base::SequencedTaskRunner::HasCurrentDefault()) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(std::move(callback), false));
+    } else {
+      std::move(callback).Run(false);
+    }
+    return;
+  }
+  {
+    base::AutoLock lock(GetLock());
+    if (!g_exit_reasons_recorded) {
+      GetPendingCallbacks()->push_back(
+          WrapCallbackForCaller(std::move(callback)));
+      return;
+    }
+  }
+  // Exit reasons already recorded: resolve on a background thread.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT},
+      base::BindOnce(&WasPriorSessionLowMemoryKilled), std::move(callback));
+}
+
+void ResetPriorSessionExitReasonsForTesting() {
+  base::AutoLock lock(GetLock());
+  g_exit_reasons_recorded = false;
+  GetPendingCallbacks()->clear();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 std::vector<base::ProcessId> ExtractPriorSessionPids(
     const base::FilePath& metrics_dir,
