@@ -1417,19 +1417,11 @@ component("base") {
       "android/unguessable_token_android.h",
     ]
     deps += [
-<<<<<<< HEAD
-      ":base_minimal_jni($default_toolchain)",
+":base_minimal_jni($default_toolchain)",
       ":callback_jni($default_toolchain)",
       ":command_line_jni($default_toolchain)",
       ":library_loader_jni($default_toolchain)",
-      ":tasks_minimal_jni($default_toolchain)",
-=======
-      ":base_minimal_jni($android_toolchain)",
-      ":command_line_jni($android_toolchain)",
-      ":library_loader_jni($android_toolchain)",
-      ":tasks_minimal_jni($android_toolchain)",
->>>>>>> parent of 7b052c2955e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-      "//build:robolectric_buildflags",
+      ":tasks_minimal_jni($default_toolchain)",      "//build:robolectric_buildflags",
     ]
     public_deps += [ "//third_party/jni_zero" ]
   }  # is_android || is_robolectric

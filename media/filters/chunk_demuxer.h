@@ -435,8 +435,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                                       base::TimeDelta currentMediaTime,
                                       size_t newDataSize);
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Returns the latest presentation timestamp of the buffers to be read
   // from the DemuxerStream.
@@ -446,10 +444,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void OnMemoryPressure(
       base::TimeDelta currentMediaTime,
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
-      bool force_instant_gc);
-
->>>>>>> parent of 7b052c2955e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  // Returns the current presentation duration.
+      bool force_instant_gc);  // Returns the current presentation duration.
   double GetDuration();
   double GetDuration_Locked();
 
