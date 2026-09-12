@@ -766,6 +766,75 @@ def extract_tool_commands(text: str,
   return commands
 
 
+def find_roll_commit(repo_path: str, conflicted: bool) -> Optional[str]:
+  """Locates a commit from the most recent Chromium autoroll.
+
+  An autoroll lands as three commits:
+
+    1. "Revert Cobalt."                              (upstream baseline)
+    2. "Update to <milestone>."                      (pure upstream changes)
+    3. "CONFLICTED Cherry pick ...: Update to <milestone>."
+                                                     (Cobalt re-applied)
+
+  Diffing #2 answers "what did upstream change?". Diffing #3 answers "what
+  does Cobalt add on top of upstream, and did it still land correctly?".
+
+  Args:
+    repo_path: Repository to search.
+    conflicted: When True return commit #3, otherwise return commit #2.
+
+  Returns:
+    The commit SHA, or None if no matching roll commit exists.
+  """
+  # Both subjects contain "Update to <milestone>", so the pure upstream
+  # subject is anchored with ^ to exclude the cherry-picks.
+  pattern = ("^CONFLICTED Cherry pick.*Update to [0-9]"
+             if conflicted else "^Update to [0-9]")
+  try:
+    log_res = subprocess.run(
+        ["git", "log", "-n20", f"--grep={pattern}", "--format=%H %s"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+  except OSError:
+    return None
+
+  for line in log_res.stdout.splitlines():
+    parts = line.split(" ", 1)
+    if len(parts) != 2:
+      continue
+    # %H %s always begins with the SHA, so the subject must be inspected
+    # explicitly rather than testing the start of the whole line.
+    subject = parts[1]
+    if conflicted == subject.startswith("CONFLICTED"):
+      return parts[0]
+  return None
+
+
+def show_roll_diff(
+    repo_path: str,
+    sha: str,
+    target_path: str,
+    label: str,
+) -> str:
+  """Renders `git show` for a roll commit, optionally scoped to one file."""
+  cmd = (["git", "show", "--stat", "-p", sha, "--", target_path]
+         if target_path else ["git", "show", "--stat", sha])
+  diff_res = subprocess.run(
+      cmd,
+      cwd=repo_path,
+      capture_output=True,
+      text=True,
+      errors="replace",
+      check=False,
+  )
+  if diff_res.stdout:
+    return diff_res.stdout[:8000]
+  return f"No {label} changes in {sha} for: {target_path}"
+
+
 def execute_local_tool(
     cmd: str,
     repo_path: str,
@@ -1026,35 +1095,24 @@ def execute_local_tool(
     raw_path = clean_cmd.split(":", 1)[1].strip()
     target_path = sanitize_filepath_token(raw_path)
     try:
-      # Find commit with message "Update to 14" (Commit #3 pure changes)
-      log_res = subprocess.run(
-          ["git", "log", "-n20", "--grep=Update to 14", "--format=%H %s"],
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          check=False,
-      )
-      lines = [
-          l for l in log_res.stdout.splitlines()
-          if not l.startswith("CONFLICTED")
-      ]
-      if lines:
-        upstream_sha = lines[0].split()[0]
-        cmd = (["git", "show", "--stat", "-p", upstream_sha, "--", target_path]
-               if target_path else ["git", "show", "--stat", upstream_sha])
-        diff_res = subprocess.run(
-            cmd,
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            errors="replace",
-            check=False,
-        )
-        return (diff_res.stdout[:8000] if diff_res.stdout else
-                f"No upstream changes in {upstream_sha} for: {target_path}")
-      return "Could not find upstream roll commit ('Update to 14...')"
+      upstream_sha = find_roll_commit(repo_path, conflicted=False)
+      if not upstream_sha:
+        return "Could not find upstream roll commit ('Update to <milestone>')"
+      return show_roll_diff(repo_path, upstream_sha, target_path, "upstream")
     except Exception as e:  # pylint: disable=broad-exception-caught
       return f"[ERROR] Upstream diff failed: {e}"
+
+  if clean_cmd.startswith("TOOL_COBALT_DIFF:"):
+    raw_path = clean_cmd.split(":", 1)[1].strip()
+    target_path = sanitize_filepath_token(raw_path)
+    try:
+      cobalt_sha = find_roll_commit(repo_path, conflicted=True)
+      if not cobalt_sha:
+        return ("Could not find Cobalt cherry-pick commit "
+                "('CONFLICTED Cherry pick ...: Update to <milestone>')")
+      return show_roll_diff(repo_path, cobalt_sha, target_path, "Cobalt")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Cobalt diff failed: {e}"
 
   if clean_cmd.startswith("TOOL_GCLIENT_SYNC"):
     try:
@@ -1663,7 +1721,9 @@ class BaseResolver(abc.ABC):
               "- `TOOL_GET_HISTORY: <filepath>` to view earlier "
               "modifications/diffs for that file.\n"
               "- `TOOL_UPSTREAM_DIFF: <filepath>` to inspect upstream "
-              "Chromium diff.\n")
+              "Chromium diff.\n"
+              "- `TOOL_COBALT_DIFF: <filepath>` to inspect what Cobalt"
+              "adds on top of upstream in this roll.\n")
           print(
               f"  [{self.name}] [TIER-2 ARCHITECT] Injected list of "
               f"{len(seen_files)} modified session files into expert prompt.",

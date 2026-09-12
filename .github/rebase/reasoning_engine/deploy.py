@@ -240,18 +240,22 @@ def main():
   )
   parser.add_argument(
       "--flash-model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-      help="Default Flash model.",
+      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
+      help=("Default Flash model, i.e. the workhorse tier that emits patches "
+            "(default: gemini-3.7-flash). This value is baked into the "
+            "deployment artifact; the $MODEL env var read by the CI workflow "
+            "is NOT forwarded to a hosted engine, so this flag is the only "
+            "way to change the workhorse model in CI."),
   )
   parser.add_argument(
       "--pro-model",
-      default="gemini-2.5-pro",
+      default="gemini-3.8-flash",
       help="Default Pro model for complex escalations.",
   )
   parser.add_argument(
       "--expert-model",
-      default=os.environ.get("EXPERT_MODEL", "claude-sonnet-5"),
-      help=("Expert LLM model (default: claude-sonnet-5; supports "
+      default=os.environ.get("EXPERT_MODEL", "gemini-3.8-flash"),
+      help=("Expert LLM model (default: gemini-3.8-flash; supports "
             "gemini-3.7-flash, gemini-2.5-pro, glm-5.2, claude-opus-5)"),
   )
   parser.add_argument(

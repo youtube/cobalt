@@ -4,6 +4,7 @@
 import ast
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -573,6 +574,94 @@ void Foo() {{}}
       read_res = execute_local_tool(
           "TOOL_READ_FILE: content/browser/BUILD.gn 1-1", tmp_dir)
       self.assertIn('1: sources = [ "fenced_frame/observer.cc" ]', read_res)
+
+  def test_upstream_diff_skips_conflicted_cherry_pick(self):
+    """TOOL_UPSTREAM_DIFF must select the pure upstream roll commit.
+
+    An autoroll lands as three commits: "Revert Cobalt", then
+    "Update to <milestone>" (pure upstream), then a "CONFLICTED Cherry
+    pick ...: Update to <milestone>" that re-applies Cobalt. Only the
+    middle one is pure upstream. Regression test: the original filter
+    checked line.startswith("CONFLICTED") against a "%H %s" line that
+    always begins with a SHA, so it never excluded anything and the tool
+    returned Cobalt's own conflicted merge labelled as upstream.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+
+      def git(*args):
+        subprocess.run(
+            ["git"] + list(args),
+            cwd=tmp_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+      def commit(content, message):
+        with open(
+            os.path.join(tmp_dir, "BUILD.gn"), "w", encoding="utf-8") as f:
+          f.write(content)
+        git("add", "BUILD.gn")
+        git("commit", "-m", message)
+
+      git("init")
+      git("config", "user.email", "test@example.com")
+      git("config", "user.name", "Test")
+
+      commit("mojom(\"mojom\") {\n}\n", "Revert Cobalt.")
+      commit(
+          "mojom(\"mojom\") {\n}\nUPSTREAM_ONLY_MARKER\n",
+          "Update to 143.7471.",
+      )
+      commit(
+          "mojom(\"mojom\") {\n}\nUPSTREAM_ONLY_MARKER\nCOBALT_ONLY_MARKER\n",
+          "CONFLICTED Cherry pick commit abc123: Update to 143.7471.",
+      )
+
+      res = execute_local_tool("TOOL_UPSTREAM_DIFF: BUILD.gn", tmp_dir)
+
+      # The pure upstream commit introduced UPSTREAM_ONLY_MARKER.
+      self.assertIn("UPSTREAM_ONLY_MARKER", res)
+      # The CONFLICTED cherry-pick introduced COBALT_ONLY_MARKER. Its
+      # presence means the wrong commit was selected.
+      self.assertNotIn("COBALT_ONLY_MARKER", res)
+
+      # TOOL_COBALT_DIFF must select the complementary commit: the Cobalt
+      # cherry-pick, which is the one that adds COBALT_ONLY_MARKER.
+      cobalt_res = execute_local_tool("TOOL_COBALT_DIFF: BUILD.gn", tmp_dir)
+      self.assertIn("COBALT_ONLY_MARKER", cobalt_res)
+      # UPSTREAM_ONLY_MARKER was already present in the cherry-pick's parent,
+      # so it must not appear as an added line in the Cobalt delta.
+      self.assertNotIn("+UPSTREAM_ONLY_MARKER", cobalt_res)
+
+  def test_upstream_diff_not_hardcoded_to_milestone_14x(self):
+    """Milestone matching must not be hardcoded to 'Update to 14'."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+
+      def git(*args):
+        subprocess.run(
+            ["git"] + list(args),
+            cwd=tmp_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+      git("init")
+      git("config", "user.email", "test@example.com")
+      git("config", "user.name", "Test")
+      with open(os.path.join(tmp_dir, "BUILD.gn"), "w", encoding="utf-8") as f:
+        f.write("base\n")
+      git("add", "BUILD.gn")
+      git("commit", "-m", "Revert Cobalt.")
+      with open(os.path.join(tmp_dir, "BUILD.gn"), "w", encoding="utf-8") as f:
+        f.write("base\nM152_MARKER\n")
+      git("add", "BUILD.gn")
+      git("commit", "-m", "Update to 152.8000.")
+
+      res = execute_local_tool("TOOL_UPSTREAM_DIFF: BUILD.gn", tmp_dir)
+      self.assertIn("M152_MARKER", res)
+      self.assertNotIn("Could not find upstream roll commit", res)
 
   def test_extract_tool_commands_multi_tool_and_think_tags(self):
     """Tests that extract_tool_commands parses tools and strips think tags."""

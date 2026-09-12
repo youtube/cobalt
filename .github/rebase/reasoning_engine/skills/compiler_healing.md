@@ -11,6 +11,14 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
 - `TOOL_READ_FILE: <relative_path> <start_line>-<end_line>` (e.g. `TOOL_READ_FILE: media/base/audio_sample_types.h 1-50`)
 - `TOOL_FIND_FILE: <pattern>` (e.g. `TOOL_FIND_FILE: *BrowserStartupController*`)
 - `TOOL_GIT_SHOW: <commit>:<path>` (e.g. `TOOL_GIT_SHOW: HEAD:skia/BUILD.gn`)
+- `TOOL_UPSTREAM_DIFF: <relative_path>` - what **upstream Chromium** changed in this milestone roll.
+- `TOOL_COBALT_DIFF: <relative_path>` - what **Cobalt adds on top of upstream** in this roll.
+
+**Roll anatomy.** A roll lands as three commits: `Revert Cobalt.`, then `Update to <milestone>.` (pure upstream), then `CONFLICTED Cherry pick ...: Update to <milestone>.` (Cobalt re-applied). `TOOL_UPSTREAM_DIFF` shows the second; `TOOL_COBALT_DIFF` shows the third.
+
+When something that used to work has broken after a roll, **run both on the relevant `BUILD.gn`**. The two answer different questions and the failure usually lives in the gap between them:
+- `TOOL_COBALT_DIFF` alone will often look perfectly healthy, because Cobalt's patch applied cleanly.
+- `TOOL_UPSTREAM_DIFF` reveals that upstream moved, split, or renamed the thing Cobalt's patch was attached to. A Cobalt customization can apply cleanly and still be attached to the wrong target.
 
 ### Investigation Best Practices:
 1. When Clang reports `use of undeclared identifier 'X'`, `unknown type name 'X'`, or `no member named 'X'`:
@@ -29,9 +37,21 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
 5. Generated Headers (JNI, Mojo, Protobuf, AIDL, `gen/` files):
    - When an error occurs inside a generated header (e.g. `gen/.../*_jni.h`, `gen/.../*.mojom.h`, `out/.../gen/...`):
    - Generated files are build outputs produced from Java, Mojo, or Proto files and must NEVER be edited directly.
-   - Trace the `In file included from ...` stack trace to find the referencing first-party C++ source file (e.g. `content/browser/web_contents/web_contents_android.cc`).
-   - Use `TOOL_READ_FILE: <caller_header.h>` and `TOOL_READ_FILE: <caller.cc>` to inspect the C++ class declaration.
-   - Update the C++ class declaration and definition (or add missing native methods) to match the signature expected by the generated bindings.
+   - **First, decide which of two cases you are in. Do not skip this step.**
+     * Identify the symbol the compiler says is missing, then check whether it exists in the *interface definition* source (`.mojom`, `.java`, `.proto`) with `TOOL_GREP: <symbol> <path_to_idl>`.
+     * **Case A - symbol is ABSENT from the IDL source.** The C++ caller is stale. Follow the steps below to update the caller.
+     * **Case B - symbol is PRESENT in the IDL source but missing from the generated output.** The generator was configured to skip it. The defect is in the **build configuration, not in any C++ file**. Patching the C++ file cannot work and will waste iterations.
+   - Case A - stale caller:
+     * Trace the `In file included from ...` stack trace to find the referencing first-party C++ source file (e.g. `content/browser/web_contents/web_contents_android.cc`).
+     * Use `TOOL_READ_FILE: <caller_header.h>` and `TOOL_READ_FILE: <caller.cc>` to inspect the C++ class declaration.
+     * Update the C++ class declaration and definition (or add missing native methods) to match the signature expected by the generated bindings.
+   - Case B - generator stripped the symbol:
+     * Look for a conditional guard on the declaration in the IDL, such as `[EnableIf=<feature>]` in Mojo or `@NativeMethods` gating in Java.
+     * Read the GN template that drives the generator to learn how that guard is evaluated, for example `TOOL_READ_FILE: mojo/public/tools/bindings/mojom.gni`. Do not guess the mechanism.
+     * Find the build target that actually owns the IDL file by searching for the filename inside `sources` lists, not by target name: `TOOL_GREP: <file>.mojom <path>/BUILD.gn`.
+     * Verify the guard's feature is declared on **that** target. Build-system feature lists are almost always per-target and are not inherited through `deps` or `public_deps`.
+     * Use `TOOL_UPSTREAM_DIFF: <path>/BUILD.gn` to check whether the milestone **split, renamed, or moved** the owning target. If a file migrated to a new target, upstream had no reason to carry Cobalt's configuration across, and every guarded declaration in that file will silently vanish.
+     * The fix belongs in the `BUILD.gn`, replicating the Cobalt-specific configuration onto the new owning target. Never delete the guarded declaration or the Cobalt config block to silence the error.
 6. Linker Errors (`ld.lld: error: undefined symbol: Class::Method`):
    - When encountering an undefined symbol error during linking, locate the class declaration (`.h`) and implementation (`.cc`) files using `TOOL_FIND_FILE` or `TOOL_GREP`.
    - If the implementation exists in a `.cc` file:
