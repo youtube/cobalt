@@ -60,6 +60,9 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
     : io_sample_rate_ratio_(io_sample_rate_ratio),
       channel_count_(channel_count),
       frame_size_in_bytes_(sizeof(float) * channel_count_) {
+  SB_CHECK_GT(channel_count_, 0);
+  SB_CHECK_LE(channel_count_, kMaxChannels);
+
   // Setup various region pointers in the buffer (see diagram above).
   r0_ = input_buffer_ + kKernelSize / 2 * channel_count_;
   r1_ = input_buffer_;
