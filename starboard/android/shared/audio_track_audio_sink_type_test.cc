@@ -14,12 +14,12 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
+#include <unistd.h>
+
 #include <atomic>
-#include <chrono>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <thread>
 #include <vector>
 
 #include "starboard/android/shared/fake_audio_track.h"
@@ -110,7 +110,7 @@ TEST_F(AudioTrackAudioSinkTest, CreateAndDestroy) {
   // Let the sink thread run and process frames.
   int elapsed_ms = 0;
   while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_GT(track_ptr->written_frames(), 0);
@@ -141,7 +141,7 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
   int elapsed_ms = 0;
   while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
          elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
@@ -150,7 +150,7 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
   elapsed_ms = 0;
   while (track_ptr->play_state() != AudioTrack::PlayState::kPaused &&
          elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPaused);
@@ -159,7 +159,7 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
   elapsed_ms = 0;
   while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
          elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
@@ -188,7 +188,7 @@ TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
   int elapsed_ms = 0;
   while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
          elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
@@ -202,7 +202,7 @@ TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
   while (track_ptr->play_state() != AudioTrack::PlayState::kStopped &&
          track_ptr->play_state() != AudioTrack::PlayState::kPaused &&
          elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_TRUE(track_ptr->play_state() == AudioTrack::PlayState::kStopped ||
@@ -213,7 +213,60 @@ TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
   elapsed_ms = 0;
   while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
          elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
+}
+
+TEST_F(AudioTrackAudioSinkTest, FlushWhilePlayingResumesPlayback) {
+  AudioTrackAudioSinkType type;
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      /*channels=*/2, /*sampling_frequency_hz=*/48000,
+      kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      /*error=*/nullptr,
+  };
+
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      &type, /*channels=*/2, /*sampling_frequency_hz=*/48000,
+      kSbMediaAudioSampleTypeFloat32, frame_buffers_,
+      /*frames_per_channel=*/1024, /*preferred_buffer_size=*/512, callbacks,
+      /*start_media_time=*/0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      /*allow_audio_writing_on_pause=*/false,
+      /*pause_using_audio_track_state=*/false, std::move(fake_track),
+      /*context=*/this);
+
+  ASSERT_NE(sink, nullptr);
+  int elapsed_ms = 0;
+  while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
+         elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
+
+  // Trigger flush while source status remains playing (is_playing_ == true).
+  // Without setting was_playing = false inside reset_and_flush(), AudioTrack
+  // would remain stuck in kPaused after PauseAndFlush().
+  EXPECT_TRUE(sink->Flush());
+
+  elapsed_ms = 0;
+  while (track_ptr->pause_and_flush_count() == 0 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_EQ(track_ptr->pause_and_flush_count(), 1);
+
+  elapsed_ms = 0;
+  while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
+         elapsed_ms < 1000) {
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
@@ -246,7 +299,7 @@ TEST_F(AudioTrackAudioSinkTest,
   // Wait until the initial 512 frames are written to the audio track.
   int elapsed_ms = 0;
   while (track_ptr->written_frames() < 512 && elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_GE(track_ptr->written_frames(), 512);
@@ -258,7 +311,7 @@ TEST_F(AudioTrackAudioSinkTest,
   // Wait for ReportError to be triggered.
   elapsed_ms = 0;
   while (!error_reported_ && elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
 
@@ -296,7 +349,7 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeResetAndContinue) {
   // Wait until the initial frames are written to the audio track.
   int elapsed_ms = 0;
   while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_GT(track_ptr->written_frames(), 0);
@@ -308,7 +361,7 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeResetAndContinue) {
   // Wait for PauseAndFlush() to be called on device change.
   elapsed_ms = 0;
   while (track_ptr->pause_and_flush_count() == 0 && elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_GE(track_ptr->pause_and_flush_count(), 1);
@@ -319,7 +372,7 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeResetAndContinue) {
   while ((track_ptr->written_frames() == 0 ||
           track_ptr->play_state() != AudioTrack::PlayState::kPlaying) &&
          elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_GT(track_ptr->written_frames(), 0);
@@ -356,7 +409,7 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeRestartPlayer) {
   // Wait until initial frames are written.
   int elapsed_ms = 0;
   while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
   EXPECT_GT(track_ptr->written_frames(), 0);
@@ -367,7 +420,7 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeRestartPlayer) {
   // Wait for ErrorCB to be triggered.
   elapsed_ms = 0;
   while (!error_reported_ && elapsed_ms < 1000) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    usleep(10'000);
     elapsed_ms += 10;
   }
 
