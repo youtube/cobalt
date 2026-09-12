@@ -58,6 +58,36 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kCobaltInProcessImageTransferCache,
              "CobaltInProcessImageTransferCache",
              FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltForceGpuMemAvailable,
+             "CobaltForceGpuMemAvailable",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltForceGpuMemAvailableMb,
+                   &kCobaltForceGpuMemAvailable,
+                   "force_gpu_mem_available_mb",
+                   64);
+
+BASE_FEATURE(kCobaltV8MaxOldSpaceSize,
+             "CobaltV8MaxOldSpaceSize",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltV8MaxOldSpaceSizeMb,
+                   &kCobaltV8MaxOldSpaceSize,
+                   "max_old_space_size_mb",
+                   512);
+
+BASE_FEATURE(kCobaltV8InitialOldSpaceSize,
+             "CobaltV8InitialOldSpaceSize",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltV8InitialOldSpaceSizeMb,
+                   &kCobaltV8InitialOldSpaceSize,
+                   "initial_old_space_size_mb",
+                   16);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
