@@ -59,13 +59,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     }
     must_support_tunnel_mode =
         mime_type->GetParamBoolValue("tunnelmode", false);
-
-    // Allow the web app to control how software decoders should be used.
-    if (!mime_type->ValidateStringParameter(
-            "softwaredecoder",
-            "allowed|disallowed|preferred|unpreferred|required")) {
-      return false;
-    }
   }
 
   if (must_support_tunnel_mode && decode_to_texture_required) {

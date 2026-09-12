@@ -38,20 +38,6 @@ bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
     return false;
   }
 
-  std::string software_decoder_expectation =
-      mime_type->GetParamStringValue("softwaredecoder", "");
-  if (software_decoder_expectation == "required" ||
-      software_decoder_expectation == "preferred") {
-    SB_LOG(INFO) << "Use software decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
-    return true;
-  } else if (software_decoder_expectation == "disallowed" ||
-             software_decoder_expectation == "unpreferred") {
-    SB_LOG(INFO) << "Use hardware decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
-    return false;
-  }
-
   bool is_low_resolution =
       mime_type->GetParamIntValue("width", Resolution::k1080p.width) <= 432 &&
       mime_type->GetParamIntValue("height", Resolution::k1080p.height) <= 240;
