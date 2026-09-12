@@ -70,9 +70,7 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
   // Ensure kKernelSize is a multiple of 32 for easy SSE optimizations; causes
   // r0_ and r5_ (used for input) to always be 16-byte aligned by virtue of
   // input_buffer_ being 16-byte aligned.
-  SB_DCHECK_EQ(kKernelSize % 32, 0) << "kKernelSize must be a multiple of 32!";
-  SB_DCHECK_GT(kBlockSize, kKernelSize)
-      << "kBlockSize must be greater than kKernelSize!";
+
   // Basic sanity checks to ensure buffer regions are laid out correctly:
   // r0_ and r2_ should always be the same position.
   SB_DCHECK_EQ(r0_, r2_);

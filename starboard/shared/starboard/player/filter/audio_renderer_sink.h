@@ -18,6 +18,7 @@
 #include <string>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -28,6 +29,8 @@ class AudioRendererSink {
  public:
   static const int kAudioSinkFramesAlignment = 256;
   static const int kDefaultAudioSinkMinFramesPerAppend = 1024;
+  static_assert(IsAligned(kDefaultAudioSinkMinFramesPerAppend,
+                          kAudioSinkFramesAlignment));
 
   class RenderCallback {
    public:

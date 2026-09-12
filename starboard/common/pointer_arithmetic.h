@@ -37,7 +37,7 @@ inline uint8_t* AsPointer(uintptr_t integer_value) {
 // Returns the the smallest value that is greater than or equal to value, but
 // aligned to alignment.
 template <typename T>
-T AlignUp(T value, T alignment) {
+constexpr T AlignUp(T value, T alignment) {
   T decremented_value = value - 1;
   return decremented_value + alignment - (decremented_value % alignment);
 }
@@ -51,7 +51,7 @@ T* AlignUp(T* value, uintptr_t alignment) {
 // Returns the the largest value that is less than or equal to value, but
 // aligned to alignment.
 template <typename T>
-T AlignDown(T value, T alignment) {
+constexpr T AlignDown(T value, T alignment) {
   return value / alignment * alignment;
 }
 
@@ -62,7 +62,7 @@ T* AlignDown(T* value, uintptr_t alignment) {
 
 // Determines if a given integer value is aligned to the specified alignment.
 template <typename T>
-static bool IsAligned(T value, size_t alignment) {
+constexpr bool IsAligned(T value, size_t alignment) {
   return value % alignment == 0;
 }
 

@@ -197,9 +197,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                               int* min_frames_per_append) const override {
     SB_CHECK(max_cached_frames);
     SB_CHECK(min_frames_per_append);
-    SB_DCHECK_EQ(AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend %
-                     AudioRendererSink::kAudioSinkFramesAlignment,
-                 0);
     *min_frames_per_append =
         AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
 
