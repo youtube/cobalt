@@ -559,7 +559,7 @@ void MemoryCache::OnMemoryPressure(base::MemoryPressureLevel level) {
   }
 
 #if BUILDFLAG(IS_COBALT)
-  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL &&
+  if (level == base::MEMORY_PRESSURE_LEVEL_CRITICAL &&
       base::FeatureList::IsEnabled(
           features::kEvictMemoryCacheOnCriticalMemoryPressure)) {
     EvictResources();

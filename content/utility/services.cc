@@ -441,7 +441,8 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
   services.Add(RunOOPVideoDecoderFactoryProcessService);
 #endif
 
-#if !BUILDFLAG(IS_COBALT)  if (optimization_guide::features::CanLaunchOnDeviceModelService()) {
+#if !BUILDFLAG(IS_COBALT)
+  if (optimization_guide::features::CanLaunchOnDeviceModelService()) {
     services.Add(RunOnDeviceModel);
   }
 #endif  // !BUILDFLAG(IS_COBALT)

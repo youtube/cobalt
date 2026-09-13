@@ -300,10 +300,12 @@ GpuServiceImpl::PendingEstablishGpuChannelRequest::
     PendingEstablishGpuChannelRequest(int32_t client_id,
                                       uint64_t client_tracing_id,
                                       bool is_gpu_host,
+                                      bool enable_extra_handles_validation,
                                       EstablishGpuChannelCallback callback)
     : client_id(client_id),
       client_tracing_id(client_tracing_id),
       is_gpu_host(is_gpu_host),
+      enable_extra_handles_validation(enable_extra_handles_validation),
       callback(std::move(callback)) {}
 
 GpuServiceImpl::PendingEstablishGpuChannelRequest::
@@ -932,7 +934,8 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
   if (display && !display->IsInitialized()) {
     pending_establish_gpu_channel_requests_.push_back(
-        {client_id, client_tracing_id, is_gpu_host, std::move(callback)});
+        {client_id, client_tracing_id, is_gpu_host,
+         enable_extra_handles_validation, std::move(callback)});
     return;
   }
 #endif
@@ -1232,7 +1235,9 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
   for (auto& request : pending_requests) {
     if (display_ready) {
       EstablishGpuChannel(request.client_id, request.client_tracing_id,
-                          request.is_gpu_host, std::move(request.callback));
+                          request.is_gpu_host,
+                          request.enable_extra_handles_validation,
+                          std::move(request.callback));
     } else {
       LOG(ERROR)
           << "Failed to initialize display on foreground, rejecting pending "

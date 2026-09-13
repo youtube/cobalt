@@ -866,7 +866,8 @@ if (base::FeatureList::IsEnabled(features::kWebOTP)) {
       &RenderFrameHostImpl::BindFederatedAuthRequestReceiver,
       base::Unretained(host)));
 
-#if !BUILDFLAG(IS_COBALT)  map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
+#if !BUILDFLAG(IS_COBALT)
+  map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &RenderFrameHostImpl::CreateWebUsbService, base::Unretained(host)));
 #endif
 

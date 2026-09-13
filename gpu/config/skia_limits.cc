@@ -55,7 +55,9 @@ void DetermineGrCacheLimitsFromAvailableMemory(
 
   // The limit of the bytes allocated toward GPU resources in the GrContext's
   // GPU cache.
+#if !BUILDFLAG(IS_COBALT)
   constexpr size_t kMaxLowEndGaneshResourceCacheBytes = 48 * 1024 * 1024;
+#endif
   constexpr size_t kMaxHighEndGaneshResourceCacheBytes = 256 * 1024 * 1024;
   // Limits for glyph cache textures.
   constexpr size_t kMaxLowEndGlyphCacheTextureBytes = 1024 * 512 * 4;
@@ -68,7 +70,8 @@ void DetermineGrCacheLimitsFromAvailableMemory(
 #else
     *max_resource_cache_bytes = kMaxLowEndGaneshResourceCacheBytes;
 #endif
-    *max_glyph_cache_texture_bytes = kMaxLowEndGlyphCacheTextureBytes;  } else if (base::SysInfo::AmountOfPhysicalMemory().InMiB() >=
+    *max_glyph_cache_texture_bytes = kMaxLowEndGlyphCacheTextureBytes;
+  } else if (base::SysInfo::AmountOfPhysicalMemory().InMiB() >=
              kHighEndMemoryThresholdInMB) {
     *max_resource_cache_bytes = kMaxHighEndGaneshResourceCacheBytes;
   }

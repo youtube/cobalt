@@ -819,7 +819,9 @@ std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
   // threads to safely copy and pass it to in-process image transfer completion
   // callbacks.
   base::WeakPtr<GpuImageDecodeCache> weak_ptr_;
-#endif  // BUILDFLAG(IS_COBALT)  base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
+#endif  // BUILDFLAG(IS_COBALT)
+
+  base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
 };
 
 }  // namespace cc

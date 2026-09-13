@@ -227,8 +227,7 @@ class AppEventRunnerImpl : public AppEventRunner,
               DCHECK(!runner->is_visible());
               if (!runner->is_visible()) {
                 base::MemoryPressureListener::NotifyMemoryPressure(
-                    base::MemoryPressureListener::
-                        MEMORY_PRESSURE_LEVEL_CRITICAL);
+                    base::MEMORY_PRESSURE_LEVEL_CRITICAL);
                 // Chromium's memory pressure listeners are invoked
                 // asynchronously on all threads. Explicitly calling
                 // ReclaimAll here forces PartitionAlloc to
@@ -295,7 +294,7 @@ class AppEventRunnerImpl : public AppEventRunner,
   void OnLowMemory(const SbEvent* event) override {
     CHECK(is_running());
     base::MemoryPressureListener::NotifyMemoryPressure(
-        base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+        base::MEMORY_PRESSURE_LEVEL_CRITICAL);
 
     // Chromium internally calls Reclaim/ReclaimNormal at regular interval
     // to claim free memory. Using ReclaimAll is more aggressive.
