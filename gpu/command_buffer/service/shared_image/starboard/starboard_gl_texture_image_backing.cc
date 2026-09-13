@@ -15,7 +15,6 @@
 #include "gpu/command_buffer/service/shared_image/starboard/starboard_gl_texture_image_backing.h"
 
 #include "build/build_config.h"
-#include "components/viz/common/resources/resource_sizes.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/shared_context_state.h"

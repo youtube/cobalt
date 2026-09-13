@@ -178,7 +178,32 @@ mojom("mojom") {
     },
   ]
 
-  cpp_typemaps = [
+  cpp_typemaps = []
+  if (is_cobalt && use_starboard_media) {
+    cpp_typemaps += [
+      {
+        types = [
+          {
+            mojom = "media.mojom.StarboardRendererConfig"
+            cpp = "::media::StarboardRendererConfig"
+          },
+        ]
+        traits_headers = [ "//media/base/ipc/media_param_traits_macros.h" ]
+      },
+      {
+        types = [
+          {
+            mojom = "media.mojom.StarboardRenderingMode"
+            cpp = "::media::StarboardRenderingMode"
+          },
+        ]
+        traits_headers = [ "starboard/starboard_rendering_mode_mojom_traits.h" ]
+        traits_public_deps = [ "//media" ]
+      },
+    ]
+  }
+
+  cpp_typemaps += [
     {
       types = [
         {
@@ -428,6 +453,11 @@ mojom("mojom") {
 mojom("media_types") {
   generate_java = true
   sources = [ "media_types.mojom" ]
+
+  enabled_features = []
+  if (is_cobalt && use_starboard_media) {
+    enabled_features += [ "use_starboard_media" ]
+  }
 
   shared_typemaps = [
     {
@@ -776,30 +806,6 @@ mojom("media_types") {
     "//ui/gfx/mojom",
     "//ui/gfx/mojom:hdr_metadata",
   ]
-
-  if (is_cobalt && use_starboard_media) {
-    cpp_typemaps += [
-      {
-        types = [
-          {
-            mojom = "media.mojom.StarboardRendererConfig"
-            cpp = "::media::StarboardRendererConfig"
-          },
-        ]
-        traits_headers = [ "//media/base/ipc/media_param_traits_macros.h" ]
-      },
-      {
-        types = [
-          {
-            mojom = "media.mojom.StarboardRenderingMode"
-            cpp = "::media::StarboardRenderingMode"
-          },
-        ]
-        traits_headers = [ "starboard/starboard_rendering_mode_mojom_traits.h" ]
-        traits_public_deps = [ "//media" ]
-      },
-    ]
-  }
 
   cpp_typemaps += shared_typemaps
   blink_cpp_typemaps = shared_typemaps

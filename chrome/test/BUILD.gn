@@ -1648,12 +1648,7 @@ source_set("platform_browser_tests") {
       "//chrome/browser/extensions:test_support",
       "//chrome/browser/extensions/api/bookmarks/test:test_support",
       "//chrome/browser/prefetch",
-<<<<<<< HEAD
-      "//chrome/browser/prefs",
-=======
-      "//chrome/browser/preloading:prefs",
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-      "//chrome/browser/reading_list",
+"//chrome/browser/preloading:prefs",      "//chrome/browser/reading_list",
       "//chrome/browser/sync",
       "//chrome/browser/ui:browser_navigator_params_headers",
       "//chrome/browser/ui:ui_features",

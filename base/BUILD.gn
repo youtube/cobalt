@@ -57,15 +57,13 @@ if (is_win) {
   import("//build/config/win/control_flow_guard.gni")
 }
 
-<<<<<<< HEAD
 if (is_android) {
   import("//build/config/android/config.gni")
-=======
+}
+
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
-  import("//starboard/build/config/toolchain_variables.gni")
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  import("//starboard/build/config/toolchain_variables.gni")}
 
 declare_args() {
   # Unsafe developer build. Has developer-friendly features that may weaken or
