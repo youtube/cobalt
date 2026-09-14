@@ -157,6 +157,7 @@ public class StartupGuard {
   private final AtomicBoolean mIsArmed = new AtomicBoolean(false);
   private final AtomicLong mLastMilestoneTimestampMs =
       new AtomicLong(SystemClock.elapsedRealtime());
+  private volatile Runnable mPreCrashHook;
 
   private static class LazyHolder {
     private static final StartupGuard INSTANCE = new StartupGuard();
@@ -172,11 +173,28 @@ public class StartupGuard {
           @Override
           public void run() {
             mIsArmed.set(false);
+            Runnable hook = mPreCrashHook;
+            if (hook != null) {
+              try {
+                hook.run();
+              } catch (Throwable t) {
+                Log.e(TAG, "Error running preCrashHook in StartupGuard", t);
+              }
+            }
             throw new RuntimeException(
                 "Application startup may not have succeeded, crash triggered by StartupGuard. "
                     + getStartupStatusAndDiagnosisInfo());
           }
         };
+  }
+
+  /**
+   * Sets a hook to be executed immediately before StartupGuard triggers a forced crash.
+   *
+   * @param hook The Runnable to execute prior to throwing the runtime exception.
+   */
+  public void setPreCrashHook(Runnable hook) {
+    this.mPreCrashHook = hook;
   }
 
   private String getStartupStatusAndDiagnosisInfo() {
