@@ -14,11 +14,11 @@
 #endif
 
 #ifndef __THROW   // Not a glibc system
-#if defined(_NOEXCEPT) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)  // LLVM libc++ uses noexcept instead
+#ifdef _NOEXCEPT  // LLVM libc++ uses noexcept instead
 #define __THROW _NOEXCEPT
 #else
 #define __THROW
-#endif  // !defined(_NOEXCEPT) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif  // !_NOEXCEPT
 #endif
 
 // Shim layer symbols need to be ALWAYS exported, regardless of component build.
