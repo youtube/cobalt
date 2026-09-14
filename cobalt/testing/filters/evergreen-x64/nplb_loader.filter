@@ -22,4 +22,3 @@
 -PosixSocketShutdownTest.ShutdownRDWR
 -PosixSocketShutdownTest.ShutdownWR
 -PosixThreadAttrTest.SchedParam
--PosixTimeClockTests.ClockIncreasesOverTime
