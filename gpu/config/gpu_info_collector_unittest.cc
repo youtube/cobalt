@@ -169,12 +169,12 @@ class GPUInfoCollectorTest
       EXPECT_CALL(*gl_, GetIntegerv(GL_NUM_EXTENSIONS, _))
           .WillRepeatedly(SetArgPointee<1>(split_extensions_.size()));
       EXPECT_CALL(*gl_, GetStringi(GL_EXTENSIONS, _))
-          .WillRepeatedly(::testing::Invoke([this](GLenum name, GLuint index) -> const GLubyte* {
+          .WillRepeatedly([this](GLenum name, GLuint index) -> const GLubyte* {
             if (name == GL_EXTENSIONS && index < split_extensions_.size()) {
               return reinterpret_cast<const GLubyte*>(split_extensions_[index].c_str());
             }
             return nullptr;
-          }));
+          });
     } else {
       EXPECT_CALL(*gl_, GetString(GL_EXTENSIONS))
           .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(

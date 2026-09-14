@@ -424,13 +424,12 @@ TEST_F(StarboardRendererWrapperTest, ProxyDemuxerStreamDelegation) {
 
   MediaResource* captured_media_resource = nullptr;
   EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
-      .WillOnce(
-          Invoke([&captured_media_resource](MediaResource* media_resource,
-                                            RendererClient* client,
-                                            PipelineStatusCallback& init_cb) {
-            captured_media_resource = media_resource;
-            std::move(init_cb).Run(PIPELINE_OK);
-          }));
+      .WillOnce([&captured_media_resource](MediaResource* media_resource,
+                                           RendererClient* client,
+                                           PipelineStatusCallback& init_cb) {
+        captured_media_resource = media_resource;
+        std::move(init_cb).Run(PIPELINE_OK);
+      });
   EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
   renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
                                 renderer_init_cb_.Get());

@@ -112,12 +112,12 @@ TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSync) {
   auto closure = loop.QuitClosure();
   constexpr bool kValue = true;
   EXPECT_CALL(*h5vcc_accessibility_service(), IsTextToSpeechEnabledSync(_))
-      .WillOnce(::testing::WithArg<0>(
-          ::testing::Invoke([&closure](base::OnceCallback<void(bool)> cb) {
+      .WillOnce(
+          ::testing::WithArg<0>([&closure](base::OnceCallback<void(bool)> cb) {
             // For some reason base::test::RunOnceCallback() didn't work here.
             std::move(cb).Run(kValue);
             closure.Run();
-          })));
+          }));
   EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
   loop.Run();
 }
@@ -136,11 +136,11 @@ TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSyncWithCachedValue) {
 
     EXPECT_CALL(*h5vcc_accessibility_service(), IsTextToSpeechEnabledSync(_))
         .WillOnce(::testing::WithArg<0>(
-            ::testing::Invoke([&closure](base::OnceCallback<void(bool)> cb) {
+            [&closure](base::OnceCallback<void(bool)> cb) {
               // For some reason base::test::RunOnceCallback() didn't work here.
               std::move(cb).Run(kValue);
               closure.Run();
-            })));
+            }));
     EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
     loop.Run();
   }
