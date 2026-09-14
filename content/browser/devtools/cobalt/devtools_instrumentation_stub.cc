@@ -160,6 +160,12 @@ void ApplyNetworkRequestOverrides(
     bool* devtools_accept_language_overridden,
     GURL* referrer_override) {}
 
+DevtoolsOverriddenOutputParams ApplyEmulationOverrides(
+    DevToolsAgentHostImpl* agent_host,
+    net::HttpRequestHeaders* headers) {
+  return DevtoolsOverriddenOutputParams();
+}
+
 void OnNavigationRequestWillBeSent(
     const NavigationRequest& navigation_request) {}
 
