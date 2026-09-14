@@ -4440,6 +4440,8 @@ if (is_android) {
       "android/java/src/org/chromium/base/ThreadUtils.java",
       "android/java/src/org/chromium/base/TimeUtils.java",
       "android/java/src/org/chromium/base/TimezoneUtils.java",
+      "android/java/src/org/chromium/base/Token.java",
+      "android/java/src/org/chromium/base/TokenBase.java",
       "android/java/src/org/chromium/base/TraceEvent.java",
       "android/java/src/org/chromium/base/UnguessableToken.java",
       "android/java/src/org/chromium/base/UnownedUserData.java",
