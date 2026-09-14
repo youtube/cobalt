@@ -18,9 +18,7 @@ namespace blink {
 
 InspectorPerformanceAgent::InspectorPerformanceAgent(
     InspectedFrames* inspected_frames)
-    : InspectorBaseAgent<protocol::Performance::Metainfo>(
-          protocol::Performance::Metainfo::domainName),
-      inspected_frames_(inspected_frames),
+    : inspected_frames_(inspected_frames),
       enabled_(&agent_state_, /*default_value=*/false),
       use_thread_ticks_(&agent_state_, /*default_value=*/false) {}
 
