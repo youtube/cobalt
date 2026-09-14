@@ -307,6 +307,7 @@ shared_library_with_jni("libchrobalt") {
     "//media",
     "//skia",
     "//third_party/blink/public/common",
+
     # Added in 143.7471:
     #
     # The first two were added due to https://crrev.com/c/6996548, which added
