@@ -42,15 +42,15 @@ runs:
           failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests // {} | .[]? | .[]? | .name] | unique' 2>/dev/null || echo "[]")
 
           # Build filter JSON.
-          # - If there are failing tests, run only those tests.
-          # - If target passed with no failures, skip all (*).
-          # - If target failed but no failing tests were identified (e.g. runner crash or timeout),
-          #   do not write a filter so the original test set is retried.
           filter_json=$(jq -n --argjson tests "${failed_tests_json:-"[]"}" --arg passed "${PASSED}" '
+            # If there are failing tests, run only those tests.
             if ($tests | length) > 0 then
               { failing_tests: [], tests_to_run: $tests }
+            # If target passed with no failures, skip all (*).
             elif $passed == "true" then
               { failing_tests: ["*"], tests_to_run: [] }
+            # If target failed but no failing tests were identified (e.g. runner crash or timeout),
+            # do not write a filter so the original test set is retried.
             else
               empty
             end
