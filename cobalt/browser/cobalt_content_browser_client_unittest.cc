@@ -21,6 +21,7 @@
 #include "build/build_config.h"
 #include "cobalt/browser/global_features.h"
 #include "content/public/browser/overlay_window.h"
+#include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -63,6 +64,25 @@ TEST_F(CobaltContentBrowserClientTest,
 #else
   EXPECT_EQ(window, nullptr);
 #endif
+}
+
+TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
+  // 1. Standard Starboard platform constant (24 MiB on Linux/Android/RDK/tvOS):
+  EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
+                kSbMaxSystemPathCacheDirectorySize),
+            13 * 1024 * 1024);
+
+  // 2. Constrained platform budget (<= 11 MiB non-HTTP reserve):
+  EXPECT_EQ(
+      CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(11 * 1024 * 1024),
+      1 * 1024 * 1024);
+
+  // 3. Sub-1 MiB platform budget:
+  EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(512 * 1024),
+            512 * 1024);
+
+  // 4. Zero / unconfigured budget:
+  EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0);
 }
 
 }  // namespace
