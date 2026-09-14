@@ -42,6 +42,7 @@ public class JavaSwitches {
   public static final String DEFAULT_INITIAL_OLD_SPACE_SIZE = "64";
   public static final String DEFAULT_MAX_OLD_SPACE_SIZE = "512";
   public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
+  public static final String DEFAULT_FORCE_DEVICE_SCALE_FACTOR = "1";
 
   public static final String ENABLE_QUIC = "EnableQUIC";
 
@@ -63,8 +64,6 @@ public class JavaSwitches {
   /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
   public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
       "EnableAutoRetryOnNetworkRecovery";
-
-  public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
 
   /** flag to enable deferred V8 bytecode serialization in background/idle */
   public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
@@ -174,12 +173,22 @@ public class JavaSwitches {
   /** Flag to disable v8 baseline compiler sparkplug. */
   public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
 
+  /** flag to enable moderate memory pressure handling on Android. */
+  public static final String ENABLE_MODERATE_MEMORY_PRESSURE = "EnableModerateMemoryPressure";
+
+  /** flag to configure memory pressure throttling cooldown in seconds. */
+  public static final String MEMORY_PRESSURE_COOLDOWN_IN_SECONDS =
+      "MemoryPressureCooldownInSeconds";
+
   /**
    * Flag to enable activity lifecycle coordination and safe surface teardown across overlapping
    * activities.
    */
   public static final String ENABLE_ACTIVITY_LIFECYCLE_COORDINATION =
       "EnableActivityLifecycleCoordination";
+
+  /** Flag to force 720p UI for 1GB RAM devices on 1080p+ displays for A/B testing. */
+  public static final String FORCE_720P_UI_ON_1GB_DEVICES = "Force720pUiOn1GbDevices";
 
   private static Boolean sOverrideForTesting;
 
@@ -304,6 +313,7 @@ public class JavaSwitches {
             + DEFAULT_INITIAL_OLD_SPACE_SIZE
             + ";--max-old-space-size="
             + DEFAULT_MAX_OLD_SPACE_SIZE);
+    defaultArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
     return defaultArgs;
   }
 
@@ -437,10 +447,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
-      extraCommandLineArgs.add("--enable-optimized-font-loading");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
     }
@@ -511,6 +517,26 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--disable-back-forward-cache");
     }
 
+    List<String> enabledMemoryPressureFeatures = new ArrayList<>();
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_MODERATE_MEMORY_PRESSURE)) {
+      enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
+      String cooldown =
+          javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
+      if (cooldown != null) {
+        String cooldownVal = cooldown.replaceAll("[^0-9]", "");
+        if (!cooldownVal.isEmpty()) {
+          enabledMemoryPressureFeatures.add(
+              "CobaltMemoryPressureCooldown:cooldown-seconds/" + cooldownVal);
+        }
+      }
+    }
+    if (!enabledMemoryPressureFeatures.isEmpty()) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + String.join(",", enabledMemoryPressureFeatures));
+    }
+
     // Convert the Java switch to a command-line flag so C++ code and non-Activity Java components
     // (such as NetworkStatus) can query
     // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
@@ -520,6 +546,14 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
       extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES)
+        && DeviceUtil.is1GbDevice()
+        && DeviceUtil.isDisplayAtLeast1080p()) {
+      extraCommandLineArgs.add("--force-device-scale-factor=1.5");
+    } else {
+      extraCommandLineArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
     }
 
     return extraCommandLineArgs;
