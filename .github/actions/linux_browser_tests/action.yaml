@@ -62,11 +62,13 @@ runs:
 
         result_log="${GITHUB_WORKSPACE}/results/cobalt_browsertests_log.txt"
         result_xml="${GITHUB_WORKSPACE}/results/cobalt_browsertests_result.xml"
-        xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "${RUNNER_BINARY}" --no-xvfb --gtest_filter="${TEST_FILTER}" --gtest_output="xml:${result_xml}" 2>&1 | tee "${result_log}" || true
+        exit_code=0
+        xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "${RUNNER_BINARY}" --no-xvfb --gtest_filter="${TEST_FILTER}" --gtest_output="xml:${result_xml}" 2>&1 | tee "${result_log}" || exit_code=$?
 
-        if [[ -f "${result_log}" ]]; then
+        if [[ "${exit_code}" -ne 0 && -f "${result_log}" ]]; then
           python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${result_log}" "${result_xml}"
         fi
+        exit ${exit_code}
 
     - name: Upload Browser Test Results to GCS
       if: always()
