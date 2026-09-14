@@ -36,21 +36,46 @@ runs:
           shift
           local xml_files=("$@")
           local failed_tests_json
+          local has_crash="false"
+
+          # Check if any XML file has an associated crash marker file (.crash).
+          for xml_file in "${xml_files[@]}"; do
+            if [ -f "${xml_file%.xml}.crash" ] || [ -f "${xml_file}.crash" ]; then
+              has_crash="true"
+              break
+            fi
+          done
+
+          # Also check if any target-level crash marker exists in the results directory.
+          if [ "${has_crash}" != "true" ] && [ -d "${RESULTS_DIR}" ]; then
+            for crash_file in "${RESULTS_DIR}"/**/"${TEST_TARGET}"*.crash; do
+              if [ -f "${crash_file}" ]; then
+                has_crash="true"
+                break
+              fi
+            done
+          fi
 
           # Extract failing test names from parser output.
           raw_json=$(python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" || true)
           failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests // {} | .[]? | .[]? | .name] | unique' 2>/dev/null || echo "[]")
 
           # Build filter JSON.
-          filter_json=$(jq -n --argjson tests "${failed_tests_json:-"[]"}" --arg passed "${PASSED}" '
-            # If there are failing tests, run only those tests.
-            if ($tests | length) > 0 then
+          # - If a crash occurred, do not write a filter so the original filters are re-used.
+          # - If there are failing tests, run only those tests.
+          # - If target passed with no failures, skip all (*).
+          # - If target failed but no failing tests were identified (e.g. runner crash or timeout),
+          #   do not write a filter so the original test set is retried.
+          filter_json=$(jq -n \
+            --argjson tests "${failed_tests_json:-"[]"}" \
+            --arg passed "${PASSED}" \
+            --arg has_crash "${has_crash}" '
+            if $has_crash == "true" then
+              empty
+            elif ($tests | length) > 0 then
               { failing_tests: [], tests_to_run: $tests }
-            # If target passed with no failures, skip all (*).
-            elif $passed == "true" then
+            elif ($passed | ascii_downcase) == "true" or ($passed | ascii_downcase) == "success" then
               { failing_tests: ["*"], tests_to_run: [] }
-            # If target failed but no failing tests were identified (e.g. runner crash or timeout),
-            # do not write a filter so the original test set is retried.
             else
               empty
             end

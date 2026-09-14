@@ -83,11 +83,22 @@ if __name__ == '__main__':
         'xml_path',
         type=pathlib.Path,
         help='Path to the output XML report file.')
+    parser.add_argument(
+        '--crash-marker',
+        type=pathlib.Path,
+        default=None,
+        help=('Optional path to write a crash marker file. '
+              'Defaults to <xml_path>.crash'),
+    )
     args = parser.parse_args()
 
     crash_info = _extract_crash(args.log_path)
     if crash_info:
       args.xml_path.parent.mkdir(parents=True, exist_ok=True)
       write_junit_xml(args.xml_path, *crash_info)
+      marker_path = args.crash_marker or args.xml_path.with_suffix('.crash')
+      marker_path.parent.mkdir(parents=True, exist_ok=True)
+      marker_path.write_text(
+          f'{crash_info[0]}.{crash_info[1]}\n', encoding='utf-8')
 
   main()
