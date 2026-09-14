@@ -51,9 +51,7 @@ class MODULES_EXPORT InspectorWebAudioAgent final : public InspectorAgent {
   void DidCreateAudioNode(AudioNode*) {}
   void WillDestroyAudioNode(AudioNode*) {}
   void DidCreateAudioParam(AudioParam*) {}
-  void DidDestroyAudioNode(AudioNode*) {}
-  void DidCreateAudioParam(AudioParam*, AudioNode*) {}
-  void DidDestroyAudioParam(AudioParam*) {}
+  void WillDestroyAudioParam(AudioParam*) {}
   void DidConnectNodes(AudioNode*, AudioNode*, unsigned = 0, unsigned = 0) {}
   void DidDisconnectNodes(AudioNode*,
                           AudioNode* = nullptr,
