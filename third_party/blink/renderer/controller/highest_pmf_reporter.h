@@ -72,26 +72,21 @@ class CONTROLLER_EXPORT HighestPmfReporter
   unsigned webpage_counts_at_current_highest_pmf_ = 0;
   unsigned report_count_ = 0;
 #if BUILDFLAG(IS_COBALT)
-<<<<<<< HEAD
-  Vector<base::TimeDelta> time_to_report_;
-  Vector<String> metric_names_;
-=======
   static HighestPmfReporter* instance_;
 
   struct MetricInfo {
     base::TimeDelta time_to_report;
-    WTF::String pmf_name;
-    WTF::String pmf_foregrounded_name;
-    WTF::String peak_rss_name;
-    WTF::String peak_rss_foregrounded_name;
+    String pmf_name;
+    String pmf_foregrounded_name;
+    String peak_rss_name;
+    String peak_rss_foregrounded_name;
   };
-  WTF::Vector<MetricInfo> metrics_;
+  Vector<MetricInfo> metrics_;
 
   // True after the process has been backgrounded at least once. When false,
   // metrics are reported for the initial startup navigation.
   bool has_been_backgrounded_once_ = false;
   base::CancelableOnceClosure cancelable_report_task_;
->>>>>>> 66c558235a (cobalt/metrics: Peak PMF measurements after foreground (#11996))
 #endif
 };
 
