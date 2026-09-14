@@ -23,14 +23,13 @@ runs:
     - name: Download Artifacts from GCS
       shell: bash
       env:
-        WORKFLOW: ${{ github.workflow }}
-        PLATFORM: ${{ inputs.platform }}
+        TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
         mkdir -p artifacts
         gcloud storage cp \
-          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/cobalt_browsertests_deps.tar.zstd" \
+          "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/cobalt_browsertests_deps.tar.zstd" \
           artifacts/cobalt_browsertests_deps.tar.zstd
 
     - name: Run Browser Tests (Linux)

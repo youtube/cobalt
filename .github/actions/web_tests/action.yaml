@@ -14,13 +14,12 @@ runs:
       shell: bash
       working-directory: cobalt/src
       env:
-        WORKFLOW: ${{ github.workflow }}
-        PLATFORM: ${{ matrix.platform }}
+        TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
         gcloud storage cp \
-          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/test_artifacts.tar.zstd" \
+          "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/test_artifacts.tar.zstd" \
           "${GITHUB_WORKSPACE}/test_artifacts.tar.zstd"
         # The web tests fail when not run from the source folder. Use the existing checkout.
         tar -I 'zstd -T0' -xf "${GITHUB_WORKSPACE}/test_artifacts.tar.zstd"
