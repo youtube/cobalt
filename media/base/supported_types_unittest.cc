@@ -41,7 +41,7 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoTypeBasics) {
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, kColorSpace}));
 #endif
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   EXPECT_FALSE(IsDecoderSupportedVideoType({VideoCodec::kTheora,
                                             VIDEO_CODEC_PROFILE_UNKNOWN,
                                             kUnspecifiedLevel, kColorSpace}));
@@ -203,7 +203,7 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoType_VP9Profiles) {
 #endif  // defined(ENABLE_LIBVPX)
 =======
 #endif
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 TEST(SupportedTypesTest,
      IsDecoderSupportedAudioTypeWithSpatialRenderingBasics) {

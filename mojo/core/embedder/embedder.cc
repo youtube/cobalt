@@ -86,7 +86,7 @@ void InitFeatures() {
       base::FeatureList::IsEnabled(kMojoPosixUseWritev));
 
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   bool shared_mem_enabled =
       base::FeatureList::IsEnabled(kMojoLinuxChannelSharedMem);
   int num_pages = kMojoLinuxChannelSharedMemPages.Get();

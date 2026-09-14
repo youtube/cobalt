@@ -249,7 +249,7 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
           internal_function,
 =======
           function_data,
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
           WasmExportedFunctionData::kProtectedInternalOffset - kHeapObjectTag));
 
   Register signature = internal_function;

@@ -444,7 +444,7 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 
 =======
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (optimization_guide::features::CanLaunchOnDeviceModelService()) {
     services.Add(RunOnDeviceModel);
   }

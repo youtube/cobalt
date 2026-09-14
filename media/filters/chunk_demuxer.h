@@ -94,7 +94,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
       base::TimeDelta media_time,
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
       bool force_instant_gc);
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Signal to the stream that duration has changed to |duration|.
   void OnSetDuration(base::TimeDelta duration);

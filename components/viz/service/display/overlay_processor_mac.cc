@@ -92,7 +92,7 @@ void OverlayProcessorMac::ProcessForOverlays(
         render_pass_backdrop_filters, candidates, factory);
   }
 }
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     CHECK(primary_plane);
     render_pass->has_transparent_background |= !primary_plane->is_opaque;

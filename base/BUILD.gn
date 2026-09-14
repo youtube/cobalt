@@ -64,7 +64,7 @@ if (is_android) {
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
   import("//starboard/build/config/toolchain_variables.gni")
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 declare_args() {

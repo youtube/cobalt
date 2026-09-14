@@ -53,7 +53,7 @@ MIRACLE_PARAMETER_FOR_INT(GetHighEndMemoryThresholdMB,
                           "HighEndMemoryThresholdMB",
                           4096)
 
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Limits for the Graphite client image provider which is responsible for
 // uploading non-GPU backed images (e.g. raster, lazy/generated) to Graphite.
 // The limits are smallish since only a small number of images take this path
@@ -111,7 +111,7 @@ void DetermineGrCacheLimitsFromAvailableMemory(
     *max_resource_cache_bytes = GetMaxLowEndGaneshResourceCacheBytes();
 #endif
     *max_glyph_cache_texture_bytes = GetMaxLowEndGlyphCacheTextureBytes();
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7c028cef5839 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else if (base::SysInfo::AmountOfPhysicalMemory().InMiB() >=
              kHighEndMemoryThresholdInMB) {
     *max_resource_cache_bytes = kMaxHighEndGaneshResourceCacheBytes;
