@@ -1,5 +1,8 @@
 {
-  "failing_tests": [
-    "*"
+  "tests_to_run": [
+    "SbPlayerTest.*",
+    "SbPlayerGetAudioConfigurationTest.*",
+    "SbPlayerGetMediaTimeTest.*",
+    "SbMediaSetAudioWriteDurationTest.*"
   ]
 }
