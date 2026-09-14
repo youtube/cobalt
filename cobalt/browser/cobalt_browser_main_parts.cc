@@ -71,7 +71,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
-#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -246,21 +246,14 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
 
 #if BUILDFLAG(IS_ANDROID)
 void RecordPriorSessionExitReasons() {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
-    return;
-  }
-  base::FilePath base_dir;
-  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
-    return;
-  }
-  base::FilePath metrics_dir =
-      base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
-    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
-        pid, "Cobalt.Stability.Android.SystemExitReason");
+  int exit_reason = -1;
+  std::optional<ProcessStateSnapshot> snapshot =
+      CobaltProcessStateSummaryManager::GetInstance()
+          ->RecordLatestExitReasonAndGetPriorSessionSnapshot(
+              "Cobalt.Stability.Android.SystemExitReason", &exit_reason);
+
+  if (snapshot.has_value() && exit_reason != -1) {
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *snapshot);
   }
 }
 #endif
@@ -288,6 +281,9 @@ int CobaltBrowserMainParts::PreEarlyInitialization() {
           base_dir.AppendASCII(kBrowserStabilityMetricsName);
 
       base::CreateDirectory(metrics_dir);
+
+      ClearOtherStabilityMetricsPmaFiles(
+          metrics_dir, kBrowserStabilityMetricsName, base::GetCurrentProcId());
 
       base::FilePath active_file =
           base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
