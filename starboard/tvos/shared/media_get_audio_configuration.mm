@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
-#define STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
+// clang-format off
+#include "starboard/media.h"
+// clang-format on
 
-#include "starboard/configuration.h"
+#include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
+#include "starboard/tvos/shared/media/playback_capabilities.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#if SB_API_VERSION < 16
-#if !SB_CAN(MAP_EXECUTABLE_MEMORY)
-#error "Evergreen requires executable memory support!"
-#endif
-#endif  // SB_API_VERSION < 16
-#endif  // BUILDFLAG(IS_STARBOARD)
+bool SbMediaGetAudioConfiguration(
+    int output_index,
+    SbMediaAudioConfiguration* out_configuration) {
+  SB_DCHECK_GE(output_index, 0);
+  SB_DCHECK(out_configuration);
 
-#endif  // STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
+  return starboard::PlaybackCapabilities::GetAudioConfiguration(
+      output_index, out_configuration);
+}

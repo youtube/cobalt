@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
-#define STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
+#include "starboard/audio_sink.h"
 
-#include "starboard/configuration.h"
-
-#if BUILDFLAG(IS_STARBOARD)
-#if SB_API_VERSION < 16
-#if !SB_CAN(MAP_EXECUTABLE_MEMORY)
-#error "Evergreen requires executable memory support!"
-#endif
-#endif  // SB_API_VERSION < 16
-#endif  // BUILDFLAG(IS_STARBOARD)
-
-#endif  // STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
+int SbAudioSinkGetNearestSupportedSampleFrequency(int sampling_frequency_hz) {
+  if (sampling_frequency_hz < 8000) {
+    return 8000;
+  }
+  if (sampling_frequency_hz > 48000) {
+    return 48000;
+  }
+  // TODO: Retrieve the nearest supported frequency from AudioManager.
+  return sampling_frequency_hz;
+}

@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
-#define STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
+#ifndef STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_COMPLIANCE_ICU_H_
+#define STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_COMPLIANCE_ICU_H_
 
-#include "starboard/configuration.h"
+#include <mutex>
 
-#if BUILDFLAG(IS_STARBOARD)
-#if SB_API_VERSION < 16
-#if !SB_CAN(MAP_EXECUTABLE_MEMORY)
-#error "Evergreen requires executable memory support!"
-#endif
-#endif  // SB_API_VERSION < 16
-#endif  // BUILDFLAG(IS_STARBOARD)
+#include "cobalt/common/icu_init/init.h"
 
-#endif  // STARBOARD_NPLB_NPLB_EVERGREEN_COMPAT_TESTS_CHECKS_H_
+namespace starboard {
+namespace nplb {
+
+inline void InitializePosixIcuOnce() {
+  static std::once_flag flag;
+  std::call_once(flag, []() { cobalt::common::icu_init::EnsureInitialized(); });
+}
+
+}  // namespace nplb
+}  // namespace starboard
+
+#endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_COMPLIANCE_ICU_H_

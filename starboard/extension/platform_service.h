@@ -34,6 +34,13 @@ typedef CobaltExtensionPlatformServicePrivate* CobaltExtensionPlatformService;
 #define kCobaltExtensionPlatformServiceName \
   "dev.cobalt.extension.PlatformService"
 
+// The maximum length, in bytes, of a message exchanged with a platform
+// service, in either direction. Cobalt rejects larger messages instead of
+// passing them to Send(), and drops larger messages received via
+// ReceiveMessageCallback. Platform service implementations should reject
+// larger messages as well..
+#define kCobaltExtensionPlatformServiceMaxMessageLength (1024ULL * 1024)
+
 // Checks whether a |CobaltExtensionPlatformService| is valid.
 static inline bool CobaltExtensionPlatformServiceIsValid(
     CobaltExtensionPlatformService service) {
