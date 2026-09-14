@@ -38,7 +38,7 @@ bool IsHlsUrl(const GURL& url) {
     return header.find("application/x-mpegurl") != std::string::npos ||
            header.find("application/vnd.apple.mpegurl") != std::string::npos;
   }
-  auto path = url.path_piece();
+  const auto path = url.path();
   return path.ends_with(".m3u8") ||
          path.find("hls_variant") != std::string_view::npos;
 }
