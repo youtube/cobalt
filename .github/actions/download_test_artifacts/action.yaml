@@ -34,7 +34,8 @@ runs:
         set -eux
         project_name=$(gcloud config get-value project)
         mkdir -p "${DESTINATION_PATH}"
-        archive_file="${DESTINATION_PATH}/${ARCHIVE_NAME}"
+        archive_dir=$(realpath "${DESTINATION_PATH}")
+        archive_file="${archive_dir}/${ARCHIVE_NAME}"
         gcloud storage cp \
           "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/${ARCHIVE_NAME}" \
           "${archive_file}"
