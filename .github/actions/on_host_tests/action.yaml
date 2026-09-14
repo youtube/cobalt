@@ -39,17 +39,11 @@ runs:
         git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog
         git submodule update --init third_party/catapult
     - name: Download and Extract Test Artifacts from GCS
-      shell: bash
-      env:
-        TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
-      run: |
-        set -eux
-        project_name=$(gcloud config get-value project)
-        gcloud storage cp \
-          "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/test_artifacts.tar.zstd" \
-          test_artifacts.tar.zstd
-        tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
-        rm -f test_artifacts.tar.zstd
+      uses: ./.github/actions/download_test_artifacts
+      with:
+        test_artifacts_key: ${{ inputs.test_artifacts_key }}
+        archive_name: test_artifacts.tar.zstd
+        extract: "true"
     - name: Prepare Test Filters
       id: prepare-test-filters
       uses: ./.github/actions/prepare_test_filters

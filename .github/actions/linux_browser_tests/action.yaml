@@ -21,16 +21,11 @@ runs:
   using: "composite"
   steps:
     - name: Download Artifacts from GCS
-      shell: bash
-      env:
-        TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
-      run: |
-        set -eux
-        project_name=$(gcloud config get-value project)
-        mkdir -p artifacts
-        gcloud storage cp \
-          "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/cobalt_browsertests_deps.tar.zstd" \
-          artifacts/cobalt_browsertests_deps.tar.zstd
+      uses: ./.github/actions/download_test_artifacts
+      with:
+        test_artifacts_key: ${{ inputs.test_artifacts_key }}
+        archive_name: cobalt_browsertests_deps.tar.zstd
+        destination_path: artifacts
 
     - name: Run Browser Tests (Linux)
       shell: bash
