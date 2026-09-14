@@ -20,8 +20,6 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.ApplicationExitInfo;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -34,7 +32,6 @@ import android.view.InputDevice;
 import android.view.Surface;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.VideoSurfaceView;
@@ -47,7 +44,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
@@ -73,6 +69,10 @@ public class BaseStarboardBridge {
   @VisibleForTesting
   public static void setInstanceForTesting(BaseStarboardBridge bridge) {
     sInstance = bridge;
+  }
+
+  public Context getApplicationContext() {
+    return mAppContext;
   }
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
@@ -1063,38 +1063,7 @@ public class BaseStarboardBridge {
     if (sWasLowMemoryKilledForTesting != null) {
       return sWasLowMemoryKilledForTesting;
     }
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-      return false;
-    }
-    if (mAppContext == null) {
-      return false;
-    }
-    ActivityManager am = (ActivityManager) mAppContext.getSystemService(Context.ACTIVITY_SERVICE);
-    if (am == null) {
-      return false;
-    }
-    return ApiHelperForR.getWasLowMemoryKilled(am);
-  }
-
-  @RequiresApi(Build.VERSION_CODES.R)
-  private static final class ApiHelperForR {
-    private ApiHelperForR() {}
-
-    static boolean getWasLowMemoryKilled(ActivityManager am) {
-      try {
-        // Query the latest process exit reason for this package (pid <= 0).
-        List<ApplicationExitInfo> reasons =
-            am.getHistoricalProcessExitReasons(
-                /* package_name= */ null, /* pid= */ 0, /* maxNum= */ 1);
-        if (reasons == null || reasons.isEmpty() || reasons.get(0) == null) {
-          return false;
-        }
-        return reasons.get(0).getReason() == ApplicationExitInfo.REASON_LOW_MEMORY;
-      } catch (RuntimeException e) {
-        Log.w(TAG, "Failed to get historical process exit reasons", e);
-        return false;
-      }
-    }
+    return CobaltProcessStateSummary.getWasLowMemoryKilled();
   }
 
   @VisibleForTesting
