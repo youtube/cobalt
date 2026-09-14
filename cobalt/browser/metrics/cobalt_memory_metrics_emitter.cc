@@ -33,6 +33,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/meminfo_dump_provider.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #endif
 
 using base::trace_event::MemoryAllocatorDump;
@@ -590,6 +591,21 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
       media::MediaClient::GetMediaSourceTotalAllocatedMemory();
   base::UmaHistogramMemoryMB("Memory.Media.AllocatedEncodedBuffer",
                              static_cast<int>(encoded_memory_bytes / kMiB));
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+  uint32_t v8_code_kb = 0;
+  for (const auto& pmd : global_dump_->process_dumps()) {
+    if (pmd.os_dump().detailed_stats_kb) {
+      auto it = pmd.os_dump().detailed_stats_kb->find("rss:v8");
+      if (it != pmd.os_dump().detailed_stats_kb->end()) {
+        v8_code_kb += it->second;
+      }
+    }
+  }
+  CobaltProcessStateSummaryManager::GetInstance()->UpdateMemoryFootprint(
+      static_cast<uint32_t>(resident_set_total_kb),
+      static_cast<uint32_t>(private_footprint_total_kb), v8_code_kb);
 #endif
 
   global_dump_ = nullptr;
