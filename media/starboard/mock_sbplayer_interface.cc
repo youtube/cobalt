@@ -18,7 +18,6 @@ namespace media {
 
 using ::testing::_;
 using ::testing::AnyNumber;
-using ::testing::Invoke;
 using ::testing::Return;
 
 MockSbPlayerInterface::MockSbPlayerInterface() {
@@ -33,11 +32,11 @@ void MockSbPlayerInterface::SetupDefaultExpectations() {
       .WillRepeatedly(Return(kSbPlayerOutputModePunchOut));
   EXPECT_CALL(*this, Destroy(_))
       .Times(AnyNumber())
-      .WillRepeatedly(Invoke([](SbPlayer player) {
+      .WillRepeatedly([](SbPlayer player) {
         if (player) {
           delete reinterpret_cast<MockSbPlayer*>(player);
         }
-      }));
+      });
   EXPECT_CALL(*this, GetMaximumNumberOfSamplesPerWrite(_, _))
       .Times(AnyNumber())
       .WillRepeatedly(Return(1));
@@ -57,14 +56,13 @@ void MockSbPlayerInterface::SetupDefaultExpectations() {
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   EXPECT_CALL(*this, GetAudioConfiguration(_, _, _))
       .Times(AnyNumber())
-      .WillRepeatedly(
-          Invoke([](SbPlayer /*player*/, int /*index*/,
-                    SbMediaAudioConfiguration* out_audio_configuration) {
-            if (out_audio_configuration) {
-              *out_audio_configuration = {};
-            }
-            return true;
-          }));
+      .WillRepeatedly([](SbPlayer /*player*/, int /*index*/,
+                         SbMediaAudioConfiguration* out_audio_configuration) {
+        if (out_audio_configuration) {
+          *out_audio_configuration = {};
+        }
+        return true;
+      });
 }
 
 }  // namespace media

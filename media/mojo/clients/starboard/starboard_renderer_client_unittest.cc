@@ -43,7 +43,6 @@
 namespace media {
 
 using ::testing::_;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
@@ -156,10 +155,10 @@ class StarboardRendererClientTest : public ::testing::Test {
         std::make_unique<NiceMock<MockGpuVideoAcceleratorFactories>>(nullptr);
     ON_CALL(*mock_gpu_factories_, GetChannelToken(_))
         .WillByDefault(
-            Invoke([](base::OnceCallback<void(const base::UnguessableToken&)>
-                          callback) {
+            [](base::OnceCallback<void(const base::UnguessableToken&)>
+                   callback) {
               std::move(callback).Run(base::UnguessableToken());
-            }));
+            });
 
     media_resource_ = std::make_unique<FakeMediaResource>(3, 9, false);
   }

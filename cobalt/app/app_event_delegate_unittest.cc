@@ -39,7 +39,6 @@
 
 using testing::_;
 using testing::InSequence;
-using testing::Invoke;
 
 namespace cobalt {
 
@@ -52,10 +51,10 @@ class MockAppEventRunner : public AppEventRunner {
     set_is_frozen(true);
 
     ON_CALL(*this, DoFreeze(testing::_))
-        .WillByDefault(testing::Invoke([](base::OnceClosure callback) {
+        .WillByDefault([](base::OnceClosure callback) {
           base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
               FROM_HERE, std::move(callback));
-        }));
+        });
   }
   MOCK_METHOD(void, InitializeSystem, (), (override));
   MOCK_METHOD(void,
@@ -176,9 +175,9 @@ class AppEventDelegateTest : public content::ShellTestBase {
     runner_ = runner.get();
 
     // Use default implementations for state tracking to avoid manual setup.
-    ON_CALL(*runner_, DoStart(_)).WillByDefault(Invoke([this](const SbEvent*) {
+    ON_CALL(*runner_, DoStart(_)).WillByDefault([this](const SbEvent*) {
       is_running_ = true;
-    }));
+    });
 
     content::WebContents::CreateParams create_params(browser_context());
     web_contents_.reset(content::TestWebContents::Create(create_params));
@@ -189,15 +188,15 @@ class AppEventDelegateTest : public content::ShellTestBase {
         .WillByDefault(testing::Return(
             std::vector<content::WebContents*>{web_contents_.get()}));
 
-    ON_CALL(*runner_, DoStop()).WillByDefault(Invoke([this]() {
+    ON_CALL(*runner_, DoStop()).WillByDefault([this]() {
       is_running_ = false;
-    }));
-    ON_CALL(*runner_, DoReveal()).WillByDefault(Invoke([this]() {
+    });
+    ON_CALL(*runner_, DoReveal()).WillByDefault([this]() {
       is_visible_ = true;
-    }));
-    ON_CALL(*runner_, DoConceal()).WillByDefault(Invoke([this]() {
+    });
+    ON_CALL(*runner_, DoConceal()).WillByDefault([this]() {
       is_visible_ = false;
-    }));
+    });
 
     // The constructor calls SetApplicationStateAnnotation(kInitial).
     // We set a baseline expectation that ignores the exact count of SetString
@@ -400,10 +399,9 @@ TEST_F(AppEventDelegateTest, RedundantStartWithLink) {
 
   const char* kLink = "https://example.com";
   SbEventStartData data = {nullptr, 0, kLink};
-  EXPECT_CALL(*runner_, OnLink(_))
-      .WillOnce(Invoke([kLink](const SbEvent* event) {
-        EXPECT_STREQ(static_cast<const char*>(event->data), kLink);
-      }));
+  EXPECT_CALL(*runner_, OnLink(_)).WillOnce([kLink](const SbEvent* event) {
+    EXPECT_STREQ(static_cast<const char*>(event->data), kLink);
+  });
 
   SendEvent(kSbEventTypeStart, &data);
 }
@@ -587,17 +585,15 @@ TEST_P(AppEventDelegateFuzzTest, ChaoticOSLifecycleTransitions) {
   // allowing FlushForTesting() to cleanly and instantly execute them during UI
   // waits, completing the entire 100-run fuzzer suite in under 0.2 seconds.
 
-  ON_CALL(*runner_, DoReveal()).WillByDefault(Invoke([this]() {
-    is_visible_ = true;
-  }));
+  ON_CALL(*runner_, DoReveal()).WillByDefault([this]() { is_visible_ = true; });
 
-  ON_CALL(*runner_, DoConceal()).WillByDefault(Invoke([this]() {
+  ON_CALL(*runner_, DoConceal()).WillByDefault([this]() {
     is_visible_ = false;
-  }));
+  });
 
-  ON_CALL(*runner_, DoFreeze(_))
-      .WillByDefault(Invoke(
-          [](base::OnceClosure callback) { std::move(callback).Run(); }));
+  ON_CALL(*runner_, DoFreeze(_)).WillByDefault([](base::OnceClosure callback) {
+    std::move(callback).Run();
+  });
 
   // 2. Map of fuzzable Starboard OS lifecycle events.
   std::vector<SbEventType> fuzz_events = {

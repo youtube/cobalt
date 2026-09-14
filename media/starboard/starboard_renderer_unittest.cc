@@ -315,8 +315,8 @@ TEST_F(StarboardRendererTest, OnDemuxerErrorDuringInitialization) {
   // asking for data.
   DemuxerStream::ReadCB read_cb;
   EXPECT_CALL(*streams_[0], OnRead(_))
-      .WillOnce(Invoke(
-          [&read_cb](DemuxerStream::ReadCB& cb) { read_cb = std::move(cb); }));
+      .WillOnce(
+          [&read_cb](DemuxerStream::ReadCB& cb) { read_cb = std::move(cb); });
   EXPECT_CALL(*streams_[1], OnRead(_)).Times(0);
 
   // Trigger OnNeedData to start a read.
@@ -369,7 +369,7 @@ TEST_F(StarboardRendererTest,
   std::string created_video_mime;
 
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
-      .WillOnce(Invoke(
+      .WillOnce(
           [&](SbWindow /*window*/, const SbPlayerCreationParam* creation_param,
               SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
               SbPlayerDecoderStatusFunc decoder_status_func,
@@ -389,7 +389,7 @@ TEST_F(StarboardRendererTest,
               }
             }
             return player;
-          }));
+          });
 
   EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
   renderer_->Initialize(&media_resource_, &renderer_client_,
@@ -402,16 +402,16 @@ TEST_F(StarboardRendererTest,
 
   // Verify WriteSamples for Audio with custom MIME parameters.
   DemuxerStream::ReadCB audio_read_cb;
-  EXPECT_CALL(*streams_[0], OnRead(_))
-      .WillOnce(Invoke(
-          [&](DemuxerStream::ReadCB& cb) { audio_read_cb = std::move(cb); }));
+  EXPECT_CALL(*streams_[0], OnRead(_)).WillOnce([&](DemuxerStream::ReadCB& cb) {
+    audio_read_cb = std::move(cb);
+  });
 
   std::string written_audio_mime;
   EXPECT_CALL(mock_sbplayer_interface_,
               WriteSamples(player, kSbMediaTypeAudio, _, _))
-      .WillOnce(Invoke([&](SbPlayer /*player*/, SbMediaType /*type*/,
-                           const SbPlayerSampleInfo* sample_infos,
-                           int number_of_sample_infos) {
+      .WillOnce([&](SbPlayer /*player*/, SbMediaType /*type*/,
+                    const SbPlayerSampleInfo* sample_infos,
+                    int number_of_sample_infos) {
         EXPECT_NE(sample_infos, nullptr);
         EXPECT_GT(number_of_sample_infos, 0);
         if (sample_infos && number_of_sample_infos > 0 &&
@@ -419,7 +419,7 @@ TEST_F(StarboardRendererTest,
           written_audio_mime =
               sample_infos[0].audio_sample_info.stream_info.mime;
         }
-      }));
+      });
 
   decoder_status_cb_(player, context_, kSbMediaTypeAudio,
                      kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
@@ -436,16 +436,16 @@ TEST_F(StarboardRendererTest,
 
   // Verify WriteSamples for Video with custom MIME parameters.
   DemuxerStream::ReadCB video_read_cb;
-  EXPECT_CALL(*streams_[1], OnRead(_))
-      .WillOnce(Invoke(
-          [&](DemuxerStream::ReadCB& cb) { video_read_cb = std::move(cb); }));
+  EXPECT_CALL(*streams_[1], OnRead(_)).WillOnce([&](DemuxerStream::ReadCB& cb) {
+    video_read_cb = std::move(cb);
+  });
 
   std::string written_video_mime;
   EXPECT_CALL(mock_sbplayer_interface_,
               WriteSamples(player, kSbMediaTypeVideo, _, _))
-      .WillOnce(Invoke([&](SbPlayer /*player*/, SbMediaType /*type*/,
-                           const SbPlayerSampleInfo* sample_infos,
-                           int number_of_sample_infos) {
+      .WillOnce([&](SbPlayer /*player*/, SbMediaType /*type*/,
+                    const SbPlayerSampleInfo* sample_infos,
+                    int number_of_sample_infos) {
         EXPECT_NE(sample_infos, nullptr);
         EXPECT_GT(number_of_sample_infos, 0);
         if (sample_infos && number_of_sample_infos > 0 &&
@@ -453,7 +453,7 @@ TEST_F(StarboardRendererTest,
           written_video_mime =
               sample_infos[0].video_sample_info.stream_info.mime;
         }
-      }));
+      });
 
   decoder_status_cb_(player, context_, kSbMediaTypeVideo,
                      kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
