@@ -344,13 +344,12 @@ AudioContext::AudioContext(LocalDOMWindow& window,
   Initialize();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  LOG(INFO) << "Cobalt - AudioContext Initialized:"
-            << " [Sample Rate = " << sampleRate() << " Hz]"
-            << " [Sink Type = "
+  LOG(INFO) << "Cobalt AudioContext Initialized:"
+            << " SampleRate=" << sampleRate() << " Hz,"
+            << " SinkType="
             << (sink_descriptor_.Type() == WebAudioSinkDescriptor::kAudible
                     ? "Audible"
-                    : "Silent")
-            << "]";
+                    : "Silent");
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Compute the base latency now and cache the value since it doesn't change
