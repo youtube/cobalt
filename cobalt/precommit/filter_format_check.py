@@ -21,8 +21,7 @@ import re
 import sys
 from typing import List, Optional, Sequence
 
-_ALLOWED_TEST_CHARS = re.compile(r'^[a-zA-Z0-9_*.?/:<>-]+$')
-_ALLOWED_START_CHARS = re.compile(r'^[a-zA-Z0-9_*?]')
+_VALID_FILTER_LINE = re.compile(r'^[+-]?[a-zA-Z0-9_*?][a-zA-Z0-9_*.?/:<>-]*$')
 
 
 def check_filter_file(filepath: str) -> List[str]:
@@ -34,45 +33,15 @@ def check_filter_file(filepath: str) -> List[str]:
   Returns:
     A list of error message strings describing formatting violations.
   """
-  errors: List[str] = []
   if not os.path.isfile(filepath):
     return [f'{filepath} is not a regular file.']
 
+  errors: List[str] = []
   with open(filepath, 'r', encoding='utf-8') as f:
     for line_num, raw_line in enumerate(f, start=1):
-      line = raw_line.rstrip('\r\n')
-      hash_pos = line.find('#')
-      if hash_pos != -1:
-        line = line[:hash_pos]
-      trimmed = line.strip()
-
-      if trimmed.startswith('//'):
-        errors.append(
-            f'{filepath}:{line_num}: Starts with //, use # for comments.')
-        continue
-
-      if not trimmed:
-        continue
-
-      if trimmed.startswith('+'):
-        pattern = trimmed[1:].strip()
-        if not pattern or not _ALLOWED_TEST_CHARS.match(pattern):
-          errors.append(
-              f'{filepath}:{line_num}: Invalid positive filter pattern'
-              f' "{trimmed}".')
-      elif trimmed.startswith('-'):
-        pattern = trimmed[1:].strip()
-        if not pattern or not _ALLOWED_TEST_CHARS.match(pattern):
-          errors.append(
-              f'{filepath}:{line_num}: Invalid negative filter pattern'
-              f' "{trimmed}".')
-      elif _ALLOWED_START_CHARS.match(trimmed) and _ALLOWED_TEST_CHARS.match(
-          trimmed):
-        # Valid bare positive filter pattern
-        pass
-      else:
-        errors.append(
-            f'{filepath}:{line_num}: Unrecognized line format "{trimmed}".')
+      line = raw_line.split('#', 1)[0].strip()
+      if line and not _VALID_FILTER_LINE.match(line):
+        errors.append(f'{filepath}:{line_num}: Invalid filter format "{line}".')
 
   return errors
 
@@ -86,10 +55,7 @@ def check_filter_files(filepaths: Sequence[str]) -> int:
   Returns:
     1 if any formatting errors were detected, 0 otherwise.
   """
-  all_errors: List[str] = []
-  for filepath in filepaths:
-    all_errors.extend(check_filter_file(filepath))
-
+  all_errors = [e for path in filepaths for e in check_filter_file(path)]
   if all_errors:
     print('Filter file format validation errors found:')
     for err in all_errors:
@@ -105,10 +71,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
   parser.add_argument(
       'files', nargs='*', help='One or more .filter files to validate.')
   args = parser.parse_args(argv)
-
-  if not args.files:
-    return 0
-
   return check_filter_files(args.files)
 
 

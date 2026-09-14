@@ -68,7 +68,7 @@ Suite.PositiveTest1
     path = self._create_file('invalid_comment.filter', content)
     errors = check_filter_file(path)
     self.assertEqual(len(errors), 1)
-    self.assertIn('Starts with //, use # for comments.', errors[0])
+    self.assertIn('Invalid filter format "// Invalid comment"', errors[0])
 
   def test_invalid_negative_pattern(self):
     content = """-
@@ -76,7 +76,7 @@ Suite.PositiveTest1
     path = self._create_file('invalid_negative.filter', content)
     errors = check_filter_file(path)
     self.assertEqual(len(errors), 1)
-    self.assertIn('Invalid negative filter pattern', errors[0])
+    self.assertIn('Invalid filter format "-"', errors[0])
 
   def test_invalid_positive_pattern(self):
     content = """+
@@ -84,7 +84,7 @@ Suite.PositiveTest1
     path = self._create_file('invalid_positive.filter', content)
     errors = check_filter_file(path)
     self.assertEqual(len(errors), 1)
-    self.assertIn('Invalid positive filter pattern', errors[0])
+    self.assertIn('Invalid filter format "+"', errors[0])
 
   def test_unrecognized_line_format(self):
     content = """@UnrecognizedPattern
@@ -92,7 +92,7 @@ Suite.PositiveTest1
     path = self._create_file('unrecognized.filter', content)
     errors = check_filter_file(path)
     self.assertEqual(len(errors), 1)
-    self.assertIn('Unrecognized line format', errors[0])
+    self.assertIn('Invalid filter format "@UnrecognizedPattern"', errors[0])
 
   def test_nonexistent_file(self):
     errors = check_filter_file(os.path.join(self.temp_dir, 'missing.filter'))
