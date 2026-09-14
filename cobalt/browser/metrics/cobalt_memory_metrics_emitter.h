@@ -27,6 +27,7 @@
 #include "base/time/time.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
+#include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom-data-view.h"
 
 namespace cobalt {
 
@@ -83,8 +84,10 @@ class CobaltMemoryMetricsEmitter
  protected:
   virtual ~CobaltMemoryMetricsEmitter();
 
+  // `outcome` is the outcome of the memory dump request, or nullopt if the
+  // memory instrumentation service was not available.
   virtual void ReceivedMemoryDump(
-      bool success,
+      std::optional<memory_instrumentation::mojom::RequestOutcome> outcome,
       std::unique_ptr<memory_instrumentation::GlobalMemoryDump> dump);
 
  private:
