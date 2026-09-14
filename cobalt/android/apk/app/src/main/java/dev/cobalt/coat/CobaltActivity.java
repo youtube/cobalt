@@ -16,6 +16,7 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -26,10 +27,12 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.Display;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
+import android.view.accessibility.CaptioningManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
@@ -42,9 +45,13 @@ import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
+import dev.cobalt.coat.javabridge.SinglePlaneVideoBridge;
+import dev.cobalt.coat.javabridge.SinglePlaneVideoDelegate;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
+import dev.cobalt.media.MediaCodecOutputTracker;
 import dev.cobalt.media.VideoSurfaceView;
+import dev.cobalt.shell.ContentViewRenderView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.shell.ShellManagerJni;
@@ -76,7 +83,8 @@ import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
 /* Abstract activity used by AndroidTV. Extends the base with the Chromium content-shell wiring. */
-public abstract class CobaltActivity extends BaseCobaltActivity {
+public abstract class CobaltActivity extends BaseCobaltActivity
+    implements SinglePlaneVideoDelegate {
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
@@ -130,8 +138,28 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   // back button presses as both key events (onKeyDown/onKeyUp) and OnBackInvokedCallback.
   // To prevent double-triggering back navigation in the web application (which maps back keys
   // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
-  // bypass simulated key dispatching.
   private boolean mPhysicalBackKeyPressed = false;
+
+  // Single-Plane Video Passthrough (1-Surface Mode) state and inactivity auto-engage timer.
+  private static final long SINGLE_PLANE_AUTO_ENGAGE_DELAY_MS = 5000L;
+  private boolean mSinglePlaneEnabled = true;
+  private boolean mIsSinglePlaneModeEngaged = false;
+  private boolean mCaptionsActive = false;
+  private boolean mVideoPlayingFullscreen = false;
+  private CaptioningManager.CaptioningChangeListener mCaptioningChangeListener;
+  private MediaCodecOutputTracker.Listener mVideoPlaybackListener;
+  private final Handler mSinglePlaneHandler = new Handler(Looper.getMainLooper());
+  private final Runnable mSinglePlaneAutoEngageRunnable =
+      () -> {
+        if (mVideoPlayingFullscreen && !mCaptionsActive && !mIsSinglePlaneModeEngaged) {
+          Log.i(
+              TAG,
+              "Single-Plane Mode: Inactivity timeout reached during fullscreen playback, engaging"
+                  + " single-plane passthrough.");
+          setSinglePlaneEngaged(true);
+        }
+      };
+
   private final DisplayUtil.Listener mDisplayListener =
       new DisplayUtil.Listener() {
         @Override
@@ -385,6 +413,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    wakeUpUiSurface();
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       mPhysicalBackKeyPressed = true;
     }
@@ -405,6 +434,18 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       mPhysicalBackKeyPressed = false;
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
+  }
+
+  @Override
+  public boolean dispatchTouchEvent(MotionEvent ev) {
+    wakeUpUiSurface();
+    return super.dispatchTouchEvent(ev);
+  }
+
+  @Override
+  public boolean dispatchGenericMotionEvent(MotionEvent ev) {
+    wakeUpUiSurface();
+    return super.dispatchGenericMotionEvent(ev);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -508,6 +549,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       mBackInvokedCallback = OnBackInvokedHelper.register(this);
     }
+    initSinglePlanePassthrough();
   }
 
   /**
@@ -528,6 +570,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // 1. Gather all Java objects that need to be exposed to JavaScript.
     // TODO(b/379701165): consider to refine the way to add JavaScript interfaces.
     mJavaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
+    mJavaScriptAndroidObjectList.add(new SinglePlaneVideoBridge(this));
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.
@@ -714,7 +757,164 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
       mBackInvokedCallback = null;
     }
+    cleanupSinglePlanePassthrough();
     super.onDestroy();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Single-Plane Video Passthrough (1-Surface Mode)
+  // ---------------------------------------------------------------------------------------------
+
+  private void initSinglePlanePassthrough() {
+    if (CommandLine.getInstance().hasSwitch("disable-single-plane-video-passthrough")) {
+      mSinglePlaneEnabled = false;
+      Log.i(TAG, "Single-Plane Mode disabled via command line switch.");
+    } else {
+      Log.i(TAG, "Single-Plane Mode enabled for fullscreen video passthrough.");
+    }
+
+    CaptioningManager captioningManager =
+        (CaptioningManager) getSystemService(Context.CAPTIONING_SERVICE);
+    if (captioningManager != null) {
+      if (captioningManager.isEnabled()) {
+        mCaptionsActive = true;
+        Log.i(
+            TAG,
+            "Single-Plane Mode: System captions are enabled initially; single-plane mode"
+                + " inhibited.");
+      }
+      mCaptioningChangeListener =
+          new CaptioningManager.CaptioningChangeListener() {
+            @Override
+            public void onEnabledChanged(boolean enabled) {
+              setCaptionsActive(enabled);
+            }
+          };
+      captioningManager.addCaptioningChangeListener(mCaptioningChangeListener);
+    }
+
+    mVideoPlaybackListener =
+        new MediaCodecOutputTracker.Listener() {
+          @Override
+          public void onVideoPlaybackStarted() {
+            Log.i(
+                TAG,
+                "Single-Plane Mode: Video playback started detected via MediaCodecOutputTracker");
+            runOnUiThread(() -> setVideoPlayingFullscreen(true));
+          }
+
+          @Override
+          public void onVideoPlaybackStopped() {
+            Log.i(
+                TAG,
+                "Single-Plane Mode: Video playback stopped detected via MediaCodecOutputTracker");
+            runOnUiThread(() -> setVideoPlayingFullscreen(false));
+          }
+        };
+    MediaCodecOutputTracker.get().addListener(mVideoPlaybackListener);
+  }
+
+  private void cleanupSinglePlanePassthrough() {
+    if (mVideoPlaybackListener != null) {
+      MediaCodecOutputTracker.get().removeListener(mVideoPlaybackListener);
+      mVideoPlaybackListener = null;
+    }
+    if (mCaptioningChangeListener != null) {
+      CaptioningManager captioningManager =
+          (CaptioningManager) getSystemService(Context.CAPTIONING_SERVICE);
+      if (captioningManager != null) {
+        captioningManager.removeCaptioningChangeListener(mCaptioningChangeListener);
+      }
+      mCaptioningChangeListener = null;
+    }
+    mSinglePlaneHandler.removeCallbacks(mSinglePlaneAutoEngageRunnable);
+  }
+
+  /**
+   * Engages or disengages Single-Plane Mode. When engaged, the UI Window surface is hidden
+   * (alpha=0), leaving only the VideoSurfaceView composited by Hardware Composer, eliminating DRAM
+   * scanout memory bandwidth.
+   *
+   * @param engage true to hide UI surface and enter single-plane mode; false to restore UI.
+   */
+  public synchronized void setSinglePlaneEngaged(boolean engage) {
+    if (!mSinglePlaneEnabled && engage) {
+      Log.d(TAG, "Single-Plane Mode requested but feature is disabled.");
+      return;
+    }
+    if (engage && mCaptionsActive) {
+      Log.i(TAG, "Single-Plane Mode inhibited: captions are active.");
+      return;
+    }
+    if (mIsSinglePlaneModeEngaged == engage) {
+      return;
+    }
+    mIsSinglePlaneModeEngaged = engage;
+    ContentViewRenderView renderView =
+        mShellManager != null ? mShellManager.getContentViewRenderView() : null;
+    if (renderView != null) {
+      renderView.setUiSurfaceVisibility(!engage);
+    }
+    Log.i(
+        TAG,
+        engage
+            ? "Single-Plane Mode: ENGAGED (UI window hidden, single video plane scanout active)"
+            : "Single-Plane Mode: DISENGAGED (UI window surface restored)");
+  }
+
+  /**
+   * Instantly restores the UI surface upon user input (remote key press, touch, motion).
+   * Synchronously unhides the UI window layer to ensure zero input lag.
+   */
+  public void wakeUpUiSurface() {
+    if (mIsSinglePlaneModeEngaged) {
+      long startTime = SystemClock.elapsedRealtimeNanos();
+      setSinglePlaneEngaged(false);
+      long latencyUs = (SystemClock.elapsedRealtimeNanos() - startTime) / 1000L;
+      Log.i(
+          TAG, "Single-Plane Mode: Instant UI Wake-Up triggered, restored in " + latencyUs + " us");
+    }
+    if (mVideoPlayingFullscreen && !mCaptionsActive && mSinglePlaneEnabled) {
+      mSinglePlaneHandler.removeCallbacks(mSinglePlaneAutoEngageRunnable);
+      mSinglePlaneHandler.postDelayed(
+          mSinglePlaneAutoEngageRunnable, SINGLE_PLANE_AUTO_ENGAGE_DELAY_MS);
+    }
+  }
+
+  /**
+   * Sets whether captions (subtitles) are currently active. When captions are active, Single-Plane
+   * Mode is inhibited so DOM-rendered captions remain visible.
+   */
+  public void setCaptionsActive(boolean active) {
+    mCaptionsActive = active;
+    Log.i(TAG, "Single-Plane Mode: Captions active state changed to " + active);
+    if (active && mIsSinglePlaneModeEngaged) {
+      wakeUpUiSurface();
+    }
+  }
+
+  /** Sets whether video is playing in fullscreen mode. */
+  public void setVideoPlayingFullscreen(boolean playing) {
+    mVideoPlayingFullscreen = playing;
+    Log.i(TAG, "Single-Plane Mode: Video fullscreen state changed to " + playing);
+    if (!playing) {
+      mSinglePlaneHandler.removeCallbacks(mSinglePlaneAutoEngageRunnable);
+      wakeUpUiSurface();
+    } else if (!mCaptionsActive && mSinglePlaneEnabled) {
+      mSinglePlaneHandler.removeCallbacks(mSinglePlaneAutoEngageRunnable);
+      mSinglePlaneHandler.postDelayed(
+          mSinglePlaneAutoEngageRunnable, SINGLE_PLANE_AUTO_ENGAGE_DELAY_MS);
+    }
+  }
+
+  /** Returns whether Single-Plane Mode is currently engaged. */
+  public boolean isSinglePlaneModeEngaged() {
+    return mIsSinglePlaneModeEngaged;
+  }
+
+  /** Returns whether captions are currently active. */
+  public boolean isCaptionsActive() {
+    return mCaptionsActive;
   }
 
   private boolean isAutoRetryOnNetworkRecoveryEnabled() {

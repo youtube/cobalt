@@ -9,12 +9,14 @@ import static dev.cobalt.shell.Shell.TAG;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PixelFormat;
+import android.os.Looper;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
@@ -231,6 +233,25 @@ public class ContentViewRenderView extends FrameLayout {
         .setOverlayVideoMode(mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
   }
 
+  /**
+   * Toggles the visibility of the UI surface. Used by Single-Plane Video Passthrough (1-Surface
+   * Mode) during fullscreen playback.
+   *
+   * @param visible Whether the UI surface should be visible (true) or hidden (false).
+   */
+  public void setUiSurfaceVisibility(boolean visible) {
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      mSurfaceBridge.setVisibility(visible);
+    } else {
+      post(() -> mSurfaceBridge.setVisibility(visible));
+    }
+  }
+
+  /** Returns whether the UI surface is currently visible. */
+  public boolean isUiSurfaceVisible() {
+    return mSurfaceBridge.isVisible();
+  }
+
   @CalledByNative
   private void didSwapFrame() {
     SurfaceView surfaceView = mSurfaceBridge.getSurfaceView();
@@ -262,6 +283,10 @@ public class ContentViewRenderView extends FrameLayout {
     protected abstract SurfaceView getSurfaceView();
 
     protected abstract void setFormat(int format);
+
+    protected abstract void setVisibility(boolean visible);
+
+    protected abstract boolean isVisible();
   }
 
   /**
@@ -311,6 +336,19 @@ public class ContentViewRenderView extends FrameLayout {
     protected void disconnect() {
       mSurfaceView.getHolder().removeCallback(mSurfaceCallback);
     }
+
+    @Override
+    protected void setVisibility(boolean visible) {
+      if (mSurfaceView != null) {
+        mSurfaceView.setVisibility(visible ? VISIBLE : GONE);
+        Log.i(TAG, "ContentViewRenderView: SurfaceViewBridge visibility set to " + visible);
+      }
+    }
+
+    @Override
+    protected boolean isVisible() {
+      return mSurfaceView != null && mSurfaceView.getVisibility() == VISIBLE;
+    }
   }
 
   /**
@@ -334,6 +372,7 @@ public class ContentViewRenderView extends FrameLayout {
     private final java.util.List<Runnable> mPendingTasks = new java.util.ArrayList<>();
     private boolean mIsNativeStarted;
     private boolean mIsSurfaceCreatedDispatched;
+    private boolean mIsUiVisible = true;
 
     private static Window getWindow(WindowAndroid windowAndroid) {
       if (windowAndroid == null || windowAndroid.getActivity() == null) {
@@ -455,6 +494,7 @@ public class ContentViewRenderView extends FrameLayout {
       mPendingSurfaceFormat = null;
       mPendingTasks.clear();
       mIsSurfaceCreatedDispatched = false;
+      mIsUiVisible = true;
     }
 
     @Override
@@ -479,6 +519,38 @@ public class ContentViewRenderView extends FrameLayout {
       Log.i(TAG, "ContentViewRenderView: Applying pending format");
       mWindowSurfaceHolder.setFormat(mPendingSurfaceFormat);
       mPendingSurfaceFormat = null;
+    }
+
+    @Override
+    protected void setVisibility(boolean visible) {
+      if (mIsUiVisible == visible) {
+        return;
+      }
+      mIsUiVisible = visible;
+      if (mWindow == null) {
+        Log.w(
+            TAG,
+            "ContentViewRenderView: WindowSurfaceBridge setVisibility called but mWindow is null");
+        return;
+      }
+      WindowManager.LayoutParams lp = mWindow.getAttributes();
+      float targetAlpha = visible ? 1.0f : 0.0f;
+      if (lp.alpha != targetAlpha) {
+        lp.alpha = targetAlpha;
+        mWindow.setAttributes(lp);
+        Log.i(
+            TAG,
+            "ContentViewRenderView: Window surface visibility changed to "
+                + visible
+                + " (alpha="
+                + targetAlpha
+                + ")");
+      }
+    }
+
+    @Override
+    protected boolean isVisible() {
+      return mIsUiVisible;
     }
   }
 

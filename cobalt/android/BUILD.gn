@@ -170,6 +170,8 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptAndroidObject.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/SinglePlaneVideoBridge.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/SinglePlaneVideoDelegate.java",
     "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
