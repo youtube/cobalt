@@ -81,12 +81,15 @@ static_library("cobalt_browsertests_test_runner") {
     "content_browser_test_utils_internal.h",
     "content_cert_verifier_browser_test.cc",
     "content_cert_verifier_browser_test.h",
-    "content_test_launcher.cc",
     "resource_load_observer.cc",
     "resource_load_observer.h",
     "webrtc_content_browsertest_base.cc",
     "webrtc_content_browsertest_base.h",
   ]
+
+  if (!is_starboard) {
+    sources += [ "content_test_launcher.cc" ]
+  }
 
   public_deps = [
     "//base",
@@ -223,6 +226,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/h5vcc_memory_browsertest.cc",
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
+    "//cobalt/browser/i18n_browsertest.cc",
 
     # TODO(b/511244766): separate target for perf test.
     "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
