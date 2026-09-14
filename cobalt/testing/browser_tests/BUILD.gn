@@ -234,6 +234,7 @@ test("cobalt_browsertests") {
     # TODO(b/511244766): separate target for perf test.
     "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/cobalt_process_state_summary_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "//cobalt/browser/metrics/highest_pmf_reporter_browsertest.cc",
     "cobalt_constants_browsertest.cc",

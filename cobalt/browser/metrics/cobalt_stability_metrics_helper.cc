@@ -25,10 +25,13 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/process/process_handle.h"
+#include "base/strings/strcat.h"
 #include "base/time/time.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 
 namespace cobalt {
 
@@ -116,6 +119,11 @@ void ClearOtherStabilityMetricsPmaFiles(
     const base::FilePath& metrics_dir,
     const std::string& expected_allocator_name,
     base::ProcessId current_pid) {
+  int64_t total_pma_bytes =
+      GetTotalStabilityMetricsPmaDirSizeBytes(metrics_dir);
+  base::UmaHistogramMemoryKB("Cobalt.Stability.Pma.StartupTotalSizeKB",
+                             static_cast<int>(total_pma_bytes / 1024));
+
   base::FileEnumerator file_iter(metrics_dir, /*recursive=*/false,
                                  base::FileEnumerator::FILES);
   for (base::FilePath file = file_iter.Next(); !file.empty();
@@ -166,6 +174,112 @@ void ClearOtherStabilityMetricsPmaFiles(
   }
 }
 
+void EmitPriorSessionExitSummaryHistograms(
+    int exit_reason,
+    const ProcessStateSnapshot& snapshot) {
+  // If the process was intentionally terminated by Cobalt's StartupGuard
+  // watchdog, attribute it to StartupGuardWatchdogKilled metrics and do not
+  // emit organic OS exit histograms.
+  if (snapshot.was_killed_by_startup_guard()) {
+    base::UmaHistogramExactLinear(
+        "Cobalt.Stability.Android.StartupGuardWatchdogKilled.HighestMilestone",
+        snapshot.highest_milestone, 64);
+    base::UmaHistogramMemoryLargeMB(
+        "Cobalt.Stability.Android.StartupGuardWatchdogKilled.PeakV8CodeMB",
+        snapshot.peak_v8_code_kb / 1024);
+    base::UmaHistogramMemoryLargeMB(
+        "Cobalt.Stability.Android.StartupGuardWatchdogKilled.PeakRssMB",
+        snapshot.peak_rss_kb / 1024);
+    base::UmaHistogramMemoryLargeMB(
+        "Cobalt.Stability.Android.StartupGuardWatchdogKilled.PeakPmfMB",
+        snapshot.peak_pmf_kb / 1024);
+    base::UmaHistogramCustomCounts(
+        "Cobalt.Stability.Android.StartupGuardWatchdogKilled.UptimeSeconds",
+        std::max<int>(1, snapshot.uptime_sec), 1, 3600, 50);
+    return;
+  }
+
+  std::string suffix(ExitReasonToHistogramSuffix(exit_reason));
+
+  // 1. Emit pre-joined histograms for the specific exit reason
+  base::UmaHistogramMemoryLargeMB(
+      base::StrCat({"Cobalt.Stability.Android.PeakRssMB.", suffix}),
+      snapshot.peak_rss_kb / 1024);
+  base::UmaHistogramMemoryLargeMB(
+      base::StrCat({"Cobalt.Stability.Android.PeakPmfMB.", suffix}),
+      snapshot.peak_pmf_kb / 1024);
+  base::UmaHistogramMemoryLargeMB(
+      base::StrCat({"Cobalt.Stability.Android.PeakV8CodeMB.", suffix}),
+      snapshot.peak_v8_code_kb / 1024);
+  base::UmaHistogramCustomCounts(
+      base::StrCat({"Cobalt.Stability.Android.UptimeMinutes.", suffix}),
+      std::max<int>(1, snapshot.uptime_minutes()), 1, 2880, 50);
+  base::UmaHistogramExactLinear(
+      base::StrCat({"Cobalt.Stability.Android.LastTrimLevel.", suffix}),
+      snapshot.last_trim_level, 100);
+
+  // StartupGuard milestone and phase attribution:
+  bool is_early_startup = snapshot.is_startup_guard_armed();
+  base::UmaHistogramBoolean(
+      base::StrCat({"Cobalt.Stability.Android.StartupGuardArmed.", suffix}),
+      is_early_startup);
+  base::UmaHistogramExactLinear(
+      base::StrCat({"Cobalt.Stability.Android.HighestMilestone.", suffix}),
+      snapshot.highest_milestone, 64);
+
+  if (is_early_startup) {
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat(
+            {"Cobalt.Stability.Android.PeakRssMB.EarlyStartup.", suffix}),
+        snapshot.peak_rss_kb / 1024);
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat(
+            {"Cobalt.Stability.Android.PeakPmfMB.EarlyStartup.", suffix}),
+        snapshot.peak_pmf_kb / 1024);
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat(
+            {"Cobalt.Stability.Android.PeakV8CodeMB.EarlyStartup.", suffix}),
+        snapshot.peak_v8_code_kb / 1024);
+    base::UmaHistogramCustomCounts(
+        base::StrCat(
+            {"Cobalt.Stability.Android.UptimeSeconds.EarlyStartup.", suffix}),
+        std::max<int>(1, snapshot.uptime_sec), 1, 3600, 50);
+  }
+
+  // 2. Emit baseline aggregate across all exits
+  base::UmaHistogramMemoryLargeMB("Cobalt.Stability.Android.PeakRssMB.AllExits",
+                                  snapshot.peak_rss_kb / 1024);
+  base::UmaHistogramMemoryLargeMB("Cobalt.Stability.Android.PeakPmfMB.AllExits",
+                                  snapshot.peak_pmf_kb / 1024);
+  base::UmaHistogramMemoryLargeMB(
+      "Cobalt.Stability.Android.PeakV8CodeMB.AllExits",
+      snapshot.peak_v8_code_kb / 1024);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Stability.Android.UptimeMinutes.AllExits",
+      std::max<int>(1, snapshot.uptime_minutes()), 1, 2880, 50);
+  base::UmaHistogramExactLinear(
+      "Cobalt.Stability.Android.LastTrimLevel.AllExits",
+      snapshot.last_trim_level, 100);
+  base::UmaHistogramBoolean(
+      "Cobalt.Stability.Android.StartupGuardArmed.AllExits", is_early_startup);
+  base::UmaHistogramExactLinear(
+      "Cobalt.Stability.Android.HighestMilestone.AllExits",
+      snapshot.highest_milestone, 64);
+  if (is_early_startup) {
+    base::UmaHistogramMemoryLargeMB(
+        "Cobalt.Stability.Android.PeakRssMB.EarlyStartup.AllExits",
+        snapshot.peak_rss_kb / 1024);
+    base::UmaHistogramMemoryLargeMB(
+        "Cobalt.Stability.Android.PeakPmfMB.EarlyStartup.AllExits",
+        snapshot.peak_pmf_kb / 1024);
+    base::UmaHistogramMemoryLargeMB(
+        "Cobalt.Stability.Android.PeakV8CodeMB.EarlyStartup.AllExits",
+        snapshot.peak_v8_code_kb / 1024);
+    base::UmaHistogramCustomCounts(
+        "Cobalt.Stability.Android.UptimeSeconds.EarlyStartup.AllExits",
+        std::max<int>(1, snapshot.uptime_sec), 1, 3600, 50);
+  }
+}
 std::vector<base::ProcessId> ExtractPriorSessionPids(
     const base::FilePath& metrics_dir,
     const std::string& expected_allocator_name,

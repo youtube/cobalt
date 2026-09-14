@@ -20,6 +20,7 @@
 
 #include "base/files/file_path.h"
 #include "base/process/process_handle.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 
 namespace cobalt {
 
@@ -36,6 +37,12 @@ bool EnsurePmaDirectoryBudget(const base::FilePath& metrics_dir,
                               const std::string& expected_allocator_name,
                               int64_t max_total_bytes,
                               int64_t bytes_to_add);
+
+// Emits pre-joined memory and stability histograms for a prior session snapshot
+// according to |exit_reason|.
+void EmitPriorSessionExitSummaryHistograms(
+    int exit_reason,
+    const ProcessStateSnapshot& snapshot);
 
 // Extracts process IDs of prior sessions from persistent memory allocator
 // (.pma) files located in |metrics_dir| matching |expected_allocator_name|.

@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -25,7 +27,9 @@
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/process/process_handle.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -246,6 +250,31 @@ TEST_F(CobaltStabilityMetricsHelperTest,
 }
 
 TEST_F(CobaltStabilityMetricsHelperTest,
+       ClearOtherStabilityMetricsPmaFiles_EmitsStartupTotalSizeHistogram) {
+  base::HistogramTester histogram_tester;
+  base::Time stamp = base::Time::FromTimeT(1700000000);
+
+  base::FilePath pma1 =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir(), kExpectedAllocatorName, stamp, 1234);
+  std::string data1(2048, 'a');
+  ASSERT_TRUE(base::WriteFile(pma1, data1));
+
+  base::FilePath pma2 =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir(), kExpectedAllocatorName, stamp, 5678);
+  std::string data2(4096, 'b');
+  ASSERT_TRUE(base::WriteFile(pma2, data2));
+
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir(), kExpectedAllocatorName,
+                                     /*current_pid=*/9999);
+
+  // Total size is 2048 + 4096 = 6144 bytes = 6 KB.
+  histogram_tester.ExpectUniqueSample("Cobalt.Stability.Pma.StartupTotalSizeKB",
+                                      6, 1);
+}
+
+TEST_F(CobaltStabilityMetricsHelperTest,
        ClearOtherStabilityMetricsPmaFiles_HandlesEmptyAndNonExistentDirs) {
   base::FilePath non_existent = metrics_dir().AppendASCII("non_existent_dir");
   EXPECT_NO_FATAL_FAILURE(ClearOtherStabilityMetricsPmaFiles(
@@ -443,6 +472,134 @@ TEST_F(CobaltStabilityMetricsHelperTest,
        EnsurePmaDirectoryBudget_RejectsWhenSingleFileExceedsMax) {
   EXPECT_FALSE(EnsurePmaDirectoryBudget(metrics_dir(), kExpectedAllocatorName,
                                         512 * 1024, 1024 * 1024));
+}
+
+TEST_F(CobaltStabilityMetricsHelperTest,
+       HistogramEmissionAllExitsAndReasonSpecific) {
+  base::HistogramTester histogram_tester;
+
+  ProcessStateSnapshot snapshot;
+  snapshot.peak_rss_kb = 400 * 1024;     // 400 MB
+  snapshot.peak_pmf_kb = 350 * 1024;     // 350 MB
+  snapshot.peak_v8_code_kb = 60 * 1024;  // 60 MB
+  snapshot.uptime_sec = 7200;            // 120 minutes
+  snapshot.last_trim_level = 80;         // TRIM_MEMORY_COMPLETE
+  snapshot.flags = kFlagForeground | kFlagStartupGuardArmed;
+  snapshot.startup_milestones = (1ULL << 0) | (1ULL << 5);
+  snapshot.highest_milestone = 5;
+
+  // Test LowMemory (exit_reason = 7)
+  EmitPriorSessionExitSummaryHistograms(7, snapshot);
+
+  // Suffix-specific histograms
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakRssMB.LowMemory", 400, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakPmfMB.LowMemory", 350, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakV8CodeMB.LowMemory", 60, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeMinutes.LowMemory", 120, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.LastTrimLevel.LowMemory", 80, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.StartupGuardArmed.LowMemory", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.HighestMilestone.LowMemory", 5, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakRssMB.EarlyStartup.LowMemory", 400, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakPmfMB.EarlyStartup.LowMemory", 350, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakV8CodeMB.EarlyStartup.LowMemory", 60, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeSeconds.EarlyStartup.LowMemory", 7200, 1);
+
+  // AllExits baseline histograms
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakRssMB.AllExits", 400, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakPmfMB.AllExits", 350, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakV8CodeMB.AllExits", 60, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeMinutes.AllExits", 120, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.LastTrimLevel.AllExits", 80, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.StartupGuardArmed.AllExits", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.HighestMilestone.AllExits", 5, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakRssMB.EarlyStartup.AllExits", 400, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakPmfMB.EarlyStartup.AllExits", 350, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PeakV8CodeMB.EarlyStartup.AllExits", 60, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeSeconds.EarlyStartup.AllExits", 7200, 1);
+}
+
+TEST_F(CobaltStabilityMetricsHelperTest,
+       HistogramEmissionStartupGuardWatchdogKilled) {
+  base::HistogramTester histogram_tester;
+
+  ProcessStateSnapshot snapshot;
+  snapshot.peak_rss_kb = 250 * 1024;     // 250 MB
+  snapshot.peak_pmf_kb = 200 * 1024;     // 200 MB
+  snapshot.peak_v8_code_kb = 75 * 1024;  // 75 MB
+  snapshot.uptime_sec = 45;              // 45 seconds
+  snapshot.last_trim_level = 0;
+  snapshot.flags = kFlagStartupGuardArmed | kFlagStartupGuardTriggeredKill;
+  snapshot.startup_milestones = (1ULL << 0) | (1ULL << 3);
+  snapshot.highest_milestone = 3;
+
+  // Even if OS reported exit_reason = Crash (1), watchdog kills must be routed
+  // exclusively to StartupGuardWatchdogKilled histograms.
+  EmitPriorSessionExitSummaryHistograms(1, snapshot);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.StartupGuardWatchdogKilled.HighestMilestone", 3,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.StartupGuardWatchdogKilled.PeakV8CodeMB", 75,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.StartupGuardWatchdogKilled.PeakRssMB", 250, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.StartupGuardWatchdogKilled.PeakPmfMB", 200, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.StartupGuardWatchdogKilled.UptimeSeconds", 45,
+      1);
+
+  // Must NOT emit organic Crash histograms
+  histogram_tester.ExpectTotalCount("Cobalt.Stability.Android.PeakRssMB.Crash",
+                                    0);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.PeakRssMB.AllExits", 0);
+}
+
+TEST_F(CobaltStabilityMetricsHelperTest, ZeroUptimeHistogramClamping) {
+  base::HistogramTester histogram_tester;
+
+  ProcessStateSnapshot snapshot;
+  snapshot.peak_rss_kb = 100 * 1024;
+  snapshot.peak_pmf_kb = 80 * 1024;
+  snapshot.peak_v8_code_kb = 20 * 1024;
+  snapshot.uptime_sec = 0;  // Zero seconds uptime
+  snapshot.last_trim_level = 0;
+  snapshot.flags = kFlagStartupGuardArmed;
+  snapshot.startup_milestones = 1ULL;
+  snapshot.highest_milestone = 0;
+
+  EmitPriorSessionExitSummaryHistograms(7, snapshot);
+
+  // Both UptimeMinutes (0 / 60 = 0 -> clamped to 1) and UptimeSeconds (0 ->
+  // clamped to 1)
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeMinutes.LowMemory", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.UptimeSeconds.EarlyStartup.LowMemory", 1, 1);
 }
 
 }  // namespace
