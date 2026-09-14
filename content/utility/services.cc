@@ -437,14 +437,11 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
   services.Add(RunVideoEffects);
 #endif
 
-<<<<<<< HEAD
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   services.Add(RunOOPVideoDecoderFactoryProcessService);
 #endif
 
-=======
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (optimization_guide::features::CanLaunchOnDeviceModelService()) {
     services.Add(RunOnDeviceModel);
   }
