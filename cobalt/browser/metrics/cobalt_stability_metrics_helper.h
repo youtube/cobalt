@@ -20,8 +20,25 @@
 
 #include "base/files/file_path.h"
 #include "base/process/process_handle.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 
 namespace cobalt {
+
+// Reads all persistent memory allocator (.pma) files in |metrics_dir|
+// matching |expected_allocator_name| (excluding |current_pid|) into memory by
+// merging their histogram deltas into the global StatisticsRecorder, and then
+// removes them from disk. Also removes any corrupt or unrecognized .pma files,
+// and any files matching |current_pid|.
+void ClearOtherStabilityMetricsPmaFiles(
+    const base::FilePath& metrics_dir,
+    const std::string& expected_allocator_name,
+    base::ProcessId current_pid = base::kNullProcessId);
+
+// Emits pre-joined memory and stability histograms for a prior session snapshot
+// according to |exit_reason|.
+void EmitPriorSessionExitSummaryHistograms(
+    int exit_reason,
+    const ProcessStateSnapshot& snapshot);
 
 // Extracts process IDs of prior sessions from persistent memory allocator
 // (.pma) files located in |metrics_dir| matching |expected_allocator_name|.
