@@ -48,8 +48,7 @@ def _extract_crash(log_path: pathlib.Path) -> Optional[Tuple[str, str, str]]:
       # If the test crashed there are no end markers.
       if any(marker in log for marker in END_MARKERS):
         break
-      run_idx = line.find(RUN_MARKER)
-      test_name = line[run_idx + len(RUN_MARKER):].strip()
+      test_name = line.partition(RUN_MARKER)[2].strip()
       suite, name = test_name.split(
           '.', 1) if '.' in test_name else ('UnknownSuite', test_name)
       return suite, name, log
