@@ -193,9 +193,14 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
     auto handle = base::Process::Open(pid).Handle();
     mojom::RawOSMemDumpPtr result = mojom::RawOSMemDump::New();
     result->platform_private_footprint = mojom::PlatformPrivateFootprint::New();
-<<<<<<< HEAD
 
-    if (!OSMetrics::FillOSMemoryDump(handle, args.flags, result.get())) {
+    if (!OSMetrics::FillOSMemoryDump(
+            handle, args.flags, result.get()
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
+                                    ,
+            MemoryInstrumentation::GetInstance()->GetDetailedMetricsDelegate()
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
+                )) {
       DLOG(ERROR) << "OS memory dump failed for pid " << pid
                   << " (FillOSMemoryDump)";
       outcome = mojom::RequestOutcome::kFillOsMemoryDumpFailed;
@@ -205,22 +210,6 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
       DLOG(ERROR) << "OS memory dump failed for pid " << pid
                   << " (FillProcessMemoryMaps)";
       outcome = mojom::RequestOutcome::kFillProcessMemoryMapsFailed;
-=======
-    bool success = OSMetrics::FillOSMemoryDump(
-        handle, args.flags, result.get()
-#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-	,
-        MemoryInstrumentation::GetInstance()->GetDetailedMetricsDelegate()
-#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-	);
- 
-    if (args.mmap_option != mojom::MemoryMapOption::NONE) {
-      success = success && OSMetrics::FillProcessMemoryMaps(
-                               handle, args.mmap_option, result.get());
-    }
-    if (success) {
-      results[pid] = std::move(result);
->>>>>>> parent of 158c37c2b1f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     } else {
       results[pid] = std::move(result);
     }

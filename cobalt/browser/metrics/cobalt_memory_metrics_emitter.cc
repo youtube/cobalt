@@ -341,8 +341,13 @@ void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
   auto* instrumentation =
       memory_instrumentation::MemoryInstrumentation::GetInstance();
   if (instrumentation) {
-    auto callback =
-        base::BindOnce(&CobaltMemoryMetricsEmitter::ReceivedMemoryDump, this);
+    auto callback = base::BindOnce(
+        [](scoped_refptr<CobaltMemoryMetricsEmitter> emitter,
+           memory_instrumentation::mojom::RequestOutcome outcome,
+           std::unique_ptr<GlobalMemoryDump> dump) {
+          emitter->ReceivedMemoryDump(outcome, std::move(dump));
+        },
+        scoped_refptr<CobaltMemoryMetricsEmitter>(this));
     std::vector<std::string> mad_list;
     for (const auto& metric : kAllocatorDumpNamesForMetrics) {
       mad_list.push_back(metric.dump_name);
@@ -352,19 +357,20 @@ void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&CobaltMemoryMetricsEmitter::ReceivedMemoryDump, this,
-                       false, nullptr));
+                       /*outcome=*/std::nullopt, /*dump=*/nullptr));
   }
 }
 
 CobaltMemoryMetricsEmitter::~CobaltMemoryMetricsEmitter() = default;
 
 void CobaltMemoryMetricsEmitter::ReceivedMemoryDump(
-    bool success,
+    std::optional<memory_instrumentation::mojom::RequestOutcome> outcome,
     std::unique_ptr<GlobalMemoryDump> dump) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   memory_dump_in_progress_ = false;
-  if (!success || !dump) {
+  if (outcome != memory_instrumentation::mojom::RequestOutcome::kSuccess ||
+      !dump) {
     if (callback_for_testing_) {
       std::move(callback_for_testing_).Run();
     }
