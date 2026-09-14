@@ -101,7 +101,7 @@
     }
   ],
   "test_dimensions": {
-    "device_type": "arm_devices",
+    "device_type": "sabrina",
     "device_pool": "maneki"
   },
   "targets": [
