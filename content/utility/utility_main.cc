@@ -352,18 +352,7 @@ int UtilityMain(MainFunctionParams parameters) {
 #else
       NOTREACHED();
 #endif
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(IS_LINUX)
-    case sandbox::mojom::Sandbox::kVideoEffects:
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-      pre_sandbox_hook =
-          base::BindOnce(&video_effects::VideoEffectsPreSandboxHook);
-#endif
-      break;
-#endif  // BUILDFLAG(IS_LINUX)
 #endif  // !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 158c37c2b1f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kShapeDetection:
       pre_sandbox_hook =
