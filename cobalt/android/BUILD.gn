@@ -307,6 +307,22 @@ shared_library_with_jni("libchrobalt") {
     "//media",
     "//skia",
     "//third_party/blink/public/common",
+    # Added in 143.7471:
+    #
+    # The first two were added due to https://crrev.com/c/6996548, which added
+    # a dependency on //components/permissions/android code to
+    # //services/device/geolocation.
+
+    # //components/permissions/android:core is a Cobalt-specific target that
+    # contains the C++ side of the JNI code without all the deps of the main
+    # //components/permissions target. The dependency on //components/webxr is
+    # just a byproduct of PermissionUtil.java being part of "core_java" and
+    # using a webxr class.
+    #
+    # //media/capture/video/android comes from https://crrev.com/c/7008390.
+    "//components/permissions/android:core",
+    "//components/webxr/android:features",
+    "//media/capture/video/android",
   ]
 
   # Explicit dependency required for JNI registration to be able to
