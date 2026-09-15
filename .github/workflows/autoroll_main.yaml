@@ -8,7 +8,6 @@ on:
       max_commits:
         description: 'Max number of commits to include on a single PR'
         type: number
-        default: 10
 
 permissions:
   contents: read

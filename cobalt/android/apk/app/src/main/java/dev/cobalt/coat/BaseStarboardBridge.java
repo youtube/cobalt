@@ -134,6 +134,7 @@ public class BaseStarboardBridge {
   private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
   private static final String DEFAULT_DEVICE_NAME = "Android";
+  private static volatile Boolean sWasLowMemoryKilledForTesting;
   private final Natives mNatives = BaseStarboardBridgeJni.get();
 
   /**
@@ -1059,6 +1060,9 @@ public class BaseStarboardBridge {
 
   @CalledByNative
   public boolean getWasLowMemoryKilled() {
+    if (sWasLowMemoryKilledForTesting != null) {
+      return sWasLowMemoryKilledForTesting;
+    }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
       return false;
     }
@@ -1091,5 +1095,10 @@ public class BaseStarboardBridge {
         return false;
       }
     }
+  }
+
+  @VisibleForTesting
+  public static void setWasLowMemoryKilledForTesting(@Nullable Boolean wasKilled) {
+    sWasLowMemoryKilledForTesting = wasKilled;
   }
 }
