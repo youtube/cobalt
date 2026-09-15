@@ -136,9 +136,11 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
           base::trace_event::MemoryDumpDeterminism::kNone, {},
           base::BindOnce(
               [](base::OnceClosure quit_closure, base::ProcessId browser_pid,
-                 bool success,
+                 memory_instrumentation::mojom::RequestOutcome outcome,
                  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
-                EXPECT_TRUE(success);
+                EXPECT_EQ(
+                    memory_instrumentation::mojom::RequestOutcome::kSuccess,
+                    outcome);
                 ASSERT_TRUE(dump);
                 bool found_browser_detailed_stats = false;
                 for (const auto& process_dump : dump->process_dumps) {
@@ -180,9 +182,11 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest,
           base::trace_event::MemoryDumpDeterminism::kNone, {},
           base::BindOnce(
               [](base::OnceClosure quit_closure, base::ProcessId browser_pid,
-                 bool success,
+                 memory_instrumentation::mojom::RequestOutcome outcome,
                  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
-                EXPECT_TRUE(success);
+                EXPECT_EQ(
+                    memory_instrumentation::mojom::RequestOutcome::kSuccess,
+                    outcome);
                 ASSERT_TRUE(dump);
                 for (const auto& process_dump : dump->process_dumps) {
                   if (process_dump->pid == browser_pid) {
@@ -260,9 +264,12 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
           base::trace_event::MemoryDumpDeterminism::kNone, {},
           base::BindOnce(
               [](base::OnceClosure quit_closure, base::ProcessId renderer_pid,
-                 base::ScopedFILE file, bool success,
+                 base::ScopedFILE file,
+                 memory_instrumentation::mojom::RequestOutcome outcome,
                  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
-                EXPECT_TRUE(success);
+                EXPECT_EQ(
+                    memory_instrumentation::mojom::RequestOutcome::kSuccess,
+                    outcome);
                 ASSERT_TRUE(dump);
                 bool found_renderer_detailed_stats = false;
                 for (const auto& process_dump : dump->process_dumps) {

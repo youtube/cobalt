@@ -47,11 +47,7 @@ class GL_EXPORT GLContextEGL : public GLContextReal {
  private:
 #if !BUILDFLAG(IS_COBALT)
   void Destroy();
-<<<<<<< HEAD
-=======
 #endif
-  void ReleaseBackpressureFences();
->>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   EGLContext context_ = nullptr;
   raw_ptr<GLDisplayEGL> gl_display_ = nullptr;

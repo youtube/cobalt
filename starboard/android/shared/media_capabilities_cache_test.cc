@@ -297,12 +297,12 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
 TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_ResolutionLimits) {
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+      .WillOnce([](auto&, auto& video_caps) {
         video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
             /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
             /*is_hdr_capable=*/false, Range{0, 1920}, Range{0, 1080},
             Range{0, 10'000'000}, Range{0, 30});
-      }));
+      });
 
   EXPECT_TRUE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
                                          /*must_support_secure=*/false,
@@ -352,11 +352,11 @@ TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_ResolutionLimits) {
 TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+      .WillOnce([](auto&, auto& video_caps) {
         video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
             /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
             /*is_hdr_capable=*/true);
-      }));
+      });
 
   EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
                                      /*must_support_secure=*/false,
@@ -369,7 +369,7 @@ TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
 TEST_F(MediaCapabilitiesCacheTest, RejectLowPerformanceSoftwareDecoder) {
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+      .WillOnce([](auto&, auto& video_caps) {
         MediaCapabilitiesProvider::VideoCodecCapabilities caps;
         caps.push_back(std::make_unique<MockVideoCodecCapability>(
             "OMX.test.soft.vp9.decoder",
@@ -379,7 +379,7 @@ TEST_F(MediaCapabilitiesCacheTest, RejectLowPerformanceSoftwareDecoder) {
             /*is_hdr_capable=*/false, Range{0, 1280}, Range{0, 720},
             Range{0, 5'000'000}, Range{0, 30}));
         video_caps["video/x-vnd.on2.vp9"] = std::move(caps);
-      }));
+      });
 
   // Case 1: Software codec is NOT required.
   // The software decoder should be rejected because it is low performance (does
