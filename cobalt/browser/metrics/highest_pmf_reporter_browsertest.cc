@@ -555,9 +555,7 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
                        MAYBE_RenderThreadStateTransitionForeground) {
   content::RenderThreadImpl* render_thread =
       content::RenderThreadImpl::current();
-  if (!render_thread) {
-    return;
-  }
+  ASSERT_TRUE(render_thread);
 
   content::mojom::Renderer* renderer = render_thread;
   base::HistogramTester histogram_tester;
