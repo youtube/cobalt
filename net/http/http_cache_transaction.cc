@@ -4144,23 +4144,15 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     }
   }
 
-<<<<<<< HEAD
-    // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
-    const auto len = headers.GetContentLength();
-    if (len && len->InBytes() >= 0 && len->InBytes() < 512) {
-      return true;
-    }
-=======
   // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
   if (headers.response_code() < 200 || headers.response_code() >= 400) {
     return true;
   }
 
   // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
-  int64_t len = headers.GetContentLength();
-  if (len >= 0 && len < 512) {
+  const auto len = headers.GetContentLength();
+  if (len && len->InBytes() >= 0 && len->InBytes() < 512) {
     return true;
->>>>>>> 308b9d5ab1 (HTTP cache: enable css/wasm and blocklist (#12588))
   }
 #endif
 
