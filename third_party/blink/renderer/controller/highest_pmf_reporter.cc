@@ -87,8 +87,8 @@ HighestPmfReporter::HighestPmfReporter(
 
 #if BUILDFLAG(IS_COBALT)
 HighestPmfReporter::~HighestPmfReporter() {
-  // In production this is a long-lived singleton, but unit tests create and
-  // tear down MockHighestPmfReporter instances per test.
+  // In production this is a long-lived singleton, but unit tests and browser
+  // tests create and tear down MockHighestPmfReporter instances per test.
   CHECK_EQ(instance_, this);
   instance_ = nullptr;
   MemoryUsageMonitor::Instance().RemoveObserver(this);

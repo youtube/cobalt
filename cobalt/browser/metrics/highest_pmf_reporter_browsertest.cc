@@ -94,8 +94,12 @@ class HighestPmfReporterBrowserTest : public content::ContentBrowserTest {
 
     // Tests run in the browser process; WTF partitions are not automatically
     // initialized.
-    WTF::Partitions::Initialize();
-    WTF::Initialize();
+    static const bool partitions_and_wtf_initialized = []() {
+      WTF::Partitions::Initialize();
+      WTF::Initialize();
+      return true;
+    }();
+    (void)partitions_and_wtf_initialized;
 
     memory_usage_monitor_ = std::make_unique<blink::MockMemoryUsageMonitor>(
         test_task_runner_, test_task_runner_->GetMockTickClock());
