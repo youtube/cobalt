@@ -122,15 +122,14 @@ bool ParseAudioInfo(const MimeType& mime_type,
   if (audio_codec == kSbMediaAudioCodecNone) {
     return false;
   }
-  if (!mime_type.ValidateIntParameter(MimeType::Param::kChannels) ||
-      !mime_type.ValidateIntParameter(MimeType::Param::kBitrate)) {
+  if (!mime_type.ValidateIntParameter(kMimeParamChannels) ||
+      !mime_type.ValidateIntParameter(kMimeParamBitrate)) {
     return false;
   }
   audio_info->codec = audio_codec;
-  audio_info->channels = mime_type.GetParamIntValue(MimeType::Param::kChannels,
-                                                    kDefaultAudioChannels);
-  audio_info->bitrate =
-      mime_type.GetParamIntValue(MimeType::Param::kBitrate, 0);
+  audio_info->channels =
+      mime_type.GetParamIntValue(kMimeParamChannels, kDefaultAudioChannels);
+  audio_info->bitrate = mime_type.GetParamIntValue(kMimeParamBitrate, 0);
 
   return audio_info->channels >= 0 && audio_info->bitrate >= 0;
 }
@@ -152,7 +151,7 @@ bool ParseVideoInfo(const MimeType& mime_type,
     return false;
   }
 
-  std::string eotf = mime_type.GetParamStringValue(MimeType::Param::kEotf, "");
+  std::string eotf = mime_type.GetParamStringValue(kMimeParamEotf, "");
   if (!eotf.empty()) {
     SbMediaTransferId transfer_id_from_eotf = GetTransferIdFromString(eotf);
     if (transfer_id_from_eotf == kSbMediaTransferIdUnknown) {
@@ -170,27 +169,23 @@ bool ParseVideoInfo(const MimeType& mime_type,
     video_info->transfer_id = transfer_id_from_eotf;
   }
 
-  if (!mime_type.ValidateIntParameter(MimeType::Param::kWidth) ||
-      !mime_type.ValidateIntParameter(MimeType::Param::kHeight) ||
-      !mime_type.ValidateFloatParameter(MimeType::Param::kFramerate) ||
-      !mime_type.ValidateIntParameter(MimeType::Param::kBitrate) ||
-      !mime_type.ValidateBoolParameter(MimeType::Param::kDecodeToTexture)) {
+  if (!mime_type.ValidateIntParameter(kMimeParamWidth) ||
+      !mime_type.ValidateIntParameter(kMimeParamHeight) ||
+      !mime_type.ValidateFloatParameter(kMimeParamFramerate) ||
+      !mime_type.ValidateIntParameter(kMimeParamBitrate) ||
+      !mime_type.ValidateBoolParameter(kMimeParamDecodeToTexture)) {
     return false;
   }
 
-  video_info->frame_width =
-      mime_type.GetParamIntValue(MimeType::Param::kWidth, 0);
-  video_info->frame_height =
-      mime_type.GetParamIntValue(MimeType::Param::kHeight, 0);
+  video_info->frame_width = mime_type.GetParamIntValue(kMimeParamWidth, 0);
+  video_info->frame_height = mime_type.GetParamIntValue(kMimeParamHeight, 0);
   // TODO: Support float framerate. Our starboard implementation only supports
   // integer framerate, but framerate could be float and we should support it.
-  float framerate =
-      mime_type.GetParamFloatValue(MimeType::Param::kFramerate, 0.0f);
+  float framerate = mime_type.GetParamFloatValue(kMimeParamFramerate, 0.0f);
   video_info->fps = std::round(framerate);
-  video_info->bitrate =
-      mime_type.GetParamIntValue(MimeType::Param::kBitrate, 0);
+  video_info->bitrate = mime_type.GetParamIntValue(kMimeParamBitrate, 0);
   video_info->decode_to_texture_required =
-      mime_type.GetParamBoolValue(MimeType::Param::kDecodeToTexture, false);
+      mime_type.GetParamBoolValue(kMimeParamDecodeToTexture, false);
 
   return video_info->frame_width >= 0 && video_info->frame_height >= 0 &&
          video_info->fps >= 0 && video_info->bitrate >= 0;

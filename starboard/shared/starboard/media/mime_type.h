@@ -18,9 +18,11 @@
 #include <iosfwd>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/mime_param.h"
 
 namespace starboard {
 
@@ -53,28 +55,6 @@ class MimeType {
   };
 
   struct Param {
-    // General MIME parameter.
-    static constexpr char kCodecs[] = "codecs";
-
-    // Format capability MIME parameters defined in:
-    // http://google3/video/youtube/web/player/formats/capability.ts;l=9-94;rcl=770319862
-    static constexpr char kWidth[] = "width";
-    static constexpr char kHeight[] = "height";
-    static constexpr char kFramerate[] = "framerate";
-    static constexpr char kBitrate[] = "bitrate";
-    static constexpr char kEotf[] = "eotf";
-    static constexpr char kChannels[] = "channels";
-    static constexpr char kCryptoblockformat[] = "cryptoblockformat";
-    static constexpr char kDecodeToTexture[] = "decode-to-texture";
-    static constexpr char kExperimental[] = "experimental";
-    static constexpr char kTunnelMode[] = "tunnelmode";
-
-    // Cobalt-specific playback experiment MIME parameters defined in:
-    // http://google3/video/youtube/web/player/dash/manifest.ts;l=1112-1125;rcl=954649899
-    static constexpr char kEnableFlushDuringSeek[] = "enableflushduringseek";
-    static constexpr char kEnableResetAudioDecoder[] =
-        "enableresetaudiodecoder";
-
     ParamType type;
     std::string name;
     std::string string_value;
@@ -98,33 +78,32 @@ class MimeType {
 
   int GetParamCount() const;
   ParamType GetParamType(int index) const;
-  const std::string& GetParamName(int index) const;
   // GetParamIndexByName() will return |kInvalidParamIndex| if the param name is
   // not found.
-  int GetParamIndexByName(const char* name) const;
+  int GetParamIndexByName(const MimeParam& param) const;
 
   int GetParamIntValue(int index) const;
   float GetParamFloatValue(int index) const;
   const std::string& GetParamStringValue(int index) const;
   bool GetParamBoolValue(int index) const;
 
-  int GetParamIntValue(const char* name, int default_value) const;
-  float GetParamFloatValue(const char* name, float default_value) const;
+  int GetParamIntValue(const MimeParam& param, int default_value) const;
+  float GetParamFloatValue(const MimeParam& param, float default_value) const;
   const std::string& GetParamStringValue(
-      const char* name,
+      const MimeParam& param,
       const std::string& default_value) const;
-  bool GetParamBoolValue(const char* name, bool default_value) const;
+  bool GetParamBoolValue(const MimeParam& param, bool default_value) const;
 
   // Validate functions will return true if the param contains a valid value or
   // if param name is not found.
-  bool ValidateIntParameter(const char* name) const;
-  bool ValidateFloatParameter(const char* name) const;
+  bool ValidateIntParameter(const MimeParam& param) const;
+  bool ValidateFloatParameter(const MimeParam& param) const;
   // Allows passing a pattern on the format "value_1|...|value_n"
   // where the parameter value must match one of the values in the pattern in
   // order to be considered valid.
-  bool ValidateStringParameter(const char* name,
+  bool ValidateStringParameter(const MimeParam& param,
                                const std::string& pattern = "") const;
-  bool ValidateBoolParameter(const char* name) const;
+  bool ValidateBoolParameter(const MimeParam& param) const;
 
   friend std::ostream& operator<<(std::ostream& os, const MimeType& mime_type);
 

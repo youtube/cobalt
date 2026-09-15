@@ -54,11 +54,11 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   if (mime_type) {
     // Allows for enabling tunneled playback. Disabled by default.
     // https://source.android.com/devices/tv/multimedia-tunneling
-    if (!mime_type->ValidateBoolParameter(MimeType::Param::kTunnelMode)) {
+    if (!mime_type->ValidateBoolParameter(kMimeParamTunnelMode)) {
       return false;
     }
     must_support_tunnel_mode =
-        mime_type->GetParamBoolValue(MimeType::Param::kTunnelMode, false);
+        mime_type->GetParamBoolValue(kMimeParamTunnelMode, false);
   }
 
   if (must_support_tunnel_mode && decode_to_texture_required) {
