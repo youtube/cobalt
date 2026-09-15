@@ -95,7 +95,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "DefaultEnableANGLEValidation, "
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
-       "ReclaimOldPrepaintTiles"},
+       "ReclaimOldPrepaintTiles, "
+       "WebAudioRemoveAudioDestinationResampler"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},

@@ -99,6 +99,7 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("SmallerInterestArea");
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
+    paramOverrides.add("WebAudioRemoveAudioDestinationResampler");
 
     return paramOverrides;
   }
