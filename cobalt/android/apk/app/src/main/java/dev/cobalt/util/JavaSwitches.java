@@ -122,6 +122,10 @@ public class JavaSwitches {
   /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
   public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE = "CobaltDynamicMojoPipeMediaSize";
 
+  /** flag to shrink mojo data pipes to the response Content-Length when it is known. */
+  public static final String ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING =
+      "EnableCobaltContentLengthAwareMojoPipeSizing";
+
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -430,6 +434,11 @@ public class JavaSwitches {
       }
     }
 
+    if (javaSwitches.containsKey(
+        JavaSwitches.ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING)) {
+      extraCommandLineArgs.add("--enable-features=CobaltContentLengthAwareMojoPipeSizing");
+    }
+
     StringJoiner featureParams = new StringJoiner("/");
     String interestAreaSize =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS);
@@ -522,8 +531,7 @@ public class JavaSwitches {
       enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
     }
     if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
-      String cooldown =
-          javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
+      String cooldown = javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
       if (cooldown != null) {
         String cooldownVal = cooldown.replaceAll("[^0-9]", "");
         if (!cooldownVal.isEmpty()) {
