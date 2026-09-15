@@ -818,7 +818,8 @@ static_library("test_support") {
       "../public/test/*private_aggregation*",
       "../public/test/*aggregation_service*",
       "../public/test/*fenced_frame*",
-      "fenced_frame_test_utils.*",
+      "*fenced_frame*",
+      "*test_aggregation_service*",
     ])
     sources = []
     sources = _filtered_sources
