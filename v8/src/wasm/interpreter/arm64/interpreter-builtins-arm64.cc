@@ -245,7 +245,7 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
   __ LoadProtectedPointerField(
       internal_function,
       MemOperand(
-          function_data,
+          internal_function,
           WasmExportedFunctionData::kProtectedInternalOffset - kHeapObjectTag));
 
   Register signature = internal_function;
@@ -1644,7 +1644,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ Str(return_reg.W(), MemOperand(packed_args, current_result_offset));
   __ Add(current_result_offset, current_result_offset,
-         Immediate(kSystemPointerSize));
+         Immediate(sizeof(int32_t)));
   __ jmp(&return_done);
 
   __ bind(&return_kWasmI32_not_smi);
