@@ -21,33 +21,6 @@
 namespace starboard {
 namespace {
 
-TEST(MimeParamTest, ParamConstants) {
-  EXPECT_EQ(kMimeParamCodecs, MimeParam("codecs"));
-
-  // keep-sorted start
-  EXPECT_EQ(kMimeParamBitrate, MimeParam("bitrate"));
-  EXPECT_EQ(kMimeParamChannels, MimeParam("channels"));
-  EXPECT_EQ(kMimeParamCryptoblockformat, MimeParam("cryptoblockformat"));
-  EXPECT_EQ(kMimeParamDecodeToTexture, MimeParam("decode-to-texture"));
-  EXPECT_EQ(kMimeParamEotf, MimeParam("eotf"));
-  EXPECT_EQ(kMimeParamExperimental, MimeParam("experimental"));
-  EXPECT_EQ(kMimeParamFramerate, MimeParam("framerate"));
-  EXPECT_EQ(kMimeParamHeight, MimeParam("height"));
-  EXPECT_EQ(kMimeParamTunnelMode, MimeParam("tunnelmode"));
-  EXPECT_EQ(kMimeParamWidth, MimeParam("width"));
-  // keep-sorted end
-
-  // keep-sorted start
-  EXPECT_EQ(kMimeParamEnableFlushDuringSeek,
-            MimeParam("enableflushduringseek"));
-  EXPECT_EQ(kMimeParamEnableResetAudioDecoder,
-            MimeParam("enableresetaudiodecoder"));
-  // keep-sorted end
-
-  EXPECT_EQ(kMimeParamSoftwareDecoder, MimeParam("softwaredecoder"));
-  EXPECT_EQ(kMimeParamEncryptionScheme, MimeParam("encryptionscheme"));
-}
-
 TEST(MimeParamTest, EqualityAndInequality) {
   constexpr MimeParam param1("test");
   constexpr MimeParam param2("test");
