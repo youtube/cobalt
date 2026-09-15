@@ -58,6 +58,10 @@ static jboolean JNI_MemoryPressureListener_IsModerateMemoryPressureEnabled(
 static jint JNI_MemoryPressureListener_GetMemoryPressureCooldownSeconds(
     JNIEnv* env) {
 #if BUILDFLAG(IS_COBALT)
+  if (!base::FeatureList::IsEnabled(
+          base::features::kCobaltMemoryPressureCooldown)) {
+    return 60;
+  }
   return base::features::kCobaltMemoryPressureCooldownSeconds.Get();
 #else
   return 60;
