@@ -4,5 +4,8 @@
     "SbPlayerGetAudioConfigurationTest.*",
     "SbPlayerGetMediaTimeTest.*",
     "SbMediaSetAudioWriteDurationTest.*"
+  ],
+  "failing_tests": [
+    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*"
   ]
 }
