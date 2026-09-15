@@ -122,10 +122,10 @@ pipeline () {
     if [[ -d "${build_out_dir}" ]]; then
       echo "Copying Android artifacts to Kokoro Artifacts Directory..."
       mkdir -p "${KOKORO_ARTIFACTS_DIR}/lib_export"
-      
+
       # 1. Export the native .so binary
       find "${build_out_dir}" -type f -name "libchrobalt.so" -exec cp {} "${KOKORO_ARTIFACTS_DIR}/lib_export/" \;
-      
+
       # 2. Export the Java API sources
       # The base of the Java source tree for Cobalt Android is 'cobalt/android/apk/app/src/main'
       if [[ -d "cobalt/android/apk/app/src/main/java" ]]; then
