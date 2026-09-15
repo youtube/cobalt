@@ -32,6 +32,11 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMemoryPressureCooldown);
 // kCobaltMemoryPressureCooldown is enabled.
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMemoryPressureCooldownSeconds);
+
+// When enabled, gates the CC image decode cache items limit via Finch feature
+// and parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCCImageCacheLimitItems);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsCount);
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
