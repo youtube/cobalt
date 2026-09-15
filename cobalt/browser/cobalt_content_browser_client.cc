@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <atomic>
+#include <optional>
 #include <string>
 
 #include "base/base_switches.h"
@@ -28,11 +30,14 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
@@ -201,10 +206,65 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+namespace {
+
+struct UserAgentCache {
+  base::Lock lock;
+  std::atomic<int> pre_feature_list_call_count{0};
+  std::atomic<bool> logged_pre_feature_count{false};
+  std::string user_agent_str GUARDED_BY(lock);
+  bool user_agent_is_cached GUARDED_BY(lock) = false;
+  std::optional<bool> is_feature_list_initialized_for_testing GUARDED_BY(lock);
+};
+
+UserAgentCache& GetUserAgentCache() {
+  static base::NoDestructor<UserAgentCache> cache;
+  return *cache;
+}
+
+}  // namespace
+
 std::string GetCobaltUserAgent() {
+  auto& cache = GetUserAgentCache();
+  {
+    base::AutoLock auto_lock(cache.lock);
+    bool is_initialized =
+        cache.is_feature_list_initialized_for_testing.value_or(
+            base::FeatureList::GetInstance() != nullptr);
+    if (is_initialized) {
+      if (!cache.user_agent_is_cached) {
+        const UserAgentPlatformInfo platform_info;
+        cache.user_agent_str = platform_info.ToString();
+        cache.user_agent_is_cached = true;
+      }
+      if (!cache.logged_pre_feature_count.exchange(true,
+                                                   std::memory_order_relaxed)) {
+        base::UmaHistogramCounts100(
+            "Cobalt.UserAgent.PreFeatureListCallCount",
+            cache.pre_feature_list_call_count.load(std::memory_order_relaxed));
+      }
+      return cache.user_agent_str;
+    }
+  }
+  cache.pre_feature_list_call_count.fetch_add(1, std::memory_order_relaxed);
   const UserAgentPlatformInfo platform_info;
-  static const std::string user_agent_str = platform_info.ToString();
-  return user_agent_str;
+  return platform_info.ToString();
+}
+
+void ClearUserAgentCacheForTesting() {
+  auto& cache = GetUserAgentCache();
+  base::AutoLock auto_lock(cache.lock);
+  cache.pre_feature_list_call_count.store(0, std::memory_order_relaxed);
+  cache.logged_pre_feature_count.store(false, std::memory_order_relaxed);
+  cache.user_agent_is_cached = false;
+  cache.user_agent_str.clear();
+  cache.is_feature_list_initialized_for_testing.reset();
+}
+
+void SetFeatureListInitializedForTesting(std::optional<bool> is_initialized) {
+  auto& cache = GetUserAgentCache();
+  base::AutoLock auto_lock(cache.lock);
+  cache.is_feature_list_initialized_for_testing = is_initialized;
 }
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
