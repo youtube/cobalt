@@ -128,7 +128,11 @@ pipeline () {
       
       # 2. Export the Java API sources
       # The base of the Java source tree for Cobalt Android is 'cobalt/android/apk/app/src/main'
-      tar -czf "${KOKORO_ARTIFACTS_DIR}/lib_export/coat_java_sources.tar.gz" -C cobalt/android/apk/app/src/main java
+      if [[ -d "cobalt/android/apk/app/src/main/java" ]]; then
+        tar -czf "${KOKORO_ARTIFACTS_DIR}/lib_export/coat_java_sources.tar.gz" -C cobalt/android/apk/app/src/main java
+      else
+        echo "Warning: cobalt/android/apk/app/src/main/java not found, skipping Java sources export."
+      fi
     fi
   fi
 }
