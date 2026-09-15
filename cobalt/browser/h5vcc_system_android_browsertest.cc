@@ -14,7 +14,6 @@
 
 #include "base/android/build_info.h"
 #include "base/android/jni_android.h"
-#include "base/process/process_handle.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browsertests_jni_headers/MockProcessExitReasonHelper_jni.h"
@@ -57,10 +56,10 @@ class H5vccSystemAndroidBrowserTest : public content::ContentBrowserTest {
   }
 
  protected:
-  void SimulatePriorSessionExit(base::ProcessId pid, int exit_reason) {
+  void SimulatePriorSessionExit(int exit_reason) {
     JNIEnv* env = base::android::AttachCurrentThread();
-    Java_MockProcessExitReasonHelper_setMockExitReasonForTesting(
-        env, static_cast<jint>(pid), exit_reason);
+    Java_MockProcessExitReasonHelper_setMockExitReasonForTesting(env,
+                                                                 exit_reason);
   }
 
   void SimulateEmptyHistoricalExitReasons() {
@@ -112,7 +111,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   }
 
   // Simulate a prior session terminated due to REASON_EXIT_SELF (reason 1).
-  SimulatePriorSessionExit(/*pid=*/9991, kAppExitInfoReasonExitSelf);
+  SimulatePriorSessionExit(kAppExitInfoReasonExitSelf);
 
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("/title1.html");
@@ -130,7 +129,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   }
 
   // Simulate a prior session terminated due to REASON_LOW_MEMORY (reason 3).
-  SimulatePriorSessionExit(/*pid=*/9992, kAppExitInfoReasonLowMemory);
+  SimulatePriorSessionExit(kAppExitInfoReasonLowMemory);
 
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("/title1.html");
@@ -152,7 +151,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
   // Simulate a prior session terminated due to REASON_USER_REQUESTED (reason
   // 10).
-  SimulatePriorSessionExit(/*pid=*/9993, kAppExitInfoReasonUserRequested);
+  SimulatePriorSessionExit(kAppExitInfoReasonUserRequested);
 
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("/title1.html");
@@ -170,7 +169,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   }
 
   // Simulate a prior session terminated due to REASON_CRASH (reason 4).
-  SimulatePriorSessionExit(/*pid=*/9994, kAppExitInfoReasonCrash);
+  SimulatePriorSessionExit(kAppExitInfoReasonCrash);
 
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("/title1.html");
@@ -195,11 +194,11 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 
   // Transition to LMK: true.
-  SimulatePriorSessionExit(/*pid=*/9995, kAppExitInfoReasonLowMemory);
+  SimulatePriorSessionExit(kAppExitInfoReasonLowMemory);
   EXPECT_TRUE(QueryWasLowMemoryKilledFromJs());
 
   // Transition to non-LMK (e.g. USER_REQUESTED): false.
-  SimulatePriorSessionExit(/*pid=*/9996, kAppExitInfoReasonUserRequested);
+  SimulatePriorSessionExit(kAppExitInfoReasonUserRequested);
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 
   // Reset: false.

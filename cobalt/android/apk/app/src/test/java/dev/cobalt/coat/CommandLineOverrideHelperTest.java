@@ -39,6 +39,7 @@ public class CommandLineOverrideHelperTest {
   public void testDefaultCommandLineOverridesList() {
     List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
     assertThat(overrides.contains("--enable-low-end-device-mode")).isTrue();
+    assertThat(overrides.contains("--use-custom-android-fonts-xml")).isTrue();
   }
 
   @Test
@@ -81,14 +82,13 @@ public class CommandLineOverrideHelperTest {
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-zero-copy"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("hide-scrollbars"));
+    Assert.assertTrue(CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml"));
 
     String expected = "no-user-gesture-required";
     String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");
     Assert.assertEquals(expected, actual);
 
-    expected = "1";
-    actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
-    Assert.assertEquals(expected, actual);
+    Assert.assertFalse(CommandLine.getInstance().hasSwitch("force-device-scale-factor"));
 
     actual = CommandLine.getInstance().getSwitchValue("enable-features");
     expected = CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
@@ -169,6 +169,16 @@ public class CommandLineOverrideHelperTest {
     CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
 
     Assert.assertEquals("*", CommandLine.getInstance().getSwitchValue("remote-allow-origins"));
+  }
+
+  @Test
+  public void testFlagOverrides_ForceDeviceScaleFactorFromParams() {
+    List<String> commandLineArgs = Arrays.asList("--force-device-scale-factor=1.5");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
+
+    Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-device-scale-factor"));
+    String actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
+    Assert.assertEquals("1.5", actual);
   }
 
   @Test

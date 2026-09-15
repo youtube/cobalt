@@ -30,7 +30,7 @@ public class MockProcessExitReasonHelper {
   public static final int REASON_USER_REQUESTED = 10;
 
   @CalledByNativeForTesting
-  public static void setMockExitReasonForTesting(int pid, int reason) {
+  public static void setMockExitReasonForTesting(int reason) {
     BaseStarboardBridge.setWasLowMemoryKilledForTesting(reason == REASON_LOW_MEMORY);
   }
 

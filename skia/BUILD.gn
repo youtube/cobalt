@@ -1077,6 +1077,7 @@ test("skia_unittests") {
   ]
   if (is_cobalt_hermetic_build) {
     sources += [
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt_unittest.cc",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt_unittest.cc",
     ]
   }
