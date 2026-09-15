@@ -37,6 +37,19 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // and parameter.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCCImageCacheLimitItems);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsCount);
+
+// When enabled, overrides the compositor skewport target times, which control
+// speculative pre-rastering of offscreen tiles. When disabled, the upstream
+// Chromium defaults apply (1.0 software raster / 0.2 GPU raster). Both params
+// default to 0, which disables pre-rastering to reduce GPU texture memory.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkewportTargetTime);
+// Applies to software raster. Upstream Chromium default is 1.0.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
+                                       kCobaltSkewportTargetTimeInSeconds);
+// Applies to GPU raster. Upstream Chromium default is 0.2.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kCobaltGpuRasterizationSkewportTargetTimeInSeconds);
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);

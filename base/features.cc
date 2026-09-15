@@ -68,6 +68,22 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltCCImageCacheLimitItems,
                    "cc_image_cache_limit_items",
                    0);
+
+BASE_FEATURE(kCobaltSkewportTargetTime,
+             "CobaltSkewportTargetTime",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltSkewportTargetTimeInSeconds,
+                   &kCobaltSkewportTargetTime,
+                   "skewport_target_time_in_seconds",
+                   0.0);
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltGpuRasterizationSkewportTargetTimeInSeconds,
+                   &kCobaltSkewportTargetTime,
+                   "gpu_rasterization_skewport_target_time_in_seconds",
+                   0.0);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
