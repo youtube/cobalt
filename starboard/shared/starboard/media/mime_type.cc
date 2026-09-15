@@ -194,15 +194,9 @@ MimeType::ParamType MimeType::GetParamType(int index) const {
   return params_[index].type;
 }
 
-const std::string& MimeType::GetParamName(int index) const {
-  SB_DCHECK_LT(index, GetParamCount());
-
-  return params_[index].name;
-}
-
-int MimeType::GetParamIndexByName(const char* name) const {
+int MimeType::GetParamIndexByName(const MimeParam& param) const {
   for (size_t i = 0; i < params_.size(); ++i) {
-    if (strcasecmp(params_[i].name.c_str(), name) == 0) {
+    if (param.EqualsCaseInsensitive(params_[i].name)) {
       return static_cast<int>(i);
     }
   }
@@ -245,17 +239,18 @@ bool MimeType::GetParamBoolValue(int index) const {
   return false;
 }
 
-int MimeType::GetParamIntValue(const char* name, int default_value) const {
-  int index = GetParamIndexByName(name);
+int MimeType::GetParamIntValue(const MimeParam& param,
+                               int default_value) const {
+  int index = GetParamIndexByName(param);
   if (index != kInvalidParamIndex) {
     return GetParamIntValue(index);
   }
   return default_value;
 }
 
-float MimeType::GetParamFloatValue(const char* name,
+float MimeType::GetParamFloatValue(const MimeParam& param,
                                    float default_value) const {
-  int index = GetParamIndexByName(name);
+  int index = GetParamIndexByName(param);
   if (index != kInvalidParamIndex) {
     return GetParamFloatValue(index);
   }
@@ -263,33 +258,34 @@ float MimeType::GetParamFloatValue(const char* name,
 }
 
 const std::string& MimeType::GetParamStringValue(
-    const char* name,
+    const MimeParam& param,
     const std::string& default_value) const {
-  int index = GetParamIndexByName(name);
+  int index = GetParamIndexByName(param);
   if (index != kInvalidParamIndex) {
     return GetParamStringValue(index);
   }
   return default_value;
 }
 
-bool MimeType::GetParamBoolValue(const char* name, bool default_value) const {
-  int index = GetParamIndexByName(name);
+bool MimeType::GetParamBoolValue(const MimeParam& param,
+                                 bool default_value) const {
+  int index = GetParamIndexByName(param);
   if (index != kInvalidParamIndex) {
     return GetParamBoolValue(index);
   }
   return default_value;
 }
 
-bool MimeType::ValidateIntParameter(const char* name) const {
-  int index = GetParamIndexByName(name);
+bool MimeType::ValidateIntParameter(const MimeParam& param) const {
+  int index = GetParamIndexByName(param);
   if (index == kInvalidParamIndex) {
     return true;
   }
   return GetParamType(index) == kParamTypeInteger;
 }
 
-bool MimeType::ValidateFloatParameter(const char* name) const {
-  int index = GetParamIndexByName(name);
+bool MimeType::ValidateFloatParameter(const MimeParam& param) const {
+  int index = GetParamIndexByName(param);
   if (index == kInvalidParamIndex) {
     return true;
   }
@@ -297,9 +293,9 @@ bool MimeType::ValidateFloatParameter(const char* name) const {
   return type == kParamTypeInteger || type == kParamTypeFloat;
 }
 
-bool MimeType::ValidateStringParameter(const char* name,
+bool MimeType::ValidateStringParameter(const MimeParam& param,
                                        const std::string& pattern) const {
-  int index = GetParamIndexByName(name);
+  int index = GetParamIndexByName(param);
   if (pattern.empty() || index == kInvalidParamIndex) {
     return true;
   }
@@ -327,8 +323,8 @@ bool MimeType::ValidateStringParameter(const char* name,
   return matches;
 }
 
-bool MimeType::ValidateBoolParameter(const char* name) const {
-  int index = GetParamIndexByName(name);
+bool MimeType::ValidateBoolParameter(const MimeParam& param) const {
+  int index = GetParamIndexByName(param);
   if (index == kInvalidParamIndex) {
     return true;
   }
