@@ -69,7 +69,7 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #include "components/crash/content/browser/process_exit_reason_from_system_android.h"
 #endif
 
@@ -340,8 +340,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() >=
+      base::android::android_info::SDK_VERSION_R) {
     base::ThreadPool::PostTask(
         FROM_HERE,
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,

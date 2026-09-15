@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
-import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
@@ -288,7 +287,7 @@ public class JavaSwitches {
   public static List<String> getDefaultCommandLineArgs() {
     List<String> defaultArgs = new ArrayList<>();
     defaultArgs.add(DEFAULT_DISABLE_QUIC);
-    if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
+    if (!"arm64".equals(DeviceInfo.getArch()) && !"x86_64".equals(DeviceInfo.getArch())) {
       defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
     }
     defaultArgs.add(
