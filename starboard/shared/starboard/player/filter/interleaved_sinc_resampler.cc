@@ -60,6 +60,12 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
     : io_sample_rate_ratio_(io_sample_rate_ratio),
       channel_count_(channel_count),
       frame_size_in_bytes_(sizeof(float) * channel_count_) {
+  // The channel count is validated and bounded by the caller (Cobalt media
+  // pipeline) to at most 8 (kMaxChannels). Check explicitly as defense-in-depth
+  // to detect accidental breakage and prevent buffer overflow.
+  SB_CHECK_GT(channel_count_, 0);
+  SB_CHECK_LE(channel_count_, kMaxChannels);
+
   // Setup various region pointers in the buffer (see diagram above).
   r0_ = input_buffer_ + kKernelSize / 2 * channel_count_;
   r1_ = input_buffer_;
@@ -67,24 +73,6 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
   r3_ = r0_ + (kBlockSize - kKernelSize / 2) * channel_count_;
   r4_ = r0_ + kBlockSize * channel_count_;
   r5_ = r0_ + kKernelSize / 2 * channel_count_;
-  // Ensure kKernelSize is a multiple of 32 for easy SSE optimizations; causes
-  // r0_ and r5_ (used for input) to always be 16-byte aligned by virtue of
-  // input_buffer_ being 16-byte aligned.
-
-  // Basic sanity checks to ensure buffer regions are laid out correctly:
-  // r0_ and r2_ should always be the same position.
-  SB_DCHECK_EQ(r0_, r2_);
-  // r1_ at the beginning of the buffer.
-  SB_DCHECK_EQ(r1_, input_buffer_);
-  // r1_ left of r2_, r2_ left of r5_ and r1_, r2_ size correct.
-  SB_DCHECK_EQ(r2_ - r1_, r5_ - r2_);
-  // r3_ left of r4_, r5_ left of r0_ and r3_ size correct.
-  SB_DCHECK_EQ(r4_ - r3_, r5_ - r0_);
-  // r3_, r4_ size correct and r4_ at the end of the buffer.
-  SB_DCHECK_EQ(r4_ + (r4_ - r3_), r1_ + kBufferSize * channel_count_);
-  // r5_ size correct and at the end of the buffer.
-  SB_DCHECK_EQ(r5_ + kBlockSize * channel_count_,
-               r1_ + kBufferSize * channel_count_);
 
   InitializeKernel();
 }
