@@ -478,4 +478,64 @@ public class CobaltActivityTest {
             .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
     org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
   }
+
+  @Test
+  public void testSinglePlaneMode_EngageAndDisengage() {
+    ImeAdapterImpl mockImeAdapter = createImeAdapterImplForRemapTests();
+    CobaltActivity activity = createActivityForRemapTests(mockImeAdapter);
+
+    org.junit.Assert.assertFalse(activity.isSinglePlaneModeEngaged());
+
+    activity.setSinglePlaneEngaged(true);
+    org.junit.Assert.assertTrue(activity.isSinglePlaneModeEngaged());
+
+    activity.setSinglePlaneEngaged(false);
+    org.junit.Assert.assertFalse(activity.isSinglePlaneModeEngaged());
+  }
+
+  @Test
+  public void testSinglePlaneMode_InhibitedWhenCaptionsActive() {
+    ImeAdapterImpl mockImeAdapter = createImeAdapterImplForRemapTests();
+    CobaltActivity activity = createActivityForRemapTests(mockImeAdapter);
+
+    activity.setCaptionsActive(true);
+    org.junit.Assert.assertTrue(activity.isCaptionsActive());
+
+    activity.setSinglePlaneEngaged(true);
+    org.junit.Assert.assertFalse(
+        "Single-plane mode should be inhibited when captions are active",
+        activity.isSinglePlaneModeEngaged());
+  }
+
+  @Test
+  public void testSinglePlaneMode_CaptionsActivatedWhileEngaged_TriggersWakeUp() {
+    ImeAdapterImpl mockImeAdapter = createImeAdapterImplForRemapTests();
+    CobaltActivity activity = createActivityForRemapTests(mockImeAdapter);
+
+    activity.setSinglePlaneEngaged(true);
+    org.junit.Assert.assertTrue(activity.isSinglePlaneModeEngaged());
+
+    activity.setCaptionsActive(true);
+    org.junit.Assert.assertFalse(
+        "Activating captions while single-plane is engaged should immediately wake up UI",
+        activity.isSinglePlaneModeEngaged());
+  }
+
+  @Test
+  public void testSinglePlaneMode_OnKeyDown_TriggersImmediateWakeUp() {
+    ImeAdapterImpl mockImeAdapter = createImeAdapterImplForRemapTests();
+    CobaltActivity activity = createActivityForRemapTests(mockImeAdapter);
+
+    activity.setSinglePlaneEngaged(true);
+    org.junit.Assert.assertTrue(activity.isSinglePlaneModeEngaged());
+
+    long now = android.os.SystemClock.uptimeMillis();
+    KeyEvent dpadCenter =
+        new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER, 0);
+    activity.onKeyDown(KeyEvent.KEYCODE_DPAD_CENTER, dpadCenter);
+
+    org.junit.Assert.assertFalse(
+        "Key down event should instantly wake up UI and disengage single-plane mode",
+        activity.isSinglePlaneModeEngaged());
+  }
 }

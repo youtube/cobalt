@@ -51,20 +51,56 @@ public class MediaCodecOutputTracker {
     }
   }
 
+  public interface Listener {
+    void onVideoPlaybackStarted();
+
+    void onVideoPlaybackStopped();
+  }
+
+  private final java.util.List<Listener> mListeners =
+      new java.util.concurrent.CopyOnWriteArrayList<>();
+
+  public void addListener(Listener listener) {
+    mListeners.add(listener);
+    synchronized (sTrackerLock) {
+      if (!mBridges.isEmpty()) {
+        listener.onVideoPlaybackStarted();
+      }
+    }
+  }
+
+  public void removeListener(Listener listener) {
+    mListeners.remove(listener);
+  }
+
   public void register(MediaCodecBridge bridge) {
+    boolean started = false;
     synchronized (sTrackerLock) {
       if (mBridges.isEmpty()) {
         startReporting();
+        started = true;
       }
       mBridges.add(bridge);
+    }
+    if (started) {
+      for (Listener listener : mListeners) {
+        listener.onVideoPlaybackStarted();
+      }
     }
   }
 
   public void unregister(MediaCodecBridge bridge) {
+    boolean stopped = false;
     synchronized (sTrackerLock) {
       mBridges.remove(bridge);
       if (mBridges.isEmpty()) {
         stopReporting();
+        stopped = true;
+      }
+    }
+    if (stopped) {
+      for (Listener listener : mListeners) {
+        listener.onVideoPlaybackStopped();
       }
     }
   }
@@ -127,6 +163,7 @@ public class MediaCodecOutputTracker {
       if (sInstance != null) {
         sInstance.stopReporting();
         sInstance.mBridges.clear();
+        sInstance.mListeners.clear();
       }
       sInstance = null;
     }
