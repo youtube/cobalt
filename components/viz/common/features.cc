@@ -79,7 +79,7 @@ BASE_FEATURE(kTemporalSkipOverlaysWithRootCopyOutputRequests,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseMultipleOverlays,
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT

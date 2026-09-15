@@ -16,10 +16,6 @@
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "media/base/media_content_type.h"
-#include "media/media_buildflags.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/decoder_buffer_allocator.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom.h"
 #include "third_party/blink/public/platform/web_fullscreen_video_status.h"
 #include "third_party/blink/public/web/web_local_frame.h"
@@ -237,20 +233,6 @@ void RendererWebMediaPlayerDelegate::OnPageVisibilityChanged(
          it.Advance()) {
       it.GetCurrentValue()->OnPageHidden();
     }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (::media::DecoderBufferAllocator::Get()) {
-      // Decommit all available memory blocks when the application transitions
-      // into a hidden state to free up system memory resources.
-      LOG(INFO) << "Decommitting memory blocks on page hidden.";
-      ::media::DecoderBufferAllocator::Get()->DecommitAllDecommitableBlocks();
-
-      // Release idle memory in decoder buffer allocator when the application
-      // transitions into a hidden state to shed unused system memory resources.
-      LOG(INFO) << "Releasing idle memory on page hidden.";
-      ::media::DecoderBufferAllocator::Get()->ReleaseIdleMemory();
-    }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   ScheduleUpdateTask();
