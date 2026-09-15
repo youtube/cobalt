@@ -61,10 +61,6 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
-  /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
-  public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
-      "EnableAutoRetryOnNetworkRecovery";
-
   /** flag to enable deferred V8 bytecode serialization in background/idle */
   public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
 
