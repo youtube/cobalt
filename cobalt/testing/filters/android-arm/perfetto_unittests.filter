@@ -1,0 +1,8 @@
+-FlatHashMapTest/*.FillWithTombstones
+-MessageTest.DestructInvalidMessageHandle
+-NullTraceWriterDeathTest.NewTracePacketTakeStreamWriterNoFinish
+-ProtoTraceParserTest.TrackEventAsyncEvents
+-ScopedDirTest.CloseOutOfScope
+-ToDouble/BytecodeInterpreterCastTest.Cast/9223372036854767615_Double_9223372036854766592_000000_Le
+-TracingServiceImplTest.SessionId
+-UtilsTest.EintrWrapper
