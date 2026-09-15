@@ -23,11 +23,16 @@ constexpr char kCobaltGroupName[] = "CobaltGroup";
 // Apply empty config if crash streak exceeds this threshold.
 constexpr char kCrashStreakEmptyConfigThreshold[] =
     "crash_streak_empty_config_threshold";
-constexpr int kDefaultCrashStreakEmptyConfigThreshold = 4;
 // Apply safe config if crash streak exceeds this threshold.
 constexpr char kCrashStreakSafeConfigThreshold[] =
     "crash_streak_safe_config_threshold";
-constexpr int kDefaultCrashStreakSafeConfigThreshold = 3;
+
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.util
+// GENERATED_JAVA_PREFIX_TO_STRIP: k
+enum CobaltCrashStreakThreshold {
+  kDefaultCrashStreakEmptyConfigThreshold = 4,
+  kDefaultCrashStreakSafeConfigThreshold = 3,
+};
 constexpr char kExperimentConfig[] = "experiment_config";
 constexpr char kExperimentConfigActiveConfigData[] =
     "experiment_config.active_config_data";

@@ -12,10 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <jni.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <string>
@@ -23,6 +29,8 @@
 
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/aosp/shared/application_aosp.h"
+#include "starboard/aosp/shared/window_surface.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -60,6 +68,27 @@ void* StarboardMain(void* /*context*/) {
   args.push_back("--disable-dev-shm-usage");
   starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
 
+  // For Android instrumentation test runs the runner provides a stdout file.
+  // Redirect stdout/stderr to it.
+  const std::string kStdoutFlag = "--android_stdout_file=";
+  for (auto it = args.begin(); it != args.end();) {
+    if (it->rfind(kStdoutFlag, 0) == 0) {
+      const std::string path = it->substr(kStdoutFlag.size());
+      int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+      if (fd < 0) {
+        SB_LOG(ERROR) << "Failed to open stdout redirect file " << path << ": "
+                      << strerror(errno);
+        exit(EXIT_FAILURE);
+      }
+      dup2(fd, STDOUT_FILENO);
+      dup2(fd, STDERR_FILENO);
+      close(fd);
+      it = args.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);
   for (std::string& arg : args) {
@@ -95,6 +124,35 @@ void JNI_MainActivity_StartLoader(JNIEnv* env) {
   }
 
   pthread_attr_destroy(&attr);
+}
+
+// MainActivity hands the Activity window's Surface to Starboard here.
+void JNI_MainActivity_NativeOnSurfaceCreated(
+    JNIEnv* env,
+    const jni_zero::JavaParamRef<jobject>& surface) {
+  ANativeWindow* native_window = ANativeWindow_fromSurface(env, surface.obj());
+  SB_LOG(INFO) << "cobalt_loader: Starboard surface created, native_window="
+               << native_window;
+  starboard::android::shared::SetWindowSurface(native_window);
+}
+
+void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
+  SB_LOG(INFO) << "cobalt_loader: Starboard surface destroyed.";
+  starboard::android::shared::SetWindowSurface(nullptr);
+}
+
+jboolean JNI_MainActivity_NativeSendKeyEvent(JNIEnv* /*env*/,
+                                             jint key_code,
+                                             jint action,
+                                             jint unicode_char,
+                                             jint meta_state) {
+  ApplicationAOSP* application = ApplicationAOSP::GetIfExists();
+  if (application == nullptr) {
+    return JNI_FALSE;
+  }
+  return application->InjectKeyEvent(key_code, action, unicode_char, meta_state)
+             ? JNI_TRUE
+             : JNI_FALSE;
 }
 
 }  // namespace starboard

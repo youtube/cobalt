@@ -39,6 +39,10 @@
 
     // Returns the application CPU memory limit in bytes.
     [CallWith=ScriptState] unsigned long long measureApplicationLimitMemory();
+
+    // Returns the application CPU memory usage in bytes
+    [CallWith=ScriptState] unsigned long long measureApplicationUsageMemory();
+
     // Returns the amount of GPU memory used by the Cobalt process in bytes.
     [CallWith=ScriptState, RaisesException] unsigned long long measureUsedGpuMemory();
 

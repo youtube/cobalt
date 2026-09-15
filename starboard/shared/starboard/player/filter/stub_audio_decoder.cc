@@ -56,9 +56,8 @@ DecodedAudio CreateDecodedAudio(int64_t timestamp,
                                 int number_of_channels,
                                 int frames) {
   int sample_size = GetBytesPerSample(sample_type);
-  DecodedAudio decoded_audio(
-      number_of_channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      timestamp, sample_size * number_of_channels * frames);
+  DecodedAudio decoded_audio(number_of_channels, sample_type, timestamp,
+                             sample_size * number_of_channels * frames);
 
   for (int j = 0; j < decoded_audio.size_in_bytes() / sample_size; ++j) {
     if (sample_size == 2) {
@@ -216,10 +215,8 @@ void StubAudioDecoder::DecodeOneBuffer(
             decoded_audio.timestamp() +
             AudioDurationToFrames(offset_in_frames, samples_per_second_);
 
-        DecodedAudio current_decoded_audio(
-            number_of_channels_, sample_type_,
-            kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
-            size_in_bytes_of_output);
+        DecodedAudio current_decoded_audio(number_of_channels_, sample_type_,
+                                           timestamp, size_in_bytes_of_output);
         memcpy(current_decoded_audio.data(),
                decoded_audio.data() + offset_in_bytes, size_in_bytes_of_output);
         offset_in_bytes += size_in_bytes_of_output;

@@ -67,8 +67,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
     for (const auto& input_buffer : input_buffers) {
       DecodedAudio decoded_audio(
           kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
-          kSbMediaAudioFrameStorageTypePlanar, input_buffer->timestamp(),
-          input_buffer->size());
+          input_buffer->timestamp(), input_buffer->size());
       memcpy(decoded_audio.data(), input_buffer->data(), input_buffer->size());
       decoded_audios_.push(std::move(decoded_audio));
       output_cb_();

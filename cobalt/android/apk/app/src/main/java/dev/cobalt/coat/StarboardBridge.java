@@ -31,8 +31,8 @@ public class StarboardBridge extends BaseStarboardBridge {
     StarboardBridge getStarboardBridge();
   }
 
-  private CobaltMediaSession mCobaltMediaSession;
-  private VolumeStateReceiver mVolumeStateReceiver;
+  private final CobaltMediaSession mCobaltMediaSession;
+  private final VolumeStateReceiver mVolumeStateReceiver;
   private volatile PlatformError mPlatformError;
 
   public StarboardBridge(
@@ -48,9 +48,21 @@ public class StarboardBridge extends BaseStarboardBridge {
   }
 
   @Override
+  protected void onServiceCreated(CobaltService service) {
+    super.onServiceCreated(service);
+    service.receiveStarboardBridge(this);
+  }
+
+  @Override
   protected void onActivityStop(Activity activity) {
     super.onActivityStop(activity);
-    mCobaltMediaSession.onActivityStop();
+    if (isActivityLifecycleCoordinationEnabled()) {
+      if (!hasStartedActivities()) {
+        mCobaltMediaSession.onActivityStop();
+      }
+    } else {
+      mCobaltMediaSession.onActivityStop();
+    }
   }
 
   @Override

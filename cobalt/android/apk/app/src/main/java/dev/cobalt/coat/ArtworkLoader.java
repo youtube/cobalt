@@ -21,6 +21,7 @@ import android.os.Looper;
 import android.util.Pair;
 import android.util.Size;
 import androidx.annotation.CheckResult;
+import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.util.DisplayUtil;
@@ -35,9 +36,21 @@ public class ArtworkLoader {
     void onArtworkLoaded(Bitmap bitmap);
   }
 
-  @VisibleForTesting @NonNull volatile String mRequestedArtworkUrl = "";
-  @VisibleForTesting @NonNull volatile String mCurrentArtworkUrl = "";
-  @VisibleForTesting volatile Bitmap mCurrentArtwork = null;
+  private final Object mLock = new Object();
+
+  @GuardedBy("mLock")
+  @VisibleForTesting
+  @NonNull
+  String mRequestedArtworkUrl = "";
+
+  @GuardedBy("mLock")
+  @VisibleForTesting
+  @NonNull
+  String mCurrentArtworkUrl = "";
+
+  @GuardedBy("mLock")
+  @VisibleForTesting
+  Bitmap mCurrentArtwork = null;
 
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private final ArtworkDownloader mArtworkDownloader;
@@ -58,7 +71,7 @@ public class ArtworkLoader {
    * Returns a cached image if available. If not cached, returns null and starts downloading it in
    * the background, and then when ready the callback will be called with the image.
    */
-  public synchronized Bitmap getOrLoadArtwork(List<MediaImage> images) {
+  public Bitmap getOrLoadArtwork(List<MediaImage> images) {
     if (images == null || images.isEmpty()) {
       return null;
     }
@@ -66,14 +79,17 @@ public class ArtworkLoader {
     MediaImage image = getBestFitImage(images, DisplayUtil.getDisplaySize());
     String url = image.getSrc().getSpec();
 
-    // Check if this artwork is already loaded or requested.
-    if (url.equals(mCurrentArtworkUrl)) {
-      return mCurrentArtwork;
-    } else if (url.equals(mRequestedArtworkUrl)) {
-      return null;
+    synchronized (mLock) {
+      // Check if this artwork is already loaded or requested.
+      if (url.equals(mCurrentArtworkUrl)) {
+        return mCurrentArtwork;
+      } else if (url.equals(mRequestedArtworkUrl)) {
+        return null;
+      }
+
+      mRequestedArtworkUrl = url;
     }
 
-    mRequestedArtworkUrl = url;
     new DownloadArtworkThread(url, this).start();
     return null;
   }
@@ -137,26 +153,29 @@ public class ArtworkLoader {
    *
    * @param urlBitmapPair A pair containing the URL and the downloaded Bitmap.
    */
-  public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
+  public void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
     String url = urlBitmapPair.first;
     Bitmap bitmap = urlBitmapPair.second;
+    final Bitmap oldArtwork;
 
-    if (!mRequestedArtworkUrl.equals(url)) {
-      if (bitmap != null) {
-        bitmap.recycle();
+    synchronized (mLock) {
+      if (!mRequestedArtworkUrl.equals(url)) {
+        if (bitmap != null) {
+          bitmap.recycle();
+        }
+        return;
       }
-      return;
+
+      mRequestedArtworkUrl = "";
+
+      if (bitmap == null) {
+        return;
+      }
+
+      oldArtwork = mCurrentArtwork;
+      mCurrentArtworkUrl = url;
+      mCurrentArtwork = bitmap;
     }
-
-    mRequestedArtworkUrl = "";
-
-    if (bitmap == null) {
-      return;
-    }
-
-    final Bitmap oldArtwork = mCurrentArtwork;
-    mCurrentArtworkUrl = url;
-    mCurrentArtwork = bitmap;
 
     mHandler.post(
         new Runnable() {

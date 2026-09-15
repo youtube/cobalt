@@ -258,8 +258,7 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
 
   const SbMediaAudioSampleType sample_type = GetSampleType();
   DecodedAudio decoded_audio(
-      channel_count, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      input_buffer.timestamp(),
+      channel_count, sample_type, input_buffer.timestamp(),
       channel_count * av_frame.nb_samples * GetBytesPerSample(sample_type));
   const bool is_planar = (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P ||
                           codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP);

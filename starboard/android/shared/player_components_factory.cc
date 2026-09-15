@@ -20,6 +20,8 @@
 #include <string>
 #include <utility>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track.h"
@@ -62,6 +64,7 @@ using jni_zero::AttachCurrentThread;
 
 constexpr int kAndroidApiLevelU = 34;
 
+#if !BUILDFLAG(IS_STARBOARD)
 bool IsFeatureEnabledOrDefaultOnAndroidU(
     const SbFeature& feature,
     const ExperimentalFeatures& experimental_features,
@@ -70,19 +73,30 @@ bool IsFeatureEnabledOrDefaultOnAndroidU(
          FeatureList::IsEnabled(feature) ||
          experimental_features.GetBool(experimental_feature_key);
 }
+#endif
 
 bool ShouldEnableFlushDuringSeek(
     const ExperimentalFeatures& experimental_features) {
+#if !BUILDFLAG(IS_STARBOARD)
   return IsFeatureEnabledOrDefaultOnAndroidU(
       features::kForceFlushDecoderDuringReset, experimental_features,
       kMediaEnableFlushDuringSeek);
+#else
+  return android_get_device_api_level() >= kAndroidApiLevelU ||
+         experimental_features.GetBool(kMediaEnableFlushDuringSeek);
+#endif
 }
 
 bool ShouldEnableResetAudioDecoder(
     const ExperimentalFeatures& experimental_features) {
+#if !BUILDFLAG(IS_STARBOARD)
   return IsFeatureEnabledOrDefaultOnAndroidU(features::kForceResetAudioDecoder,
                                              experimental_features,
                                              kMediaEnableResetAudioDecoder);
+#else
+  return android_get_device_api_level() >= kAndroidApiLevelU ||
+         experimental_features.GetBool(kMediaEnableResetAudioDecoder);
+#endif
 }
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
@@ -137,13 +151,13 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
       std::optional<int> tunnel_mode_audio_session_id,
       bool allow_audio_writing_on_pause,
       bool enable_video_renderer_vsp_adjustment,
-      bool allow_flush_during_seek)
+      bool allow_flush_during_seek,
+      bool pause_using_audio_track_state)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
                 int sampling_frequency_hz,
                 SbMediaAudioSampleType audio_sample_type,
-                SbMediaAudioFrameStorageType audio_frame_storage_type,
                 SbAudioSinkFrameBuffers frame_buffers,
                 int frame_buffers_size_in_frames,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -155,12 +169,11 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
 
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
-                  audio_frame_storage_type, frame_buffers,
-                  frame_buffers_size_in_frames,
+                  frame_buffers, frame_buffers_size_in_frames,
                   {update_source_status_func, consume_frames_func, error_func},
                   start_media_time, tunnel_mode_audio_session_id,
                   /*is_web_audio=*/false, allow_audio_writing_on_pause,
-                  context);
+                  pause_using_audio_track_state, context);
             }),
         is_tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
         enable_video_renderer_vsp_adjustment_(
@@ -227,7 +240,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
              int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
-             SbMediaAudioFrameStorageType audio_frame_storage_type,
              SbAudioSinkFrameBuffers frame_buffers,
              int frames_per_channel,
              RenderCallback* render_callback) override {
@@ -239,8 +251,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
         audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) &&
         channels == channels_ &&
         sampling_frequency_hz == sampling_frequency_hz_ &&
-        audio_sample_type == audio_sample_type_ &&
-        audio_frame_storage_type == audio_frame_storage_type_) {
+        audio_sample_type == audio_sample_type_) {
       SB_LOG(INFO) << "Audio track is already started with the same config, "
                    << "skipping Start().";
       auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
@@ -257,12 +268,10 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     channels_ = channels;
     sampling_frequency_hz_ = sampling_frequency_hz;
     audio_sample_type_ = audio_sample_type;
-    audio_frame_storage_type_ = audio_frame_storage_type;
 
-    AudioRendererSinkImpl::Start(media_start_time, channels,
-                                 sampling_frequency_hz, audio_sample_type,
-                                 audio_frame_storage_type, frame_buffers,
-                                 frames_per_channel, render_callback);
+    AudioRendererSinkImpl::Start(
+        media_start_time, channels, sampling_frequency_hz, audio_sample_type,
+        frame_buffers, frames_per_channel, render_callback);
   }
 
  private:
@@ -307,8 +316,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
   int sampling_frequency_hz_ = -1;
   SbMediaAudioSampleType audio_sample_type_ =
       kSbMediaAudioSampleTypeInt16Deprecated;
-  SbMediaAudioFrameStorageType audio_frame_storage_type_ =
-      kSbMediaAudioFrameStorageTypeInterleaved;
 };
 
 class PlayerComponentsPassthrough : public PlayerComponents {
@@ -334,22 +341,21 @@ class PlayerComponentsPassthrough : public PlayerComponents {
 class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
   PlayerComponentsFactory()
+#if !BUILDFLAG(IS_STARBOARD)
       : force_platform_opus_decoder_(features::FeatureList::IsEnabled(
             features::kForcePlatformOpusDecoder)) {
     SB_LOG_IF(INFO, force_platform_opus_decoder_)
         << "kForcePlatformOpusDecoder is set to true, force using platform opus"
         << " codec instead of libopus.";
+#else
+      : force_platform_opus_decoder_(false) {
+#endif
   }
 
   NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
       const CreationParameters& creation_parameters) override {
     const auto& experimental_features =
         creation_parameters.experimental_features();
-
-    Buffer::SetPoolEnabled(
-        experimental_features.GetBool(kMediaDecodedAudioBufferPool));
-    MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
-        experimental_features.GetBool(kMediaVideoFrameImplPool));
 
     if (experimental_features.GetBool(kMediaEnableAv1StartupOptimization)) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
@@ -465,8 +471,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+#if !BUILDFLAG(IS_STARBOARD)
       const bool force_tunnel_mode =
           FeatureList::IsEnabled(features::kForceTunnelMode);
+#else
+      const bool force_tunnel_mode = false;
+#endif
       enable_tunnel_mode =
           force_tunnel_mode ||
           (video_mime_type &&
@@ -538,9 +548,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                             : "<not provided>")
         << ".";
 
+#if !BUILDFLAG(IS_STARBOARD)
     bool allow_flush_audio_track_during_seek =
         FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
         experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
+#else
+    bool allow_flush_audio_track_during_seek =
+        experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
+#endif
     SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
         << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
         << " audio track during Reset().";
@@ -559,6 +574,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           experimental_features.GetBool(kMediaEnableVideoRendererVspAdjustment);
       SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
           << "enable_video_renderer_vsp_adjustment is set to true.";
+
+      const bool pause_using_audio_track_state =
+          experimental_features.GetBool(kMediaPauseUsingAudioTrackState);
+      SB_LOG_IF(INFO, pause_using_audio_track_state)
+          << "pause_using_audio_track_state is set to true.";
+
+      AudioOutputManager::SetSeamlessAudioSwitching(
+          experimental_features.GetBool(kMediaSeamlessAudioSwitching));
 
       const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
@@ -592,7 +615,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           std::make_unique<AudioRendererSinkAndroid>(
               tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
               enable_video_renderer_vsp_adjustment,
-              allow_flush_audio_track_during_seek);
+              allow_flush_audio_track_during_seek,
+              pause_using_audio_track_state);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -642,8 +666,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool enable_flush_during_seek =
         ShouldEnableFlushDuringSeek(experimental_features);
+#if !BUILDFLAG(IS_STARBOARD)
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
+#else
+    int64_t flush_delay_usec = 0;
+    int64_t reset_delay_usec = 0;
+#endif
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {

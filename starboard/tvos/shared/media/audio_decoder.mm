@@ -94,7 +94,6 @@ void TvosAudioDecoder::Decode(const InputBuffers& input_buffers,
 
     DecodedAudio decoded_audio(audio_stream_info_.number_of_channels,
                                kSbMediaAudioSampleTypeFloat32,
-                               kSbMediaAudioFrameStorageTypeInterleaved,
                                input_buffer->timestamp(), output_byte_size);
     audio_buffer_list_.mBuffers[0].mData = decoded_audio.data();
     audio_buffer_list_.mBuffers[0].mDataByteSize = output_byte_size;

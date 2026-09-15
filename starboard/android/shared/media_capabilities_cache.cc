@@ -21,6 +21,8 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/display_util.h"
@@ -338,8 +340,12 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
     return true;
   }
 
+#if !BUILDFLAG(IS_STARBOARD)
   const bool enable_av1_startup_optimization =
       FeatureList::IsEnabled(features::kEnableAv1StartupOptimization);
+#else
+  const bool enable_av1_startup_optimization = false;
+#endif
   if (!enable_av1_startup_optimization && !is_av1_opt_enabled_) {
     return true;
   }
@@ -395,14 +401,6 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
 std::string MediaCapabilitiesCache::FindAudioDecoder(
     const std::string& mime_type,
     int bitrate) {
-  if (!is_enabled_) {
-    JNIEnv* env = AttachCurrentThread();
-    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
-    auto j_decoder_name =
-        Java_MediaCodecUtil_findAudioDecoder(env, j_mime, bitrate);
-    return ConvertJavaStringToUTF8(env, j_decoder_name);
-  }
-
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
@@ -437,17 +435,6 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     Size frame_size,
     int bitrate,
     int fps) {
-  if (!is_enabled_) {
-    JNIEnv* env = AttachCurrentThread();
-    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
-    auto j_decoder_name = Java_MediaCodecUtil_findVideoDecoder(
-        env, j_mime, must_support_secure, must_support_hdr,
-        /*mustSupportSoftwareCodec=*/false, must_support_tunnel_mode,
-        /*decoderCacheTtlMs=*/-1, frame_size.width, frame_size.height, bitrate,
-        fps);
-    return ConvertJavaStringToUTF8(env, j_decoder_name);
-  }
-
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 

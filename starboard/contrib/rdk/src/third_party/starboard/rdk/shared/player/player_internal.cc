@@ -1655,6 +1655,8 @@ class PlayerImpl : public Player {
   std::mutex source_setup_mutex_;
   std::condition_variable source_setup_condition_;
   std::mutex seek_mutex_;
+  GstElement* audio_sink_{nullptr};
+  double volume_{1.0};
   double rate_{1.0};
   int ticket_{SB_PLAYER_INITIAL_TICKET};
   mutable GstClockTime seek_position_{GST_CLOCK_TIME_NONE};
@@ -1937,6 +1939,9 @@ PlayerImpl::~PlayerImpl() {
     DispatchOnWorkerThread(new PlayerDestroyedTask(
       player_status_func_, player_, ticket_, context_, main_loop_));
     playback_thread_.join();
+  }
+  if (audio_sink_) {
+    gst_object_unref(audio_sink_);
   }
   if (audio_caps_) {
     gst_caps_unref(audio_caps_);
@@ -2450,6 +2455,20 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
       }
     }
 
+    // playsink only routes volume to GstStreamVolume sinks; set the property directly.
+    if (strstr(klass_str, "Audio") &&
+        !GST_IS_STREAM_VOLUME(element) &&
+        g_object_class_find_property(oclass, "volume")) {
+      std::lock_guard lock(self->mutex_);
+      if (self->audio_sink_ != element) {
+        gst_object_ref(element);
+        if (self->audio_sink_)
+          gst_object_unref(self->audio_sink_);
+        self->audio_sink_ = element;
+      }
+      g_object_set(G_OBJECT(element), "volume", self->volume_, nullptr);
+    }
+
     if (g_object_class_find_property(oclass, "has-drm")) {
       g_object_set(G_OBJECT(element), "has-drm", self->drm_system_ != nullptr, nullptr);
     }
@@ -2698,6 +2717,11 @@ void PlayerImpl::SetVolume(double volume) {
   GST_DEBUG_OBJECT(pipeline_, "volume %lf", volume);
   gst_stream_volume_set_volume(GST_STREAM_VOLUME(pipeline_),
                                GST_STREAM_VOLUME_FORMAT_LINEAR, volume);
+
+  std::lock_guard lock(mutex_);
+  volume_ = volume;
+  if (audio_sink_)
+    g_object_set(G_OBJECT(audio_sink_), "volume", volume, nullptr);
 }
 
 void PlayerImpl::HandleInititialSeek() {

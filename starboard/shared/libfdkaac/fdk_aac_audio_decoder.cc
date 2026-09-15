@@ -220,7 +220,6 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
       SB_DCHECK_EQ(partially_decoded_audio_data_in_bytes_, 0);
       partially_decoded_audio_ =
           DecodedAudio(num_channels_, kSbMediaAudioSampleTypeInt16Deprecated,
-                       kSbMediaAudioFrameStorageTypeInterleaved,
                        decoding_input_buffers_.front()->timestamp(),
                        decoded_audio_size_in_bytes_);
     }

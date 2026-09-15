@@ -17,6 +17,8 @@
 #include <memory>
 #include <utility>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/time.h"
@@ -149,7 +151,7 @@ PlayerComponents::Factory::CreateComponents(
 
   bool use_stub_audio_decoder = false;
   bool use_stub_video_decoder = false;
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
   use_stub_audio_decoder =
       features::FeatureList::IsEnabled(features::kUseStubAudioDecoder);
   use_stub_video_decoder =
@@ -158,7 +160,7 @@ PlayerComponents::Factory::CreateComponents(
   auto command_line = Application::Get()->GetCommandLine();
   use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
   use_stub_video_decoder = command_line->HasSwitch("use_stub_video_decoder");
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
 
   MediaComponents components;
   if (use_stub_audio_decoder && use_stub_video_decoder) {

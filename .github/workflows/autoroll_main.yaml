@@ -22,8 +22,7 @@ jobs:
       GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
       GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     defaults:
       run:
         working-directory: src
@@ -132,6 +131,14 @@ jobs:
             echo ""
             echo "Original pull requests:"
             echo "${PR_LINKS}"
+            echo ""
+            echo "To merge these changes, run the autoroll script:"
+            echo ""
+            echo '```bash'
+            echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY} python3 cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
+            echo "  --source-branch ${SOURCE_BRANCH} \\"
+            echo "  --target-branch ${TARGET_BRANCH}"
+            echo '```'
           } > "${PR_BODY_FILE}"
 
           if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then

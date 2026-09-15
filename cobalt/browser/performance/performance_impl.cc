@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "base/command_line.h"
 #include "base/notreached.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
@@ -39,6 +40,7 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
 using ::starboard::StarboardBridge;
@@ -119,13 +121,19 @@ void PerformanceImpl::MeasureSystemMemoryInfo(
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
+        // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
         int64_t limit = SbSystemGetTotalCPUMemory();
         if (limit > 0) {
           info->application_limit_memory = static_cast<uint64_t>(limit);
         }
+        int64_t usage = SbSystemGetUsedCPUMemory();
+        if (usage > 0) {
+          info->application_usage_memory = static_cast<uint64_t>(usage);
+        }
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
+        // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
         if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
           info->used_gpu_memory = SbSystemGetUsedGPUMemory();
         }
@@ -303,6 +311,7 @@ void PerformanceImpl::MeasureUsedPssMemory(
 void PerformanceImpl::MeasureApplicationLimitMemory(
     MeasureApplicationLimitMemoryCallback callback) {
 #if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce([]() -> uint64_t {
@@ -315,9 +324,32 @@ void PerformanceImpl::MeasureApplicationLimitMemory(
 #endif
 }
 
+void PerformanceImpl::MeasureApplicationUsageMemory(
+    MeasureApplicationUsageMemoryCallback callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
+  int64_t usage = SbSystemGetUsedCPUMemory();
+  std::move(callback).Run(usage > 0 ? static_cast<uint64_t>(usage) : 0);
+#else
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->resident_set_bytes : 0;
+      }),
+      std::move(callback));
+#endif
+}
+
 void PerformanceImpl::MeasureUsedGpuMemory(
     MeasureUsedGpuMemoryCallback callback) {
 #if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
   if (!SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     std::move(callback).Run(false, 0);
     return;
@@ -360,7 +392,9 @@ void PerformanceImpl::MeasureUsedGpuMemory(
 void PerformanceImpl::GetAppStartupTimeStamp(
     GetAppStartupTimeStampCallback callback) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  if (!app_startup_timestamp_.has_value()) {
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "use-starboard-lifecycle") &&
+      !app_startup_timestamp_.has_value()) {
     JNIEnv* env = base::android::AttachCurrentThread();
     app_startup_timestamp_ =
         StarboardBridge::GetInstance()->GetAppStartTimestamp(env);

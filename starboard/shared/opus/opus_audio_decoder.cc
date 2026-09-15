@@ -238,11 +238,11 @@ bool OpusAudioDecoder::DecodeInternal(
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 
-  DecodedAudio decoded_audio(
-      audio_stream_info_.number_of_channels, GetSampleType(),
-      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-      audio_stream_info_.number_of_channels * frames_per_au_ *
-          GetBytesPerSample(GetSampleType()));
+  DecodedAudio decoded_audio(audio_stream_info_.number_of_channels,
+                             GetSampleType(), input_buffer->timestamp(),
+                             audio_stream_info_.number_of_channels *
+                                 frames_per_au_ *
+                                 GetBytesPerSample(GetSampleType()));
 
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
