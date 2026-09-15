@@ -603,11 +603,9 @@ BASE_FEATURE_PARAM(bool,
                    "url_loader",
                    true);
 
-<<<<<<< HEAD
 BASE_FEATURE(kNetworkServicePerPriorityTaskQueues,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-=======
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
              "CobaltDynamicMojoPipeSizing",
@@ -624,7 +622,4 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltDynamicMojoPipeSizing,
                    "media_size",
                    512 * 1024);
-#endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}  // namespace network::features
+#endif  // BUILDFLAG(IS_COBALT)}  // namespace network::features

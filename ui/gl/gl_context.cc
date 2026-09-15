@@ -324,20 +324,14 @@ GLContext* GLContext::GetRealCurrent() {
 }
 
 void GLContext::OnContextWillDestroy() {
-<<<<<<< HEAD
-  DCHECK(!has_called_on_destroy_);
-  has_called_on_destroy_ = true;
-=======
 #if BUILDFLAG(IS_COBALT)
-  if (has_called_on_destory_) {
+  if (has_called_on_destroy_) {
     return;
   }
 #else
-  DCHECK(!has_called_on_destory_);
+  DCHECK(!has_called_on_destroy_);
 #endif
-  has_called_on_destory_ = true;
->>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
+  has_called_on_destroy_ = true;
   observer_list_.Notify(&GLContextObserver::OnGLContextWillDestroy, this);
 }
 
