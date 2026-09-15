@@ -20,6 +20,7 @@
 #include <array>
 #include <string>
 
+#include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -86,9 +87,10 @@ HighestPmfReporter::HighestPmfReporter(
 
 #if BUILDFLAG(IS_COBALT)
 HighestPmfReporter::~HighestPmfReporter() {
-  if (instance_ == this) {
-    instance_ = nullptr;
-  }
+  // In production this is a long-lived singleton, but unit tests create and
+  // tear down MockHighestPmfReporter instances per test.
+  CHECK_EQ(instance_, this);
+  instance_ = nullptr;
   MemoryUsageMonitor::Instance().RemoveObserver(this);
 }
 #endif
