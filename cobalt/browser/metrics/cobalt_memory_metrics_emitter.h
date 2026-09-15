@@ -39,13 +39,6 @@
 // platforms the address space is effectively unbounded, so the gap metrics
 // would always saturate the histogram overflow bucket. Linux is kept enabled
 // so browser tests can exercise the code path on workstations and CI.
-//
-// This is spelled as a BUILDFLAG() rather than a plain `#define ... 1|0` on
-// purpose: `#if SOME_UNDEFINED_MACRO` silently evaluates to 0, so a translation
-// unit that forgot to include this header would quietly compile the feature
-// out. BUILDFLAG() expands to an undefined function-like macro in that case,
-// which is a hard compile error. This mirrors how build/build_config.h itself
-// defines its platform flags.
 #if (BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)) || BUILDFLAG(IS_LINUX)
 #define BUILDFLAG_INTERNAL_COBALT_ENABLE_VA_SPACE_METRICS() (1)
 #else
