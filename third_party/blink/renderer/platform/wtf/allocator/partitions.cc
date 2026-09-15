@@ -48,15 +48,11 @@
 #include "partition_alloc/partition_root.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
-<<<<<<< HEAD
-namespace blink {
-=======
 #if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #endif
 
-namespace WTF {
->>>>>>> d2d41ebe3c (cobalt: Reuse main PartitionAllocator for buffers (#12454))
+namespace blink {
 
 const char* const Partitions::kAllocatedObjectPoolName =
     "partition_alloc/allocated_objects";
