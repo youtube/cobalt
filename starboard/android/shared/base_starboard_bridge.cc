@@ -295,6 +295,15 @@ SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
   return Java_BaseStarboardBridge_getScreenDiagonal(env, j_starboard_bridge_);
 }
 
+SB_EXPORT_ANDROID bool StarboardBridge::GetWasLowMemoryKilled(JNIEnv* env) {
+  SB_DCHECK(env);
+  if (!j_starboard_bridge_) {
+    return false;
+  }
+  return Java_BaseStarboardBridge_getWasLowMemoryKilled(
+             env, j_starboard_bridge_) == JNI_TRUE;
+}
+
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_BaseStarboardBridge_closeApp(env, j_starboard_bridge_);
