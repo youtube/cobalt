@@ -332,19 +332,6 @@ static const char* MetricSizeToVersionSuffix(
 }
 
 #if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
-// Parses the address ranges out of /proc/self/maps and derives VA space
-// fragmentation metrics from the gaps between consecutive mappings.
-//
-// base/debug/proc_maps_linux.h already parses this file, but it builds a
-// std::string of the whole file plus a std::vector<MappedMemoryRegion> (which
-// itself holds a std::string path per region). This code runs from the memory
-// metrics emitter while we are trying to measure memory, and on a 32-bit TV
-// device with thousands of VMAs that allocation churn would perturb the very
-// numbers we are collecting. Parsing into a fixed stack buffer keeps this
-// zero-heap.
-//
-// `get_line(char* buf, size_t size)` must fill `buf` with the next NUL
-// terminated line and return false at end of input.
 template <typename LineReader>
 std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
 CalculateVirtualAddressSpaceMetricsInternal(LineReader&& get_line) {
@@ -366,13 +353,11 @@ CalculateVirtualAddressSpaceMetricsInternal(LineReader&& get_line) {
       continue;
     }
 
-    // The kernel emits VMAs in strictly ascending, non-overlapping address
-    // order, so anything that violates that is not a real record: most likely
-    // the tail of a truncated long path that happens to look like "<hex>-<hex>"
-    // (version numbers and hashes in APK/dex paths can do this). Accepting it
-    // would both inflate vma_count and rewind prev_vm_end, which would turn the
-    // next genuine VMA into an enormous phantom gap and dominate
-    // largest_free_gap. Skip it instead.
+    // The kernel always emits VMAs in ascending, non-overlapping order, so
+    // anything that goes backwards is not a real maps entry. Skipping just the
+    // bad record rather than discarding the sample is deliberate: a slightly
+    // incomplete measurement is still useful, whereas letting one bad record
+    // move the reference point would corrupt every gap after it.
     if (vm_end < vm_start) {
       continue;
     }
@@ -433,10 +418,8 @@ void EmitVirtualAddressSpaceMetrics() {
     return;
   }
 
-  // These are uint64_t and can exceed INT_MAX on 64-bit hosts (a 57-bit
-  // address space yields gaps of ~10^11 MB), where narrowing with a plain
-  // static_cast would be undefined behavior. The values land in the histogram's
-  // overflow bucket either way; saturated_cast just gets there safely.
+  // These accumulators are 64-bit and the histogram API takes an int. Clamping
+  // rather than wrapping matters because a wrapped value goes negative.
   base::UmaHistogramMemoryLargeMB(
       "Memory.Experimental.VirtualAddress.LargestFreeGapMb",
       base::saturated_cast<int>(metrics->largest_free_gap_mb));
@@ -740,12 +723,9 @@ std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
 CobaltMemoryMetricsEmitter::CalculateVirtualAddressSpaceMetricsForTesting(
     const std::string& maps_content) {
 #if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
-  // Deliberately mirrors fgets() rather than using std::istream::getline():
-  // getline() sets failbit when a line exceeds the buffer, whereas fgets()
-  // returns the head and hands back the tail on the next call. Reproducing the
-  // fgets() behavior here is what lets tests cover the truncated-line path that
-  // the production /proc/self/maps reader can actually hit. It also keeps
-  // <sstream> out of this translation unit.
+  // Reproduces how fgets() hands back an over-long line as a head and then a
+  // tail, which std::getline does not do. Simplifying this would silently stop
+  // the truncated-line tests from exercising the production reader.
   size_t pos = 0;
   auto get_line = [&maps_content, &pos](char* buf, size_t size) {
     if (size == 0 || pos >= maps_content.size()) {
