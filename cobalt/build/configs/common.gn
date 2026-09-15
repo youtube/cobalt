@@ -98,3 +98,7 @@ enable_vectorized_html_scanning = false
 # TODO: b/553853122 - As of the 141.7364 rebase, this breaks the linux-x64x11
 # and evergreen-x64 builds for different reasons.
 use_clang_modules = false
+
+# Disable Media Remoting (Casting / Remoter Mojo endpoints) for Cobalt.
+enable_media_remoting = false
+enable_media_remoting_rpc = false
