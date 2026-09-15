@@ -147,6 +147,11 @@ if (is_android) {
     ]
   }
 
+  generate_jni("content_browsertests_jni_headers") {
+    testonly = true
+    sources = [ "browsertests_apk/src/org/chromium/content_browsertests_apk/MockProcessExitReasonHelper.java" ]
+  }
+
   android_library("content_browsertests_java") {
     testonly = true
     resources_package = "org.chromium.content_browsertests_apk"
@@ -154,6 +159,7 @@ if (is_android) {
       "browsertests_apk/src/org/chromium/content_browsertests_apk/CobaltBrowserTestActivity.java",
       "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
       "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/MockProcessExitReasonHelper.java",
     ]
     deps = [
       ":cobalt_browsertests_manifest_gen",
@@ -171,6 +177,7 @@ if (is_android) {
       "//content/public/test/android:content_java_test_support",
       "//testing/android/native_test:native_browser_test_java",
       "//third_party/androidx:androidx_core_core_java",
+      "//third_party/jni_zero:jni_zero_java",
       "//ui/android:ui_java",
     ]
   }
@@ -250,7 +257,10 @@ test("cobalt_browsertests") {
   ]
 
   if (is_android) {
-    sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
+    sources += [
+      "//cobalt/browser/h5vcc_system_android_browsertest.cc",
+      "browsertests_apk/content_browser_tests_jni_onload.cc",
+    ]
   }
 
   if (is_starboard) {
@@ -420,6 +430,7 @@ test("cobalt_browsertests") {
   if (is_android) {
     deps += [
       ":content_browsertests_java",
+      ":content_browsertests_jni_headers",
       "//cobalt/android:jni_headers",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell/android:cobalt_shell_assets",
