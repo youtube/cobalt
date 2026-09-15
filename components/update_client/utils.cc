@@ -114,32 +114,6 @@ bool VerifyHash256(const std::string* content,
 
   return base::span(hash) == base::span(expected_hash);
 }
-<<<<<<< HEAD
-#else  // defined(IN_MEMORY_UPDATES)
-bool VerifyFileHash256(const base::FilePath& filepath,
-                       const std::string& expected_hash_str) {
-  std::array<uint8_t, crypto::hash::kSha256Size> expected_hash;
-  if (!base::HexStringToSpan(expected_hash_str, expected_hash)) {
-    return false;
-  }
-
-  base::File source_file(filepath,
-                         base::File::FLAG_OPEN | base::File::FLAG_READ);
-  if (!source_file.IsValid()) {
-    DPLOG(ERROR) << "VerifyFileHash256(): Unable to open source file: "
-                 << filepath.value();
-    return false;
-  }
-
-  std::array<uint8_t, crypto::hash::kSha256Size> hash;
-  if (!crypto::hash::HashFile(crypto::hash::kSha256, &source_file, hash)) {
-    return false;
-  }
-
-  return base::span(hash) == base::span(expected_hash);
-}
-=======
->>>>>>> dacdd95048 (components/update_client: Remove custom VerifyFileHash256() implemention (#12524))
 #endif  // defined(IN_MEMORY_UPDATES)
 
 base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
