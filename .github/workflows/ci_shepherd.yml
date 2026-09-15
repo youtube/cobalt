@@ -107,6 +107,7 @@ jobs:
           CONCLUSION: ${{ github.event.workflow_run.conclusion || 'null' }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || 1 }}
+          RERUN_TRIGGERED: ${{ needs.deflake.outputs.rerun_triggered || 'false' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -127,18 +128,39 @@ jobs:
           fi
 
           running_statuses=("in_progress" "queued" "requested" "waiting" "pending")
-          if [[ " ${running_statuses[*]} " == *" ${STATUS} "* ]] || [[ "${CONCLUSION}" == "null" || -z "${CONCLUSION}" ]]; then
+          if [[ " ${running_statuses[*]} " == *" ${STATUS} "* ]] || [[ "${RERUN_TRIGGERED}" == "true" ]] || [[ "${CONCLUSION}" == "null" || -z "${CONCLUSION}" ]]; then
             state="pending"
             desc="Checks are running"
-            if [[ "${RUN_ATTEMPT}" -gt 1 ]]; then
+            if [[ "${RUN_ATTEMPT}" -gt 1 || "${RERUN_TRIGGERED}" == "true" ]]; then
               desc="Retrying failed jobs"
             fi
-          elif [[ "${CONCLUSION}" == "success" ]]; then
-            state="success"
-            desc="Passed"
           else
-            state="failure"
-            desc="Failed"
+            # Download shepherd-report-* artifacts to determine status from validate job reports instead of workflow conclusion.
+            mkdir -p shepherd_artifacts
+            gh run download "${WORKFLOW}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
+
+            shopt -s globstar nullglob
+            reports=(shepherd_artifacts/**/shepherd_report.json)
+            if [[ ${#reports[@]} -eq 0 ]]; then
+              state="failure"
+              desc="Failed"
+            else
+              has_failures=$(jq -s '
+                any(.[];
+                  ([.checks // {} | to_entries[] | select(.value == "failure" or .value == "cancelled")] | length > 0)
+                  or
+                  ([.test_failures // {} | .[]? | length] | add // 0 > 0)
+                )
+              ' "${reports[@]}")
+
+              if [[ "${has_failures}" == "true" ]]; then
+                state="failure"
+                desc="Failed"
+              else
+                state="success"
+                desc="Passed"
+              fi
+            fi
           fi
 
           gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
