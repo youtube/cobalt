@@ -2959,7 +2959,7 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
     overlay_info_.is_fullscreen = true;
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 158c37c2b1f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),

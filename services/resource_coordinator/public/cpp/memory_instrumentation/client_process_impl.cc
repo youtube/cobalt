@@ -220,7 +220,7 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
     }
     if (success) {
       results[pid] = std::move(result);
->>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 158c37c2b1f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     } else {
       results[pid] = std::move(result);
     }

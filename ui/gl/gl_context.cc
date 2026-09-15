@@ -336,7 +336,7 @@ void GLContext::OnContextWillDestroy() {
   DCHECK(!has_called_on_destory_);
 #endif
   has_called_on_destory_ = true;
->>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 158c37c2b1f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   observer_list_.Notify(&GLContextObserver::OnGLContextWillDestroy, this);
 }

@@ -356,7 +356,7 @@ auto RunVideoEffects(
 #endif
 
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 158c37c2b1f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 auto RunOnDeviceModel(
     mojo::PendingReceiver<on_device_model::mojom::OnDeviceModelService>
         receiver) {

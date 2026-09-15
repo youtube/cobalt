@@ -51,7 +51,7 @@ class GL_EXPORT GLContextEGL : public GLContextReal {
 =======
 #endif
   void ReleaseBackpressureFences();
->>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 158c37c2b1f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   EGLContext context_ = nullptr;
   raw_ptr<GLDisplayEGL> gl_display_ = nullptr;
