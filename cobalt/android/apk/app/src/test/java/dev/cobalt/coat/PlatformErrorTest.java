@@ -112,6 +112,24 @@ public class PlatformErrorTest {
   }
 
   @Test
+  public void onClick_dismissesDialog_whenDismissButtonClicked_andTrue() throws Exception {
+    CobaltActivity mockActivity = mock(CobaltActivity.class);
+    Holder<Activity> holder = new Holder<>();
+    holder.set(mockActivity);
+    PlatformError testPlatformError =
+        new PlatformError(holder, PlatformError.CONNECTION_ERROR, TEST_DATA, "", true);
+
+    Dialog mockDialog = mock(Dialog.class);
+    testPlatformError.setDialog(mockDialog);
+
+    testPlatformError.onClick(null, DISMISS_BUTTON_ID);
+
+    int response = testPlatformError.getResponse();
+    assertEquals(PlatformError.NEGATIVE, response);
+    verify(mockDialog).dismiss();
+  }
+
+  @Test
   public void onClick_reloadsUrl_whenRetryButtonClickedAndUrlNotEmpty() throws Exception {
     CobaltActivity mockActivity = mock(CobaltActivity.class);
     WebContents mockWebContents = mock(WebContents.class);

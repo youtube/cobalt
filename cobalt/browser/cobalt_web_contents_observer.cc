@@ -253,11 +253,8 @@ void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id,
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
 
-  bool disable_dismiss_button = false;
-  if (base::FeatureList::IsEnabled(
-          features::kDisableNetworkDialogDismissButton)) {
-    disable_dismiss_button = true;
-  }
+  bool disable_dismiss_button = base::FeatureList::IsEnabled(
+      features::kDisableNetworkDialogDismissButton);
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0,
                                        url, disable_dismiss_button);
 #elif BUILDFLAG(IS_IOS_TVOS)
