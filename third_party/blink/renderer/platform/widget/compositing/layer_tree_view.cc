@@ -453,10 +453,19 @@ void LayerTreeView::DidPresentCompositorFrame(
   DCHECK(layer_tree_host_->GetTaskRunnerProvider()
              ->MainThreadTaskRunner()
              ->RunsTasksInCurrentSequence());
+#if !BUILDFLAG(IS_COBALT)
   // Only run callbacks on successful presentations.
   if (frame_timing_details.presentation_feedback.failed()) {
     return;
   }
+#else
+  // Cobalt: Run presentation callbacks even if presentation feedback indicates a
+  // failure. This prevents callbacks from leaking in presentation_callbacks_
+  // when frames are dropped or discarded, avoiding subsequent DCHECK crashes
+  // when callbacks.size() exceeds kMaxBufferSize (b/524768105).
+  // Note: Callbacks registered by Blink (e.g., RunCallbackAfterPresentation)
+  // already handle invalid/failed presentation timestamps by falling back to swap_time.
+#endif
   while (!presentation_callbacks_.empty()) {
     const auto& front = presentation_callbacks_.begin();
     if (viz::FrameTokenGT(front->first, frame_token))
