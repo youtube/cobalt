@@ -72,6 +72,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
+      {::switches::kEnableFeatures, "WebAudioRemoveAudioDestinationResampler"},
   });
   return kCobaltSwitchDefaults;
 }

@@ -70,7 +70,8 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
                         "DefaultEnableANGLEValidation, "
                         "SmallerInterestArea, "
                         "ReclaimPrepaintTilesWhenIdle, "
-                        "ReclaimOldPrepaintTiles"),
+                        "ReclaimOldPrepaintTiles",
+                        "WebAudioRemoveAudioDestinationResampler"),
             enabled_features);
 }
 

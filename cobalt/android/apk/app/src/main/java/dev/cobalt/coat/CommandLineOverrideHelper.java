@@ -99,6 +99,7 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("SmallerInterestArea");
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
+    paramOverrides.add("WebAudioRemoveAudioDestinationResampler");
 
     // Reduce default thread stacks from the platform default (1MB on
     // bionic) to 256KB. High-risk threads are carved out explicitly:
