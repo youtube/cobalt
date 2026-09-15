@@ -61,6 +61,7 @@ namespace {
 
 using features::FeatureList;
 using jni_zero::AttachCurrentThread;
+using MimeParam = MimeType::Param;
 
 constexpr int kAndroidApiLevelU = 34;
 
@@ -686,18 +687,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const std::string& video_mime = creation_parameters.video_mime();
     auto video_mime_type = MimeType::Create(video_mime);
     if (!video_mime_type ||
-        !video_mime_type->ValidateBoolParameter("tunnelmode") ||
-        !video_mime_type->ValidateBoolParameter("enableflushduringseek") ||
-        !video_mime_type->ValidateBoolParameter("enableresetaudiodecoder")) {
+        !video_mime_type->ValidateBoolParameter(MimeParam::kTunnelMode) ||
+        !video_mime_type->ValidateBoolParameter(
+            MimeParam::kEnableFlushDuringSeek) ||
+        !video_mime_type->ValidateBoolParameter(
+            MimeParam::kEnableResetAudioDecoder)) {
       return Failure("Invalid video MIME: '" + video_mime + "'");
     }
 
     return VideoMimeParams{
-        .tunnel_mode = video_mime_type->GetParamBoolValue("tunnelmode", false),
-        .enable_flush_during_seek =
-            video_mime_type->GetParamBoolValue("enableflushduringseek", false),
+        .tunnel_mode =
+            video_mime_type->GetParamBoolValue(MimeParam::kTunnelMode, false),
+        .enable_flush_during_seek = video_mime_type->GetParamBoolValue(
+            MimeParam::kEnableFlushDuringSeek, false),
         .enable_reset_audio_decoder = video_mime_type->GetParamBoolValue(
-            "enableresetaudiodecoder", false),
+            MimeParam::kEnableResetAudioDecoder, false),
     };
   }
 
