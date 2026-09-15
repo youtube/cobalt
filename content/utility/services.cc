@@ -341,8 +341,6 @@ auto RunVideoCapture(
 }
 #endif  // !BUILDFLAG(IS_COBALT)
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
 auto RunVideoEffects(
     mojo::PendingReceiver<video_effects::mojom::VideoEffectsService> receiver) {
@@ -355,9 +353,7 @@ auto RunVideoEffects(
 }
 #endif
 
-#if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 04376553710 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-auto RunOnDeviceModel(
+#if !BUILDFLAG(IS_COBALT)auto RunOnDeviceModel(
     mojo::PendingReceiver<on_device_model::mojom::OnDeviceModelService>
         receiver) {
   return on_device_model::OnDeviceModelService::Create(std::move(receiver));
