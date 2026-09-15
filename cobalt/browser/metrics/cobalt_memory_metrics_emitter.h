@@ -84,7 +84,7 @@ class CobaltMemoryMetricsEmitter
   virtual ~CobaltMemoryMetricsEmitter();
 
   virtual void ReceivedMemoryDump(
-      bool success,
+      memory_instrumentation::mojom::RequestOutcome outcome,
       std::unique_ptr<memory_instrumentation::GlobalMemoryDump> dump);
 
  private:

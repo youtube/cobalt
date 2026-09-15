@@ -352,18 +352,22 @@ void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&CobaltMemoryMetricsEmitter::ReceivedMemoryDump, this,
-                       false, nullptr));
+                       memory_instrumentation::mojom::RequestOutcome::
+                           kInProcessMemoryDumpFailed,
+                       nullptr));
   }
 }
 
 CobaltMemoryMetricsEmitter::~CobaltMemoryMetricsEmitter() = default;
 
 void CobaltMemoryMetricsEmitter::ReceivedMemoryDump(
-    bool success,
-    std::unique_ptr<GlobalMemoryDump> dump) {
+    memory_instrumentation::mojom::RequestOutcome outcome,
+    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> dump) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   memory_dump_in_progress_ = false;
+  bool success =
+      outcome == memory_instrumentation::mojom::RequestOutcome::kSuccess;
   if (!success || !dump) {
     if (callback_for_testing_) {
       std::move(callback_for_testing_).Run();
