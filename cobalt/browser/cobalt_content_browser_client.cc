@@ -109,6 +109,8 @@
 #include "cobalt/browser/proxy_server_support.h"
 #endif
 
+#include "starboard/configuration_constants.h"
+
 namespace cobalt {
 
 namespace {
@@ -332,8 +334,31 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   size_t size = 5 * 1024 * 1024;
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
-  return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
-                                             cache_path);
+  return content::GeneratedCodeCacheSettings(
+      /*enabled=*/true, size, cache_path);
+}
+
+// static
+int CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
+    uint32_t total_dir_budget_bytes) {
+  if (total_dir_budget_bytes == 0) {
+    return 0;
+  }
+
+  // Reserve 11 MB for non-HTTP caches sharing the directory:
+  // - 10 MB for V8 code cache (5 MB JS + 5 MB WebAssembly)
+  // - 1 MB for fonts, crashpad database, and metadata
+  constexpr uint32_t kNonHttpReserveBytes = 11 * 1024 * 1024;
+  constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
+
+  if (total_dir_budget_bytes <= kNonHttpReserveBytes) {
+    // For small platform budgets, ensure we do not return 0 or negative.
+    return static_cast<int>(
+        std::min(total_dir_budget_bytes, kMinHttpCacheBytes));
+  }
+
+  uint32_t http_cache_size = total_dir_budget_bytes - kNonHttpReserveBytes;
+  return static_cast<int>(http_cache_size);
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -437,6 +462,9 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kTransportSecurityPersisterFilename);
     network_context_params->file_paths->sct_auditing_pending_reports_file_name =
         base::FilePath(kSCTAuditingPendingReportsFileName);
+
+    network_context_params->http_cache_max_size =
+        ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize);
   }
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
