@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include "base/base_paths.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
@@ -26,6 +28,7 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
+#include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -95,6 +98,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
         const ab = new ArrayBuffer(1024 * 1024);
         const div = document.createElement('div');
         div.style.width = '100px';
+        div.textContent = 'a'.repeat(1024 * 1024 + 1);
         document.body.appendChild(div);
       </script>
     </body>
@@ -195,6 +199,17 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
 
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.VirtualAddress.LargestFreeGapMb"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"));
+  EXPECT_TRUE(
+      check_histogram("Memory.Experimental.VirtualAddress.FragmentationRatio"));
+  EXPECT_TRUE(
+      check_non_zero_histogram("Memory.Experimental.VirtualAddress.VmaCount"));
+#endif
+
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
   check_histogram("Memory.Browser.PartitionAllocRss");
@@ -233,6 +248,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
         const ab = new ArrayBuffer(1024 * 1024);
         const div = document.createElement('div');
         div.style.width = '100px';
+        div.textContent = 'a'.repeat(1024 * 1024 + 1);
         document.body.appendChild(div);
       </script>
     </body>
@@ -316,6 +332,18 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       "Memory.Experimental.Browser2.Malloc.AllocatedObjects.Allocator"));
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
+
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.VirtualAddress.LargestFreeGapMb"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"));
+  EXPECT_TRUE(
+      check_histogram("Memory.Experimental.VirtualAddress.FragmentationRatio"));
+  EXPECT_TRUE(
+      check_non_zero_histogram("Memory.Experimental.VirtualAddress.VmaCount"));
+#endif
+
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 

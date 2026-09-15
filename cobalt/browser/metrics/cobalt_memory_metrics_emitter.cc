@@ -35,6 +35,16 @@
 #include "base/android/meminfo_dump_provider.h"
 #endif
 
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+#include <inttypes.h>
+
+#include <algorithm>
+#include <cmath>
+
+#include "base/files/scoped_file.h"
+#include "base/numerics/safe_conversions.h"
+#endif
+
 using base::trace_event::MemoryAllocatorDump;
 using memory_instrumentation::GetPrivateFootprintHistogramName;
 using memory_instrumentation::GlobalMemoryDump;
@@ -321,6 +331,112 @@ static const char* MetricSizeToVersionSuffix(
   }
 }
 
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+template <typename LineReader>
+std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
+CalculateVirtualAddressSpaceMetricsInternal(LineReader&& get_line) {
+  // Matches base/profiler/stack_base_address_posix.cc, which reads
+  // /proc/self/maps on Android with the same fgets()/sscanf() pattern and the
+  // same buffer size; base/third_party/symbolize/symbolize.cc uses 1024 as
+  // well.
+  char line[1024];
+  uintptr_t prev_vm_end = 0;
+  uintptr_t largest_free_gap = 0;
+  uint64_t total_unmapped_va = 0;
+  size_t vma_count = 0;
+  bool first_vma = true;
+
+  while (get_line(line, sizeof(line))) {
+    uintptr_t vm_start = 0;
+    uintptr_t vm_end = 0;
+    if (sscanf(line, "%" SCNxPTR "-%" SCNxPTR, &vm_start, &vm_end) != 2) {
+      continue;
+    }
+
+    // The kernel always emits VMAs in ascending, non-overlapping order, so
+    // anything that goes backwards is not a real maps entry. Skipping just the
+    // bad record rather than discarding the sample is deliberate: a slightly
+    // incomplete measurement is still useful, whereas letting one bad record
+    // move the reference point would corrupt every gap after it.
+    if (vm_end < vm_start) {
+      continue;
+    }
+    if (!first_vma && vm_start < prev_vm_end) {
+      continue;
+    }
+
+    vma_count++;
+    if (!first_vma) {
+      if (vm_start > prev_vm_end) {
+        uintptr_t gap = vm_start - prev_vm_end;
+        if (gap > largest_free_gap) {
+          largest_free_gap = gap;
+        }
+        total_unmapped_va += gap;
+      }
+    } else {
+      first_vma = false;
+    }
+    prev_vm_end = vm_end;
+  }
+
+  if (vma_count == 0) {
+    return std::nullopt;
+  }
+
+  CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics metrics;
+  metrics.vma_count = vma_count;
+  metrics.largest_free_gap_mb = largest_free_gap / kMiB;
+  metrics.total_unmapped_va_mb = total_unmapped_va / kMiB;
+
+  if (total_unmapped_va > 0) {
+    double ratio = 1.0 - (static_cast<double>(largest_free_gap) /
+                          static_cast<double>(total_unmapped_va));
+    metrics.fragmentation_ratio_pct =
+        std::clamp(static_cast<int>(std::round(ratio * 100.0)), 0, 100);
+  } else {
+    // No unmapped space at all between the lowest and highest mapping.
+    metrics.fragmentation_ratio_pct = 100;
+  }
+
+  return metrics;
+}
+
+void EmitVirtualAddressSpaceMetrics() {
+  base::ScopedFILE fp(fopen("/proc/self/maps", "r"));
+  if (!fp) {
+    DPLOG(WARNING) << "Failed to open /proc/self/maps for VA metrics";
+    return;
+  }
+
+  auto metrics = CalculateVirtualAddressSpaceMetricsInternal(
+      [&fp](char* buf, size_t size) {
+        return fgets(buf, static_cast<int>(size), fp.get()) != nullptr;
+      });
+
+  if (!metrics) {
+    return;
+  }
+
+  // These accumulators are 64-bit and the histogram API takes an int. Clamping
+  // rather than wrapping matters because a wrapped value goes negative.
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Experimental.VirtualAddress.LargestFreeGapMb",
+      base::saturated_cast<int>(metrics->largest_free_gap_mb));
+
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb",
+      base::saturated_cast<int>(metrics->total_unmapped_va_mb));
+
+  base::UmaHistogramPercentage(
+      "Memory.Experimental.VirtualAddress.FragmentationRatio",
+      metrics->fragmentation_ratio_pct);
+
+  base::UmaHistogramCounts100000("Memory.Experimental.VirtualAddress.VmaCount",
+                                 base::saturated_cast<int>(metrics->vma_count));
+}
+#endif  // BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+
 }  // namespace
 
 CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() {
@@ -584,6 +700,9 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
   base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
                                   static_cast<int>(vm_size_total_kb / kKiB));
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+  EmitVirtualAddressSpaceMetrics();
+#endif
   // UMA metrics for media buffer memory usage
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   uint64_t encoded_memory_bytes =
@@ -597,6 +716,36 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   if (callback_for_testing_) {
     std::move(callback_for_testing_).Run();
   }
+}
+
+// static
+std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
+CobaltMemoryMetricsEmitter::CalculateVirtualAddressSpaceMetricsForTesting(
+    const std::string& maps_content) {
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+  // Reproduces how fgets() hands back an over-long line as a head and then a
+  // tail, which std::getline does not do. Simplifying this would silently stop
+  // the truncated-line tests from exercising the production reader.
+  size_t pos = 0;
+  auto get_line = [&maps_content, &pos](char* buf, size_t size) {
+    if (size == 0 || pos >= maps_content.size()) {
+      return false;
+    }
+    size_t written = 0;
+    while (written + 1 < size && pos < maps_content.size()) {
+      const char c = maps_content[pos++];
+      buf[written++] = c;
+      if (c == '\n') {
+        break;
+      }
+    }
+    buf[written] = '\0';
+    return written > 0;
+  };
+  return CalculateVirtualAddressSpaceMetricsInternal(get_line);
+#else
+  return std::nullopt;
+#endif
 }
 
 }  // namespace cobalt
