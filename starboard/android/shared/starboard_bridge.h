@@ -64,6 +64,7 @@ class StarboardBridge {
   bool GetLimitAdTracking(JNIEnv* env);
   std::string GetFriendlyName(JNIEnv* env);
   double GetScreenDiagonal(JNIEnv* env);
+  bool GetWasLowMemoryKilled(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
   void RequestStop(JNIEnv* env, jint error_level);
