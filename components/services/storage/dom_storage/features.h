@@ -6,7 +6,6 @@
 #define COMPONENTS_SERVICES_STORAGE_DOM_STORAGE_FEATURES_H_
 
 #include "base/features.h"
-#include "build/build_config.h"
 
 namespace storage {
 

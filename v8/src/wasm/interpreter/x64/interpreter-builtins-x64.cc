@@ -245,7 +245,7 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
   __ LoadProtectedPointerField(
       internal_function,
       MemOperand(
-          function_data,
+          internal_function,
           WasmExportedFunctionData::kProtectedInternalOffset - kHeapObjectTag));
 
   Register signature = internal_function;
