@@ -7,10 +7,10 @@ inputs:
   test_results_key:
     description: "Artifact key used to upload the retry filter."
     required: true
-  passed:
-    description: "Whether the test target run succeeded."
+  outcome:
+    description: "The outcome of the test results step."
     required: false
-    default: "true"
+    default: "success"
   results_dir:
     description: "Directory where test results are located."
     required: false
@@ -22,7 +22,7 @@ runs:
     - name: Generate Retry Filter
       env:
         TEST_TARGET: ${{ inputs.target_name }}
-        PASSED: ${{ inputs.passed }}
+        OUTCOME: ${{ inputs.outcome }}
         RESULTS_DIR: ${{ inputs.results_dir }}
       run: |
         set -ex
@@ -38,44 +38,34 @@ runs:
           local failed_tests_json
           local has_crash="false"
 
-          # Check if any XML file has an associated crash marker file (.crash).
+          # Check if any XML file has an associated crash marker file.
           for xml_file in "${xml_files[@]}"; do
-            if [ -f "${xml_file%.xml}.crash" ] || [ -f "${xml_file}.crash" ]; then
+            if [ -f "${xml_file%.xml}.crash" ]; then
               has_crash="true"
               break
             fi
           done
-
-          # Also check if any target-level crash marker exists in the results directory.
-          if [ "${has_crash}" != "true" ] && [ -d "${RESULTS_DIR}" ]; then
-            for crash_file in "${RESULTS_DIR}"/**/"${TEST_TARGET}"*.crash; do
-              if [ -f "${crash_file}" ]; then
-                has_crash="true"
-                break
-              fi
-            done
-          fi
 
           # Extract failing test names from parser output.
           raw_json=$(python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" || true)
           failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests // {} | .[]? | .[]? | .name] | unique' 2>/dev/null || echo "[]")
 
           # Build filter JSON.
-          # - If a crash occurred, do not write a filter so the original filters are re-used.
-          # - If there are failing tests, run only those tests.
-          # - If target passed with no failures, skip all (*).
-          # - If target failed but no failing tests were identified (e.g. runner crash or timeout),
-          #   do not write a filter so the original test set is retried.
           filter_json=$(jq -n \
             --argjson tests "${failed_tests_json:-"[]"}" \
-            --arg passed "${PASSED}" \
+            --arg outcome "${OUTCOME}" \
             --arg has_crash "${has_crash}" '
+            # If a crash occurred, do not write a filter so the original filters are re-used.
             if $has_crash == "true" then
               empty
+            # If there are failing tests, run only those tests.
             elif ($tests | length) > 0 then
               { failing_tests: [], tests_to_run: $tests }
-            elif ($passed | ascii_downcase) == "true" or ($passed | ascii_downcase) == "success" then
+            # If target passed with no failures, skip all (*).
+            elif $outcome == "success" then
               { failing_tests: ["*"], tests_to_run: [] }
+            # If target failed but no failing tests were identified (e.g. runner crash or timeout),
+            # do not write a filter so the original test set is retried.
             else
               empty
             end

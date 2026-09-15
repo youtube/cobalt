@@ -987,7 +987,7 @@ jobs:
         with:
           target_name: ${{ steps.extract-target-name.outputs.test_target }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          passed: ${{ steps.test-results.outcome == 'success' }}
+          outcome: ${{ steps.test-results.outcome }}
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
