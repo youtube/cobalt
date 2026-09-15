@@ -34,7 +34,7 @@ public class PlatformErrorTest {
     CobaltActivity mockActivity = mock(CobaltActivity.class);
     Holder<Activity> holder = new Holder<>();
     holder.set(mockActivity);
-    platformError = new PlatformError(holder, PlatformError.CONNECTION_ERROR, TEST_DATA, "");
+    platformError = new PlatformError(holder, PlatformError.CONNECTION_ERROR, TEST_DATA, "", false);
 
     CobaltActivity.resetRetryCount();
   }
@@ -125,7 +125,8 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
 
     PlatformError testPlatformError =
-        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv");
+        new PlatformError(
+            holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv", false);
     testPlatformError.setDialog(mockDialog);
 
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
@@ -151,7 +152,8 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
 
     PlatformError testPlatformError =
-        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv");
+        new PlatformError(
+            holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv", false);
     testPlatformError.setDialog(mockDialog);
 
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
@@ -180,7 +182,7 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
 
     PlatformError testPlatformError =
-        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "");
+        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "", false);
     testPlatformError.setDialog(mockDialog);
 
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
@@ -210,7 +212,8 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
 
     PlatformError testPlatformError =
-        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv");
+        new PlatformError(
+            holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv", false);
     testPlatformError.setDialog(mockDialog);
     org.mockito.Mockito.when(mockDialog.isShowing()).thenReturn(true);
 

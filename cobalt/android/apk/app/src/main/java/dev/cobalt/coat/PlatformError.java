@@ -70,6 +70,7 @@ public class PlatformError
   private final long mData;
   private final Handler mUiThreadHandler;
   @NonNull private final String mUrl;
+  private final boolean mDisableDismissButton;
 
   private Dialog mDialog;
   private int mResponse;
@@ -78,11 +79,16 @@ public class PlatformError
    * @param url The URL that caused the navigation error.
    */
   public PlatformError(
-      Holder<Activity> activityHolder, @ErrorType int errorType, long data, String url) {
+      Holder<Activity> activityHolder,
+      @ErrorType int errorType,
+      long data,
+      String url,
+      boolean disableDismissButton) {
     mActivityHolder = activityHolder;
     mErrorType = errorType;
     mData = data;
     mUrl = url == null ? "" : url;
+    mDisableDismissButton = disableDismissButton;
     mUiThreadHandler = new Handler(Looper.getMainLooper());
     mResponse = CANCELLED;
   }
@@ -114,8 +120,10 @@ public class PlatformError
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
-            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings)
-            .addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
+            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
+        if (!mDisableDismissButton) {
+          dialogBuilder.addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
+        }
         break;
       default:
         Log.e(TAG, "Unknown platform error " + mErrorType);
