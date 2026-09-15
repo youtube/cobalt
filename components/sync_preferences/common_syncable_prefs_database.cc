@@ -147,6 +147,10 @@ enum {
   kAutofillWasNameAndEmailProfileUsed = 98,
   kCrossDeviceCrossPlatformPromosIOS16thActiveDay = 99,
   kCrossDeviceSafetyCheckHomeModuleEnabled = 100,
+  kAutofillAiIdentityEntitiesEnabled = 101,
+  kAutofillAiTravelEntitiesEnabled = 102,
+  kCrossDeviceTabResumptionHomeModuleEnabled = 103,
+  kAutofillAmountExtractionAiTermsSeen = 104,
   // See components/sync_preferences/README.md about adding new entries here.
   // vvvvv IMPORTANT! vvvvv
   // Note to the reviewer: IT IS YOUR RESPONSIBILITY to ensure that new syncable
@@ -169,8 +173,14 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {autofill::prefs::kAutofillLastVersionDeduped,
          {syncable_prefs_ids::kAutofillLastVersionDeduped, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillAiIdentityEntitiesEnabled,
+         {syncable_prefs_ids::kAutofillAiIdentityEntitiesEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
         {autofill::prefs::kAutofillAiLastVersionDeduped,
          {syncable_prefs_ids::kAutofillAiLastVersionDeduped,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillAiTravelEntitiesEnabled,
+         {syncable_prefs_ids::kAutofillAiTravelEntitiesEnabled,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
         {autofill::prefs::kAutofillProfileEnabled,
          {syncable_prefs_ids::kAutofillProfileEnabled, syncer::PREFERENCES,
@@ -273,6 +283,10 @@ constexpr auto kCommonSyncablePrefsAllowlist =
           MergeBehavior::kMergeableDict}},
         {prefs::kCrossDeviceSafetyCheckHomeModuleEnabled,
          {syncable_prefs_ids::kCrossDeviceSafetyCheckHomeModuleEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
+        {prefs::kCrossDeviceTabResumptionHomeModuleEnabled,
+         {syncable_prefs_ids::kCrossDeviceTabResumptionHomeModuleEnabled,
           syncer::PREFERENCES, PrefSensitivity::kNone,
           MergeBehavior::kMergeableDict}},
         {prefs::kSafeBrowsingEnabled,
@@ -408,6 +422,9 @@ constexpr auto kCommonSyncablePrefsAllowlist =
           MergeBehavior::kNone}},
         {prefs::kFingerprintingProtectionEnabled,
          {syncable_prefs_ids::kFingerprintingProtectionEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillAmountExtractionAiTermsSeen,
+         {syncable_prefs_ids::kAutofillAmountExtractionAiTermsSeen,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
     });
 

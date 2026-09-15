@@ -87,11 +87,14 @@ class EntityDataManagerTest : public testing::Test {
 TEST_F(EntityDataManagerTest, InitialPopulation) {
   EntityInstance pp = test::GetPassportEntityInstance();
   EntityInstance dl = test::GetDriversLicenseEntityInstance();
+  EntityInstance fr = test::GetFlightReservationEntityInstance();
 
   helper().autofill_webdata_service()->AddOrUpdateEntityInstance(
       pp, base::DoNothing());
   helper().autofill_webdata_service()->AddOrUpdateEntityInstance(
       dl, base::DoNothing());
+  helper().autofill_webdata_service()->AddOrUpdateEntityInstance(
+      fr, base::DoNothing());
   helper().WaitUntilIdle();
 
   EntityDataManager entity_data_manager(client().GetPrefs(),
@@ -104,7 +107,7 @@ TEST_F(EntityDataManagerTest, InitialPopulation) {
 
   helper().WaitUntilIdle();
   EXPECT_THAT(entity_data_manager.GetEntityInstances(),
-              UnorderedElementsAre(pp, dl));
+              UnorderedElementsAre(pp, dl, fr));
 }
 
 // Tests the emission of opt-in metrics that are emitted on EDM creation, i.e.
@@ -173,10 +176,28 @@ TEST_F(EntityDataManagerTest_InitiallyEmpty, AddEntityInstance) {
 
   EntityInstance pp = test::GetPassportEntityInstance();
   EntityInstance dl = test::GetDriversLicenseEntityInstance();
-  EXPECT_CALL(observer, OnEntityInstancesChanged).Times(AtLeast(2));
+  EntityInstance fr = test::GetFlightReservationEntityInstance();
+  EXPECT_CALL(observer, OnEntityInstancesChanged).Times(AtLeast(3));
   entity_data_manager().AddOrUpdateEntityInstance(pp);
   entity_data_manager().AddOrUpdateEntityInstance(dl);
-  EXPECT_THAT(GetEntityInstances(), UnorderedElementsAre(pp, dl));
+  entity_data_manager().AddOrUpdateEntityInstance(fr);
+  EXPECT_THAT(GetEntityInstances(), UnorderedElementsAre(pp, dl, fr));
+}
+
+// Tests that AddOrUpdateEntityInstance() correctly adds entities with an id
+// that's not formatted as GUID.
+TEST_F(EntityDataManagerTest_InitiallyEmpty, AddEntityInstanceNonGuidFormatId) {
+  MockEntityDataManagerObserver observer;
+  base::ScopedObservation<EntityDataManager, MockEntityDataManagerObserver>
+      observation{&observer};
+  observation.Observe(&entity_data_manager());
+
+  EntityInstance vr = test::GetVehicleEntityInstanceWithRandomGuid(
+      {.guid = "non-guid-format",
+       .record_type = EntityInstance::RecordType::kServerWallet});
+  EXPECT_CALL(observer, OnEntityInstancesChanged).Times(AtLeast(1));
+  entity_data_manager().AddOrUpdateEntityInstance(vr);
+  EXPECT_THAT(GetEntityInstances(), UnorderedElementsAre(vr));
 }
 
 // Tests that recording an entity being used calls for a database entity update.

@@ -84,6 +84,10 @@ NSString* const kProtobufStorageKey = @"protobufStorage";
 NSString* const kStorageKey = @"storage";
 NSString* const kSessionKey = @"session";
 
+// Policy to use when realizing the deserialized WebState.
+constexpr web::WebState::RealizationPolicy kRealizationPolicy =
+    web::WebState::RealizationPolicy::kEnforceNoAttachedData;
+
 // Converts base::Value expected to be a dictionary or list to NSDictionary or
 // NSArray, respectively.
 id NSObjectFromCollectionValue(const base::Value* value) {
@@ -157,7 +161,7 @@ class WebViewHolder : public web::WebStateUserData<WebViewHolder> {
 }  // namespace
 
 // Used to serialize the protobuf message and the WebStateID.
-@interface CWVWebViewProtobufStorage : NSObject <NSCoding>
+@interface CWVWebViewProtobufStorage : NSObject <NSSecureCoding>
 
 - (instancetype)initWithProto:(web::proto::WebStateStorage)storage
                    webStateID:(web::WebStateID)webStateID
@@ -223,14 +227,20 @@ class WebViewHolder : public web::WebStateUserData<WebViewHolder> {
 
 - (std::unique_ptr<web::WebState>)createWebState:
     (web::BrowserState*)browserState {
-  return web::WebState::CreateWithStorage(
+  auto webState = web::WebState::CreateWithStorage(
       browserState, _webStateID, _storage.metadata(),
       base::ReturnValueOnce(std::make_optional(std::move(_storage))),
       base::ReturnValueOnce<NSData*>(nil));
+  webState->ForceRealizedWithPolicy(kRealizationPolicy);
+  return webState;
 }
 
 - (const web::proto::WebStateStorage&)storage {
   return _storage;
+}
+
++ (BOOL)supportsSecureCoding {
+  return YES;
 }
 
 @end
@@ -278,8 +288,9 @@ class WebViewHolder : public web::WebStateUserData<WebViewHolder> {
 
 - (std::unique_ptr<web::WebState>)createWebStateWithCoder:(NSCoder*)coder {
   _cachedProtobufStorage =
-      base::apple::ObjCCastStrict<CWVWebViewProtobufStorage>(
-          [coder decodeObjectForKey:kProtobufStorageKey]);
+      base::apple::ObjCCastStrict<CWVWebViewProtobufStorage>([coder
+          decodeObjectOfClass:[CWVWebViewProtobufStorage class]
+                       forKey:kProtobufStorageKey]);
 
   // If data can't be loaded, return a brand new WebState. Since sending
   // a message to nil is well-defined in Objective-C, this also cover

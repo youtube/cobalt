@@ -183,6 +183,24 @@ static int hash_to_field2(const EC_GROUP *group, const EVP_MD *md,
   return 1;
 }
 
+// hash_to_field1 implements the operation described in section 5.2
+// of RFC 9380, with count = 1. |k| is the security factor.
+static int hash_to_field1(const EC_GROUP *group, const EVP_MD *md,
+                          EC_FELEM *out, const uint8_t *dst, size_t dst_len,
+                          unsigned k, const uint8_t *msg, size_t msg_len) {
+  size_t L;
+  uint8_t buf[2 * EC_MAX_BYTES];
+  if (!num_bytes_to_derive(&L, &group->field.N, k) ||
+      !expand_message_xmd(md, buf, L, msg, msg_len, dst, dst_len)) {
+    return 0;
+  }
+  BN_ULONG words[2 * EC_MAX_WORDS];
+  size_t num_words = 2 * group->field.N.width;
+  big_endian_to_words(words, num_words, buf, L);
+  group->meth->felem_reduce(group, out, words, num_words);
+  return 1;
+}
+
 // hash_to_scalar behaves like |hash_to_field2| but returns a value modulo the
 // group order rather than a field element. |k| is the security factor.
 static int hash_to_scalar(const EC_GROUP *group, const EVP_MD *md,
@@ -358,6 +376,28 @@ static int hash_to_curve(const EC_GROUP *group, const EVP_MD *md,
   return 1;
 }
 
+static int encode_to_curve(const EC_GROUP *group, const EVP_MD *md,
+                           const EC_FELEM *Z, const EC_FELEM *c2, unsigned k,
+                           EC_JACOBIAN *out, const uint8_t *dst, size_t dst_len,
+                           const uint8_t *msg, size_t msg_len) {
+  EC_FELEM u;
+  if (!hash_to_field1(group, md, &u, dst, dst_len, k, msg, msg_len)) {
+    return 0;
+  }
+
+  // Compute |c1| = (p - 3) / 4.
+  BN_ULONG c1[EC_MAX_WORDS];
+  size_t num_c1 = group->field.N.width;
+  if (!bn_copy_words(c1, num_c1, &group->field.N)) {
+    return 0;
+  }
+  bn_rshift_words(c1, c1, /*shift=*/2, /*num=*/num_c1);
+
+  map_to_curve_simple_swu(group, Z, c1, num_c1, c2, out, &u);
+  // All our curves have cofactor one, so |clear_cofactor| is a no-op.
+  return 1;
+}
+
 static int felem_from_u8(const EC_GROUP *group, EC_FELEM *out, uint8_t a) {
   uint8_t bytes[EC_MAX_BYTES] = {0};
   size_t len = BN_num_bytes(&group->field.N);
@@ -454,6 +494,76 @@ int EC_hash_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group, EC_POINT *out,
   }
   return ec_hash_to_curve_p384_xmd_sha384_sswu(group, &out->raw, dst, dst_len,
                                                msg, msg_len);
+}
+
+int ec_encode_to_curve_p256_xmd_sha256_sswu(const EC_GROUP *group,
+                                            EC_JACOBIAN *out,
+                                            const uint8_t *dst, size_t dst_len,
+                                            const uint8_t *msg,
+                                            size_t msg_len) {
+  // See section 8.3 of RFC 9380.
+  if (EC_GROUP_get_curve_name(group) != NID_X9_62_prime256v1) {
+    OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
+    return 0;
+  }
+
+  // Z = -10, c2 = sqrt(10)
+  EC_FELEM Z, c2;
+  if (!felem_from_u8(group, &Z, 10) ||
+      !ec_felem_from_bytes(group, &c2, kP256Sqrt10, sizeof(kP256Sqrt10))) {
+    return 0;
+  }
+  ec_felem_neg(group, &Z, &Z);
+
+  return encode_to_curve(group, EVP_sha256(), &Z, &c2, /*k=*/128, out, dst,
+                         dst_len, msg, msg_len);
+}
+
+int EC_encode_to_curve_p256_xmd_sha256_sswu(const EC_GROUP *group,
+                                            EC_POINT *out, const uint8_t *dst,
+                                            size_t dst_len, const uint8_t *msg,
+                                            size_t msg_len) {
+  if (EC_GROUP_cmp(group, out->group, nullptr) != 0) {
+    OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
+    return 0;
+  }
+  return ec_encode_to_curve_p256_xmd_sha256_sswu(group, &out->raw, dst, dst_len,
+                                                 msg, msg_len);
+}
+
+int ec_encode_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group,
+                                            EC_JACOBIAN *out,
+                                            const uint8_t *dst, size_t dst_len,
+                                            const uint8_t *msg,
+                                            size_t msg_len) {
+  // See section 8.3 of RFC 9380.
+  if (EC_GROUP_get_curve_name(group) != NID_secp384r1) {
+    OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
+    return 0;
+  }
+
+  // Z = -12, c2 = sqrt(12)
+  EC_FELEM Z, c2;
+  if (!felem_from_u8(group, &Z, 12) ||
+      !ec_felem_from_bytes(group, &c2, kP384Sqrt12, sizeof(kP384Sqrt12))) {
+    return 0;
+  }
+  ec_felem_neg(group, &Z, &Z);
+
+  return encode_to_curve(group, EVP_sha384(), &Z, &c2, /*k=*/192, out, dst,
+                         dst_len, msg, msg_len);
+}
+
+int EC_encode_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group,
+                                            EC_POINT *out, const uint8_t *dst,
+                                            size_t dst_len, const uint8_t *msg,
+                                            size_t msg_len) {
+  if (EC_GROUP_cmp(group, out->group, nullptr) != 0) {
+    OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
+    return 0;
+  }
+  return ec_encode_to_curve_p384_xmd_sha384_sswu(group, &out->raw, dst, dst_len,
+                                                 msg, msg_len);
 }
 
 int ec_hash_to_scalar_p384_xmd_sha384(const EC_GROUP *group, EC_SCALAR *out,

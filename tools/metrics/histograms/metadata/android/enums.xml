@@ -825,7 +825,7 @@ chromium-metrics-reviews@google.com.
 
 <enum name="BackupNavbarInsetsSource">
   <int value="0" label="None"/>
-  <int value="1" label="Tappable Element"/>
+  <int value="1" label="Tappable Element (Deprecated)"/>
   <int value="2" label="Mandatory system gestures"/>
   <int value="3" label="Filtered explicitly disabled"/>
   <int value="4" label="Filtered weaker signals"/>
@@ -981,6 +981,9 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Caption bar customizable space unavailable."/>
   <int value="5" label="The app is open on an external display."/>
   <int value="6" label="Caption bar has a complex unoccluded region."/>
+  <int value="7"
+      label="Caption bar height is below min height threshold for
+             customization."/>
 </enum>
 
 <enum name="DesktopWindowModeState">
@@ -1365,6 +1368,11 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="openid4vp"/>
   <int value="6" label="OpenId4Vci"/>
   <int value="7" label="Haip"/>
+</enum>
+
+<enum name="NewWindowAppSource">
+  <int value="0" label="Undefined app source."/>
+  <int value="1" label="Menu option (eg. app menu, context menu, etc.)"/>
 </enum>
 
 <enum name="NightMode">

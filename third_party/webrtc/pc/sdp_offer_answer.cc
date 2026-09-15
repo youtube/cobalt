@@ -313,6 +313,38 @@ bool MediaSectionsHaveSameCount(const SessionDescription& desc1,
                                 const SessionDescription& desc2) {
   return desc1.contents().size() == desc2.contents().size();
 }
+
+// Checks that the remote answer follows the rules from
+// https://datatracker.ietf.org/doc/html/rfc3264#section-6.1
+RTCError VerifyDirectionsInAnswer(const SessionDescription* local_offer,
+                                  const SessionDescription* remote_answer) {
+  RTC_DCHECK(local_offer);
+  RTC_DCHECK(remote_answer);
+
+  const ContentInfos& local_contents = local_offer->contents();
+  const ContentInfos& remote_contents = remote_answer->contents();
+  RTC_DCHECK(local_contents.size() == remote_contents.size());
+
+  for (size_t i = 0; i < local_contents.size(); i++) {
+    RtpTransceiverDirection local_direction =
+        local_contents[i].media_description()->direction();
+    RtpTransceiverDirection remote_direction =
+        remote_contents[i].media_description()->direction();
+
+    if (!RtpTransceiverDirectionHasRecv(local_direction) &&
+        RtpTransceiverDirectionHasSend(remote_direction)) {
+      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
+                           "Incompatible receive direction");
+    }
+    if (!RtpTransceiverDirectionHasSend(local_direction) &&
+        RtpTransceiverDirectionHasRecv(remote_direction)) {
+      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
+                           "Incompatible send direction");
+    }
+  }
+  return RTCError::OK();
+}
+
 // Checks that each non-rejected content has a DTLS
 // fingerprint, unless it's in a BUNDLE group, in which case only the
 // BUNDLE-tag section (first media section/description in the BUNDLE group)
@@ -3884,6 +3916,17 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     error = ValidateRtpHeaderExtensionsForSpecSimulcast(*sdesc->description());
     if (!error.ok()) {
       return error;
+    }
+
+    if (source == CS_REMOTE &&
+        (type == SdpType::kPrAnswer || type == SdpType::kAnswer)) {
+      RTC_DCHECK(local_description());
+      error = VerifyDirectionsInAnswer(local_description()->description(),
+                                       sdesc->description());
+      if (!error.ok() && !env_.field_trials().IsDisabled(
+                             "WebRTC-EnforceTransceiverDirection")) {
+        return error;
+      }
     }
   }
 

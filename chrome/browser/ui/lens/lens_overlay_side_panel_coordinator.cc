@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/feature_list.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/companion/text_finder/text_finder_manager.h"
 #include "chrome/browser/companion/text_finder/text_highlighter_manager.h"
@@ -106,7 +107,7 @@ bool IsSiteTrusted(const GURL& url) {
   return false;
 }
 
-SidePanelUI* GetSidePanelUI(LensOverlayController* controller) {
+SidePanelUI* GetSidePanelUI(LensSearchController* controller) {
   return controller->GetTabInterface()
       ->GetBrowserWindowInterface()
       ->GetFeatures()
@@ -169,7 +170,7 @@ void LensOverlaySidePanelCoordinator::RegisterEntryAndShow() {
 
   state_ = State::kOpeningSidePanel;
   RegisterEntry();
-  GetSidePanelUI(GetLensOverlayController())
+  GetSidePanelUI(GetLensSearchController())
       ->Show(SidePanelEntry::Id::kLensOverlayResults);
   GetLensOverlayController()->NotifyResultsPanelOpened();
 
@@ -290,7 +291,7 @@ bool LensOverlaySidePanelCoordinator::MaybeHandleContextualMediaLink(
 }
 
 bool LensOverlaySidePanelCoordinator::IsEntryShowing() {
-  auto* side_panel_ui = GetSidePanelUI(GetLensOverlayController());
+  auto* side_panel_ui = GetSidePanelUI(GetLensSearchController());
   if (!side_panel_ui) {
     return false;
   }
@@ -625,6 +626,7 @@ void LensOverlaySidePanelCoordinator::BindSidePanel(
   side_panel_receiver_.Bind(std::move(receiver));
   side_panel_page_.Bind(std::move(page));
 
+  SetIsOverlayShowing(GetLensOverlayController()->IsOverlayShowing());
   if (pending_side_panel_url_.has_value()) {
     side_panel_page_->LoadResultsInFrame(*pending_side_panel_url_);
     pending_side_panel_url_.reset();
@@ -745,6 +747,14 @@ void LensOverlaySidePanelCoordinator::AimResultsChanged(bool on_aim) {
   }
   if (side_panel_page_) {
     side_panel_page_->AimResultsChanged(on_aim);
+  }
+}
+
+void LensOverlaySidePanelCoordinator::SetIsOverlayShowing(bool is_showing) {
+  if (base::FeatureList::IsEnabled(
+          lens::features::kLensSearchReinvocationAffordance) &&
+      side_panel_page_) {
+    side_panel_page_->SetIsOverlayShowing(is_showing);
   }
 }
 
@@ -939,6 +949,9 @@ void LensOverlaySidePanelCoordinator::DidStartNavigation(
     return;
   }
   SetSidePanelIsLoadingResults(true);
+  // Notify the Composebox Controller that a new navigation has started so the
+  // AIM handshake is no longer established.
+  GetLensComposeboxController()->ResetAimHandshake();
 }
 
 void LensOverlaySidePanelCoordinator::DOMContentLoaded(
@@ -1157,7 +1170,8 @@ LensOverlaySidePanelCoordinator::CreateLensOverlayResultsView(
 
 GURL LensOverlaySidePanelCoordinator::GetSidePanelNewTabUrl() {
   return lens::GetSidePanelNewTabUrl(
-      side_panel_new_tab_url_, GetLensOverlayController()->GetVsridForNewTab());
+      side_panel_new_tab_url_,
+      GetLensOverlayQueryController()->GetVsridForNewTab());
 }
 
 void LensOverlaySidePanelCoordinator::ShowToast(std::string message) {

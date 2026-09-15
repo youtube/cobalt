@@ -949,9 +949,8 @@ SelectorChecker::MatchStatus SelectorChecker::MatchForRelation(
 
   // Disable :visited matching when we see the first link or try to match
   // anything else than an ancestor.
-  if ((!context.is_sub_selector || context.in_nested_complex_selector) &&
-      (context.element->IsLink() || (relation != CSSSelector::kDescendant &&
-                                     relation != CSSSelector::kChild))) {
+  if (context.element->IsLink() || (relation != CSSSelector::kDescendant &&
+                                    relation != CSSSelector::kChild)) {
     DisallowMatchVisited(next_context);
   }
 
@@ -1869,8 +1868,13 @@ EarlyBreakOnHasArgumentChecking CheckEarlyBreakForHasArgument(
 }
 
 bool MatchesExternalSVGUseTarget(Element& element) {
-  const auto* svg_element = DynamicTo<SVGElement>(element);
-  return svg_element && svg_element->IsResourceTarget();
+  if (const auto* svg_element = DynamicTo<SVGElement>(element)) {
+    if (const SVGElement* corresponding = svg_element->CorrespondingElement()) {
+      svg_element = corresponding;
+    }
+    return svg_element->IsResourceTarget();
+  }
+  return false;
 }
 
 }  // namespace

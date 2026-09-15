@@ -1010,3 +1010,88 @@ DEF_TEST(SkPathBuilder_rMoveTo, reporter) {
     //  PathIter, for compat, is snuffing out trailing moves
     check_done_and_reset(reporter, &p, &iter);
 }
+
+const SkPathFillType gFillTypes[] = {
+    SkPathFillType::kWinding,
+    SkPathFillType::kEvenOdd,
+    SkPathFillType::kInverseWinding,
+    SkPathFillType::kInverseEvenOdd,
+};
+
+DEF_TEST(SkPathBuilder_equality, reporter) {
+    auto check_filltype_eq = [reporter](const SkPathBuilder& a) {
+        SkPathBuilder copy = a;
+        REPORTER_ASSERT(reporter, a == copy);
+
+        for (auto ft : gFillTypes) {
+            if (ft != a.fillType()) {
+                copy.setFillType(ft);
+                REPORTER_ASSERT(reporter, a != copy);
+            }
+        }
+    };
+
+
+    SkPathBuilder a, b;
+
+    REPORTER_ASSERT(reporter, a == b);
+    check_filltype_eq(a);
+
+    a.moveTo(0, 0);
+    REPORTER_ASSERT(reporter, a != b);
+    b.moveTo(0, 0);
+    REPORTER_ASSERT(reporter, a == b);
+    check_filltype_eq(a);
+
+    b.close();
+    REPORTER_ASSERT(reporter, a != b);
+    a.close();
+    REPORTER_ASSERT(reporter, a == b);
+    check_filltype_eq(a);
+
+    auto set_segments = [](SkPathBuilder& bu) {
+        bu.reset()
+          .moveTo(1, 2)
+          .lineTo(3, 4)
+          .quadTo(5, 6, 7, 8)
+          .conicTo(9, 10, 11, 12, 0.5f)
+          .cubicTo(13, 14, 15, 16, 17, 18)
+          .close();
+    };
+    set_segments(a);
+    set_segments(b);
+    REPORTER_ASSERT(reporter, a == b);
+    check_filltype_eq(a);
+
+    // mutate point value, but not verb sequence
+    a.setLastPt(-1, -2);
+    REPORTER_ASSERT(reporter, a != b);
+    check_filltype_eq(a);
+}
+
+DEF_TEST(SkPathBuilder_dump, reporter) {
+    SkPathBuilder builder;
+    builder.moveTo(1, 2)
+            .lineTo(3, 4)
+            .quadTo(5, 6, 7, 8)
+            .conicTo(9, 10, 11, 12, 0.5f)
+            .cubicTo(13, 14, 15, 16, 17, 18)
+            .close()
+            .moveTo(1, 2)
+            .lineTo(3, 4);
+
+    SkString str = builder.dumpToString();
+
+    const char expected[] =
+        "SkPathBuilder(SkPathFillType::kWinding)\n"
+        ".moveTo(1, 2)\n"
+        ".lineTo(3, 4)\n"
+        ".quadTo(5, 6, 7, 8)\n"
+        ".conicTo(9, 10, 11, 12, 0.5f)\n"
+        ".cubicTo(13, 14, 15, 16, 17, 18)\n"
+        ".close()\n"
+        ".moveTo(1, 2)\n"
+        ".lineTo(3, 4)\n";
+
+    REPORTER_ASSERT(reporter, str.equals(expected));
+}

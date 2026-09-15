@@ -71,7 +71,6 @@ Pethau i'w hystyried:
 <translation id="2576431527583832481">Gwnaeth Chrome wella! Mae fersiwn newydd ar gael.</translation>
 <translation id="257708665678654955">Ydych chi am i Google Chrome gynnig cyfieithu tudalennau <ph name="LANGUAGE_NAME" /> o'r wefan hon y tro nesaf?</translation>
 <translation id="2668242166988961773">Chwilio â llais yn Chrome.</translation>
-<translation id="2689064829982324496">I allgofnodi o'ch Cyfrif Google ar bob gwefan, <ph name="BEGIN_LINK" />allgofnodwch o Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Ni allai Chrome wirio am ddiweddariadau. Rhowch gynnig arall arni'n nes ymlaen.</translation>
 <translation id="2703746758996815929">I gael awgrymiadau defnyddiol Chrome, trowch hysbysiadau ymlaen yn eich gosodiadau iOS.</translation>
 <translation id="2728851697704606655">Cyfieithu gyda Google Lens</translation>
@@ -87,6 +86,9 @@ Arhoswch ychydig funudau cyn allgofnodi. Os byddwch yn allgofnodi nawr, bydd y d
 <translation id="2940565985148833945">Awgrym Chrome: Chwilio â Lens</translation>
 <translation id="2957447865124070833">Dewiswch <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /></translation>
 <translation id="2986402782150919988">Ychwanegu nodau tudalen at Chrome</translation>
+<translation id="3027236223714901838">Er mwyn cadw'ch codau pas yn ddiogel, yn gyntaf bydd angen i chi greu PIN adfer.
+
+        Mae codau pas yn cael eu cadw yn Rheolwr Cyfrineiriau Google, sy'n caniatáu i chi eu defnyddio yn Chrome ar unrhyw ddyfais.</translation>
 <translation id="3030414234702425231">Oherwydd eich bod yn allgofnodi o gyfrif a reolir gan <ph name="SIGNOUT_MANAGED_DOMAIN" />, bydd eich data Chrome yn cael eu dileu o'r ddyfais hon. Bydd eich data yn aros yn eich Cyfrif Google.</translation>
 <translation id="3042447686908081308">Mewnforio i Chrome</translation>
 <translation id="3051521853355903257">Rheoli cyfrineiriau yn Chrome</translation>
@@ -309,7 +311,6 @@ Dim ond rhywun sydd â'ch cyfrinymadrodd all ddarllen eich data sydd wedi'u hamg
 <translation id="8413500425974960807">Awgrym Chrome: Symudwch Chrome i'r doc</translation>
 <translation id="8413795581997394485">Yn amddiffyn rhag gwefannau, lawrlwythiadau ac estyniadau y gwyddys eu bod yn beryglus. Pan fyddwch yn ymweld â gwefan, mae Chrome yn anfon rhan o'r URL sydd wedi'i dwyllo at Google drwy weinydd preifatrwydd sy'n cuddio eich cyfeiriad IP. Os yw gwefan yn gwneud rhywbeth amheus, bydd URL llawn a darnau o gynnwys tudalen hefyd yn cael eu hanfon.</translation>
 <translation id="84594714173170813">Parhewch i ddefnyddio'r data Chrome yn eich Cyfrif Google</translation>
-<translation id="8459495907675268833">Mae'r data a ddewiswyd wedi'u tynnu o Chrome a dyfeisiau sydd wedi'u cysoni. Mae'n bosib y bydd gan eich Cyfrif Google fathau eraill o hanes pori megis chwiliadau a gweithgarwch gan wasanaethau Google eraill yn history.google.com.</translation>
 <translation id="8491300088149538575">Wedi mewngofnodi fel <ph name="EMAIL" />.
 
 Cafodd eich data eu hamgryptio gyda'ch cyfrinymadrodd ar <ph name="TIME" />. Rhowch ef i ddefnyddio a chadw data Chrome yn eich Cyfrif Google.</translation>

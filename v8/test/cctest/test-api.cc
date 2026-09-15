@@ -1556,7 +1556,9 @@ THREADED_TEST(FunctionTemplateSetLength) {
 }
 
 static void* expected_ptr;
-constexpr v8::ExternalPointerTypeTag kTestPtrTag = 91;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestPtrTag = 16;
 
 static void callback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(i::ValidateCallbackInfo(args));
@@ -6283,7 +6285,9 @@ TEST(CustomErrorMessage) {
   context.isolate()->RemoveMessageListeners(check_custom_error_message);
 }
 
-constexpr v8::ExternalPointerTypeTag kIntPointerTag = 89;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIntPointerTag = 17;
 
 static void check_custom_rethrowing_message(v8::Local<v8::Message> message,
                                             v8::Local<v8::Value> data) {
@@ -13622,9 +13626,9 @@ static void TestAllocateAndNewForTwoIsolateGroups(
     v8::Isolate::Initialize(isolate1bis, create_params_1);
     v8::Isolate::Initialize(isolate2, create_params_2);
 
-    isolate1->Dispose();
-    isolate1bis->Dispose();
     isolate2->Dispose();
+    isolate1bis->Dispose();
+    isolate1->Dispose();
   }
 
   // New() can control groups into which isolates are allocated.
@@ -13637,9 +13641,9 @@ static void TestAllocateAndNewForTwoIsolateGroups(
     CHECK_EQ(group1, isolate1bis->GetGroup());
     CHECK_EQ(group2, isolate2->GetGroup());
 
-    isolate1->Dispose();
-    isolate1bis->Dispose();
     isolate2->Dispose();
+    isolate1bis->Dispose();
+    isolate1->Dispose();
   }
 }
 
@@ -27076,9 +27080,9 @@ MaybeLocal<Object> CheckResolveSource(Local<Context> context,
   return {};
 }
 
-TEST(ImportSourceResolveModuleAndSource) {
-  i::v8_flags.js_source_phase_imports = true;
-
+TEST_WITH_FLAGS(ImportSourceResolveModuleAndSource,
+                "--js-source-phase-imports") {
+  DCHECK(i::v8_flags.js_source_phase_imports);
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -27247,8 +27251,9 @@ v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackStatic(
   return v8::Context::New(CcTest::isolate());
 }
 
-TEST(CreateShadowRealmContextHostNotSupported) {
-  i::v8_flags.harmony_shadow_realm = true;
+TEST_WITH_FLAGS(CreateShadowRealmContextHostNotSupported,
+                "--harmony-shadow-realm") {
+  DCHECK(i::v8_flags.harmony_shadow_realm);
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -27273,8 +27278,8 @@ TEST(CreateShadowRealmContextHostNotSupported) {
             .FromJust());
 }
 
-TEST(CreateShadowRealmContext) {
-  i::v8_flags.harmony_shadow_realm = true;
+TEST_WITH_FLAGS(CreateShadowRealmContext, "--harmony-shadow-realm") {
+  DCHECK(i::v8_flags.harmony_shadow_realm);
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -27302,8 +27307,8 @@ v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackThrow(
   return v8::MaybeLocal<v8::Context>();
 }
 
-TEST(CreateShadowRealmContextThrow) {
-  i::v8_flags.harmony_shadow_realm = true;
+TEST_WITH_FLAGS(CreateShadowRealmContextThrow, "--harmony-shadow-realm") {
+  DCHECK(i::v8_flags.harmony_shadow_realm);
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -28259,8 +28264,8 @@ UNINITIALIZED_TEST(NestedIsolates) {
     ExpectInt32("c", 4);
   }
 
-  isolate_1->Dispose();
   isolate_2->Dispose();
+  isolate_1->Dispose();
 }
 
 #undef THREADED_PROFILED_TEST
@@ -30177,14 +30182,10 @@ TEST(TriggerMainThreadMetricsEvent) {
     context_id = v8::metrics::Recorder::GetContextId(context);
 
     // Check that event submission works.
-    {
-      i::metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope(
-          &event);
-      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
-    }
+    event.wall_clock_duration_in_us = 100;
     i_iso->metrics_recorder()->AddMainThreadEvent(event, context_id);
     CHECK_EQ(recorder->count_, 1);  // Increased.
-    CHECK_GT(recorder->time_in_us_, 100);
+    CHECK_EQ(recorder->time_in_us_, 100);
   }
 
   {
@@ -30222,11 +30223,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
     context_id = v8::metrics::Recorder::GetContextId(context);
 
     // Check that event submission works.
-    {
-      i::metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope(
-          &event);
-      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
-    }
+    event.wall_clock_duration_in_us = 100;
     i_iso->metrics_recorder()->DelayMainThreadEvent(event, context_id);
     CHECK_EQ(recorder->count_, 0);        // Unchanged.
     CHECK_EQ(recorder->time_in_us_, -1);  // Unchanged.
@@ -30234,7 +30231,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
     while (v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(), iso)) {
     }
     CHECK_EQ(recorder->count_, 1);  // Increased.
-    CHECK_GT(recorder->time_in_us_, 100);
+    CHECK_EQ(recorder->time_in_us_, 100);
   }
 
   {
@@ -30962,7 +30959,9 @@ class MyObject {
   v8::Local<v8::Object> internal_data_;
 };
 
-constexpr v8::ExternalPointerTypeTag kMyObjectTag = 90;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kMyObjectTag = 18;
 
 class HiddenDataDelegate : public v8::Context::DeepFreezeDelegate {
  public:

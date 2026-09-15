@@ -15,7 +15,8 @@ namespace blink {
 
 namespace {
 
-class MemoryPurgeManagerTest : public testing::Test {
+class MemoryPurgeManagerTest : public testing::Test,
+                               public base::MemoryPressureListener {
  public:
   MemoryPurgeManagerTest()
       : task_environment_(base::test::TaskEnvironment::MainThreadType::UI,
@@ -25,15 +26,14 @@ class MemoryPurgeManagerTest : public testing::Test {
   MemoryPurgeManagerTest& operator=(const MemoryPurgeManagerTest&) = delete;
 
   void SetUp() override {
-    memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-        FROM_HERE, base::MemoryPressureListenerTag::kTest,
-        base::BindRepeating(&MemoryPurgeManagerTest::OnMemoryPressure,
-                            base::Unretained(this)));
+    memory_pressure_listener_registration_ =
+        std::make_unique<base::MemoryPressureListenerRegistration>(
+            FROM_HERE, base::MemoryPressureListenerTag::kTest, this);
     base::MemoryPressureListener::SetNotificationsSuppressed(false);
   }
 
   void TearDown() override {
-    memory_pressure_listener_.reset();
+    memory_pressure_listener_registration_.reset();
     task_environment_.FastForwardUntilNoTasksRemain();
     memory_purge_manager_.SetPurgeDisabledForTesting(false);
   }
@@ -46,14 +46,15 @@ class MemoryPurgeManagerTest : public testing::Test {
   unsigned MemoryPressureCount() const { return memory_pressure_count_; }
 
   base::test::TaskEnvironment task_environment_;
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::MemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   MemoryPurgeManager memory_purge_manager_;
 
   unsigned memory_pressure_count_ = 0;
 
  private:
-  void OnMemoryPressure(base::MemoryPressureListener::MemoryPressureLevel) {
+  void OnMemoryPressure(base::MemoryPressureLevel) override {
     memory_pressure_count_++;
   }
 };

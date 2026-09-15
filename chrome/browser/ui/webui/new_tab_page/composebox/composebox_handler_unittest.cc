@@ -17,9 +17,11 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "base/version_info/channel.h"
+#include "chrome/browser/omnibox/contextual_session_web_contents_helper.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
+#include "components/omnibox/composebox/contextual_session_service.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
@@ -71,6 +73,17 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
         /*enable_multi_context_input_flow=*/false,
         /*enable_viewport_images=*/true);
     query_controller_ = query_controller_ptr.get();
+
+    service_ = std::make_unique<ContextualSessionService>(
+        /*identity_manager=*/nullptr, url_loader_factory(),
+        template_url_service(), fake_variations_client(),
+        version_info::Channel::UNKNOWN, "en-US");
+    auto contextual_session_handle =
+        service_->CreateSessionForTesting(std::move(query_controller_ptr));
+    ContextualSessionWebContentsHelper::GetOrCreateForWebContents(
+        web_contents())
+        ->set_session_handle(std::move(contextual_session_handle));
+
     web_contents()->SetDelegate(&delegate_);
     auto metrics_recorder_ptr =
         std::make_unique<MockComposeboxMetricsRecorder>();
@@ -79,8 +92,7 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
         mojo::PendingReceiver<composebox::mojom::PageHandler>(),
         mock_page_.BindAndGetRemote(),
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
-        std::move(query_controller_ptr), std::move(metrics_recorder_ptr),
-        profile(), web_contents(), /*metrics_reporter=*/nullptr);
+        std::move(metrics_recorder_ptr), profile(), web_contents());
 
     handler_->SetPage(mock_searchbox_page_.BindAndGetRemote());
   }
@@ -105,6 +117,7 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
     query_controller_ = nullptr;
     metrics_recorder_ = nullptr;
     handler_.reset();
+    service_.reset();
     ContextualSearchboxHandlerTestHarness::TearDown();
   }
 
@@ -132,56 +145,10 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
  private:
   TestWebContentsDelegate delegate_;
   raw_ptr<MockQueryController> query_controller_;
+  std::unique_ptr<ContextualSessionService> service_;
   raw_ptr<MockComposeboxMetricsRecorder> metrics_recorder_;
   std::unique_ptr<ComposeboxHandler> handler_;
 };
-
-TEST_F(ComposeboxHandlerTest, SubmitQuery) {
-  // Wait until the state changes to kClusterInfoReceived.
-  base::RunLoop run_loop;
-  query_controller().set_on_query_controller_state_changed_callback(
-      base::BindLambdaForTesting([&](QueryControllerState state) {
-        if (state == QueryControllerState::kClusterInfoReceived) {
-          run_loop.Quit();
-        }
-      }));
-
-  std::vector<SessionState> session_states;
-  EXPECT_CALL(metrics_recorder(), NotifySessionStateChanged)
-      .Times(3)
-      .WillRepeatedly([&](SessionState session_state) {
-        session_states.push_back(session_state);
-      });
-
-  // Start the session.
-  EXPECT_CALL(query_controller(), NotifySessionStarted)
-      .Times(1)
-      .WillOnce(testing::Invoke(
-          &query_controller(), &MockQueryController::NotifySessionStartedBase));
-  handler().NotifySessionStarted();
-  run_loop.Run();
-
-  SubmitQueryAndWaitForNavigation();
-
-  std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
-      search_url_request_info = std::make_unique<
-          ComposeboxQueryController::CreateSearchUrlRequestInfo>();
-  search_url_request_info->query_text = kQueryText;
-  search_url_request_info->query_start_time = base::Time::Now();
-  GURL expected_url =
-      query_controller().CreateSearchUrl(std::move(search_url_request_info));
-  GURL actual_url =
-      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
-
-  // Ensure navigation occurred.
-  EXPECT_EQ(StripTimestampsFromAimUrl(expected_url),
-            StripTimestampsFromAimUrl(actual_url));
-
-  EXPECT_THAT(session_states,
-              testing::ElementsAre(SessionState::kSessionStarted,
-                                   SessionState::kQuerySubmitted,
-                                   SessionState::kNavigationOccurred));
-}
 
 TEST_F(ComposeboxHandlerTest, SetDeepSearchMode) {
   // Wait until the state changes to kClusterInfoReceived.

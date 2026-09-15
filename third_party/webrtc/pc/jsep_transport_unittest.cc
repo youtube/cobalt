@@ -140,7 +140,6 @@ class JsepTransport2Test : public ::testing::Test {
     auto rtcp_ice = CreateIceTransport(std::move(rtcp_ice_internal));
 
     std::unique_ptr<RtpTransport> unencrypted_rtp_transport;
-    std::unique_ptr<SrtpTransport> sdes_transport;
     std::unique_ptr<DtlsSrtpTransport> dtls_srtp_transport;
     dtls_srtp_transport = CreateDtlsSrtpTransport(rtp_dtls_transport.get(),
                                                   rtcp_dtls_transport.get());
@@ -148,8 +147,8 @@ class JsepTransport2Test : public ::testing::Test {
     auto jsep_transport = std::make_unique<JsepTransport>(
         kTransportName, /*local_certificate=*/nullptr, std::move(ice),
         std::move(rtcp_ice), std::move(unencrypted_rtp_transport),
-        std::move(sdes_transport), std::move(dtls_srtp_transport),
-        std::move(rtp_dtls_transport), std::move(rtcp_dtls_transport),
+        std::move(dtls_srtp_transport), std::move(rtp_dtls_transport),
+        std::move(rtcp_dtls_transport),
         /*sctp_transport=*/nullptr,
         /*rtcp_mux_active_callback=*/[&]() { OnRtcpMuxActive(); },
         payload_type_picker_);
@@ -191,10 +190,6 @@ class JsepTransport2Test : public ::testing::Test {
   AutoThread main_thread_;
   std::unique_ptr<JsepTransport> jsep_transport_;
   bool signal_rtcp_mux_active_received_ = false;
-  // The SrtpTransport is owned by `jsep_transport_`. Keep a raw pointer here
-  // for testing.
-  SrtpTransport* sdes_transport_ = nullptr;
-
   FieldTrials field_trials_ = CreateTestFieldTrials();
   PayloadTypePicker payload_type_picker_;
 };

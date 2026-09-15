@@ -7,6 +7,7 @@
 
 #include <variant>
 
+#include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
@@ -17,7 +18,12 @@
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/suggestions/one_time_passwords/one_time_password_suggestion_data.h"
 #include "components/autofill/core/browser/suggestions/passkeys/hybrid_passkey_availability.h"
+#include "components/autofill/core/browser/suggestions/payments/save_and_fill_suggestion.h"
+#include "components/autofill/core/browser/suggestions/plus_addresses/create_plus_address_suggestion.h"
+#include "components/autofill/core/browser/suggestions/plus_addresses/plus_address.h"
+#include "components/autofill/core/browser/suggestions/plus_addresses/plus_address_for_address_suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 
@@ -61,8 +67,12 @@ class SuggestionGenerator {
     kLoyaltyCard,
     kIdentityCredential,
     kPasskey,
+    kPlusAddress,
+    kCreatePlusAddress,
+    kPlusAddressForAddress,
     kCompose,
-    kMaxValue = kCompose
+    kOneTimePassword,
+    kMaxValue = kOneTimePassword
   };
 
   SuggestionGenerator() = default;
@@ -80,7 +90,12 @@ class SuggestionGenerator {
                                       AutocompleteEntry,
                                       LoyaltyCard,
                                       IdentityCredential,
-                                      HybridPasskeyAvailability>;
+                                      HybridPasskeyAvailability,
+                                      SaveAndFillSuggestion,
+                                      OneTimePasswordSuggestionData,
+                                      PlusAddress,
+                                      CreatePlusAddressSuggestion,
+                                      PlusAddressForAddressSuggestion>;
 
   // Obtains data that will be used to generate suggestions on a given
   // `trigger_field` that belongs to `form`.
@@ -133,20 +148,9 @@ class SuggestionGenerator {
       const FormFieldData& trigger_field,
       const FormStructure* form_structure,
       const AutofillField* trigger_autofill_field,
-      const std::vector<
-          std::pair<SuggestionDataSource, std::vector<SuggestionData>>>&
+      const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
           all_suggestion_data,
       base::OnceCallback<void(ReturnedSuggestions)> callback) = 0;
-
- protected:
-  // Returns the vector of `SuggestionData` for a specific
-  // `SuggestionDataSource` from the `all_suggestion_data` vector.
-  static std::vector<SuggestionGenerator::SuggestionData>
-  ExtractSuggestionDataForSource(
-      base::span<
-          const std::pair<SuggestionDataSource, std::vector<SuggestionData>>>
-          all_suggestion_data,
-      SuggestionDataSource suggestion_data_source);
 };
 
 }  // namespace autofill

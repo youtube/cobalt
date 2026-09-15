@@ -101,7 +101,26 @@ ChromeAutofillClientIOS::ChromeAutofillClientIOS(
           IdentityManagerFactory::GetForProfile(profile->GetOriginalProfile())),
       infobar_manager_(infobar_manager),
       log_router_(AutofillLogRouterFactory::GetForProfile(profile_)),
-      ablation_study_(GetApplicationContext()->GetLocalState()) {}
+      ablation_study_(GetApplicationContext()->GetLocalState()) {
+  // TODO(crbug.com/449708427): Remove once `AccountInfo` supports full_name on
+  // IOS.
+  if (personal_data_manager_) {
+    AuthenticationService* authenticationService =
+        AuthenticationServiceFactory::GetForProfile(profile);
+    if (authenticationService) {
+      id<SystemIdentity> identity = authenticationService->GetPrimaryIdentity(
+          signin::ConsentLevel::kSignin);
+      // Tries to create kAccountNameEmail profile using the current primary
+      // account data.
+      if (identity) {
+        personal_data_manager_->address_data_manager()
+            .MaybeCreateAccountNameEmailProfile(
+                base::SysNSStringToUTF8(identity.userFullName),
+                base::SysNSStringToUTF8(identity.userEmail));
+      }
+    }
+  }
+}
 
 ChromeAutofillClientIOS::~ChromeAutofillClientIOS() {
   HideAutofillSuggestions(SuggestionHidingReason::kTabGone);
@@ -381,6 +400,10 @@ bool ChromeAutofillClientIOS::IsAutofillProfileEnabled() const {
 
 bool ChromeAutofillClientIOS::IsAutofillPaymentMethodsEnabled() const {
   return prefs::IsAutofillPaymentMethodsEnabled(GetPrefs());
+}
+
+bool ChromeAutofillClientIOS::IsImportingToWalletEnabled() const {
+  return false;
 }
 
 bool ChromeAutofillClientIOS::IsAutocompleteEnabled() const {

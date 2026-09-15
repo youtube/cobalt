@@ -9,107 +9,7 @@
 
 namespace blink {
 
-String GapIntersection::ToString(bool verbose) const {
-  if (verbose) {
-    return StrCat(
-        {"(", inline_offset.ToString(), ", ", block_offset.ToString(),
-         " - is_blocked_before: ", is_blocked_before ? "true" : "false",
-         " - is_blocked_after: ", is_blocked_after ? "true" : "false",
-         " - is_at_edge_of_container: ",
-         is_at_edge_of_container ? "true" : "false", ")"});
-  }
-  return StrCat(
-      {"(", inline_offset.ToString(), ", ", block_offset.ToString(), ")"});
-}
-
-void GapGeometry::SetGapIntersections(
-    GridTrackSizingDirection track_direction,
-    Vector<GapIntersectionList>&& intersection_list) {
-  track_direction == kForColumns ? column_intersections_ = intersection_list
-                                 : row_intersections_ = intersection_list;
-}
-
-const Vector<GapIntersectionList>& GapGeometry::GetGapIntersections(
-    GridTrackSizingDirection track_direction) const {
-  return track_direction == kForColumns ? column_intersections_
-                                        : row_intersections_;
-}
-
-String GapGeometry::IntersectionsToString(
-    GridTrackSizingDirection track_direction,
-    bool verbose) const {
-  const Vector<GapIntersectionList>* intersections =
-      track_direction == kForColumns ? &column_intersections_
-                                     : &row_intersections_;
-  StringBuilder result;
-  for (auto& intersection_list : *intersections) {
-    result.Append("[");
-    for (auto& intersection : intersection_list) {
-      result.Append(intersection.ToString(verbose));
-      result.Append(", ");
-    }
-    result.Append("]");
-    result.Append("\n");
-  }
-  return result.ReleaseString();
-}
-
 PhysicalRect GapGeometry::ComputeInkOverflowForGaps(
-    WritingDirectionMode writing_direction,
-    const PhysicalSize& container_size,
-    LayoutUnit inline_thickness,
-    LayoutUnit block_thickness) const {
-  // One of the two intersection lists must be non-empty. If both are empty,
-  // it means there are no gaps in the container, hence we wouldn't have a
-  // gap geometry.
-  CHECK(!row_intersections_.empty() || !column_intersections_.empty());
-
-  LayoutUnit inline_start;
-  LayoutUnit inline_size;
-  LayoutUnit block_start;
-  LayoutUnit block_size;
-
-  // To determine the inline bounds, we'd typically use the rows intersections
-  // but in the case where there are no row intersections (i.e. no row gaps) we
-  // fallback to using the column intersections.
-  if (row_intersections_.empty()) {
-    inline_start = column_intersections_.front().front().inline_offset;
-    inline_size = column_intersections_.back().back().inline_offset -
-                  column_intersections_.front().front().inline_offset;
-  } else {
-    inline_start = row_intersections_.front().front().inline_offset;
-    inline_size = row_intersections_.back().back().inline_offset -
-                  row_intersections_.front().front().inline_offset;
-  }
-
-  // Similarly, to determine the block bounds, we'd typically use the columns
-  // intersections but in the case where there are no column
-  // intersections (i.e. no column gaps) we fallback to using the row
-  // intersections.
-  if (column_intersections_.empty()) {
-    block_start = row_intersections_.front().front().block_offset;
-    block_size = row_intersections_.back().back().block_offset -
-                 row_intersections_.front().front().block_offset;
-  } else {
-    block_start = column_intersections_.front().front().block_offset;
-    block_size = column_intersections_.back().back().block_offset -
-                 column_intersections_.front().front().block_offset;
-  }
-
-  // Inflate the bounds to account for the gap decorations thickness.
-  inline_start -= inline_thickness / 2;
-  inline_size += inline_thickness;
-  block_start -= block_thickness / 2;
-  block_size += block_thickness;
-
-  LogicalRect logical_rect(inline_start, block_start, inline_size, block_size);
-  WritingModeConverter converter(writing_direction, container_size);
-  PhysicalRect physical_rect = converter.ToPhysical(logical_rect);
-
-  return physical_rect;
-}
-
-PhysicalRect GapGeometry::ComputeInkOverflowForGapsOptimized(
     WritingDirectionMode writing_direction,
     const PhysicalSize& container_size,
     LayoutUnit inline_thickness,
@@ -408,28 +308,21 @@ LayoutUnit GapGeometry::ComputeEndOffsetForFlexOrMulticolCrossGap(
       main_gaps[main_gap_running_index_].GetCrossGapBeforeEnd();
 
   // If the cross gap does not fall before the currently tracked main gap,
-  // advance `main_gap_running_index_` to the next main gap.
+  // advance `main_gap_running_index_` to the next main gap that has cross
+  // gap(s) before it.
   if (cross_gap_index > last_cross_before_index) {
-    ++main_gap_running_index_;
+    do {
+      ++main_gap_running_index_;
 
-    if (GetContainerType() == ContainerType::kMultiColumn) {
       if (main_gap_running_index_ == main_gaps.size()) {
         main_gap_running_index_ = kNotFound;
         return content_block_end_;
       }
-
-      CHECK_LE(main_gap_running_index_, main_gaps.size());
-
-      if (main_gaps[main_gap_running_index_].IsEndSpannerMainGap()) {
-        // Main gaps placed at the end of spanners don't have any cross gaps
-        // associated with them, so we skip them.
-        ++main_gap_running_index_;
-        if (main_gap_running_index_ == main_gaps.size()) {
-          main_gap_running_index_ = kNotFound;
-          return content_block_end_;
-        }
-      }
-    }
+      // Main gaps placed at the end of spanners don't have any cross gaps
+      // associated with them, so we skip them. The same may be the case at the
+      // beginning of spanners, if a spanner was pushed to the next row, so that
+      // it follows a row gap.
+    } while (!main_gaps[main_gap_running_index_].HasCrossGapsBefore());
   }
 
   CHECK_LT(main_gap_running_index_, main_gaps.size());

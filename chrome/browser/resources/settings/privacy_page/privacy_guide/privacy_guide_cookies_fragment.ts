@@ -11,9 +11,9 @@
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '/shared/settings/prefs/prefs.js';
 import './privacy_guide_fragment_shared.css.js';
+import '../../controls/collapse_radio_button.js';
 import '../../controls/settings_radio_group.js';
 import '../../icons.html.js';
-import '../../privacy_page/collapse_radio_button.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
@@ -21,7 +21,7 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 import type {MetricsBrowserProxy} from '../../metrics_browser_proxy.js';
 import {MetricsBrowserProxyImpl, PrivacyGuideSettingsStates, PrivacyGuideStepsEligibleAndReached} from '../../metrics_browser_proxy.js';
 import {CookieControlsMode} from '../../site_settings/constants.js';
-import {ThirdPartyCookieBlockingSetting} from '../../site_settings/site_settings_prefs_browser_proxy.js';
+import {ThirdPartyCookieBlockingSetting} from '../../site_settings/site_settings_browser_proxy.js';
 
 import {getTemplate} from './privacy_guide_cookies_fragment.html.js';
 

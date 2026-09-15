@@ -7,7 +7,7 @@
 <translation id="1091252999271033193">Chromium は毎回モバイルサイトをリクエストします。</translation>
 <translation id="1115463765356382667">Chromium を最大限に活用するには、下記のおすすめの操作を行ってください。</translation>
 <translation id="1185134272377778587">Chromium について</translation>
-<translation id="1229234641991056119">Safari のパスワード、履歴、ブックマーク、クレジット カードを Chromium で使用する</translation>
+<translation id="1229234641991056119">Safari のパスワード、履歴、ブックマーク、クレジット カードを Chromium で使用できます</translation>
 <translation id="1257458525759135959">画像を保存するには、[設定] をタップして写真への追加を Chromium に許可してください</translation>
 <translation id="1260702988262336471">Chromium メニューを開く</translation>
 <translation id="12739128458173458">このタブを別のデバイスに送信するには、両方のデバイスで Chromium にログインしてください。</translation>
@@ -89,7 +89,6 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="2977470724722393594">Chromium は最新版です</translation>
 <translation id="3044857325852340337">Chromium データを削除しました</translation>
 <translation id="3054480780637153380">iOS で Chromium の設定を開き、[デフォルトのブラウザアプリ] をタップして [Chromium] を選択します。</translation>
-<translation id="3102849287235003384">すべてのウェブサイトで Google アカウントからログアウトするには、<ph name="BEGIN_LINK" />Chromium からログアウト<ph name="END_LINK" />します。</translation>
 <translation id="3115956258722352278">Chromium をデフォルトのブラウザに設定しますか？</translation>
 <translation id="3180939591219927904">[Chromium を終了するときにシークレット タブをロックする] をオンにします</translation>
 <translation id="328933489847748230">{count,plural, =1{現在 1 個の Chromium ウィンドウを表示しています}other{現在 {count} 個の Chromium ウィンドウを表示しています}}</translation>
@@ -200,6 +199,9 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="5671188105328420281">Chromium を使いこなすヒント</translation>
 <translation id="5688047395118852662">このカードでは、Chromium を最大限に活用するためのヒントを紹介しています。</translation>
 <translation id="5700709190537129682">Chromium でパスワードを確認できません</translation>
+<translation id="5731004036450828399">パスキーを安全に保管するには、まず復元 PIN を作成する必要があります。
+
+        パスキーはパスワード マネージャーに保存され、どのデバイスの Chromium でも使用できます。</translation>
 <translation id="584550191241316896">Chromium にログインしています</translation>
 <translation id="5862307444128926510">Chromium へようこそ</translation>
 <translation id="5889847953983052353">オンにした場合:
@@ -265,8 +267,8 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="7269362888766543920">アドオンが原因で Chromium がクラッシュしました。アドオンをアンインストールしてみてください。</translation>
 <translation id="7285031092584344905">他のアプリから Chromium のパスワードなどにアクセスできます。</translation>
 <translation id="7337881442233988129">Chromium</translation>
-<translation id="7357211569052832586">選択したデータが Chromium から削除され、同期されたデバイスからも削除されました。他の Google サービスでの検索や操作など、Google アカウントの他の形式の閲覧履歴が history.google.com に残ることがあります。</translation>
 <translation id="7395825497086981028">パスワードは、<ph name="EMAIL" /> のパスワード マネージャーに保存されます。</translation>
+<translation id="7434848749522628428">このパスキーは <ph name="USER_EMAIL" /> のパスワード マネージャーに保存されます</translation>
 <translation id="7504829997542308412">Chromium を開く</translation>
 <translation id="7531461704633548377">Chromium から</translation>
 <translation id="7554983317097061001">Chromium のヒント: Chromium をドックに移動</translation>
@@ -300,6 +302,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="8254729934443216898">Chromium を最大限に活用するための新機能をご紹介します。</translation>
 <translation id="8293572045658095405">Chromium のシークレット モードです</translation>
 <translation id="830951810931292870">入力した URL をシークレット モードの Chromium で開きます。</translation>
+<translation id="8385503371191508165">パスワード マネージャーでパスキーを保存</translation>
 <translation id="8390323835464055390">Chromium の自動入力を使用して、保存したパスワードとパスキーですべてのアプリからログイン</translation>
 <translation id="8409374867500149834">Chromium の最高強度のセキュリティで有害なウェブサイトから保護します</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{Chromium を {THRESHOLD} 分間使用しなかった場合に行われます。ログイン中にこのデバイスにのみ保存されたデータは削除されます。これには履歴やパスワードが含まれる場合があります。}other{Chromium を {THRESHOLD} 分間使用しなかった場合に行われます。ログイン中にこのデバイスにのみ保存されたデータは削除されます。これには履歴やパスワードが含まれる場合があります。}}</translation>

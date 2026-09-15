@@ -38,7 +38,8 @@ class NetworkServiceClient
       public net::NetworkChangeNotifier::MaxBandwidthObserver,
       public net::NetworkChangeNotifier::IPAddressObserver,
 #endif
-      public net::CertDatabase::Observer {
+      public net::CertDatabase::Observer,
+      public base::MemoryPressureListener {
  public:
   NetworkServiceClient();
 
@@ -58,7 +59,7 @@ class NetworkServiceClient
   void OnClientCertStoreChanged() override;
 
   void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_presure_level);
+      base::MemoryPressureLevel memory_presure_level) override;
 
   // Called when there is a change in the count of media connections that
   // require low network latency.
@@ -144,7 +145,8 @@ class NetworkServiceClient
       network::mojom::IPAddressSpace client_address_space,
       network::mojom::IPAddressSpace target_address_space) override;
 
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::MemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   std::unique_ptr<WebRtcConnectionsObserver> webrtc_connections_observer_;
 

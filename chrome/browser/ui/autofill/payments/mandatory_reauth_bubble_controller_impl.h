@@ -50,6 +50,7 @@ class MandatoryReauthBubbleControllerImpl
   MandatoryReauthBubbleType GetMandatoryReauthBubbleType() const override;
 
   // BubbleControllerBase:
+  void OnBubbleDiscarded() override;
   BubbleType GetBubbleType() const override;
   base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
@@ -72,6 +73,9 @@ class MandatoryReauthBubbleControllerImpl
   void SetupBubble(base::OnceClosure accept_mandatory_reauth_callback,
                    base::OnceClosure cancel_mandatory_reauth_callback,
                    base::RepeatingClosure close_mandatory_reauth_callback);
+
+  // Logs opt in metrics when the bubble is closed.
+  void LogBubbleCloseOptInMetrics(PaymentsUiClosedReason reason);
 
   base::OnceClosure accept_mandatory_reauth_callback_;
   base::OnceClosure cancel_mandatory_reauth_callback_;

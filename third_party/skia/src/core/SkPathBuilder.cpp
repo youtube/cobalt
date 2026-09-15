@@ -21,6 +21,7 @@
 #include "src/base/SkVx.h"
 #include "src/core/SkGeometry.h"
 #include "src/core/SkMatrixPriv.h"
+#include "src/core/SkPathData.h"
 #include "src/core/SkPathEnums.h"
 #include "src/core/SkPathPriv.h"
 #include "src/core/SkPathRawShapes.h"
@@ -103,6 +104,19 @@ SkPathBuilder& SkPathBuilder::operator=(const SkPath& src) {
     fConvexity = src.getConvexityOrUnknown();
 
     return *this;
+}
+
+bool SkPathBuilder::operator==(const SkPathBuilder& o) const {
+    // quick-accept
+    if (this == &o) {
+        return true;
+    }
+    // quick-reject
+    if (fSegmentMask != o.fSegmentMask || fFillType != o.fFillType) {
+        return false;
+    }
+    // deep compare
+    return fVerbs == o.fVerbs && fPts == o.fPts && fConicWeights == o.fConicWeights;
 }
 
 void SkPathBuilder::incReserve(int extraPtCount, int extraVbCount, int extraCnCount) {
@@ -322,6 +336,39 @@ SkPath SkPathBuilder::detach(const SkMatrix* mx) {
                                                           mx)));
     this->reset();
     return path;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+sk_sp<SkPathData> SkPathBuilder::snapshotData() const {
+    if (fVerbs.size() <= 1) {
+        return SkPathData::Empty();
+    }
+
+    switch (fType) {
+        case SkPathIsAType::kGeneral:
+            break;
+        case SkPathIsAType::kOval:
+            if (auto r = SkRect::Bounds(fPts)) {
+                return SkPathData::Oval(*r, fIsA.fDirection, fIsA.fStartIndex);
+            }
+            return nullptr;
+        case SkPathIsAType::kRRect:
+            if (auto r = SkRect::Bounds(fPts)) {
+                return SkPathData::RRect(SkPathPriv::DeduceRRectFromContour(*r, fPts, fVerbs),
+                                         fIsA.fDirection, fIsA.fStartIndex);
+            }
+            return nullptr;
+    }
+    SkASSERT(fType == SkPathIsAType::kGeneral);
+
+    return SkPathData::Make(fPts, fVerbs, fConicWeights);
+}
+
+sk_sp<SkPathData> SkPathBuilder::detachData() {
+    auto data = this->snapshotData();
+    this->reset();
+    return data;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

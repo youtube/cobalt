@@ -21,6 +21,7 @@ class GlicLegacySidePanelCoordinator;
 
 namespace tabs {
 class GlicActorTaskIconController;
+class GlicActorNudgeController;
 }  // namespace tabs
 #endif
 
@@ -49,6 +50,7 @@ class CookieControlsBubbleCoordinator;
 class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
 class DevtoolsUIController;
+class EmbedderBrowserWindowFeatures;
 class ExtensionKeybindingRegistryViews;
 class ExclusiveAccessManager;
 class FindBarController;
@@ -81,6 +83,7 @@ class ToastService;
 class TranslateBubbleController;
 class UpgradeNotificationController;
 class WebUIBrowserSidePanelUI;
+class ZoomBubbleCoordinator;
 
 #if BUILDFLAG(IS_WIN)
 class WindowsTaskbarIconUpdater;
@@ -131,6 +134,10 @@ class BrowserCommandController;
 namespace commerce {
 class ProductSpecificationsEntryPointController;
 }  // namespace commerce
+
+namespace contextual_tasks {
+class ContextualTasksSidePanelCoordinator;
+}  // namespace contextual_tasks
 
 namespace tabs {
 class GlicNudgeController;
@@ -460,6 +467,7 @@ class BrowserWindowFeatures {
   ImmersiveModeController* immersive_mode_controller() {
     return immersive_mode_controller_.get();
   }
+
   const ImmersiveModeController* immersive_mode_controller() const {
     return immersive_mode_controller_.get();
   }
@@ -593,6 +601,8 @@ class BrowserWindowFeatures {
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
 #endif
 
+  std::unique_ptr<ZoomBubbleCoordinator> zoom_bubble_coordinator_;
+
   std::unique_ptr<ActorUiWindowController> actor_ui_window_controller_;
 
   std::unique_ptr<ActorBorderViewController> actor_border_view_controller_;
@@ -613,11 +623,15 @@ class BrowserWindowFeatures {
 #if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<tabs::GlicActorTaskIconController>
       glic_actor_task_icon_controller_;
+  std::unique_ptr<tabs::GlicActorNudgeController> glic_actor_nudge_controller_;
   std::unique_ptr<glic::GlicButtonController> glic_button_controller_;
   std::unique_ptr<glic::GlicIphController> glic_iph_controller_;
   std::unique_ptr<glic::GlicLegacySidePanelCoordinator>
       glic_side_panel_coordinator_;
 #endif
+
+  std::unique_ptr<contextual_tasks::ContextualTasksSidePanelCoordinator>
+      contextual_tasks_side_panel_coordinator_;
 
   std::unique_ptr<tab_groups::MostRecentSharedTabUpdateStore>
       most_recent_shared_tab_update_store_;
@@ -738,6 +752,11 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<omnibox::AiModePageActionController>
       ai_mode_page_action_controller_;
+
+  // Keep this member last to ensure embedder features are torn down first, in
+  // reverse order of initialization.
+  std::unique_ptr<EmbedderBrowserWindowFeatures>
+      embedder_browser_window_features_;
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_FEATURES_H_

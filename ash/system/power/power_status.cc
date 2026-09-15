@@ -228,7 +228,14 @@ std::optional<base::TimeDelta> PowerStatus::GetBatteryTimeToFull() const {
 
 bool PowerStatus::IsLinePowerConnected() const {
   return proto_.external_power() !=
-         power_manager::PowerSupplyProperties_ExternalPower_DISCONNECTED;
+             power_manager::PowerSupplyProperties_ExternalPower_DISCONNECTED &&
+         !IsIncompatibleChargerConnected();
+}
+
+bool PowerStatus::IsIncompatibleChargerConnected() const {
+  return proto_.external_power() ==
+         power_manager::
+             PowerSupplyProperties_ExternalPower_LOW_VOLTAGE_NO_CHARGE;
 }
 
 bool PowerStatus::IsMainsChargerConnected() const {
@@ -422,7 +429,11 @@ std::u16string PowerStatus::GetAccessibleNameString(
   const std::optional<base::TimeDelta> time =
       IsBatteryCharging() ? GetBatteryTimeToFull() : GetBatteryTimeToEmpty();
 
-  if (IsUsbChargerConnected()) {
+  if (ash::features::IsHybridChargerNotificationsEnabled() &&
+      IsIncompatibleChargerConnected()) {
+    battery_time_accessible = l10n_util::GetStringUTF16(
+        IDS_ASH_STATUS_TRAY_BATTERY_INCOMPATIBLE_CHARGER_ACCESSIBLE);
+  } else if (IsUsbChargerConnected()) {
     battery_time_accessible = l10n_util::GetStringUTF16(
         IDS_ASH_STATUS_TRAY_BATTERY_CHARGING_UNRELIABLE_ACCESSIBLE);
   } else if (IsBatteryTimeBeingCalculated()) {

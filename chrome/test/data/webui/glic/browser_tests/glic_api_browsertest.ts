@@ -1,7 +1,7 @@
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {ClientView, HostCapability, MetricUserInputReactionType, ResponseStopCause, ScrollToErrorReason, WebClientMode} from '/glic/glic_api/glic_api.js';
+import {ClientView, HostCapability, MetricUserInputReactionType, PanelStateKind, ResponseStopCause, ScrollToErrorReason, WebClientMode} from '/glic/glic_api/glic_api.js';
 import type {FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, OpenPanelInfo, PageMetadata, PanelOpeningData, ScrollToError, UserProfileInfo, ViewChangeRequest, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
 
 import {ApiTestError, ApiTestFixtureBase, assertDefined, assertEquals, assertFalse, assertNotEquals, assertRejects, assertTrue, assertUndefined, checkDefined, observeSequence, readStream, runUntil, sleep, testMain, waitFor, WebClient} from './browser_test_base.js';
@@ -12,6 +12,23 @@ import {ApiTestError, ApiTestFixtureBase, assertDefined, assertEquals, assertFal
 class ApiTests extends ApiTestFixtureBase {
   override async setUpTest() {
     await this.client.waitForFirstOpen();
+  }
+
+  async detachIfInMultiInstance() {
+    if (this.isMultiInstanceEnabled()) {
+      assertDefined(this.host.detachPanel);
+      this.host.detachPanel();
+
+      assertDefined(this.host.getPanelState);
+      const panelStates = observeSequence(this.host.getPanelState());
+      await panelStates.waitFor(
+          state => state.kind === PanelStateKind.DETACHED);
+    }
+  }
+
+  isMultiInstanceEnabled(): boolean {
+    return !!this.host.getHostCapabilities?.()?.has(
+        HostCapability.MULTI_INSTANCE);
   }
 
   // WARNING: Remember to update
@@ -79,6 +96,28 @@ class ApiTests extends ApiTestFixtureBase {
     this.host.setAudioDucking(false);
   }
 
+  async testCreateTabByClickingOnLinkDaisyChains() {
+    assertDefined(this.host.getFocusedTabStateV2);
+    assertDefined(this.host.getPinnedTabs);
+    const link = document.createElement('a');
+    link.setAttribute('href', 'https://www.chromium.org');
+    link.setAttribute('target', '_blank');
+    document.body.appendChild(link);
+    link.click();
+    // The opened tab should be pinned.
+    await observeSequence(this.host.getPinnedTabs())
+        .waitFor(tabs => tabs.length === 2);
+
+    // TODO(wry): Chrome switches tabs correctly, but focus is not updating.
+    // The following code should work:
+
+    // await observeSequence(this.host.getFocusedTabStateV2()).waitFor(update
+    // => {
+    //   return update.hasFocus?.tabData?.url?.includes('chromium.org') ??
+    //   false;
+    // });
+  }
+
   async testCreateTabFailsIfNotActive() {
     assertDefined(this.host.closePanel);
     assertDefined(this.host.createTab);
@@ -93,6 +132,76 @@ class ApiTests extends ApiTestFixtureBase {
     // browser at the same time as exiting a test results in QuitBrowsers()
     // never exiting. This sleep avoids this problem.
     await sleep(500);
+  }
+
+  async testGetPanelStateAttached() {
+    assertDefined(this.host.getPanelState);
+    // getPanelState and notifyPanelWillOpen should signal the ATTACHED state.
+    const panelStates = observeSequence(this.host.getPanelState());
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+    assertEquals(
+        PanelStateKind.ATTACHED,
+        this.client.panelOpenStateKind.getCurrentValue());
+    await sleep(100);
+    // It should remain in the attached state.
+    assertEquals(
+        PanelStateKind.ATTACHED,
+        this.host.getPanelState().getCurrentValue()?.kind);
+  }
+
+  async testGetPanelStateAttachedHidden() {
+    assertDefined(this.host.getPanelState);
+    // getPanelState and notifyPanelWillOpen should signal the ATTACHED state.
+    const panelStates = observeSequence(this.host.getPanelState());
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+
+    // Open and select a second tab.
+    await this.advanceToNextStep();
+    await panelStates.waitFor(state => state.kind === PanelStateKind.HIDDEN);
+
+    // Select the first tab again.
+    await this.advanceToNextStep();
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+  }
+
+  async testDetachPanel() {
+    assertDefined(this.host.getPanelState);
+    assertDefined(this.host.detachPanel);
+    assertDefined(this.host.attachPanel);
+    // getPanelState and notifyPanelWillOpen should signal the ATTACHED state.
+    const panelStates = observeSequence(this.host.getPanelState());
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+
+    this.host.detachPanel();
+    await panelStates.waitFor(state => state.kind === PanelStateKind.DETACHED);
+
+    // TODO(harringtond): Not implemented yet.
+    // this.host.attachPanel();
+    // await panelStates.waitFor(state => state.kind ===
+    //    PanelStateKind.ATTACHED);
+  }
+
+  async testMultiplePanelsDetachedAndFloating() {
+    assertDefined(this.host.getPanelState);
+    assertDefined(this.host.detachPanel);
+
+    if (this.testParams === 'first') {
+      const panelStates = observeSequence(this.host.getPanelState());
+      await panelStates.waitFor(
+          state => state.kind === PanelStateKind.ATTACHED);
+      await this.advanceToNextStep();
+      // Ensure the panel state stays attached. Note that currently, we do see
+      // the panel state go to hidden momentarily, so we only assert that the
+      // state eventually transitions again to attached.
+      await sleep(100);
+      observeSequence(this.host.getPanelState())
+          .waitFor(state => state.kind === PanelStateKind.ATTACHED);
+    } else if (this.testParams === 'second') {
+      this.host.detachPanel();
+      const panelStates = observeSequence(this.host.getPanelState());
+      await panelStates.waitFor(
+          state => state.kind === PanelStateKind.DETACHED);
+    }
   }
 
   async testClosePanel() {
@@ -128,6 +237,9 @@ class ApiTests extends ApiTestFixtureBase {
 
   async testIsBrowserOpen() {
     assertDefined(this.host.isBrowserOpen);
+    // This test closes the browser, so we need to detach the side panel to
+    // avoid closing glic.
+    await this.detachIfInMultiInstance();
     const isBrowserOpen = observeSequence(this.host.isBrowserOpen());
     assertTrue(await isBrowserOpen.next());
     // Close the browser.
@@ -416,7 +528,12 @@ class ApiTests extends ApiTestFixtureBase {
         observeSequence<FocusedTabData>(this.host.getFocusedTabStateV2());
     const focus = await focusSequence.next();
     const tabId = checkDefined(focus?.hasFocus?.tabData.tabId);
-    assertTrue(await this.host.pinTabs([tabId]));
+
+    // Tab is already pinned in multi-instance mode.
+    if (!this.isMultiInstanceEnabled()) {
+      assertTrue(await this.host.pinTabs([tabId]));
+    }
+
     const result = await this.host.getContextFromTab(tabId, {});
     assertDefined(result);
     assertEquals(
@@ -521,7 +638,26 @@ class ApiTests extends ApiTestFixtureBase {
     assertFalse(result.pdfDocumentData!.pdfSizeLimitExceeded);
   }
 
-  async testGetContextForActorFromFocusedTabWithoutPermission() {
+  async testGetContextFromFocusedTabWithUnFocusablePage() {
+    assertDefined(this.host.getFocusedTabStateV2);
+    assertDefined(this.host.getContextFromFocusedTab);
+    assertDefined(this.host.setTabContextPermissionState);
+
+    // Confirms that the current tab has an un-focusable page.
+    const focusSequence =
+        observeSequence<FocusedTabData>(this.host.getFocusedTabStateV2());
+    const focus = await focusSequence.next();
+    assertDefined(focus.hasNoFocus);
+    assertTrue(focusSequence.isEmpty());
+
+    // Focused tab extraction should fail for an un-focusable page.
+    await this.host.setTabContextPermissionState(true);
+    await assertRejects(this.host.getContextFromFocusedTab({}), {
+      withErrorMessage: 'tabContext failed: permission denied',
+    });
+  }
+
+  async testGetContextForActorFromTabWithoutPermission() {
     await this.host.setTabContextPermissionState(true);
     assertDefined(this.host.getFocusedTabStateV2);
     const focusedTab = await this.host.getFocusedTabStateV2().getCurrentValue();
@@ -1211,19 +1347,20 @@ class ApiTests extends ApiTestFixtureBase {
     return checkDefined(focus?.hasFocus?.tabData.tabId);
   }
 
-  async testGetContextFromTabIgnorePermissionnWhenPinned() {
+  async testGetContextFromTabIgnorePermissionWhenPinned() {
     assertDefined(this.host.getContextFromTab);
     assertDefined(this.host.pinTabs);
     assertDefined(this.host.getPinnedTabs);
 
+    // Fail getContextFromTab due to no tab context permission not granted.
     await this.host.setTabContextPermissionState(false);
     const tabId: string = this.getFocusedTabId();
-
     await assertRejects(this.host.getContextFromTab(tabId, {}), {
       withErrorMessage: 'tabContext failed: permission denied:' +
           ' context permission not enabled',
     });
 
+    // Pinning the tab should allow ignoring the tab context permission.
     await this.host.pinTabs([tabId]);
     const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
     pinnedTabsUpdates.waitFor(
@@ -1431,6 +1568,7 @@ class ApiTests extends ApiTestFixtureBase {
   async testGetPinCandidatesSingleTab() {
     assertDefined(this.host.pinTabs);
     assertDefined(this.host.getPinCandidates);
+    assertDefined(this.host.getHostCapabilities);
 
     // Gets pinned candidates and asserts that their comma-separated titles
     // equal `expected`.
@@ -1471,8 +1609,14 @@ class ApiTests extends ApiTestFixtureBase {
     // Pin the current focus. A pinned tab isn't a valid candidate.
     const focus =
         await observeSequence(this.host.getFocusedTabStateV2!()).next();
-    await this.host.pinTabs([checkDefined(focus.hasFocus?.tabData.tabId)]);
-
+    // In multi-instance, only pinned tabs can be considered focused, but the
+    // candidate does reveal the active tab.
+    if (this.host.getHostCapabilities().has(HostCapability.MULTI_INSTANCE)) {
+      await this.host.pinTabs(
+          [checkDefined(focus.hasNoFocus?.tabFocusCandidateData?.tabId)]);
+    } else {
+      await this.host.pinTabs([checkDefined(focus.hasFocus?.tabData.tabId)]);
+    }
     await getCandidatesEquals({maxCandidates: 1}, '');
   }
 
@@ -1517,7 +1661,7 @@ class ApiTests extends ApiTestFixtureBase {
     assertUndefined(this.host.getModelQualityClientId);
   }
 
-/**
+  /**
    * A basic test to verify that `getPageMetadata` correctly retrieves metadata
    * for a given tab.
    */
@@ -1812,6 +1956,24 @@ class ApiTests extends ApiTestFixtureBase {
 
     await this.advanceToNextStep();
     await additionalContextPromise;
+  }
+
+  async testSwitchConversationToExistingInstance() {
+    assertDefined(this.host.registerConversation);
+    assertDefined(this.host.switchConversation);
+    if (this.testParams === 'first') {
+      await this.host.registerConversation(
+          {conversationTitle: 'Hello', conversationId: 'id_hello'});
+      await this.advanceToNextStep();
+    } else if (this.testParams === 'second') {
+      assertEquals(
+          undefined,
+          this.client.panelOpenData.getCurrentValue()?.conversationId);
+      await this.host.switchConversation(
+          {conversationTitle: 'Hello', conversationId: 'id_hello'});
+      // Note that switchConversation does resolve, even though this instance
+      // will be destroyed very soon.
+    }
   }
 
   private async closePanelAndWaitUntilInactive() {

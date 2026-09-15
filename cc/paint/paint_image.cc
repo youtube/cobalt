@@ -226,8 +226,6 @@ void PaintImage::CreateSkImage() {
         std::make_unique<SkiaPaintImageGenerator>(paint_image_generator_,
                                                   kDefaultFrameIndex,
                                                   kDefaultGeneratorClientId));
-  } else if (texture_backing_) {
-    cached_sk_image_ = texture_backing_->GetAcceleratedSkImage();
   }
 }
 
@@ -340,11 +338,6 @@ bool PaintImage::IsTextureBacked() const {
   if (cached_sk_image_)
     return cached_sk_image_->isTextureBacked();
   return false;
-}
-
-void PaintImage::FlushPendingSkiaOps() {
-  if (texture_backing_)
-    texture_backing_->FlushPendingSkiaOps();
 }
 
 gfx::Size PaintImage::GetSize(AuxImage aux_image) const {

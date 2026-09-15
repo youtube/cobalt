@@ -13,6 +13,12 @@ namespace input::features {
 BASE_FEATURE(kInputOnViz, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kUseAndroidBufferedInputDispatch,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether to transfer the sequences to Viz which have down time after event
+// time.
+const base::FeatureParam<bool> kTransferSequencesWithAbnormalDownTime{
+    &features::kInputOnViz,
+    /*name=*/"transfer_sequences_with_abnormal_down_time", true};
 #endif
 
 BASE_FEATURE(kDispatchSingleEventIfNoPrediction,
@@ -40,10 +46,6 @@ BASE_FEATURE_PARAM(bool,
                    &kUpdateScrollPredictorInputMapping,
                    "generate_synthetic_scroll",
                    true);
-
-// Flag guard for fix for crbug.com/404464598.
-BASE_FEATURE(kUseFirstCoalescedFrameAsFlingGenerationTimestamp,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Flag guard for renderer hang watcher \ hang monitor.
 BASE_FEATURE(kRendererHangWatcher, base::FEATURE_ENABLED_BY_DEFAULT);

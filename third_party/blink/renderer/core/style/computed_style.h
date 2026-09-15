@@ -358,7 +358,6 @@ class ComputedStyle final : public ComputedStyleBase {
   // context-independent and must always be used as `const` versions to avoid
   // pollution of the style. Instances are allocated as per-thread singletons.
   CORE_EXPORT static const ComputedStyle* GetInitialStyleSingleton();
-  CORE_EXPORT static const ComputedStyle* GetInitialStyleForImgSingleton();
 
   static const ComputedStyle* NullifyEnsured(const ComputedStyle* style) {
     if (!style) {
@@ -868,7 +867,7 @@ class ComputedStyle final : public ComputedStyleBase {
 
     DCHECK_EQ(StyleType(), kPseudoIdNone);
 
-    for (const auto& pseudo_style : *GetPseudoElementStyleCache()) {
+    for (const auto& [key, pseudo_style] : *GetPseudoElementStyleCache()) {
       if (func(*pseudo_style)) {
         return true;
       }
@@ -1018,8 +1017,8 @@ class ComputedStyle final : public ComputedStyleBase {
   bool HasVariables() const;
   CORE_EXPORT wtf_size_t GetVariableNamesCount() const;
   CORE_EXPORT const Vector<AtomicString>& GetVariableNames() const;
-  CORE_EXPORT const StyleInheritedVariables* InheritedVariables() const;
-  CORE_EXPORT const StyleNonInheritedVariables* NonInheritedVariables() const;
+  CORE_EXPORT const StyleInheritedVariables& InheritedVariables() const;
+  CORE_EXPORT const StyleNonInheritedVariables& NonInheritedVariables() const;
 
   // Handles both inherited and non-inherited variables
   CORE_EXPORT CSSVariableData* GetVariableData(const AtomicString&) const;
@@ -3545,10 +3544,10 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
 
   // Variables
   const StyleInheritedVariables* InheritedVariables() const {
-    return InheritedVariablesInternal().Get();
+    return &InheritedVariablesInternal();
   }
   const StyleNonInheritedVariables* NonInheritedVariables() const {
-    return NonInheritedVariablesInternal().Get();
+    return &NonInheritedVariablesInternal();
   }
   CSSVariableData* GetVariableData(const AtomicString&,
                                    bool is_inherited_property) const;
@@ -3609,8 +3608,6 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
   }
 
  private:
-  mutable bool has_own_inherited_variables_ = false;
-  mutable bool has_own_non_inherited_variables_ = false;
   mutable bool has_own_animations_ = false;
   mutable bool has_own_transitions_ = false;
 };

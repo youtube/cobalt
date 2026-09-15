@@ -145,6 +145,7 @@ void AddressBubblesController::ShowEditor(
     const std::u16string& title_override,
     const std::u16string& editor_footer_message,
     bool is_editing_existing_address) {
+  DoNotShowNextQueuedBubbleGuard guard = DoNotShowNextQueuedBubble();
   EditAddressProfileDialogControllerImpl::CreateForWebContents(web_contents());
   EditAddressProfileDialogControllerImpl* controller =
       EditAddressProfileDialogControllerImpl::FromWebContents(web_contents());
@@ -153,7 +154,7 @@ void AddressBubblesController::ShowEditor(
       is_editing_existing_address, is_migration_to_account_,
       base::BindOnce(&AddressBubblesController::OnUserDecision,
                      weak_ptr_factory_.GetWeakPtr()));
-  HideBubble();
+  HideBubble(/*initiated_by_bubble_manager=*/false);
 }
 
 void AddressBubblesController::OnUserDecision(
@@ -276,6 +277,8 @@ void AddressBubblesController::SetUpAndShowBubble(
         .Run(AutofillClient::AddressPromptUserDecision::kIgnored, std::nullopt);
   }
 
+  was_bubble_shown_ = false;
+
   SetUpBubble(std::move(show_bubble_view_callback),
               std::move(page_action_icon_tootip), is_migration_to_account,
               user_has_any_profile_saved,
@@ -319,8 +322,10 @@ void AddressBubblesController::MaybeShowSignInPromo(
     return;
   }
 
+  DoNotShowNextQueuedBubbleGuard guard = DoNotShowNextQueuedBubble();
+
   // Close the current save bubble.
-  HideBubble();
+  HideBubble(/*initiated_by_bubble_manager=*/false);
 
   // Open the bubble with the sign in promo.
   SetBubbleView(*ShowSignInPromo(web_contents(), autofill_profile.value()));

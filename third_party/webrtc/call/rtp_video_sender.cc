@@ -333,14 +333,6 @@ std::vector<RtpStreamSender> CreateRtpStreamSenders(
   return rtp_streams;
 }
 
-std::optional<VideoCodecType> GetVideoCodecType(const RtpConfig& config,
-                                                size_t simulcast_index) {
-  auto stream_config = config.GetStreamConfig(simulcast_index);
-  if (stream_config.raw_payload) {
-    return std::nullopt;
-  }
-  return PayloadStringToCodecType(stream_config.payload_name);
-}
 bool TransportSeqNumExtensionConfigured(const RtpConfig& config) {
   return absl::c_any_of(config.extensions, [](const RtpExtension& ext) {
     return ext.uri == RtpExtension::kTransportSequenceNumberUri;
@@ -620,8 +612,9 @@ EncodedImageCallback::Result RtpVideoSender::OnEncodedImage(
   bool send_result =
       rtp_streams_[simulcast_index].sender_video->SendEncodedImage(
           rtp_config_.GetStreamConfig(simulcast_index).payload_type,
-          GetVideoCodecType(rtp_config_, simulcast_index), rtp_timestamp,
-          encoded_image,
+          PayloadStringToCodecType(
+              rtp_config_.GetStreamConfig(simulcast_index).payload_name),
+          rtp_timestamp, encoded_image,
           params_[simulcast_index].GetRtpVideoHeader(
               encoded_image, codec_specific_info, frame_id),
           expected_retransmission_time, csrcs_);

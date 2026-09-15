@@ -134,7 +134,7 @@ EntityInstance CreateServerEntityFromLocal(const EntityInstance& local_entity) {
       // Entities that are migrated from local to server are never read-only,
       // since local entities can always be edited by the users, so can their
       // server counterpart.
-      EntityInstance::AreAttributesReadOnly(false));
+      EntityInstance::AreAttributesReadOnly(false), /*frecency_override=*/"");
 }
 }  // namespace
 
@@ -162,6 +162,15 @@ void AutofillAiManager::OnSuggestionsShown(
     ukm::SourceId ukm_source_id) {
   logger_.OnSuggestionsShown(form, field, suggested_entity_types,
                              ukm_source_id);
+  auto it = user_suggestion_interactions_per_form.Get(form.global_id());
+  // Do not overwrite cases in which a suggestion was previously accepted.
+  if (it == user_suggestion_interactions_per_form.end() ||
+      !it->second.entity_type_accepted) {
+    user_suggestion_interactions_per_form.Put(
+        {form.global_id(),
+         {.suggested_entity_types = suggested_entity_types,
+          .entity_type_accepted = std::nullopt}});
+  }
 }
 
 void AutofillAiManager::OnFormSeen(const FormStructure& form) {
@@ -204,18 +213,25 @@ void AutofillAiManager::OnDidFillSuggestion(
     return;
   }
   entity_manager->RecordEntityUsed(entity.guid(), base::Time::Now());
+  auto it = user_suggestion_interactions_per_form.Get(form.global_id());
+  if (it != user_suggestion_interactions_per_form.end()) {
+    it->second.entity_type_accepted = entity.type();
+  }
 }
 
 bool AutofillAiManager::MaybeUpstreamEntityToWallet(
     const FormStructure& form,
     ukm::SourceId ukm_source_id) {
+  // TODO(crbug.com/450060416): Remove this MayPerformAutofillAiAction() check.
   if (!MayPerformAutofillAiAction(*client_, AutofillAiAction::kImport)) {
     return false;
   }
 
   std::optional<std::pair<EntityInstance, EntityInstance::EntityId>>
       entity_to_be_upstreamed = GetEntityUpstreamCandidate(form);
-  if (!entity_to_be_upstreamed) {
+  if (!entity_to_be_upstreamed ||
+      !MayPerformAutofillAiAction(*client_, AutofillAiAction::kImport,
+                                  entity_to_be_upstreamed->first.type())) {
     return false;
   }
 
@@ -270,18 +286,47 @@ bool AutofillAiManager::OnFormSubmitted(const FormStructure& form,
   //
   // Cases 1# and 2# are handled by `MaybeImportForm()`, case is 3# is handled
   // by `MaybeUpstreamEntityToWallet()`.
-  return MaybeImportForm(form, ukm_source_id) ||
-         MaybeUpstreamEntityToWallet(form, ukm_source_id);
+  const bool form_imported = MaybeImportForm(form, ukm_source_id) ||
+                             MaybeUpstreamEntityToWallet(form, ukm_source_id);
+  // Importing a form can already lead to a survey, therefore only show the
+  // filling hats survey if no save or update prompt is shown.
+  if (!form_imported) {
+    auto it = user_suggestion_interactions_per_form.Peek(form.global_id());
+    if (it == user_suggestion_interactions_per_form.end()) {
+      return false;
+    }
+    if (it->second.entity_type_accepted) {
+      client_->TriggerAutofillAiFillingJourneySurvey(
+          /*suggestion_accepted=*/true,
+          it->second.entity_type_accepted.value());
+    } else {
+      CHECK(!it->second.suggested_entity_types.empty());
+      // Normally only one entity type is shown to users. However, in the case
+      // where more than one type is shown and the user did not accept the
+      // suggestion, use the first type as the survey type.
+      client_->TriggerAutofillAiFillingJourneySurvey(
+          /*suggestion_accepted=*/false,
+          *(it->second.suggested_entity_types.begin()));
+    }
+  }
+  return form_imported;
 }
 
 bool AutofillAiManager::MaybeImportForm(const FormStructure& form,
                                         ukm::SourceId ukm_source_id) {
+  // TODO(crbug.com/450060416): Remove this MayPerformAutofillAiAction() check.
   if (!MayPerformAutofillAiAction(*client_, AutofillAiAction::kImport)) {
     return false;
   }
 
   std::vector<std::pair<EntityInstance, std::optional<EntityInstance>>>
       save_update_candidates = GetEntitySaveAndUpdatePromptCandidates(form);
+  std::erase_if(save_update_candidates, [&](const auto& p) {
+    EntityType type = p.first.type();
+    return !MayPerformAutofillAiAction(*client_, AutofillAiAction::kImport,
+                                       type);
+  });
+
   for (const std::pair<EntityInstance, std::optional<EntityInstance>>&
            save_update_candidate : save_update_candidates) {
     const auto& [new_entity, old_entity] = save_update_candidate;
@@ -345,8 +390,7 @@ void AutofillAiManager::HandleUpstreamEntityPrompt(
   }
 
   ClearStrikesForSave(form_url, upstream_entity);
-  // TODO(crbug.com/441742849): Implement main logic by deleting the local
-  // entity and calling the wallet server with the new entity.
+  entity_manager->AddOrUpdateEntityInstance(*std::move(result.entity));
 }
 
 void AutofillAiManager::HandleSavePromptResult(
@@ -408,10 +452,6 @@ void AutofillAiManager::HandleUpdatePromptResult(
 
   ClearStrikesForUpdate(entity_uuid);
   entity_manager->AddOrUpdateEntityInstance(*std::move(result.entity));
-
-  // TODO(crbug.com/441742849): If the entity prior to updating is local and the
-  // resulting entity is a server one, we should delete the local entity and
-  // store the it in the server.
 }
 
 std::vector<Suggestion> AutofillAiManager::GetSuggestions(
@@ -447,6 +487,7 @@ std::vector<Suggestion> AutofillAiManager::GetSuggestions(
 
 bool AutofillAiManager::ShouldDisplayIph(const FormStructure& form,
                                          FieldGlobalId field_id) const {
+  // TODO(crbug.com/450060416): Remove this MayPerformAutofillAiAction() check.
   if (!MayPerformAutofillAiAction(*client_, AutofillAiAction::kIphForOptIn)) {
     return false;
   }
@@ -478,7 +519,9 @@ bool AutofillAiManager::ShouldDisplayIph(const FormStructure& form,
     if (base::Contains(fields_and_types, focused_field->global_id(),
                        [](const AutofillFieldWithAttributeType& f) {
                          return f.field->global_id();
-                       })) {
+                       }) &&
+        MayPerformAutofillAiAction(*client_, AutofillAiAction::kIphForOptIn,
+                                   entity)) {
       attributes_in_form[entity].insert_all(
           DenseSet(fields_and_types, &AutofillFieldWithAttributeType::type));
     }
@@ -648,7 +691,9 @@ AutofillAiManager::GetEntitySaveAndUpdatePromptCandidates(
           EntityInstance(saved_entity.type(), std::move(new_attributes),
                          saved_entity.guid(), saved_entity.nickname(),
                          base::Time::Now(), saved_entity.use_count(),
-                         base::Time::Now(), observed_entity.record_type()),
+                         base::Time::Now(), observed_entity.record_type(),
+                         EntityInstance::AreAttributesReadOnly(false),
+                         /*frecency_override=*/""),
           saved_entity);
     }
   }
@@ -711,7 +756,6 @@ AutofillAiManager::GetEntityUpstreamCandidate(const FormStructure& form) {
                       return EntityInstance::MigrationOrder(*lhs, *rhs);
                     });
 
-  std::vector<EntityInstance::EntityId> upstream_candidates;
   for (const EntityInstance& observed_entity : observed_entities) {
     for (const EntityInstance* local_entity : saved_local_entities) {
       if (local_entity->type() != observed_entity.type()) {

@@ -797,7 +797,6 @@ class LiftoffCompiler {
     // modern modules, as of 2022-06-03.
     out_of_line_code_.reserve(128);
 
-    DCHECK(options.is_initialized());
     // If there are no breakpoints, both pointers should be nullptr.
     DCHECK_IMPLIES(
         next_breakpoint_ptr_ == next_breakpoint_end_,
@@ -2012,6 +2011,12 @@ class LiftoffCompiler {
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], const Value returns[]) {
     unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: resume");
+  }
+
+  void ResumeHandler(FullDecoder* decoder, Value* cont,
+                     const BranchDepthImmediate& br_imm) {
+    // "Resume" bails out before this can be reached.
+    UNREACHABLE();
   }
 
   void ResumeThrow(FullDecoder* decoder,
@@ -9977,24 +9982,30 @@ class LiftoffCompiler {
       // isolates / processes) the canonical signature ID is a static integer.
       CanonicalTypeIndex canonical_sig_id =
           decoder->module_->canonical_sig_id(imm.sig_imm.index);
+      // Register both traps first and get their labels in a second step,
+      // otherwise the second trap can invalidate the first OolTrapLabel by
+      // growing the vector of ool code.
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullFunc);
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
+      OolTrapLabel null_func =
+          OolTrapLabel(asm_, out_of_line_code_.end()[-2].label.get());
       OolTrapLabel sig_mismatch =
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
+          OolTrapLabel(asm_, out_of_line_code_.end()[-1].label.get());
       __ DropValues(1);
 
       if (!needs_type_check) {
         DCHECK(needs_null_check);
         // Only check for -1 (nulled table entry).
-        __ emit_i32_cond_jumpi(kEqual, sig_mismatch.label(),
-                               real_sig_id.gp_reg(), -1, sig_mismatch.frozen());
+        __ emit_i32_cond_jumpi(kEqual, null_func.label(), real_sig_id.gp_reg(),
+                               -1, null_func.frozen());
       } else if (!decoder->module_->type(imm.sig_imm.index).is_final) {
         Label success_label;
+        if (needs_null_check) {
+          __ emit_i32_cond_jumpi(kEqual, null_func.label(),
+                                 real_sig_id.gp_reg(), -1, null_func.frozen());
+        }
         __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id.gp_reg(),
                                canonical_sig_id.index, sig_mismatch.frozen());
-        if (needs_null_check) {
-          __ emit_i32_cond_jumpi(kEqual, sig_mismatch.label(),
-                                 real_sig_id.gp_reg(), -1,
-                                 sig_mismatch.frozen());
-        }
         ScopedTempRegister real_rtt{temps, kGpReg};
         __ LoadFullPointer(
             real_rtt.gp_reg(), kRootRegister,
@@ -10756,7 +10767,6 @@ std::unique_ptr<AssemblerBuffer> NewLiftoffAssemblerBuffer(int func_body_size) {
 WasmCompilationResult ExecuteLiftoffCompilation(
     CompilationEnv* env, const FunctionBody& func_body,
     const LiftoffOptions& compiler_options) {
-  DCHECK(compiler_options.is_initialized());
   // Liftoff does not validate the code, so that should have run before.
   DCHECK(env->module->function_was_validated(compiler_options.func_index));
   base::TimeTicks start_time;
@@ -10895,10 +10905,9 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       func_body, call_descriptor, &env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
       &debug_sidetable_builder,
-      LiftoffOptions{}
-          .set_func_index(code->index())
-          .set_for_debugging(code->for_debugging())
-          .set_breakpoints(breakpoints),
+      LiftoffOptions{.func_index = code->index(),
+                     .for_debugging = code->for_debugging(),
+                     .breakpoints = breakpoints},
       nullptr);
   decoder.Decode();
   DCHECK(decoder.ok());

@@ -467,6 +467,10 @@ bool IOSChromePaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable()
   return true;
 }
 
+bool IOSChromePaymentsAutofillClient::IsMandatoryReauthEnabled() {
+  return GetPaymentsDataManager().IsPaymentMethodsMandatoryReauthEnabled();
+}
+
 void IOSChromePaymentsAutofillClient::ShowMandatoryReauthOptInPrompt(
     base::OnceClosure accept_mandatory_reauth_callback,
     base::OnceClosure cancel_mandatory_reauth_callback,
@@ -531,13 +535,13 @@ bool IOSChromePaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
 }
 
 bool IOSChromePaymentsAutofillClient::ShowTouchToFillProgress(
-    base::WeakPtr<TouchToFillDelegate> delegate) {
+    base::OnceClosure cancel_callback) {
   return false;
 }
 
 bool IOSChromePaymentsAutofillClient::ShowTouchToFillBnplIssuers(
     base::WeakPtr<TouchToFillDelegate> delegate,
-    base::span<const BnplIssuer> bnpl_issuers_to_suggest) {
+    base::span<const BnplIssuerContext> bnpl_issuer_contexts) {
   return false;
 }
 

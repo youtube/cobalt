@@ -9,16 +9,27 @@
 
 #include "base/functional/callback.h"
 
+namespace favicon {
+class FaviconService;
+}
+
+namespace history {
+class HistoryService;
+}
+
 namespace contextual_tasks {
 
+class CompositeContextDecorator;
 class ContextDecorator;
 struct ContextualTaskContext;
 struct UrlAttachment;
 struct UrlAttachmentDecoratorData;
 
-// Factory function to create a ContextDecorator pre-configured with a
-// default set of multiple other ContextDecorators.
-std::unique_ptr<ContextDecorator> CreateDefaultContextDecorator();
+// Factory function to create a CompositeContextDecorator pre-configured with a
+// default set of ContextDecorators.
+std::unique_ptr<CompositeContextDecorator> CreateCompositeContextDecorator(
+    favicon::FaviconService* favicon_service,
+    history::HistoryService* history_service);
 
 // Abstract interface for a decorator that enriches a ContextualTaskContext
 // with additional metadata. The enrichment process is asynchronous.
@@ -42,7 +53,7 @@ class ContextDecorator {
 
   // Provides subclasses with access to the decorator data block for a given
   // URL attachment.
-  UrlAttachmentDecoratorData& GetUrlAttachmentDecoratorData(
+  UrlAttachmentDecoratorData& GetMutableUrlAttachmentDecoratorData(
       UrlAttachment& attachment);
 };
 

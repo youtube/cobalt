@@ -1970,7 +1970,7 @@ using Int32NodeFor = typename Int32NodeForHelper<kOperation>::type;
 
 template <Operation kOperation>
 struct Float64NodeForHelper;
-#define SPECIALIZATION(op, OpNode)                \
+#define SPECIALIZATION(op, OpNode, ...)           \
   template <>                                     \
   struct Float64NodeForHelper<Operation::k##op> { \
     using type = OpNode;                          \
@@ -4556,13 +4556,12 @@ ValueNode* MaglevGraphBuilder::ConvertForField(ValueNode* value,
       DCHECK(value->Is<TrustedConstant>());
       return value;
     case vobj::FieldType::kInt32:
+      // TODO(jgruber): Add conversions here once needed.
       DCHECK_EQ(value->properties().value_representation(),
                 ValueRepresentation::kInt32);
       return value;
     case vobj::FieldType::kFloat64:
-      DCHECK_EQ(value->properties().value_representation(),
-                ValueRepresentation::kFloat64);
-      return value;
+      return GetFloat64(value);
     case vobj::FieldType::kNone:
       UNREACHABLE();
   }
@@ -4836,7 +4835,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreTrustedPointerField(
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
-                                                            int index) {
+                                                            int index,
+                                                            LoadType type) {
   // We won't try to reason about the type of the elements array and thus also
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(elements)));
@@ -4870,14 +4870,14 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
     return BuildAbort(AbortReason::kUnreachable);
   }
   return AddNewNodeNoInputConversion<LoadTaggedField>(
-      {elements}, FixedArray::OffsetOfElementAt(index), LoadType::kUnknown);
+      {elements}, FixedArray::OffsetOfElementAt(index), type);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
                                                             ValueNode* index,
                                                             LoadType type) {
   if (auto constant = TryGetInt32Constant(index)) {
-    return BuildLoadFixedArrayElement(elements, constant.value());
+    return BuildLoadFixedArrayElement(elements, constant.value(), type);
   }
   return AddNewNode<LoadFixedArrayElement>({elements, index}, type);
 }
@@ -4913,12 +4913,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
         TryGetUint32Constant(vobject->get(FixedArrayBase::kLengthOffset));
     if (length.has_value()) {
       if (static_cast<uint32_t>(index) < length.value()) {
-        ValueNode* value =
-            vobject->get(FixedDoubleArray::OffsetOfElementAt(index));
-        static_assert(
-            VirtualFixedDoubleArrayShape::kElementsAreFloat64Constant);
-        DCHECK(value->Is<Float64Constant>());
-        return value;
+        return vobject->get(FixedDoubleArray::OffsetOfElementAt(index));
       } else {
         return BuildAbort(AbortReason::kUnreachable);
       }
@@ -6930,15 +6925,18 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
   }
 
   int start_offset = iterator_.current_offset();
+#ifdef DEBUG
   SourcePositionTableIterator::IndexAndPositionState
       start_source_position_iterator_state =
           source_position_iterator_.GetState();
+#endif
 
   std::optional<ContinuationOffsets> continuation =
       FindContinuationForPolymorphicPropertyLoadImpl();
 
   iterator_.SetOffset(start_offset);
-  source_position_iterator_.RestoreState(start_source_position_iterator_state);
+  DCHECK_EQ(start_source_position_iterator_state,
+            source_position_iterator_.GetState());
   return continuation;
 }
 
@@ -6955,11 +6953,64 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
   // Where <allowed bytecodes> are:
   // - not affecting control flow
   // - not storing into REG
+  // - not the start or end of a try block
   // and the continuation is limited in length.
 
-  // Skip GetnamedProperty.
+  // Try-block starts are not visible as control flow or basic blocks, so detect
+  // them using the bytecode offset.
+  int next_handler_change = kMaxInt;
+  HandlerTable table(*bytecode().object());
+  if (next_handler_table_index_ < table.NumberOfRangeEntries()) {
+    next_handler_change = table.GetRangeStart(next_handler_table_index_);
+  }
+  // Try-block ends are detected via the top end offset in the current handler
+  // stack.
+  if (IsInsideTryBlock()) {
+    const HandlerTableEntry& entry = catch_block_stack_.top();
+    next_handler_change = std::min(next_handler_change, entry.end);
+  }
+
+  auto IsOffsetAPolymorphicContinuationInterrupt =
+      [this, next_handler_change](int offset) {
+        // We can't continue a polymorphic load over a merge, since the
+        // other side of the merge will observe the call without the load.
+        //
+        // TODO(leszeks): I guess we could split that merge if we wanted to,
+        // introducing a new merge that has the polymorphic loads+calls on one
+        // side and the generic call on the other.
+        if (IsOffsetAMergePoint(offset)) return true;
+
+        // We currently can't continue a polymorphic load across a peeled
+        // loop header -- not because of any actual semantic reason, a peeled
+        // loop should be just like straightline code, but just because this
+        // iteration isn't compatible with the PeelLoop iteration.
+        //
+        // TODO(leszeks): We could probably make loop peeling work happen on the
+        // JumpLoop rather than loop header, and then this continuation code
+        // would work. Only for the first peeled iteration though, not for
+        // speeling.
+        if (loop_headers_to_peel_.Contains(offset)) return true;
+
+        // Loop peeling should be the only reason there was no merge point for a
+        // loop header.
+        DCHECK(!bytecode_analysis_.IsLoopHeader(offset));
+
+        // We can't currently continue a polymorphic load over a try-catch
+        // start/end -- again, not for any semantic reason, but just because
+        // this iteration doesn't consider the catch handler stack.
+        //
+        // TODO(leszeks): If this saved/restore the handler stack, it would
+        // probably work, but we'd need to confirm that later phases don't need
+        // strict nesting of handlers (since the first polymorphic call would
+        // be inside the handler range, but the second polymorphic load after it
+        // in linear scan order would be outside of the handler range).
+        if (offset >= next_handler_change) return true;
+        return false;
+      };
+
+  // Skip GetNamedProperty.
   iterator_.Advance();
-  if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
+  if (IsOffsetAPolymorphicContinuationInterrupt(iterator_.current_offset())) {
     return {};
   }
 
@@ -6981,7 +7032,7 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
   int limit = 20;
   while (--limit > 0) {
     iterator_.Advance();
-    if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
+    if (IsOffsetAPolymorphicContinuationInterrupt(iterator_.current_offset())) {
       return {};
     }
 
@@ -10692,12 +10743,54 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   ToNumberOrNumeric* conversion;
   GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
                                      {arg}, Object::Conversion::kToNumber));
+  // TODO(victorgomes): rely on automatic input conversion here rather than
+  // calling UncheckedNumberToFloat64 manually.
   ValueNode* float64_value;
-  GET_VALUE_OR_ABORT(
-      float64_value,
-      AddNewNode<UncheckedNumberOrOddballToFloat64>(
-          {conversion}, TaggedToFloat64ConversionType::kOnlyNumber));
+  GET_VALUE_OR_ABORT(float64_value,
+                     AddNewNode<UncheckedNumberToFloat64>({conversion}));
   return AddNewNode<Float64Round>({float64_value}, kind);
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetConstant(broker()->infinity_value());
+  }
+  return TryReduceMathMinMax(args,
+                             [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
+                               return BuildInt32Min(v1, v2);
+                             });
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetConstant(broker()->minus_infinity_value());
+  }
+  return TryReduceMathMinMax(args,
+                             [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
+                               return BuildInt32Max(v1, v2);
+                             });
+}
+
+template <typename Int32Binop>
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
+    CallArguments& args, Int32Binop int32_case) {
+  bool all_args_are_int32_or_smi =
+      std::all_of(args.begin(), args.end(), [&](ValueNode* arg) {
+        return GetType(arg) == NodeType::kSmi ||
+               arg->properties().value_representation() ==
+                   ValueRepresentation::kInt32;
+      });
+
+  if (all_args_are_int32_or_smi) {
+    // TODO(C++23): Use std::ranges::fold_left_first.
+    // Parameters will be converted to Int32 automatically.
+    return std::reduce(args.begin() + 1, args.end(), *args.begin(), int32_case);
+  }
+
+  // TODO(marja): Add Float64 and/or speculative Float64 cases.
+  return {};
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayConstructor(
@@ -10744,11 +10837,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
   ToNumberOrNumeric* conversion;
   GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
                                      {arg}, Object::Conversion::kToNumber));
+  // TODO(victorgomes): rely on automatic input conversion here rather than
+  // calling UncheckedNumberToFloat64 manually.
   ValueNode* float64_value;
-  GET_VALUE_OR_ABORT(
-      float64_value,
-      AddNewNode<UncheckedNumberOrOddballToFloat64>(
-          {conversion}, TaggedToFloat64ConversionType::kOnlyNumber));
+  GET_VALUE_OR_ABORT(float64_value,
+                     AddNewNode<UncheckedNumberToFloat64>({conversion}));
   return AddNewNode<Float64CountLeadingZeros>({float64_value});
 }
 
@@ -12169,37 +12262,59 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
 
 namespace {
 
+enum class InlineArrayCtorVariant {
+  kZeroArgs,
+  kOneArg_InterpretAsLength,
+  kOneArg_InterpretAsElementValue,
+  kMultipleArgs,
+};
+
 compiler::OptionalMapRef GetArrayConstructorInitialMap(
     compiler::JSHeapBroker* broker, compiler::JSFunctionRef array_function,
-    ElementsKind elements_kind, size_t argc, std::optional<int> maybe_length) {
+    ElementsKind* elements_kind, InlineArrayCtorVariant variant) {
   compiler::MapRef initial_map = array_function.initial_map(broker);
-  if (argc == 1 && (!maybe_length.has_value() || *maybe_length > 0)) {
+  if (variant == InlineArrayCtorVariant::kOneArg_InterpretAsLength) {
     // Constructing an Array via new Array(N) where N is an unsigned
     // integer, always creates a holey backing store.
-    elements_kind = GetHoleyElementsKind(elements_kind);
+    *elements_kind = GetHoleyElementsKind(*elements_kind);
   }
-  return initial_map.AsElementsKind(broker, elements_kind);
+  return initial_map.AsElementsKind(broker, *elements_kind);
 }
 
 }  // namespace
 
-ValueNode* MaglevGraphBuilder::BuildElementsArray(int length) {
+ValueNode* MaglevGraphBuilder::BuildElementsArray(ElementsKind elements_kind,
+                                                  int length) {
+  DCHECK_GE(length, 0);
+  DCHECK(IsFastElementsKind(elements_kind));
   if (length == 0) {
     return GetRootConstant(RootIndex::kEmptyFixedArray);
   }
-  base::SmallVector<ValueNode*, 16> values(
-      length, GetRootConstant(RootIndex::kTheHoleValue));
-  return CreateFixedArray(base::VectorOf(values));
+
+  // This DCHECK is slightly hacky since it relies on callers passing
+  // kPreallocatedArrayElements for length 0 arrays. The intent is to make sure
+  // that callers use a holey elements kind for the `Array(length)` 1-argument
+  // constructor.
+  DCHECK(IsHoleyElementsKind(elements_kind) ||
+         length == JSArray::kPreallocatedArrayElements);
+
+  ValueNode* the_hole_value;
+  if (IsDoubleElementsKind(elements_kind)) {
+    the_hole_value = GetFloat64Constant(Float64::hole_nan());
+  } else {
+    the_hole_value = GetRootConstant(RootIndex::kTheHoleValue);
+  }
+
+  base::SmallVector<ValueNode*, 16> values(length, the_hole_value);
+  return BuildElementsArray(elements_kind, base::VectorOf(values));
 }
 
 ValueNode* MaglevGraphBuilder::BuildElementsArray(
     ElementsKind elements_kind, base::Vector<ValueNode*> values) {
-  DCHECK_GT(static_cast<int>(values.size()), 1);
-  if (IsDoubleElementsKind(elements_kind)) {
-    UNIMPLEMENTED();
-  }
-
-  return CreateFixedArray(values);
+  DCHECK(IsFastElementsKind(elements_kind));
+  DCHECK_GT(static_cast<int>(values.size()), 0);
+  return IsDoubleElementsKind(elements_kind) ? CreateFixedDoubleArray(values)
+                                             : CreateFixedArray(values);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
@@ -12209,60 +12324,76 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
       maybe_allocation_site.has_value()
           ? maybe_allocation_site->GetElementsKind()
           : array_function.initial_map(broker()).elements_kind();
-  // TODO(victorgomes): Support double elements array.
-  if (IsDoubleElementsKind(elements_kind)) return {};
   DCHECK(IsFastElementsKind(elements_kind));
-
   const int arity = static_cast<int>(args.count());
+
+  InlineArrayCtorVariant variant;
+  if (arity == 0) {
+    variant = InlineArrayCtorVariant::kZeroArgs;
+  } else if (arity == 1) {
+    // TODO(jgruber): Also handle kOneArg_InterpretAsElementValue, for when the
+    // single argument is not a number. That case, once recognized, could be
+    // merged with kMultipleArgs.
+    variant = InlineArrayCtorVariant::kOneArg_InterpretAsLength;
+  } else {
+    variant = InlineArrayCtorVariant::kMultipleArgs;
+  }
+
   std::optional<int> maybe_length;
-  if (arity == 1) {
+  if (variant == InlineArrayCtorVariant::kOneArg_InterpretAsLength) {
     maybe_length = TryGetInt32Constant(args[0]);
+    if (maybe_length.has_value()) {
+      if (*maybe_length < 0) return {};
+      if (*maybe_length >= JSArray::kInitialMaxFastElementArray) return {};
+      static_assert(JSArray::kInitialMaxFastElementArray <
+                    JSArray::kMaxFastArrayLength);
+    }
   }
   compiler::OptionalMapRef maybe_initial_map = GetArrayConstructorInitialMap(
-      broker(), array_function, elements_kind, arity, maybe_length);
+      broker(), array_function, &elements_kind, variant);
   if (!maybe_initial_map.has_value()) return {};
   compiler::MapRef initial_map = maybe_initial_map.value();
   compiler::SlackTrackingPrediction slack_tracking_prediction =
       broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
           array_function);
 
-  // Tells whether we are protected by either the {site} or a
-  // call speculation bit to do certain speculative optimizations.
-  bool can_inline_call = false;
+  // Tells whether we are protected by either the {site} or a call speculation
+  // bit to do certain speculative optimizations. This mechanism protects
+  // against deopt loops.
+  bool can_speculate_call;
   AllocationType allocation_type = AllocationType::kYoung;
 
   if (maybe_allocation_site) {
-    can_inline_call = maybe_allocation_site->CanInlineCall();
+    can_speculate_call = !maybe_allocation_site->IsSpeculationDisabled();
     allocation_type =
         broker()->dependencies()->DependOnPretenureMode(*maybe_allocation_site);
     broker()->dependencies()->DependOnElementsKind(*maybe_allocation_site);
   } else {
-    can_inline_call = CanSpeculateCall();
+    can_speculate_call = CanSpeculateCall();
   }
 
   // Arity 0, `new Array()`.
-  if (arity == 0) {
+  if (variant == InlineArrayCtorVariant::kZeroArgs) {
     return BuildAndAllocateJSArray(
         initial_map, GetSmiConstant(0),
-        BuildElementsArray(JSArray::kPreallocatedArrayElements),
+        BuildElementsArray(elements_kind, JSArray::kPreallocatedArrayElements),
         slack_tracking_prediction, allocation_type);
   }
 
   // Arity 1, `new Array(maybe_length)`.
-  if (arity == 1) {
-    if (maybe_length.has_value() && *maybe_length >= 0 &&
-        *maybe_length < JSArray::kInitialMaxFastElementArray) {
-      return BuildAndAllocateJSArray(initial_map, GetSmiConstant(*maybe_length),
-                                     BuildElementsArray(*maybe_length),
-                                     slack_tracking_prediction,
-                                     allocation_type);
+  if (variant == InlineArrayCtorVariant::kOneArg_InterpretAsLength) {
+    if (maybe_length.has_value()) {
+      DCHECK_GE(*maybe_length, 0);
+      DCHECK_LT(*maybe_length, JSArray::kInitialMaxFastElementArray);
+      return BuildAndAllocateJSArray(
+          initial_map, GetSmiConstant(*maybe_length),
+          BuildElementsArray(elements_kind, *maybe_length),
+          slack_tracking_prediction, allocation_type);
     }
 
-    // TODO(victorgomes): If we know the argument cannot be a number, we should
-    // allocate an array with one element.
     // We don't know anything about the length, so we rely on the allocation
     // site to avoid deopt loops.
-    if (!can_inline_call) return {};
+    if (!can_speculate_call) return {};
 
     return SelectReduction(
         [&](BranchBuilder& builder) {
@@ -12272,8 +12403,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         },
         [&] {
           ValueNode* elements;
-          GET_VALUE_OR_ABORT(elements, AddNewNode<AllocateElementsArray>(
-                                           {args[0]}, allocation_type));
+          GET_VALUE_OR_ABORT(elements,
+                             AddNewNode<AllocateElementsArray>(
+                                 {args[0]}, elements_kind, allocation_type));
           return BuildAndAllocateJSArray(initial_map, args[0], elements,
                                          slack_tracking_prediction,
                                          allocation_type);
@@ -12289,61 +12421,44 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
 
   // Arity > 1, `new Array(x0, x1, ...)`.
   DCHECK_GT(arity, 1);
-
-  auto node_type_of = [=, this](ValueNode* v) {
-    DCHECK(IsConstantNode(v->opcode()));
-    if (std::optional<int32_t> constant_int32 = TryGetInt32Constant(v)) {
-      return Smi::IsValid(constant_int32.value()) ? NodeType::kSmi
-                                                  : NodeType::kHeapNumber;
-    }
-    return TryGetFloat64Constant(UseRepresentation::kFloat64, v,
-                                 TaggedToFloat64ConversionType::kOnlyNumber)
-               ? NodeType::kHeapNumber
-               : NodeType::kAnyHeapObject;
-  };
+  DCHECK_EQ(variant, InlineArrayCtorVariant::kMultipleArgs);
 
   // Gather the values to store into the newly created array, and remember
   // sufficient information about node types so we can select a suitable
   // elements_kind below.
+  bool values_all_smis = true, values_all_numbers = true,
+       values_any_nonnumber = false;
   base::SmallVector<ValueNode*, 16> values;
   values.reserve(arity);
-  NodeType combined_type = NodeType::kNone;
-  bool any_value_has_unknown_type = false;
   for (ValueNode* v : args) {
     NodeType node_type = GetType(v);
-    if (NodeTypeIs(node_type, NodeType::kUnknown)) {
-      if (IsConstantNode(v->opcode())) {
-        // Even without NodeType, we can extract some information from
-        // constants. This is used to generalize elements_kind in case we see
-        // constants that require doing so.
-        combined_type = UnionType(combined_type, node_type_of(v));
+    if (!NodeTypeIs(node_type, NodeType::kSmi)) {
+      values_all_smis = false;
+      if (!NodeTypeIs(node_type, NodeType::kNumber)) {
+        values_all_numbers = false;
+        if (!NodeTypeCanBe(node_type, NodeType::kNumber)) {
+          values_any_nonnumber = true;
+        }
       }
-      // No static type info available; this is tracked separately from static
-      // types, since we may still speculate on present static types from
-      // other value nodes below.
-      any_value_has_unknown_type = true;
-    } else {
-      combined_type = UnionType(combined_type, node_type);
     }
     values.push_back(v);
   }
 
-  if (NodeTypeIs(combined_type, NodeType::kSmi)) {
+  if (values_all_smis) {
     // Smis can be stored with any elements kind.
-  } else if (NodeTypeIs(combined_type, NodeType::kNumber)) {
+  } else if (values_all_numbers) {
     elements_kind = GetMoreGeneralElementsKind(
         elements_kind, IsHoleyElementsKind(elements_kind)
                            ? HOLEY_DOUBLE_ELEMENTS
                            : PACKED_DOUBLE_ELEMENTS);
-  } else if (!NodeTypeCanBe(combined_type, NodeType::kNumber)) {
+  } else if (values_any_nonnumber) {
     // We statically know that at least one value is not a number.
     elements_kind = GetMoreGeneralElementsKind(
         elements_kind,
         IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS : PACKED_ELEMENTS);
-  }
-
-  if (IsDoubleElementsKind(elements_kind)) {
-    // TODO(jgruber): Implement.
+  } else if (!can_speculate_call) {
+    // We cannot precisely determine the elements_kind based on static types,
+    // and speculation has already been disabled via feedback.
     return {};
   }
 
@@ -12355,25 +12470,22 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     initial_map = maybe_updated_map.value();
   }
 
-  if (any_value_has_unknown_type && !IsObjectElementsKind(elements_kind)) {
-    if (!can_inline_call) return {};
-
-    // We speculate, ignoring values without static types wrt elements_kind
-    // selection and inserting Check nodes instead.
+  // Insert type checks as necessary.
+  if (IsSmiElementsKind(elements_kind)) {
     for (ValueNode* v : args) {
-      if (!NodeTypeIs(GetType(v), NodeType::kUnknown)) continue;
-      if (IsSmiElementsKind(elements_kind)) {
-        RETURN_IF_ABORT(BuildCheckSmi(v));
-      } else {
-        DCHECK(IsDoubleElementsKind(elements_kind));
-        RETURN_IF_ABORT(BuildCheckNumber(v));
-      }
+      if (NodeTypeIs(GetType(v), NodeType::kSmi)) continue;
+      RETURN_IF_ABORT(BuildCheckSmi(v));
+    }
+  } else if (IsDoubleElementsKind(elements_kind)) {
+    for (ValueNode* v : args) {
+      if (NodeTypeIs(GetType(v), NodeType::kNumber)) continue;
+      RETURN_IF_ABORT(BuildCheckNumber(v));
     }
   }
 
   return BuildAndAllocateJSArray(
       initial_map, GetSmiConstant(arity),
-      BuildElementsArray(elements_kind, base::VectorOf(values.begin(), arity)),
+      BuildElementsArray(elements_kind, base::VectorOf(values)),
       slack_tracking_prediction, allocation_type);
 }
 
@@ -13439,9 +13551,18 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     if (boilerplate_elements.IsFixedDoubleArray()) {
       int const size = FixedDoubleArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};
-      fast_literal->set(
-          JSObject::kElementsOffset,
-          CreateFixedDoubleArray(boilerplate_elements.AsFixedDoubleArray()));
+
+      compiler::FixedDoubleArrayRef boilerplate_elements_as_fda =
+          boilerplate_elements.AsFixedDoubleArray();
+      base::SmallVector<ValueNode*, 16> values;
+      values.reserve(elements_length);
+      for (uint32_t i = 0; i < elements_length; i++) {
+        values.push_back(GetFloat64Constant(
+            boilerplate_elements_as_fda.GetFromImmutableFixedDoubleArray(i)));
+      }
+
+      fast_literal->set(JSObject::kElementsOffset,
+                        CreateFixedDoubleArray(base::VectorOf(values)));
     } else {
       int const size = FixedArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};
@@ -13494,26 +13615,6 @@ VirtualObject* MaglevGraphBuilder::CreateHeapNumber(ValueNode* value) {
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
   vobj->set(offsetof(HeapNumber, value_), value);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
-    const compiler::FixedDoubleArrayRef& elements) {
-  using Shape = VirtualFixedDoubleArrayShape;
-  uint32_t length = elements.length();
-  SBXCHECK_GT(length, 0);
-  int slot_count = Shape::header_slot_count + length;
-  compiler::MapRef map = broker()->fixed_double_array_map();
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  DCHECK_EQ(Shape::header_slot_count, 2);
-  vobj->set(HeapObject::kMapOffset, GetConstant(map));
-  vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
-  for (uint32_t i = 0; i < length; i++) {
-    static_assert(Shape::kElementsAreFloat64Constant);
-    vobj->set(FixedDoubleArray::OffsetOfElementAt(i),
-              GetFloat64Constant(elements.GetFromImmutableFixedDoubleArray(i)));
-  }
   return vobj;
 }
 
@@ -13652,6 +13753,29 @@ VirtualObject* MaglevGraphBuilder::CreateFixedArray(
     vobj->set(FixedArray::OffsetOfElementAt(i), values[i]);
   }
 
+  return vobj;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
+    base::Vector<ValueNode* const> values) {
+  compiler::MapRef map = broker()->fixed_double_array_map();
+
+  using T = FixedDoubleArray;
+  using Shape = VirtualFixedDoubleArrayShape;
+  uint32_t length = values.length();
+  DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
+
+  int slot_count = Shape::header_slot_count + length;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  DCHECK_EQ(vobj->size(), T::SizeFor(length));
+
+  DCHECK_EQ(Shape::header_slot_count, 2);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
+  for (uint32_t i = 0; i < length; i++) {
+    vobj->set(T::OffsetOfElementAt(i), values[i]);
+  }
   return vobj;
 }
 

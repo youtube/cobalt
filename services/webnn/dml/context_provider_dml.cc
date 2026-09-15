@@ -50,17 +50,17 @@ base::expected<scoped_refptr<Adapter>, mojom::ErrorPtr> GetDmlGpuAdapter(
 base::expected<scoped_refptr<WebNNContextImpl>, mojom::ErrorPtr>
 CreateDmlContext(scoped_refptr<Adapter> adapter,
                  mojo::PendingReceiver<mojom::WebNNContext> receiver,
-                 WebNNContextProviderImpl* context_provider,
+                 base::WeakPtr<WebNNContextProviderImpl> context_provider,
                  mojom::CreateContextOptionsPtr options,
                  mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
                  mojo::ScopedDataPipeProducerHandle read_tensor_producer,
                  const gpu::GpuFeatureInfo& gpu_feature_info,
                  gpu::CommandBufferId command_buffer_id,
                  std::unique_ptr<ScopedSequence> sequence,
-                 scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
                  scoped_refptr<gpu::MemoryTracker> memory_tracker,
                  scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
-                 gpu::SharedImageManager* shared_image_manager) {
+                 gpu::SharedImageManager* shared_image_manager,
+                 scoped_refptr<base::SingleThreadTaskRunner> main_task_runner) {
   ASSIGN_OR_RETURN(
       auto command_recorder,
       CommandRecorder::Create(adapter->command_queue(), adapter->dml_device()),
@@ -70,12 +70,12 @@ CreateDmlContext(scoped_refptr<Adapter> adapter,
       });
 
   return base::MakeRefCounted<ContextImplDml>(
-      std::move(adapter), std::move(receiver), context_provider,
+      std::move(adapter), std::move(receiver), std::move(context_provider),
       std::move(options), std::move(write_tensor_consumer),
       std::move(read_tensor_producer), std::move(command_recorder),
       gpu_feature_info, command_buffer_id, std::move(sequence),
-      std::move(scheduler_task_runner), std::move(memory_tracker),
-      std::move(owning_task_runner), shared_image_manager);
+      std::move(memory_tracker), std::move(owning_task_runner),
+      shared_image_manager, std::move(main_task_runner));
 }
 
 }  // namespace
@@ -103,13 +103,13 @@ CreateContextFromOptions(
     const gpu::GPUInfo& gpu_info,
     const gpu::SharedContextState* shared_context_state,
     mojo::PendingReceiver<mojom::WebNNContext> receiver,
-    WebNNContextProviderImpl* context_provider,
+    base::WeakPtr<WebNNContextProviderImpl> context_provider,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
-    scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
-    gpu::SharedImageManager* shared_image_manager) {
+    gpu::SharedImageManager* shared_image_manager,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner) {
   DCHECK(gpu_feature_info.IsInitialized());
   if (gpu_feature_info.status_values[gpu::GPU_FEATURE_TYPE_WEBNN] !=
       gpu::kGpuFeatureStatusEnabled) {
@@ -161,11 +161,10 @@ CreateContextFromOptions(
 
   return CreateDmlContext(
       std::move(adapter_creation_result.value()), std::move(receiver),
-      context_provider, std::move(options), std::move(write_tensor_consumer),
-      std::move(read_tensor_producer), gpu_feature_info, command_buffer_id,
-      std::move(sequence), std::move(scheduler_task_runner),
+      std::move(context_provider), std::move(options),
+      std::move(write_tensor_consumer), std::move(read_tensor_producer),
+      gpu_feature_info, command_buffer_id, std::move(sequence),
       std::move(memory_tracker), std::move(owning_task_runner),
-      shared_image_manager);
+      shared_image_manager, std::move(main_task_runner));
 }
-
 }  // namespace webnn::dml

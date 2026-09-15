@@ -100,6 +100,12 @@
 }
 
 input {
+  --cr-searchbox-input-start-padding: calc(52px +
+      var(--cr-searchbox-thumbnail-icon-offset, 0px));
+  --cr-searchbox-input-trailing-padding:
+      calc(var(--cr-searchbox-voice-icon-offset)
+      + var(--cr-searchbox-voice-search-button-width)
+      + var(--cr-searchbox-inner-icon-margin));
   background-color: var(--color-searchbox-background);
   border: none;
   border-radius: var(--cr-searchbox-border-radius);
@@ -108,18 +114,23 @@ input {
   font-size: inherit;
   height: 100%;
   outline: none;
-  /* Always include offset and margin padding, even if the voice search button
-   * is not being shown. */
-  padding-inline-end: calc(var(--cr-searchbox-voice-icon-offset) + var(--cr-searchbox-voice-search-button-width) + var(--cr-searchbox-inner-icon-margin));
-  padding-inline-start: calc(52px + var(--cr-searchbox-thumbnail-icon-offset, 0px));
+  padding-inline-end: var(--cr-searchbox-input-trailing-padding);
+  padding-inline-start: var(--cr-searchbox-input-start-padding);
   position: relative;
   width: 100%;
 }
 
 :host-context([dir='rtl']) input[dir='ltr'],
 :host-context([dir='ltr']) input[dir='rtl'] {
-  padding-inline-end: calc(52px + var(--cr-searchbox-thumbnail-icon-offset, 0px));
-  padding-inline-start: calc(var(--cr-searchbox-voice-icon-offset) + var(--cr-searchbox-voice-search-button-width) + var(--cr-searchbox-inner-icon-margin));
+  padding-inline-end: var(--cr-searchbox-input-start-padding);
+  padding-inline-start: var(--cr-searchbox-input-trailing-padding);
+}
+
+:host([compose-button-enabled][dropdown-is-visible]) input,
+:host([realbox-layout-mode='Tall']) input {
+  --cr-searchbox-input-trailing-padding: calc(12px
+      + var(--cr-compose-button-width)
+      + var(--cr-searchbox-icon-spacing));
 }
 
 :host-context([is-back-arrow-visible]) input {
@@ -216,40 +227,28 @@ cr-searchbox-icon {
   outline: none;
   padding: 0;
   pointer-events: auto;
-  position: absolute;
+  position: static;
   right: 16px;
   width: var(--cr-searchbox-icon-width);
+
 }
 
-:host([searchbox-chrome-refresh-theming]) .searchbox-icon-button {
-  position: static;
-}
-
-:host([compose-button-enabled]) .searchbox-icon-button.lens {
+:host([compose-button-enabled]) .searchbox-icon-button-container.lens {
  /* Since there is a 4px padding because of the glow effect, add 12px to right instead of 16px. */
  right: calc(12px + var(--cr-compose-button-width) + var(--cr-searchbox-icon-spacing));
-}
-
-:host([compose-button-enabled]):host-context([dir='rtl']) .searchbox-icon-button {
- /* Since there is a 4px padding because of the glow effect, add 12px to left instead of 16px. */
-  left: calc(12px + var(--cr-compose-button-width) + var(--cr-searchbox-icon-spacing));
-  right: unset;
 }
 
 /* When voice/lens icons are monochrome, they are webkit mask images.
  * Webkit mask images hide borders so container rules are created to
  * show focus borders on these icons. */
 .searchbox-icon-button-container {
-  border-radius: 2px;
-  height: 100%;
+  border-radius: 4px;
+  display: flex;
+  height: 36px;
   position: absolute;
   right: 16px;
-  top: var(--cr-searchbox-icon-top-position);
+  top: 6px;
   z-index: 100;
-}
-
-.searchbox-icon-button-container.voice {
-  right: var(--cr-searchbox-voice-icon-offset);
 }
 
 :host-context(.focus-outline-visible) .searchbox-icon-button-container:focus-within {
@@ -285,23 +284,19 @@ cr-searchbox-icon {
   background-color: #1F1F1F;
 }
 
-:host([searchbox-lens-search-enabled_]):host-context([dir='rtl']) #voiceSearchButton {
+:host-context([dir='rtl'])
+    .searchbox-icon-button-container.voice {
   left: var(--cr-searchbox-voice-icon-offset);
   right: unset;
 }
 
-:host([searchbox-lens-search-enabled_]) #voiceSearchButton {
+:host .searchbox-icon-button-container.voice {
   right: var(--cr-searchbox-voice-icon-offset);
 }
 
-:host([compose-button-enabled][dropdown-is-visible]) #voiceSearchButton,
-:host([compose-button-enabled][dropdown-is-visible]) #lensSearchButton {
+:host([compose-button-enabled][dropdown-is-visible])
+    .searchbox-icon-button-container {
   display: none;
-}
-
-:host-context([dir='rtl']) .searchbox-icon-button {
-  left: 16px;
-  right: unset;
 }
 
 :host-context([dir='rtl']) .searchbox-icon-button-container {
@@ -309,22 +304,20 @@ cr-searchbox-icon {
   right: unset;
 }
 
-:host([searchbox-lens-search-enabled_]):host-context([dir='rtl']) .searchbox-icon-button-container.voice {
+:host-context([dir='rtl']) .searchbox-icon-button-container.voice {
   left: var(--cr-searchbox-voice-icon-offset);
   right: unset;
 }
 
-:host([compose-button-enabled]):host-context([dir='rtl']) .searchbox-icon-button-container.lens {
- left: calc(16px + 2 * (var(--cr-searchbox-icon-width) + var(--cr-searchbox-icon-spacing)));
- right: unset;
+:host([compose-button-enabled]):host-context([dir='rtl'])
+    .searchbox-icon-button-container.lens {
+  left: calc(12px + var(--cr-compose-button-width)
+    + var(--cr-searchbox-icon-spacing));
+  right: unset;
 }
 
 :host([compose-button-enabled][searchbox-lens-search-enabled_]) {
  --cr-searchbox-voice-icon-offset: calc(16px + 2 * var(--cr-searchbox-icon-spacing) + var(--cr-searchbox-icon-width) + var(--cr-compose-button-width));
-}
-
-:host-context(.focus-outline-visible) .searchbox-icon-button:focus {
-  box-shadow: var(--ntp-focus-shadow);
 }
 
 :-webkit-any(input, cr-searchbox-icon, .searchbox-icon-button) {
@@ -362,18 +355,25 @@ cr-searchbox-icon {
   inset-inline-start: 16px;
 }
 
-:host([realbox-layout-mode='Tall']) {
+:host([ntp-realbox-next-enabled]) input::placeholder {
+  font-size: 18px;
+  color: var(--color-new-tab-page-composebox-type-ahead);
+  font-weight: 400;
+}
+
+:host([ntp-realbox-next-enabled]) {
   --cr-searchbox-border-radius: 26px;
-  --cr-searchbox-compose-button-position-top: 12px;
   --cr-searchbox-dropdown-padding-bottom: 12px;
-  --cr-searchbox-dropdown-padding-top: 62px;
-  --cr-searchbox-height: 112px;
-  --cr-searchbox-icon-height: 40px;
-  --cr-searchbox-input-padding-top_: 22px;
+  /* Cannot touch this searchbox icon size var;
+    it's used by the rainbow outline AI button class in
+    searchbox_compose_button.css. Should be different
+    from other searchbox icons (composebox, voice, lens). */
+  --cr-searchbox-icon-size: 40px;
+  --cr-searchbox-voice-lens-size: 36px;
   --text-input-inline-start-spacing: 16px;
 }
 
-:host([realbox-layout-mode='Tall']) cr-searchbox-dropdown::part(dropdown-content) {
+:host([ntp-realbox-next-enabled]) cr-searchbox-dropdown::part(dropdown-content) {
   background-color: unset;
   border-radius: unset;
   box-shadow: unset;
@@ -384,7 +384,15 @@ cr-searchbox-icon {
   padding-top: unset;
 }
 
-:host([realbox-layout-mode='Tall']) .dropdownContainer {
+:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
+  z-index: 100;
+}
+
+:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(composebox-file-carousel) {
+  margin-top: 16px;
+}
+
+:host([ntp-realbox-next-enabled]) .dropdownContainer {
   background-color: var(--color-searchbox-results-background);
   border-radius: var(--cr-searchbox-border-radius);
   box-shadow: var(--cr-searchbox-shadow);
@@ -395,67 +403,116 @@ cr-searchbox-icon {
   padding-top: var(--cr-searchbox-dropdown-padding-top);
 }
 
+:host([ntp-realbox-next-enabled]) #errorScrim {
+  border-radius: inherit;
+}
+
+:host([realbox-layout-mode^='Tall']) {
+  --cr-searchbox-compose-button-position-top: 12px;
+  --cr-searchbox-dropdown-padding-top: 60px;
+  --cr-searchbox-height: 108px;
+  --cr-searchbox-input-padding-top_: 22px;
+}
+
+:host([realbox-layout-mode^='Tall']:not([context-files-count_="0"])) {
+  --cr-searchbox-dropdown-padding-top: 48px;
+}
+
 @media (forced-colors: active) {
-  :host([realbox-layout-mode='Tall']) .dropdownContainer {
+  :host([realbox-layout-mode^='Tall']) .dropdownContainer {
     border: 1px solid ActiveBorder;
   }
 }
 
-:host([realbox-layout-mode='Tall']) #inputWrapper {
+:host([realbox-layout-mode^='Tall']) #inputWrapper {
   background-color: var(--color-searchbox-background);
   border-radius: var(--cr-searchbox-border-radius);
 }
 
-:host([realbox-layout-mode='Tall']) input {
+:host([realbox-layout-mode^='Tall']) input {
   height: 48px;
   padding-top: var(--cr-searchbox-input-padding-top_);
 }
 
-:host([realbox-layout-mode='Tall']:not([dropdown-is-visible])) input {
+:host([realbox-layout-mode^='Tall']:not([dropdown-is-visible]):not([input-focused_])) input {
   padding-inline-start: 24px;
 }
 
-:host([realbox-layout-mode='Tall']) input::placeholder {
-  font-size: 18px;
-  font-style: normal;
-  font-weight: 500;
-}
-
-:host([realbox-layout-mode='Tall']:not([dropdown-is-visible])) cr-searchbox-icon,
-:host([realbox-layout-mode='Tall'][dropdown-is-visible]) .searchbox-icon-button-container {
+:host([realbox-layout-mode^='Tall']:not([dropdown-is-visible]):not([input-focused_])) cr-searchbox-icon,
+:host([realbox-layout-mode^='Tall'][dropdown-is-visible]) .searchbox-icon-button-container {
   display: none;
 }
 
-:host([realbox-layout-mode='Tall']) .searchbox-icon-button {
-  bottom: 12px;
-  height: var(--cr-searchbox-icon-height);
-  padding: 8px 12px;
+:host([realbox-layout-mode^='Tall']) .searchbox-icon-button-container {
+  bottom: 10px;
+  top: unset;
+  height: var(--cr-searchbox-voice-lens-size);
 }
 
-:host([realbox-layout-mode='Tall'][has-context-files_]) #voiceSearchButton,
-:host([realbox-layout-mode='Tall'][has-context-files_]) #lensSearchButton {
+:host([realbox-layout-mode^='Tall']:not([context-files-count_="0"]))
+    .searchbox-icon-button-container {
   display: none;
 }
 
-:host([realbox-layout-mode='Tall'][dropdown-is-visible]) cr-searchbox-icon {
+:host([realbox-layout-mode^='Tall'][dropdown-is-visible]) cr-searchbox-icon,
+:host([realbox-layout-mode^='Tall'][input-focused_]) cr-searchbox-icon {
   height: 24px;
   inset-inline-start: 12px;
   top: var(--cr-searchbox-input-padding-top_);
 }
 
-:host([realbox-layout-mode='Tall'][compose-button-enabled]) #lensSearchButton {
+:host([realbox-layout-mode^='Tall'][compose-button-enabled])
+    .searchbox-icon-button-container.lens {
   inset-inline-end: calc(12px + var(--cr-searchbox-icon-spacing));
 }
 
-:host([realbox-layout-mode='Tall'][searchbox-lens-search-enabled_]) #voiceSearchButton,
-:host([realbox-layout-mode='Tall'][searchbox-lens-search-enabled_]):host-context([dir='rtl']) #voiceSearchButton {
-  inset-inline-end: calc(12px + var(--cr-searchbox-icon-height) + var(--cr-searchbox-icon-spacing));
+:host([realbox-layout-mode^='Tall'][searchbox-lens-search-enabled_])
+    .searchbox-icon-button-container.voice {
+  inset-inline-end: calc(12px + var(--cr-searchbox-voice-lens-size)
+      + var(--cr-searchbox-icon-spacing));
 }
 
-:host-context([realbox-layout-mode='Tall']) #composeButton {
+:host-context([realbox-layout-mode^='Tall']) #composeButton {
   --cr-button-height: 36px;
 }
 
-:host-context([realbox-layout-mode='Tall']) #errorScrim {
-  border-radius: inherit;
+:host-context([realbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(carousel-divider) {
+  margin-top: 10px;
+}
+
+:host([realbox-layout-mode='Compact']) {
+  --cr-searchbox-dropdown-padding-top: 12px;
+  --cr-searchbox-height: 56px;
+  --error-scrim-flex-direction: row;
+}
+
+:host([realbox-layout-mode='Compact']) #inputWrapper {
+  z-index: 99;
+}
+
+:host([realbox-layout-mode='Compact']) cr-searchbox-icon {
+  display: none;
+}
+
+:host([realbox-layout-mode='Compact']) .searchbox-icon-button-container {
+  top: 10px;
+}
+
+:host([realbox-layout-mode='Compact'][compose-button-enabled]
+    [searchbox-lens-search-enabled_]) .searchbox-icon-button-container.lens {
+  inset-inline-end: calc(var(--cr-searchbox-icon-spacing) + var(--cr-compose-button-width));
+}
+
+:host([realbox-layout-mode='Compact'][compose-button-enabled]
+    [searchbox-lens-search-enabled_]) .searchbox-icon-button-container.voice {
+  inset-inline-end: calc(var(--cr-searchbox-voice-lens-size)
+      + var(--cr-searchbox-icon-spacing) + var(--cr-compose-button-width));
+}
+
+:host([realbox-layout-mode='Compact']) .dropdownContainer {
+  z-index: auto;
+}
+
+:host([realbox-layout-mode='Compact']) cr-searchbox-dropdown::part(dropdown-content) {
+  padding-top: 12px;
 }

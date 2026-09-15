@@ -320,7 +320,6 @@
 <translation id="1521655867290435174">Google スプレッドシート</translation>
 <translation id="1524669537550112617">家具付き賃貸物件</translation>
 <translation id="1527263332363067270">接続を待機しています…</translation>
-<translation id="1528311629279578926">公開ページでプライベート ネットワーク上のデバイスまたはサーバーへの接続が開始されたため、接続がブロックされています。接続を許可するには、このページを再読み込みしてください。</translation>
 <translation id="1529789484829130889">トレイ 8</translation>
 <translation id="1530707389502320859">アクセスしようとしたサイトは偽装サイトのようです。不正なユーザーが URL のごく一部を一目ではわからないように改変してサイトを偽装する場合があります。</translation>
 <translation id="1532118530259321453">このページの内容</translation>
@@ -814,6 +813,7 @@
 <translation id="2321291402658100099">情報を管理</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{1 つのウィンドウ}other{# つのウィンドウ}}</translation>
 <translation id="232390861414237658">このカードを Google Pay で使用できるように保存すると、Chrome で購入する際に自動入力されます</translation>
+<translation id="2326283484705860548">より多くの Google ウォレットの情報を自動入力できるようになりました</translation>
 <translation id="2328651992442742497">許可（デフォルト）</translation>
 <translation id="2328955282645810595">建設用工具、動力工具</translation>
 <translation id="2330137317877982892">「<ph name="CREDIT_CARD" />」の有効期限は <ph name="EXPIRATION_DATE_ABBR" /> です</translation>
@@ -824,6 +824,7 @@
 <translation id="2346319942568447007">コピーした画像</translation>
 <translation id="2347764072711098973">Affirm、Zip、または Klarna を使って分割払いをご利用いただけます</translation>
 <translation id="2348509731468399833">価格のトラッキングを停止しました。</translation>
+<translation id="2348836501965732644">[設定] で情報を管理したり、入力候補を表示しないよう設定したりできます</translation>
 <translation id="2349957959687031096">[シークレット タブを開く] ボタンです。実行すると、新しいシークレット タブを開いてシークレット モードでブラウジングできます</translation>
 <translation id="2350796302381711542">すべての <ph name="PROTOCOL" /> リンクを <ph name="REPLACED_HANDLER_TITLE" /> ではなく <ph name="HANDLER_HOSTNAME" /> で開きますか？</translation>
 <translation id="2351718832234620840">このサーバーは、Chromium またはウェブ トラフィック暗号化のシステム構成で信頼されていないセキュリティ証明書を使用しているため、<ph name="DOMAIN" /> であることを証明できませんでした。原因として、設定が不適切であるか、悪意のあるユーザーが接続を妨害していることが考えられます。</translation>
@@ -1409,7 +1410,6 @@
 <translation id="3325662270238538525">最近行ったファイルへのアクセスと変更（ファイル名、ファイル コンテンツのデジタル フィンガープリント、ダウンロード元、メタデータなど）</translation>
 <translation id="3329013043687509092">彩度</translation>
 <translation id="3333762389743153920">仮想カードは使用できません</translation>
-<translation id="3336044043987989409">プライベート ネットワーク上のデバイスまたはサーバーへの接続を許可するには、再読み込みボタンを押してください。</translation>
 <translation id="3338095232262050444">保護された通信</translation>
 <translation id="333839153442689579">高強度インターバル トレーニング</translation>
 <translation id="3339446062576134663">クラウド（Ash）</translation>
@@ -1453,6 +1453,7 @@
 <translation id="340924996148642843">比較機能は現在使用できません</translation>
 <translation id="3409896703495473338">セキュリティ設定を管理</translation>
 <translation id="3411091017011773343"><ph name="HOURS" /> 時間後にアップロード</translation>
+<translation id="341134412449102894">お客様の情報は <ph name="ACCOUNT" /> の <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> に保存されます</translation>
 <translation id="3413466783792948876">公共ネットワークを使用している場合は、後でこのサイトにアクセスするのが最も安全です。自宅や職場の Wi-Fi など、信頼できるネットワークを使用することで、リスクが軽減されます。</translation>
 <translation id="3414275587143250384">分散コンピューティング、クラウド コンピューティング</translation>
 <translation id="3414952576877147120">サイズ:</translation>
@@ -3144,6 +3145,7 @@
 <translation id="6189351761800074311">テキストとページのコンテンツが Google に送信されますが、AI の改善には使用されません。
     <ph name="BEGIN_LINK" />詳細<ph name="END_LINK" /></translation>
 <translation id="6190518157737269631">キーボードの一部のキー（Esc キーなど）のオーバーライド</translation>
+<translation id="6192524964213419211">情報を保存すると、各種の Google サービスで簡単に入力できるようになります。お客様の情報は <ph name="ACCOUNT" /> の <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> に保存されます</translation>
 <translation id="6194209731893739467">トラッキングしている商品がすべてここに表示されます</translation>
 <translation id="6195371403461054755">地質学</translation>
 <translation id="6195418151868446719">家電</translation>
@@ -3310,6 +3312,7 @@
 <translation id="6433501201775827830">検索エンジンの選択</translation>
 <translation id="6433595998831338502"><ph name="HOST_NAME" /> で接続が拒否されました。</translation>
 <translation id="6433797564277305076">デバイスのロック解除を使用すると、カードを素早く確認できます</translation>
+<translation id="6436994298828707228">公開ページでローカル ネットワーク上のデバイスまたはサーバーへの接続が開始されたため、接続がブロックされています。</translation>
 <translation id="6437647869369934905">Google 図形描画</translation>
 <translation id="643917412048333145">ドレス</translation>
 <translation id="6440503408713884761">除外されました</translation>
@@ -3381,6 +3384,7 @@
 <translation id="6547208576736763147">2 穴パンチ（左）</translation>
 <translation id="6549443526281184652">衣装</translation>
 <translation id="6550245281449521513">マウスのロックは許可されていません</translation>
+<translation id="6552566579578780089">支払い</translation>
 <translation id="6554732001434021288">最終アクセス日: <ph name="NUM_DAYS" /> 日前</translation>
 <translation id="6556866813142980365">やり直す</translation>
 <translation id="6557715786897013164">14x17 インチ</translation>
@@ -3529,6 +3533,7 @@
 <translation id="6817217109584391709">JavaScript</translation>
 <translation id="6820143000046097424">シリアルポート</translation>
 <translation id="6820686453637990663">CVC</translation>
+<translation id="6820949753458790123">簡単な分割払いで支払い</translation>
 <translation id="6825578344716086703"><ph name="DOMAIN" /> にアクセスしようとしましたが、脆弱な署名アルゴリズム（SHA-1 など）を使用して署名された証明書がサーバーから提示されました。このセキュリティ認証情報は偽装されたものである可能性があり、アクセスしようとしたサーバーとは別のサーバーが応答している可能性があります（悪意のあるユーザーと通信している可能性があります）。</translation>
 <translation id="6826993739343257035">AR を許可しますか？</translation>
 <translation id="6828150717884939426">電話</translation>
@@ -3911,7 +3916,7 @@
 <translation id="7442389976360981500">ハンド トラッキングを許可しますか？</translation>
 <translation id="7442725080345379071">ライトオレンジ</translation>
 <translation id="7444046173054089907">このサイトはブロックされています</translation>
-<translation id="7444176988908839653">{COUNT,plural, =0{今日、Cookie を再びブロックします}=1{明日、Cookie を再びブロックします}other{Cookie を再びブロックするまであと # 日です}}</translation>
+<translation id="7444176988908839653">{COUNT,plural, =0{今日から Cookie のブロックを再開します}=1{明日から Cookie のブロックを再開します}other{# 日後に Cookie のブロックを再開します}}</translation>
 <translation id="7447234474237738389">服飾サービス</translation>
 <translation id="7447625772313191651"><ph name="NAME" />（<ph name="WIDTH" />x<ph name="HEIGHT" /> mm）</translation>
 <translation id="7450577240311017924">[同期を管理] ボタンです。実行すると、Chrome の設定で同期する情報を管理できます</translation>
@@ -3978,6 +3983,7 @@
 <translation id="753556296624075801">Powered by Google</translation>
 <translation id="753713322968419914">Chrome の自動入力から自宅の住所を削除しますか？</translation>
 <translation id="7537536606612762813">必須</translation>
+<translation id="7541043894191476250">コンテキスト タスク</translation>
 <translation id="7543525346216957623">保護者に頼んでください</translation>
 <translation id="7546409722674205727"><ph name="APP_NAME" /> を開始しています</translation>
 <translation id="7548892272833184391">接続エラーを解決する</translation>
@@ -4435,7 +4441,7 @@
 <translation id="8289355894181816810">確認方法がわからない場合は、ネットワーク管理者までお問い合わせください。</translation>
 <translation id="829335040383910391">音声</translation>
 <translation id="8294431847097064396">ソース</translation>
-<translation id="8297545700510100061">Cookie と他のサイトデータは、ログインや広告のパーソナライズなどでユーザーを覚えておくために使用されます。すべてのサイトの Cookie を管理するには、<ph name="SETTINGS" /> をご覧ください。</translation>
+<translation id="8297545700510100061">Cookie と他のサイトデータは、ログインや広告のパーソナライズなどでユーザーを覚えておくために使用されます。すべてのサイトの Cookie を管理するには、<ph name="SETTINGS" />をご覧ください。</translation>
 <translation id="8298115750975731693">ご利用の Wi-Fi（<ph name="WIFI_NAME" />）では、<ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" /> へのアクセスが必要な可能性があります。</translation>
 <translation id="8298399736867690281">カードはデバイスのみに保存されました</translation>
 <translation id="8301894345671534559">コードの入力</translation>
@@ -4503,6 +4509,7 @@
 <translation id="8406071103346257942">パスワード入力で画面ロックを使用するのをやめようとしています</translation>
 <translation id="8407031780528483338">調理器具</translation>
 <translation id="8409413588194360210">支払いハンドラ</translation>
+<translation id="8410956920192583322">月払いまたは 4 回の分割払い</translation>
 <translation id="8412145213513410671">障害数（<ph name="CRASH_COUNT" />）</translation>
 <translation id="8412392972487953978">同じパスフレーズを 2 回入力する必要があります。</translation>
 <translation id="8414322570408428950">拡張機能イベントの発生</translation>
@@ -4794,6 +4801,7 @@
 <translation id="8922734931659847428">アクセスしたページのうち、<ph name="BEGIN_LINK" />以前のテクノロジー イベント<ph name="END_LINK" />が発生しているページの URL リストのみ</translation>
 <translation id="892588693504540538">パンチ（右上）</translation>
 <translation id="8926389886865778422">再表示させない</translation>
+<translation id="8926400492587758246">低額の分割払い（月払い）で支払い</translation>
 <translation id="8932102934695377596">時計が遅れています</translation>
 <translation id="893332455753468063">名前の追加</translation>
 <translation id="8938242527120341116">デバイスのコンテンツ フィルタにより <ph name="BLOCKED_URL" /> がブロックされました</translation>

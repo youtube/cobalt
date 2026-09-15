@@ -72,12 +72,14 @@ chromium-metrics-reviews@google.com.
   <int value="702" label="TypeUnsupportedCharacters"/>
   <int value="703" label="TypeFailedMappingCharToKey"/>
   <int value="704" label="TypeKeyDownSuppressed"/>
+  <int value="705" label="TypeInvalidTextEncoding"/>
   <int value="800" label="HistoryNoNavigationsCreated"/>
   <int value="801" label="HistoryCancelledBeforeStart"/>
   <int value="802" label="HistoryNoBackEntries"/>
   <int value="803" label="HistoryNoForwardEntries"/>
   <int value="804" label="HistoryFailedBeforeCommit"/>
   <int value="805" label="HistoryErrorPage"/>
+  <int value="806" label="HistoryNavigationEntryChanged"/>
   <int value="900" label="LoginNoCredentialsAvailable"/>
   <int value="901" label="LoginNotLoginPage"/>
   <int value="902" label="LoginCredentialsEnteredButAnotherActionNeeded"/>

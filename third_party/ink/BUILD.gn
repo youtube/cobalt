@@ -6,6 +6,11 @@ config("public_config") {
   include_dirs = [ "//third_party/ink/src" ]
 }
 
+# TODO(crbug.com/450044203): Remove when there are no references remaining.
+config("allow_deprecated") {
+  cflags = [ "-Wno-deprecated-declarations" ]
+}
+
 source_set("ink") {
   sources = [
     "src/ink/brush/brush.cc",
@@ -150,6 +155,12 @@ source_set("ink") {
     "src/ink/strokes/internal/rounded_polygon.h",
     "src/ink/strokes/internal/stroke_input_modeler.cc",
     "src/ink/strokes/internal/stroke_input_modeler.h",
+    "src/ink/strokes/internal/stroke_input_modeler/naive_input_modeler.cc",
+    "src/ink/strokes/internal/stroke_input_modeler/naive_input_modeler.h",
+    "src/ink/strokes/internal/stroke_input_modeler/sliding_window_input_modeler.cc",
+    "src/ink/strokes/internal/stroke_input_modeler/sliding_window_input_modeler.h",
+    "src/ink/strokes/internal/stroke_input_modeler/spring_based_input_modeler.cc",
+    "src/ink/strokes/internal/stroke_input_modeler/spring_based_input_modeler.h",
     "src/ink/strokes/internal/stroke_outline.cc",
     "src/ink/strokes/internal/stroke_outline.h",
     "src/ink/strokes/internal/stroke_shape_builder.cc",
@@ -175,6 +186,10 @@ source_set("ink") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
+  # TODO(crbug.com/450044203): Remove when Ink stops using `opacity_multiplier`
+  # internally.
+  configs += [ ":allow_deprecated" ]
+
   public_deps = [
     "//skia",
     "//third_party/abseil-cpp:absl",
@@ -196,6 +211,10 @@ source_set("brush_test_support") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  # TODO(crbug.com/450044203): Remove when all usage in this build target have
+  # been migrated.
+  configs += [ "//third_party/ink:allow_deprecated" ]
 
   public_deps = [
     ":ink",

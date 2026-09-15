@@ -30,7 +30,6 @@
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
-#include "pc/sdp_utils.h"
 #include "pc/session_description.h"
 #include "pc/simulcast_description.h"
 #include "rtc_base/checks.h"
@@ -211,7 +210,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchOffer(
     }
   }
 
-  auto offer_for_remote = CloneSessionDescription(offer.get());
+  auto offer_for_remote = offer->Clone();
   return LocalAndRemoteSdp(std::move(offer), std::move(offer_for_remote));
 }
 
@@ -219,7 +218,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp8Offer(
     std::unique_ptr<SessionDescriptionInterface> offer) {
   FillSimulcastContext(offer.get());
   if (!context_.HasSimulcast()) {
-    auto offer_for_remote = CloneSessionDescription(offer.get());
+    auto offer_for_remote = offer->Clone();
     return LocalAndRemoteSdp(std::move(offer), std::move(offer_for_remote));
   }
 
@@ -366,7 +365,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp9Offer(
     stream.ssrc_groups.push_back(
         SsrcGroup(kSimSsrcGroupSemantics, primary_ssrcs));
   }
-  auto offer_for_remote = CloneSessionDescription(offer.get());
+  auto offer_for_remote = offer->Clone();
   return LocalAndRemoteSdp(std::move(offer), std::move(offer_for_remote));
 }
 
@@ -396,14 +395,14 @@ LocalAndRemoteSdp SignalingInterceptor::PatchAnswer(
     }
   }
 
-  auto answer_for_remote = CloneSessionDescription(answer.get());
+  auto answer_for_remote = answer->Clone();
   return LocalAndRemoteSdp(std::move(answer), std::move(answer_for_remote));
 }
 
 LocalAndRemoteSdp SignalingInterceptor::PatchVp8Answer(
     std::unique_ptr<SessionDescriptionInterface> answer) {
   if (!context_.HasSimulcast()) {
-    auto answer_for_remote = CloneSessionDescription(answer.get());
+    auto answer_for_remote = answer->Clone();
     return LocalAndRemoteSdp(std::move(answer), std::move(answer_for_remote));
   }
 
@@ -521,7 +520,7 @@ SignalingInterceptor::RestoreMediaSectionsOrder(
 
 LocalAndRemoteSdp SignalingInterceptor::PatchVp9Answer(
     std::unique_ptr<SessionDescriptionInterface> answer) {
-  auto answer_for_remote = CloneSessionDescription(answer.get());
+  auto answer_for_remote = answer->Clone();
   return LocalAndRemoteSdp(std::move(answer), std::move(answer_for_remote));
 }
 

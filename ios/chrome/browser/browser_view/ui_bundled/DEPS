@@ -14,6 +14,7 @@ include_rules = [
   "+ios/chrome/browser/browser_view/ui_bundled",
   "+ios/chrome/browser/bubble/ui_bundled",
   "+ios/chrome/browser/collaboration/model",
+  "+ios/chrome/browser/file_upload_panel/coordinator/file_upload_panel_coordinator.h",
   "+ios/chrome/browser/commerce/model",
   "+ios/chrome/browser/content_settings/model/host_content_settings_map_factory.h",
   "+ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h",
@@ -36,7 +37,6 @@ include_rules = [
   "+ios/chrome/browser/find_in_page/model",
   "+ios/chrome/browser/first_run/ui_bundled",
   "+ios/chrome/browser/follow/model",
-  "+ios/chrome/browser/follow/ui_bundled",
   "+ios/chrome/browser/fullscreen/ui_bundled",
   "+ios/chrome/browser/google_one/coordinator",
   "+ios/chrome/browser/incognito_reauth/ui_bundled",
@@ -135,4 +135,5 @@ include_rules = [
   "+ios/chrome/browser/webui",
   "+ios/chrome/browser/whats_new/coordinator",
   "+ios/chrome/browser/window_activities/model/window_activity_helpers.h",
+  "+ios/chrome/browser/welcome_back/coordinator",
 ]

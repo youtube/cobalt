@@ -901,26 +901,6 @@
                     }
                 }
             },
-            "NVShaderFramebufferFetch":{
-                "variables":{
-                    "gl_LastFragColor":{
-                        "essl_level":"ESSL1_BUILTINS",
-                        "essl_extension":"NV_shader_framebuffer_fetch",
-                        "type":{
-                            "basic":"Float",
-                            "precision":"Medium",
-                            "qualifier":"LastFragColor",
-                            "primarySize":4
-                        }
-                    },
-                    "gl_LastFragData":{
-                        "essl_level":"ESSL1_BUILTINS",
-                        "suffix":"NV",
-                        "essl_extension":"NV_shader_framebuffer_fetch",
-                        "initDynamicType":"TType *{type_name} = new TType(EbtFloat, EbpMedium, EvqLastFragData, 4, 1); {type_name}->makeArray(resources.MaxDrawBuffers);"
-                    }
-                }
-            },
             "ARMShaderFramebufferFetch":{
                 "variables":{
                     "gl_LastFragColorARM":{
@@ -1140,7 +1120,7 @@
                                 "type":{
                                     "basic":"Int",
                                     "precision":"High",
-                                    "qualifier":"Uniform"
+                                    "qualifier":"BaseVertex"
                                 }
                             },
                             "gl_BaseInstance":{
@@ -1149,25 +1129,7 @@
                                 "type":{
                                     "basic":"Int",
                                     "precision":"High",
-                                    "qualifier":"Uniform"
-                                }
-                            },
-                            "angle_BaseVertex":{
-                                "essl_level":"COMMON_BUILTINS",
-                                "essl_extension":"ANGLE_base_vertex_base_instance_shader_builtin",
-                                "type":{
-                                    "basic":"Int",
-                                    "precision":"High",
-                                    "qualifier":"Uniform"
-                                }
-                            },
-                            "angle_BaseInstance":{
-                                "essl_level":"COMMON_BUILTINS",
-                                "essl_extension":"ANGLE_base_vertex_base_instance_shader_builtin",
-                                "type":{
-                                    "basic":"Int",
-                                    "precision":"High",
-                                    "qualifier":"Uniform"
+                                    "qualifier":"BaseInstance"
                                 }
                             }
                         }

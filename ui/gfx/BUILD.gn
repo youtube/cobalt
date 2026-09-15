@@ -99,12 +99,8 @@ component("gfx") {
     "font_util.cc",
     "font_util.h",
     "frame_data.h",
-    "gdi_util.cc",
-    "gdi_util.h",
     "gpu_extra_info.cc",
     "gpu_extra_info.h",
-    "icon_util.cc",
-    "icon_util.h",
     "image/buffer_w_stream.cc",
     "image/buffer_w_stream.h",
     "image/image.cc",
@@ -227,10 +223,14 @@ component("gfx") {
       "win/d3d_shared_fence.h",
       "win/direct_write.cc",
       "win/direct_write.h",
+      "win/gdi_util.cc",
+      "win/gdi_util.h",
       "win/get_elevation_icon.cc",
       "win/get_elevation_icon.h",
       "win/hwnd_util.cc",
       "win/hwnd_util.h",
+      "win/icon_util.cc",
+      "win/icon_util.h",
       "win/msg_util.h",
       "win/physical_size.cc",
       "win/physical_size.h",
@@ -408,13 +408,6 @@ component("gfx") {
 
     all_dependent_configs = [ ":gfx_win_linker_flags" ]
     public_deps += [ "//components/crash/core/common" ]
-  } else {
-    sources -= [
-      "gdi_util.cc",
-      "gdi_util.h",
-      "icon_util.cc",
-      "icon_util.h",
-    ]
   }
 
   # Linux.
@@ -612,6 +605,7 @@ source_set("memory_buffer_sources") {
     "gpu_fence.h",
     "gpu_fence_handle.cc",
     "gpu_fence_handle.h",
+    "native_pixmap.cc",
     "native_pixmap.h",
     "overlay_priority_hint.h",
     "overlay_transform.h",
@@ -640,6 +634,8 @@ source_set("memory_buffer_sources") {
     ":native_widget_types_sources",
     "//base",
     "//build:chromecast_buildflags",
+    "//build:chromeos_buildflags",
+    "//components/viz/common/resources:shared_image_format",
     "//gpu/vulkan:buildflags",
     "//ui/gfx/geometry",
   ]
@@ -683,8 +679,6 @@ source_set("memory_buffer_sources") {
       "native_pixmap_handle.cc",
       "native_pixmap_handle.h",
     ]
-
-    deps += [ "//components/viz/common/resources:shared_image_format" ]
   }
 
   if (enable_vulkan) {
@@ -948,12 +942,12 @@ test("gfx_unittests") {
     sources += [
       "font_render_params_win_unittest.cc",
       "font_util_win.cc",
-      "icon_util_unittest.cc",
-      "icon_util_unittests.rc",
-      "icon_util_unittests_resource.h",
       "path_win_unittest.cc",
       "win/crash_id_helper_unittest.cc",
       "win/direct_write_unittest.cc",
+      "win/icon_util_unittest.cc",
+      "win/icon_util_unittests.rc",
+      "win/icon_util_unittests_resource.h",
       "win/text_analysis_source_unittest.cc",
     ]
 
@@ -994,7 +988,10 @@ test("gfx_unittests") {
       "linux/fontconfig_util_unittest.cc",
       "linux/native_pixmap_dmabuf_unittest.cc",
     ]
-    deps += [ "//third_party/fontconfig" ]
+    deps += [
+      "//components/viz/common/resources:shared_image_format",
+      "//third_party/fontconfig",
+    ]
   }
 
   if (is_fuchsia) {

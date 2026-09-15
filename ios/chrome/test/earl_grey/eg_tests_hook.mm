@@ -129,9 +129,9 @@ std::unique_ptr<ProfileOAuth2TokenService> GetOverriddenTokenService(
   return token_service;
 }
 
-bool DisableUpgradeSigninPromo() {
+bool DisableFullscreenSigninPromo() {
   return !base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kEnableUpgradeSigninPromo);
+      switches::kEnableFullscreenSigninPromo);
 }
 
 bool DisableUpdateService() {
@@ -397,6 +397,12 @@ void WipeProfileIfRequested(int argc, char* argv[]) {
 base::TimeDelta
 GetOverriddenDelayForRequestingTurningOnCredentialProviderExtension() {
   return base::Seconds(2);
+}
+
+base::TimeDelta GetSnackbarMessageDuration() {
+  // Makes the snackbar duration longer for EGTests to make sure there is time
+  // detect it, and avoid flakiness.
+  return base::Seconds(30);
 }
 
 }  // namespace tests_hook

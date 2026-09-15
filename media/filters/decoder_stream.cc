@@ -107,7 +107,11 @@ DecoderStream<StreamType>::DecoderStream(
       stream_(nullptr),
       cdm_context_(nullptr),
       decoder_produced_a_frame_(false),
-      decoder_selector_(task_runner_, std::move(create_decoders_cb), media_log),
+      decoder_selector_(
+          task_runner_,
+          std::move(create_decoders_cb),
+          media_log,
+          base::FeatureList::IsEnabled(kResolutionBasedDecoderPriority)),
       decoding_eos_(false),
       preparing_output_(false),
       pending_decode_requests_(0),
@@ -760,9 +764,9 @@ void DecoderStream<StreamType>::ReadFromDemuxerStream() {
       perfetto::Track::FromPointer(this));
   pending_demuxer_read_ = true;
   uint32_t buffer_read_count = 1;
-  // Do not batch with software video decoder.
-  if (IsPlatformDecoder() &&
-      base::FeatureList::IsEnabled(kVideoDecodeBatching)) {
+  // Do not batch with software video decoder. Experiments showed this uses an
+  // excessive amount of memory.
+  if (IsPlatformDecoder()) {
     buffer_read_count = GetMaxDecodeRequests() - pending_decode_requests_;
   }
   {

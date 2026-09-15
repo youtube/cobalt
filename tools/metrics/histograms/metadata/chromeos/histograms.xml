@@ -248,7 +248,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </variants>
 
 <histogram name="ChromeOS.AnomalousProcCount.AttemptedMemfdExec"
-    units="processes" expires_after="2026-02-01">
+    units="processes" expires_after="2026-04-05">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -264,7 +264,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.AnomalousProcCount.ForbiddenIntersection.{Category}"
-    units="processes" expires_after="2026-02-01">
+    units="processes" expires_after="2026-04-05">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -1284,7 +1284,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.CWP.UploadPerf" units="reports"
-    expires_after="2025-10-20">
+    expires_after="2026-10-20">
   <owner>gmx@chromium.org</owner>
   <owner>cwp-team@google.com</owner>
   <summary>
@@ -2461,7 +2461,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.K12UserAgeClassification.LogSegment"
-    enum="K12UserAgeClassificationMatrix" expires_after="2026-02-01">
+    enum="K12UserAgeClassificationMatrix" expires_after="2026-04-05">
   <owner>zifanzhang@google.com</owner>
   <owner>cros-client-wa@google.com</owner>
   <summary>Tracks the K12 user age classification.</summary>
@@ -3257,6 +3257,22 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
   </summary>
 </histogram>
 
+<histogram name="ChromeOS.SAML.{LoginOrUnlock}.SamlRedirectUsage"
+    enum="SamlRedirectEvent" expires_after="2026-01-25">
+  <owner>andreydav@google.com</owner>
+  <owner>cros-3pidp@google.com</owner>
+  <summary>
+    Tracks the usage of /samlredirect Gaia endpoint. This is recorded each time
+    when online auth is started with this endpoint during login or unlock.
+    Additionally, it records any time when a user switches from their default 3P
+    IdP page to the default Google sign-in page during such online auth flows.
+  </summary>
+  <token key="LoginOrUnlock">
+    <variant name="Login"/>
+    <variant name="Unlock"/>
+  </token>
+</histogram>
+
 <histogram name="ChromeOS.Sandboxing.LandlockEnabled" enum="Boolean"
     expires_after="2026-03-01">
   <owner>enlightened@chromium.org</owner>
@@ -3522,7 +3538,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.SecurityAnomaly" enum="SecurityAnomaly"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>jorgelo@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -4952,7 +4968,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.WXMountCount" units="count"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>jorgelo@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>

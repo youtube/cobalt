@@ -190,7 +190,7 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
 
   // Note this effectively reimplements Snapshot::Create, keep in sync.
 
-  SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+  SafepointScope safepoint(i_isolate, kGlobalSafepointForSharedSpaceIsolate);
   DisallowGarbageCollection no_gc;
   HandleScope scope(i_isolate);
 
@@ -410,7 +410,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
     env.Reset();
 
-    SafepointScope safepoint(isolate, SafepointKind::kIsolate);
+    SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
     DisallowGarbageCollection no_gc;
 
     if (!isolate->initialized_from_snapshot()) {
@@ -603,7 +603,8 @@ static void SerializeCustomContext(
       // so that it is found below, during heap verification at the GC before
       // isolate disposal.
 
-      SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+      SafepointScope safepoint(i_isolate,
+                               kGlobalSafepointForSharedSpaceIsolate);
       DisallowGarbageCollection no_gc;
 
       if (i_isolate->heap()->read_only_space()->writable()) {
@@ -694,13 +695,6 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
                  .ToHandleChecked();
       CHECK(IsContext(*root));
       DirectHandle<NativeContext> context = Cast<NativeContext>(root);
-
-      // Add context to the weak native context list
-      Cast<Context>(context)->SetNoCell(Context::NEXT_CONTEXT_LINK,
-                                        isolate->heap()->native_contexts_list(),
-                                        UPDATE_WRITE_BARRIER);
-      isolate->heap()->set_native_contexts_list(*context);
-
       CHECK(context->global_proxy() == *global_proxy);
       DirectHandle<String> o =
           isolate->factory()->NewStringFromAsciiChecked("o");
@@ -3499,7 +3493,9 @@ UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
 }
 
 namespace {
-constexpr v8::ExternalPointerTypeTag kIntPointerTag = 96;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIntPointerTag = 28;
 int serialized_static_field = 314;
 
 void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -4883,7 +4879,7 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
   FreeCurrentEmbeddedBlob();
 }
 
-TEST(SnapshotCreatorUnknownHandles) {
+UNINITIALIZED_TEST(SnapshotCreatorUnknownHandles) {
   v8::StartupData blob;
 
   {

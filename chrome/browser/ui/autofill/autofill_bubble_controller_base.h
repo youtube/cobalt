@@ -5,9 +5,11 @@
 #ifndef CHROME_BROWSER_UI_AUTOFILL_AUTOFILL_BUBBLE_CONTROLLER_BASE_H_
 #define CHROME_BROWSER_UI_AUTOFILL_AUTOFILL_BUBBLE_CONTROLLER_BASE_H_
 
+#include "base/check_deref.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/autofill/bubble_controller_base.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 
@@ -45,7 +47,8 @@ class AutofillBubbleControllerBase : public BubbleControllerBase,
 
   // BubbleControllerBase:
   void ShowBubble() override;
-  void HideBubble() override;
+  void HideBubble(bool initiated_by_bubble_manager) override;
+  bool CanBeReshown() const override;
   bool IsShowingBubble() const override;
   bool IsMouseHovered() const override;
 
@@ -54,6 +57,48 @@ class AutofillBubbleControllerBase : public BubbleControllerBase,
   void WebContentsDestroyed() override;
 
  protected:
+  // RAII-type guard that, while in scope, instructs the `BubbleManager` not
+  // to show the next queued bubble when this controller's bubble is hidden.
+  // Must not outlive the controller.
+  // TODO(crbug.com/432429605): Look into ways to move this lock to
+  // BubbleManager to allow suppressing other controllers' bubbles while a
+  // multi-step flow is ongoing (e.g., credit card upload).
+  class DoNotShowNextQueuedBubbleGuard final {
+   public:
+    DoNotShowNextQueuedBubbleGuard(AutofillBubbleControllerBase* controller,
+                                   base::PassKey<AutofillBubbleControllerBase>)
+        : controller_(CHECK_DEREF(controller)) {
+      CHECK(controller_->allow_bubble_manager_to_show_next_);
+      controller_->allow_bubble_manager_to_show_next_ = false;
+    }
+    DoNotShowNextQueuedBubbleGuard(const DoNotShowNextQueuedBubbleGuard&) =
+        delete;
+    DoNotShowNextQueuedBubbleGuard& operator=(
+        const DoNotShowNextQueuedBubbleGuard&) = delete;
+    DoNotShowNextQueuedBubbleGuard(DoNotShowNextQueuedBubbleGuard&&) = delete;
+    DoNotShowNextQueuedBubbleGuard& operator=(
+        DoNotShowNextQueuedBubbleGuard&&) = delete;
+    ~DoNotShowNextQueuedBubbleGuard() {
+      controller_->allow_bubble_manager_to_show_next_ = true;
+    }
+
+   private:
+    const raw_ref<AutofillBubbleControllerBase> controller_;
+  };
+
+  DoNotShowNextQueuedBubbleGuard DoNotShowNextQueuedBubble() {
+    return DoNotShowNextQueuedBubbleGuard(this, {});
+  }
+
+  bool IsBubbleManagerEnabled() const {
+#if !BUILDFLAG(IS_ANDROID)
+    return base::FeatureList::IsEnabled(
+        features::kAutofillShowBubblesBasedOnPriorities);
+#else
+    return false;
+#endif  // !BUILDFLAG(IS_ANDROID)
+  }
+
   virtual std::optional<PageActionIconType> GetPageActionIconType() = 0;
 
   // Subclasses should implement this method to actually show the bubble and
@@ -74,7 +119,20 @@ class AutofillBubbleControllerBase : public BubbleControllerBase,
 
   AutofillBubbleBase* bubble_view() const { return bubble_view_; }
 
+  // True if anytime, the bubble was shown to the user in the lifecycle of the
+  // bubble.
+  // TODO(crbug.com/432429605): Remove this state and log a separate enum for
+  // the cases where bubble is discarded by bubble manager.
+  bool was_bubble_shown_ = false;
+
+  // True when the hide bubble is requested by the BubbleManager.
+  bool bubble_hide_initiated_by_bubble_manager_ = false;
+
  private:
+  // This indicates to the `BubbleManager` whether it should show the next
+  // bubble.
+  bool allow_bubble_manager_to_show_next_ = true;
+
   // Weak reference. Will be nullptr if no bubble is currently shown.
   raw_ptr<AutofillBubbleBase> bubble_view_ = nullptr;
 };

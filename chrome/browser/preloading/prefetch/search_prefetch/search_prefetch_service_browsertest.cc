@@ -1504,13 +1504,9 @@ IN_PROC_BROWSER_TEST_P(SearchPrefetchServiceEnabledWithNVSBrowserTest,
   EXPECT_TRUE(base::Contains(inner_html, "prefetch"));
   histogram_tester.ExpectTotalCount(
       "Omnibox.SearchPrefetch.ClickToNavigationIntercepted", 2);
-  // When NoVarySearchDiskCache is enabled, the request is not handled by
-  // CacheAliasSearchPrefetchURLLoader, so it should not record anything
-  // new.
-  const int expected_count = IsNoVarySearchDiskCacheEnabled() ? 2 : 3;
+
   histogram_tester.ExpectTotalCount(
-      "Omnibox.SearchPrefetch.NavigationInterceptedToForwardingComplete",
-      expected_count);
+      "Omnibox.SearchPrefetch.NavigationInterceptedToForwardingComplete", 3);
   histogram_tester.ExpectTotalCount(
       "Omnibox.SearchPrefetch.DuplicateSearchTermsAge", 0);
 }
@@ -1607,13 +1603,9 @@ IN_PROC_BROWSER_TEST_P(SearchPrefetchServiceEnabledWithNVSBrowserTest,
   EXPECT_TRUE(base::Contains(inner_html, "prefetch"));
   histogram_tester.ExpectTotalCount(
       "Omnibox.SearchPrefetch.ClickToNavigationIntercepted", 2);
-  // When NoVarySearchDiskCache is enabled, the request is not handled by
-  // CacheAliasSearchPrefetchURLLoader, so it should not record anything
-  // new.
-  const int expected_count = IsNoVarySearchDiskCacheEnabled() ? 2 : 3;
+
   histogram_tester.ExpectTotalCount(
-      "Omnibox.SearchPrefetch.NavigationInterceptedToForwardingComplete",
-      expected_count);
+      "Omnibox.SearchPrefetch.NavigationInterceptedToForwardingComplete", 3);
 }
 
 IN_PROC_BROWSER_TEST_P(SearchPrefetchServiceEnabledWithNVSBrowserTest,
@@ -1803,10 +1795,6 @@ IN_PROC_BROWSER_TEST_P(SearchPrefetchServiceEnabledWithNVSBrowserTest,
   EXPECT_TRUE(base::Contains(inner_html, "regular"));
   EXPECT_FALSE(base::Contains(inner_html, "prefetch"));
 
-  // If NVS is enabled, we do not rely on CacheAlias hack.
-  if (IsNoVarySearchDiskCacheEnabled()) {
-    return;
-  }
   histogram_tester.ExpectUniqueSample(
       "Omnibox.SearchPrefetch.CacheAliasFallbackReason",
       CacheAliasSearchPrefetchURLLoader::FallbackReason::kErrorOnComplete, 1);
@@ -4307,9 +4295,10 @@ class SearchNavigationPrefetchIncognitoBrowserTest
   void SetUpOnMainThread() override {
     // Close normal browser and switch the test's browser instance to an
     // incognito instance.
-    Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+    BrowserWindowInterface* const incognito =
+        CreateIncognitoBrowser(browser()->profile());
     CloseBrowserSynchronously(browser());
-    SelectFirstBrowser();
+    SetBrowser(incognito);
     ASSERT_EQ(browser(), incognito);
 
     SearchPrefetchBaseBrowserTest::SetUpOnMainThread();

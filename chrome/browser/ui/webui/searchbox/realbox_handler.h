@@ -10,13 +10,11 @@
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/composebox/composebox_metrics_recorder.h"
-#include "components/omnibox/composebox/composebox_query_controller.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "ui/gfx/geometry/size.h"
 
-class MetricsReporter;
 class Profile;
 
 namespace content {
@@ -28,11 +26,9 @@ class RealboxHandler : public ContextualSearchboxHandler {
  public:
   RealboxHandler(
       mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
-      std::unique_ptr<ComposeboxQueryController> query_controller,
       std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder,
       Profile* profile,
-      content::WebContents* web_contents,
-      MetricsReporter* metrics_reporter);
+      content::WebContents* web_contents);
 
   RealboxHandler(const RealboxHandler&) = delete;
   RealboxHandler& operator=(const RealboxHandler&) = delete;

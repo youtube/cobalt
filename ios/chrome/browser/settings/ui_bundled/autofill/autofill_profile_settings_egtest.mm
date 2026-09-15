@@ -32,7 +32,6 @@
 
 using chrome_test_util::ButtonWithAccessibilityLabel;
 using chrome_test_util::ButtonWithAccessibilityLabelId;
-using chrome_test_util::NavigationBarCancelButton;
 using chrome_test_util::NavigationBarDoneButton;
 using chrome_test_util::SearchBar;
 using chrome_test_util::SettingsDoneButton;
@@ -44,57 +43,13 @@ using policy_test_utils::SetPolicy;
 
 namespace {
 
-// Expectation of how the saved Autofill profile looks like, a map from cell
-// name IDs to expected contents.
-struct DisplayStringIDToExpectedResult {
-  int display_string_id;
-  NSString* expected_result;
-};
-
 // Will be used to test the country selection logic.
 NSString* const kCountryForSelection = @"Germany";
 
 constexpr base::TimeDelta kSnackbarAppearanceTimeout = base::Seconds(5);
 
-constexpr base::TimeDelta kSnackbarDisappearanceTimeout =
-    kSnackbarMessageDuration + base::Seconds(1);
-
-const DisplayStringIDToExpectedResult kExpectedFields[] = {
-    {IDS_IOS_AUTOFILL_FULLNAME, @"John H. Doe"},
-    {IDS_IOS_AUTOFILL_COMPANY_NAME, @"Underworld"},
-    {IDS_IOS_AUTOFILL_ADDRESS1, @"666 Erebus St."},
-    {IDS_IOS_AUTOFILL_ADDRESS2, @"Apt 8"},
-    {IDS_IOS_AUTOFILL_CITY, @"Elysium"},
-    {IDS_IOS_AUTOFILL_STATE, @"CA"},
-    {IDS_IOS_AUTOFILL_ZIP, @"91111"},
-    {IDS_IOS_AUTOFILL_COUNTRY, @"United States"},
-    {IDS_IOS_AUTOFILL_PHONE, @"16502111111"},
-    {IDS_IOS_AUTOFILL_EMAIL, @"johndoe@hades.com"}};
-
 NSString* const kProfileLabel = @"John H. Doe, 666 Erebus St.";
 NSString* const kHomeProfileLabel = @"John H. Doe, 666 Erebus St., Home";
-
-// Expectation of how user-typed country names should be canonicalized.
-struct UserTypedCountryExpectedResultPair {
-  NSString* user_typed_country;
-  NSString* expected_result;
-};
-
-const UserTypedCountryExpectedResultPair kCountryTests[] = {
-    {@"Brasil", @"Brazil"},
-    {@"China", @"China mainland"},
-    {@"DEUTSCHLAND", @"Germany"},
-    {@"GREAT BRITAIN", @"United Kingdom"},
-    {@"IN", @"India"},
-    {@"JaPaN", @"Japan"},
-    {@"JP", @"Japan"},
-    {@"Nigeria", @"Nigeria"},
-    {@"TW", @"Taiwan"},
-    {@"U.S.A.", @"United States"},
-    {@"UK", @"United Kingdom"},
-    {@"USA", @"United States"},
-    {@"Nonexistia", @""},
-};
 
 // Return the edit button from the navigation bar.
 id<GREYMatcher> NavigationBarEditButton() {
@@ -135,6 +90,13 @@ id<GREYMatcher> AddressesAndMoreNavBarTitle() {
 // Matcher for the toolbar's done button.
 id<GREYMatcher> SettingsToolbarDoneButton() {
   return grey_accessibilityID(kSettingsToolbarEditDoneButtonId);
+}
+
+// Matcher to text field with label `textFieldLabel`.
+id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
+  return grey_allOf(grey_accessibilityID(
+                        [textFieldLabel stringByAppendingString:@"_textField"]),
+                    grey_kindOfClass([UITextField class]), nil);
 }
 
 }  // namespace
@@ -254,44 +216,6 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
           IDS_IOS_SETTINGS_EDIT_AUTOFILL_ADDRESS_REQUIREMENT_ERROR,
           countOfrrors)),
       grey_sufficientlyVisible(), nil);
-}
-
-// Test that the page for viewing Autofill profile details is as expected.
-- (void)testAutofillProfileViewPage {
-  if ([AutofillAppInterface isDynamicallyLoadFieldsOnInputEnabled]) {
-    EARL_GREY_TEST_SKIPPED(@"This test is not relevant when the fields "
-                           @"are loaded dynamically on input.");
-  }
-  [AutofillAppInterface saveExampleProfile];
-  [self openEditProfile:kProfileLabel];
-
-  // Check that all fields and values match the expectations.
-  for (const DisplayStringIDToExpectedResult& expectation : kExpectedFields) {
-    id<GREYMatcher> elementMatcher = nil;
-    if (expectation.display_string_id == IDS_IOS_AUTOFILL_COUNTRY) {
-      elementMatcher = grey_accessibilityLabel(
-          l10n_util::GetNSString(IDS_IOS_AUTOFILL_COUNTRY));
-    } else {
-      elementMatcher = grey_accessibilityLabel(
-          [NSString stringWithFormat:@"%@, %@",
-                                     l10n_util::GetNSString(
-                                         expectation.display_string_id),
-                                     expectation.expected_result]);
-    }
-    [[[EarlGrey
-        selectElementWithMatcher:grey_allOf(elementMatcher,
-                                            grey_sufficientlyVisible(), nil)]
-           usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 150)
-        onElementWithMatcher:grey_accessibilityID(
-                                 kAutofillProfileEditTableViewId)]
-        assertWithMatcher:grey_notNil()];
-  }
-
-  // Go back to the list view page.
-  [[EarlGrey selectElementWithMatcher:SettingsMenuBackButton(0)]
-      performAction:grey_tap()];
-
-  [self exitSettingsMenu];
 }
 
 // Test that the page for viewing Autofill profile details is accessible.
@@ -613,11 +537,6 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
 // city is added to the required fields. When it is emptied, the save button in
 // displayed. The profile is an account profile.
 - (void)testRequiredFields {
-  if ([AutofillAppInterface isDynamicallyLoadFieldsOnInputEnabled]) {
-    EARL_GREY_TEST_SKIPPED(@"This test is not relevant when the fields "
-                           @"are loaded dynamically on input.");
-  }
-
   [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [AutofillAppInterface saveExampleAccountProfile];
   [self openEditProfile:kProfileLabel];
@@ -650,9 +569,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       performAction:grey_tap()];
 
   // Remove the text from the state field.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::TextFieldForCellWithLabelId(
-                                   IDS_IOS_AUTOFILL_STATE)]
+  [[EarlGrey selectElementWithMatcher:TextFieldWithLabel(@"State")]
       performAction:grey_replaceText(@"")];
 
   // The "Done" button is still visible as the state field is not a required
@@ -661,9 +578,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Remove the text from the city field.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::TextFieldForCellWithLabelId(
-                                   IDS_IOS_AUTOFILL_CITY)]
+  [[EarlGrey selectElementWithMatcher:TextFieldWithLabel(@"City")]
       performAction:grey_replaceText(@"")];
 
   // The "Done" button is not enabled now.
@@ -700,10 +615,6 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
 // Tests that when the state data is removed, the "Done" button is enabled for
 // "Germany" but not for "India". Similarly, the "Done" is disabled for "US".
 - (void)testDoneButtonByRequirementsOfCountries {
-  if ([AutofillAppInterface isDynamicallyLoadFieldsOnInputEnabled]) {
-    EARL_GREY_TEST_SKIPPED(@"This test is not relevant when the fields "
-                           @"are loaded dynamically on input.");
-  }
   [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [AutofillAppInterface saveExampleAccountProfile];
   [self openEditProfile:kProfileLabel];
@@ -713,9 +624,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       performAction:grey_tap()];
 
   // Change text of state to empty.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::TextFieldForCellWithLabelId(
-                                   IDS_IOS_AUTOFILL_STATE)]
+  [[EarlGrey selectElementWithMatcher:TextFieldWithLabel(@"State")]
       performAction:grey_replaceText(@"")];
 
   // The "Done" button should not be enabled now since "State" is a required
@@ -777,19 +686,12 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
 // Tests that the footer text is correctly displayed when there are multiple
 // required empty fields.
 - (void)testFooterWithMultipleErrors {
-  if ([AutofillAppInterface isDynamicallyLoadFieldsOnInputEnabled]) {
-    EARL_GREY_TEST_SKIPPED(@"This test is not relevant when the fields "
-                           @"are loaded dynamically on input.");
-  }
-
   [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [AutofillAppInterface saveExampleAccountProfile];
   [self openEditProfile:kProfileLabel];
 
   // Change text of city to empty.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::TextFieldForCellWithLabelId(
-                                   IDS_IOS_AUTOFILL_CITY)]
+  [[EarlGrey selectElementWithMatcher:TextFieldWithLabel(@"City")]
       performAction:grey_replaceText(@"")];
 
   [[EarlGrey
@@ -797,9 +699,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       assertWithMatcher:grey_nil()];
 
   // Change text of state to empty.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::TextFieldForCellWithLabelId(
-                                   IDS_IOS_AUTOFILL_STATE)]
+  [[EarlGrey selectElementWithMatcher:TextFieldWithLabel(@"State")]
       performAction:grey_replaceText(@"")];
 
   [[EarlGrey
@@ -829,29 +729,11 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
   [[EarlGrey selectElementWithMatcher:MigrateToAccountButton()]
       performAction:grey_tap()];
   // Wait for the snackbar to appear.
-  id<GREYMatcher> snackbar_matcher = chrome_test_util::SnackbarViewMatcher();
-  ConditionBlock wait_for_appearance = ^{
-    NSError* error = nil;
-    [[EarlGrey selectElementWithMatcher:snackbar_matcher]
-        assertWithMatcher:grey_notNil()
-                    error:&error];
-    return error == nil;
-  };
-  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                 kSnackbarAppearanceTimeout, wait_for_appearance),
-             @"Snackbar did not appear.");
-
-  // Wait for the snackbar to disappear.
-  ConditionBlock wait_for_disappearance = ^{
-    NSError* error = nil;
-    [[EarlGrey selectElementWithMatcher:snackbar_matcher]
-        assertWithMatcher:grey_nil()
-                    error:&error];
-    return error == nil;
-  };
-  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                 kSnackbarDisappearanceTimeout, wait_for_disappearance),
-             @"Snackbar did not disappear.");
+  id<GREYMatcher> snackbarMatcher = chrome_test_util::SnackbarViewMatcher();
+  [ChromeEarlGrey testUIElementAppearanceWithMatcher:snackbarMatcher];
+  // Tap the snackbar to make it disappear.
+  [[EarlGrey selectElementWithMatcher:snackbarMatcher]
+      performAction:grey_tap()];
 
   // Go back to the list view page.
   [[EarlGrey selectElementWithMatcher:SettingsMenuBackButton(0)]
@@ -877,11 +759,6 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
 // Tests that a local incomplete profile can be migrated to account after
 // editing the profile.
 - (void)testIncompleteProfileMigrateToAccount {
-  if ([AutofillAppInterface isDynamicallyLoadFieldsOnInputEnabled]) {
-    EARL_GREY_TEST_SKIPPED(@"This test is not relevant when the fields "
-                           @"are loaded dynamically on input.");
-  }
-
   [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [AutofillAppInterface saveExampleProfile];
 
@@ -896,9 +773,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       performAction:grey_tap()];
 
   // Change text of city to empty.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::TextFieldForCellWithLabelId(
-                                   IDS_IOS_AUTOFILL_CITY)]
+  [[EarlGrey selectElementWithMatcher:TextFieldWithLabel(@"City")]
       performAction:grey_replaceText(@"")];
 
   // Save the profile.
@@ -915,9 +790,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       performAction:grey_tap()];
 
   // Change text of city to empty.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::TextFieldForCellWithLabelId(
-                                   IDS_IOS_AUTOFILL_CITY)]
+  [[EarlGrey selectElementWithMatcher:TextFieldWithLabel(@"City")]
       performAction:grey_replaceText(@"New York")];
 
   // Save the profile.

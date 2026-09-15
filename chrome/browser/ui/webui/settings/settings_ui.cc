@@ -349,10 +349,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       "enableKeyboardLockPrompt",
       base::FeatureList::IsEnabled(permissions::features::kKeyboardLockPrompt));
 
-  html_source->AddBoolean(
-      "enableLinkedServicesSetting",
-      base::FeatureList::IsEnabled(features::kLinkedServicesSetting));
-
 #if BUILDFLAG(ENABLE_COMPOSE)
   const bool compose_enabled = ComposeEnabling::IsEnabledForProfile(profile);
   const bool compose_visible = ComposeEnabling::IsSettingVisible(profile);
@@ -510,11 +506,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       performance_manager::user_tuning::IsBatterySaverModeManagedByOS());
 
   html_source->AddBoolean(
-      "autoPictureInPictureEnabled",
+      "enableAutoPictureInPicture",
       base::FeatureList::IsEnabled(
           blink::features::kMediaSessionEnterPictureInPicture));
 
-  html_source->AddBoolean("capturedSurfaceControlEnabled",
+  html_source->AddBoolean("enableCapturedSurfaceControl",
                           base::FeatureList::IsEnabled(
                               features::kCapturedSurfaceControlKillswitch));
 
@@ -613,9 +609,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                           show_glic_section || show_ai_features_section);
   html_source->AddBoolean("showAiPageAiFeatureSection",
                           show_ai_features_section);
-  html_source->AddBoolean(
-      "enableAiSettingsInPrivacyGuide",
-      optimization_guide::features::IsPrivacyGuideAiSettingsEnabled());
 
   // Delete Browsing Data
   html_source->AddBoolean(
@@ -631,11 +624,9 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       base::FeatureList::IsEnabled(
           autofill::features::kAutofillEnableSupportForHomeAndWork));
 
-#if !BUILDFLAG(IS_CHROMEOS)
   html_source->AddBoolean(
       "replaceSyncPromosWithSignInPromos",
       base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos));
-#endif  // !BUILDFLAG(IS_CHROMEOS)
 
   TryShowHatsSurveyWithTimeout();
 }

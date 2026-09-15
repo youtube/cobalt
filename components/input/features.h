@@ -18,6 +18,8 @@ namespace input::features {
 // Design doc for InputVizard project for moving touch input to viz on Android:
 // https://docs.google.com/document/d/1mcydbkgFCO_TT9NuFE962L8PLJWT2XOfXUAPO88VuKE
 COMPONENT_EXPORT(INPUT) BASE_DECLARE_FEATURE(kInputOnViz);
+COMPONENT_EXPORT(INPUT)
+extern const base::FeatureParam<bool> kTransferSequencesWithAbnormalDownTime;
 
 // If enabled, Chrome will receive buffered/batched input from Android.
 // Specifically, Chrome will NOT call
@@ -42,8 +44,6 @@ BASE_DECLARE_FEATURE(kLogBubblingTouchscreenGesturesForDebug);
 COMPONENT_EXPORT(INPUT)
 BASE_DECLARE_FEATURE(kIgnoreBubblingCollisionIfSourceDevicesMismatch);
 COMPONENT_EXPORT(INPUT) BASE_DECLARE_FEATURE(kScrollBubblingFix);
-COMPONENT_EXPORT(INPUT)
-BASE_DECLARE_FEATURE(kUseFirstCoalescedFrameAsFlingGenerationTimestamp);
 
 COMPONENT_EXPORT(INPUT) BASE_DECLARE_FEATURE(kRendererHangWatcher);
 COMPONENT_EXPORT(INPUT)

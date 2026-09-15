@@ -11,6 +11,7 @@
 
 #include "base/feature_list.h"
 #include "base/path_service.h"
+#include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
@@ -23,6 +24,7 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
@@ -30,6 +32,7 @@
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
+#include "chrome/browser/glic/widget/glic_window_controller_impl.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/ui/browser.h"
@@ -51,6 +54,10 @@
 #include "ui/views/interaction/element_tracker_views.h"
 #include "url/gurl.h"
 #include "url/url_util.h"
+
+namespace glic {
+class GlicWindowControllerImpl;
+}
 
 namespace glic::test {
 
@@ -218,7 +225,7 @@ class InteractiveGlicTestT : public T {
         break;
       default:
         NOTREACHED();
-    };
+    }
     return steps;
   }
 
@@ -331,13 +338,8 @@ class InteractiveGlicTestT : public T {
   auto CloseGlic() {
     return Api::Do([&]() {
       if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
-        GlicInstanceImpl* instance = GetGlicInstanceImpl();
-        if (!instance) {
-          return;
-        }
-        GlicUiEmbedder* embedder = instance->GetEmbedderForTab(
-            browser()->tab_strip_model()->GetTabAtIndex(0));
-        if (!embedder) {
+        GlicUiEmbedder* embedder = GetGlicUiEmbedder();
+        if (embedder) {
           embedder->Close();
         }
       } else {
@@ -421,15 +423,30 @@ class InteractiveGlicTestT : public T {
 
   auto CheckControllerShowing(bool expect_showing) {
     return Api::CheckResult(
-        [this]() { return window_controller().IsShowing(); }, expect_showing,
-        "CheckControllerShowing");
+        [this]() {
+          if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+            return GetGlicUiEmbedder() && GetGlicUiEmbedder()->IsShowing();
+          } else {
+            return GetWindowControllerImpl().IsShowing();
+          }
+        },
+        expect_showing, "CheckControllerShowing");
   }
 
   auto CheckControllerWidgetMode(GlicWindowMode mode) {
     return Api::CheckResult(
         [this]() {
-          return window_controller().IsAttached() ? GlicWindowMode::kAttached
-                                                  : GlicWindowMode::kDetached;
+          if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+            if (!GetGlicInstance()) {
+              return GlicWindowMode::kAttached;
+            }
+            return GetGlicInstance()->IsAttached() ? GlicWindowMode::kAttached
+                                                   : GlicWindowMode::kDetached;
+          } else {
+            return GetWindowControllerImpl().IsAttached()
+                       ? GlicWindowMode::kAttached
+                       : GlicWindowMode::kDetached;
+          }
         },
         mode, "CheckControllerWidgetMode");
   }
@@ -438,8 +455,9 @@ class InteractiveGlicTestT : public T {
                                        bool expect_within_area) {
     return Api::CheckResult(
         [this, point]() {
-          return window_controller().GetGlicView()->IsPointWithinDraggableArea(
-              point);
+          return GetWindowControllerImpl()
+              .GetGlicViewForTesting()
+              ->IsPointWithinDraggableArea(point);
         },
         expect_within_area,
         "CheckPointIsWithinDraggableArea_" + point.ToString());
@@ -549,23 +567,45 @@ class InteractiveGlicTestT : public T {
     return glic_service()->window_controller();
   }
 
+  GlicWindowControllerImpl& GetWindowControllerImpl() {
+    CHECK(!base::FeatureList::IsEnabled(features::kGlicMultiInstance));
+    return static_cast<GlicWindowControllerImpl&>(
+        glic_service()->window_controller());
+  }
+
+  GlicInstanceCoordinatorImpl& GetInstanceCoordinator() {
+    CHECK(base::FeatureList::IsEnabled(features::kGlicMultiInstance));
+    return static_cast<GlicInstanceCoordinatorImpl&>(
+        glic_service()->window_controller());
+  }
+
   GlicInstance* GetGlicInstance() {
+    if (tracked_instance_id_) {
+      for (GlicInstance* instance : window_controller().GetInstances()) {
+        if (instance->id() == *tracked_instance_id_) {
+          return instance;
+        }
+      }
+      return nullptr;
+    }
+
     if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
       // TODO(harringtond): Currently, we only use the instance tied to the
       // first tab. This allows us to test what happens when the instance is not
       // tied to the active tab, but does seem arbitrary. We should make it
       // possible to switch which instance is used by default in this class, and
       // make this behavior more obvious somehow.
+
       return glic_service()->GetInstanceForTab(
-          browser()->tab_strip_model()->GetTabAtIndex(0));
+          browser()->tab_strip_model()->GetTabAtIndex(
+              glic_instance_tab_index_));
     }
     return glic_service()->GetInstanceForActiveTab(browser());
   }
 
   GlicInstanceImpl* GetGlicInstanceImpl() {
     CHECK(base::FeatureList::IsEnabled(features::kGlicMultiInstance));
-    return static_cast<GlicInstanceImpl*>(glic_service()->GetInstanceForTab(
-        browser()->tab_strip_model()->GetTabAtIndex(0)));
+    return static_cast<GlicInstanceImpl*>(GetGlicInstance());
   }
 
   GlicUiEmbedder* GetGlicUiEmbedder() {
@@ -582,9 +622,9 @@ class InteractiveGlicTestT : public T {
       if (!embedder) {
         return nullptr;
       }
-      return embedder->GetViewForTesting();
+      return embedder->GetView();
     }
-    return window_controller().GetGlicView();
+    return GetWindowControllerImpl().GetGlicViewForTesting();
   }
 
   views::Widget* GetGlicWidget() {
@@ -593,7 +633,7 @@ class InteractiveGlicTestT : public T {
       if (!embedder) {
         return nullptr;
       }
-      auto* view = embedder->GetViewForTesting();
+      auto* view = embedder->GetView();
       if (!view) {
         return nullptr;
       }
@@ -675,6 +715,15 @@ class InteractiveGlicTestT : public T {
     }
   }
 
+  // Have all glic instance operations linked to a glic instance with this ID,
+  // instead of always operating on the instance in tab 0.
+  void TrackGlicInstanceById(InstanceId id) { tracked_instance_id_ = id; }
+
+  // Sets the tab index to use when fetching the glic instance. Tests can use
+  // this to swap between interacting with multiple instances. This affects
+  // many functions in this fixture.
+  void SetGlicInstanceTabIndex(int index) { glic_instance_tab_index_ = index; }
+
  private:
   // Because of limitations in the template system, calls to base class methods
   // that are guaranteed by the `requires` clause must still be scoped. These
@@ -682,6 +731,10 @@ class InteractiveGlicTestT : public T {
   using Api = InteractiveBrowserTestApi;
   using Test = InProcessBrowserTest;
 
+  std::optional<InstanceId> tracked_instance_id_;
+  // Which tab index to use when getting the glic instance. This affects many
+  // functions in this fixture.
+  int glic_instance_tab_index_ = 0;
   base::WeakPtr<Browser> active_browser_;
   glic::GlicTestEnvironment glic_test_environment_;
   net::test_server::EmbeddedTestServerHandle test_server_handle_;

@@ -62,7 +62,7 @@ chromium-metrics-reviews@google.com.
       summary="Emitted for vehicle information forms only."/>
 </variants>
 
-<!-- LINT.ThenChange(//components/autofill/core/browser/data_model/autofill_ai/entity_type.cc:EntityType) -->
+<!-- LINT.ThenChange(//components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.cc:EntityTypeToMetricsString) -->
 
 <variants name="Autofill.Ai.PromptTypes">
   <variant name="SavePrompt"
@@ -697,6 +697,11 @@ Called by update_autofill_enums.py. This is a manual comment.-->
       summary="saving security code at the same time"/>
 </variants>
 
+<variants name="AutofillSaveCardWithCvcSituation">
+  <variant name="" summary="not saved with CVC"/>
+  <variant name=".SavingWithCvc" summary="saved with CVC"/>
+</variants>
+
 <!-- TODO(crbug.com/430588721): Replace use of AutofillSaveCreditCardPromptDestination with AutofillSaveCardDestination. -->
 
 <variants name="AutofillSaveCreditCardPromptDestination">
@@ -892,7 +897,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.AddedNewAddress"
-    enum="AutofillManuallyAddedAddressSurface" expires_after="2026-02-01">
+    enum="AutofillManuallyAddedAddressSurface" expires_after="2026-04-05">
   <owner>brunobraga@google.com</owner>
   <owner>vykochko@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -1548,7 +1553,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.AndroidAutofillAvailabilityStatus"
-    enum="AndroidAutofillAvailabilityStatus" expires_after="2026-02-01">
+    enum="AndroidAutofillAvailabilityStatus" expires_after="2026-04-05">
   <owner>friedrichh@chromium.org</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -2876,7 +2881,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.CvcInfoBar.{AutofillSaveCreditCardPromptDestination}"
     enum="AutofillCreditCardInfoBar" expires_after="2026-06-01">
   <owner>yishuil@google.com</owner>
-  <owner>koulvipul@google.com</owner>
+  <owner>sujiezhu@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     The relative frequency with which users accept, deny, or ignore the Autofill
@@ -3940,7 +3945,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.Funnel.NotClassifiedAsTargetFilling.FillAfterSuggestion.Password"
-    enum="BooleanAutofillFillAfterSuggestion" expires_after="2026-02-01">
+    enum="BooleanAutofillFillAfterSuggestion" expires_after="2026-04-05">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -4761,7 +4766,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.ManualFallback.ExplicitlyTriggered.ClassifiedAsTargetFilling.Password"
-    enum="BooleanSelectManualFallback" expires_after="2026-02-01">
+    enum="BooleanSelectManualFallback" expires_after="2026-04-05">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -4775,7 +4780,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.ManualFallback.ExplicitlyTriggered.NotClassifiedAsTargetFilling.Password"
-    enum="BooleanSelectManualFallback" expires_after="2026-02-01">
+    enum="BooleanSelectManualFallback" expires_after="2026-04-05">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -4920,6 +4925,66 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.OneTimeTokens.Backend.Sms.APIError"
+    enum="SmsOtpRetrievalApiErrorCode" expires_after="2026-10-31">
+  <owner>luchenpeng@google.com</owner>
+  <owner>koerber@google.com</owner>
+  <owner>battre@chromium.org</owner>
+  <summary>
+    Records the error encountered while attempting to retrieve sms one time
+    token from the GMSCore backend. This is recorded after the asynchronous call
+    comes back with an error. This is currently only recorded on Android.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.OneTimeTokens.Backend.Sms.ErrorCode"
+    enum="OneTimeTokensBackendErrorCode" expires_after="2026-10-31">
+  <owner>luchenpeng@google.com</owner>
+  <owner>koerber@google.com</owner>
+  <owner>battre@chromium.org</owner>
+  <summary>
+    Records the error encountered while attempting to retrieve sms one time
+    token from the GMSCore backend. This is recorded after the asynchronous call
+    comes back with an error. This is currently only recorded on Android.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.OneTimeTokens.Backend.Sms.ErrorLatency" units="ms"
+    expires_after="2026-10-31">
+  <owner>luchenpeng@google.com</owner>
+  <owner>koerber@google.com</owner>
+  <owner>battre@chromium.org</owner>
+  <summary>
+    Real-time duration of the asynchronous attempt to retrieve sms one time
+    token from the GMSCore backend. Recorded when the asynchronous job failed.
+    This is currently only recorded on Android.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.OneTimeTokens.Backend.Sms.Success" enum="Boolean"
+    expires_after="2026-10-31">
+  <owner>luchenpeng@google.com</owner>
+  <owner>koerber@google.com</owner>
+  <owner>battre@chromium.org</owner>
+  <summary>
+    Records whether the attempt to retrieve sms one time token from the GMSCore
+    backend succeeds. Recorded when the asynchronous job has returned. This is
+    currently only recorded on Android.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.OneTimeTokens.Backend.Sms.SuccessLatency" units="ms"
+    expires_after="2026-10-31">
+  <owner>luchenpeng@google.com</owner>
+  <owner>koerber@google.com</owner>
+  <owner>battre@chromium.org</owner>
+  <summary>
+    Real-time duration of the asynchronous attempt to retrieve sms one time
+    token from the GMSCore backend. Only recorded when the asynchronous job has
+    returned successfully. This is currently only recorded on Android.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.OtpAuth.{CardType}.{OtpAuthType}.Attempt"
     enum="BooleanAttempted" expires_after="2026-06-01">
   <owner>siyua@chromium.org</owner>
@@ -5005,7 +5070,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.OtpInputDialog.{CardType}.{OtpAuthType}.Result"
-    enum="AutofillOtpInputDialogResult" expires_after="2026-02-01">
+    enum="AutofillOtpInputDialogResult" expires_after="2026-04-05">
   <owner>siyua@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
@@ -5135,7 +5200,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram name="Autofill.PaymentMethods.CvcStorageIsEnabled.Startup"
     enum="BooleanEnabled" expires_after="2026-06-01">
-  <owner>koulvipul@google.com</owner>
   <owner>osaul@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
@@ -5151,7 +5215,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram
     name="Autofill.PaymentMethods.MandatoryReauth.AuthEvent.SettingsPage.{ActionType}"
     enum="MandatoryReauthAuthEvent" expires_after="2026-06-01">
-  <owner>koulvipul@google.com</owner>
+  <owner>sujiezhu@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     Tracks the auth result when the user tries to {ActionType} and mandatory
@@ -5185,7 +5249,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram
     name="Autofill.PaymentMethods.MandatoryReauth.OptChangeEvent.{Source}.{ChangingStatus}"
     enum="MandatoryReauthAuthEvent" expires_after="2026-06-01">
-  <owner>koulvipul@google.com</owner>
+  <owner>sujiezhu@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     Tracks the users auth result during the {ChangingStatus} flow for the
@@ -5835,7 +5899,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/profile_import_metrics.cc:GetImportTypeMetricsString) -->
 
 <histogram name="Autofill.ProfileImportValidCandidate.ZipCode.Length"
-    units="units" expires_after="2026-02-01">
+    units="units" expires_after="2026-04-05">
   <owner>mmaryia@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -5846,7 +5910,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.ProfileImportValidCandidate.ZipCode.Separator"
-    enum="AutofillZipCodeSeparators" expires_after="2026-02-01">
+    enum="AutofillZipCodeSeparators" expires_after="2026-04-05">
   <owner>mmaryia@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -6155,7 +6219,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.ResetAutofillPrefToChrome" enum="Boolean"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>friedrichh@chromium.org</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -6419,31 +6483,18 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram
-    name="Autofill.SaveCreditCardPromptOffer.IOS.{SaveDestination}.{OverlayType}"
+    name="Autofill.SaveCreditCardPromptOffer.IOS.{SaveDestination}.{OverlayType}.NumStrikes.{Strikes}.{FixFlow}{SaveCardWithCvcSituation}"
     enum="AutofillSavePaymentMethodPromptOfferEnum" expires_after="2026-06-01">
   <owner>kavitasoni@google.com</owner>
-  <owner>chrome-payments-eng@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
-  <summary>
-    Logs whether the save credit card prompt of the type {OverlayType} on iOS is
-    shown or not shown for a card to be saved as a {SaveDestination} card. Is
-    emitted whenever card save is offered or decision to not offer is made.
-  </summary>
-  <token key="OverlayType" variants="AutofillSaveCardPromptOverlayTypeForIos"/>
-  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
-</histogram>
-
-<histogram
-    name="Autofill.SaveCreditCardPromptOffer.IOS.{SaveDestination}.{OverlayType}.NumStrikes.{Strikes}.{FixFlow}"
-    enum="AutofillSavePaymentMethodPromptOfferEnum" expires_after="2026-06-01">
-  <owner>kavitasoni@google.com</owner>
+  <owner>yiwenqian@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     Logs whether the save credit card prompt of the type {OverlayType} on iOS is
     shown or not shown for a card to be saved as a {SaveDestination} card, with
-    {Strikes} and which required {FixFlow}. Is emitted whenever card save is
-    offered or decision to not offer is made.
+    {Strikes} and which required {FixFlow}, and this card is
+    {SaveCardWithCvcSituation}. Is emitted whenever card save is offered or
+    decision to not offer is made.
   </summary>
   <token key="OverlayType" variants="AutofillSaveCardPromptOverlayTypeForIos"/>
   <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
@@ -6459,6 +6510,27 @@ Called by update_autofill_enums.py. This is a manual comment.-->
         summary="card holder name and expiry date"/>
     <variant name="RequestingExpiryDate" summary="only expiry date"/>
   </token>
+  <token key="SaveCardWithCvcSituation"
+      variants="AutofillSaveCardWithCvcSituation"/>
+</histogram>
+
+<histogram
+    name="Autofill.SaveCreditCardPromptOffer.IOS.{SaveDestination}.{OverlayType}{SaveCardWithCvcSituation}"
+    enum="AutofillSavePaymentMethodPromptOfferEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>yiwenqian@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs whether the save credit card prompt of the type {OverlayType} on iOS is
+    shown or not shown for a card to be saved as a {SaveDestination} card, and
+    this card is {SaveCardWithCvcSituation}. Is emitted whenever card save is
+    offered or decision to not offer is made.
+  </summary>
+  <token key="OverlayType" variants="AutofillSaveCardPromptOverlayTypeForIos"/>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
+  <token key="SaveCardWithCvcSituation"
+      variants="AutofillSaveCardWithCvcSituation"/>
 </histogram>
 
 <histogram name="Autofill.SaveCreditCardPromptOffer.{SaveDestination}"
@@ -6656,7 +6728,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram
     name="Autofill.SaveCvcPromptOffer.{AutofillSaveCreditCardPromptDestination}.{ShowType}"
     enum="AutofillSavePaymentMethodPromptOfferEnum" expires_after="2026-06-01">
-  <owner>koulvipul@google.com</owner>
   <owner>siyua@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
@@ -6672,7 +6743,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram
     name="Autofill.SaveCvcPromptResult.{AutofillSaveCreditCardPromptDestination}.{ShowType}"
     enum="AutofillSavePaymentMethodPromptResultEnum" expires_after="2026-06-01">
-  <owner>koulvipul@google.com</owner>
   <owner>siyua@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
@@ -7084,27 +7154,29 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="IbanRecordType" variants="IbanRecordType"/>
 </histogram>
 
-<histogram name="Autofill.StoredProfileCount.WithAlternativeName"
-    units="Profiles" expires_after="2026-03-08">
-  <owner>jsobiech@google.com</owner>
-  <owner>sygiet@google.com</owner>
-  <owner>chrome-autofill-alerts@google.com</owner>
-  <summary>
-    The number of Autofill addresses with an alternative name set, measured at
-    launch time.
-  </summary>
-</histogram>
-
 <histogram name="Autofill.StoredProfileCount.{Suffix}" units="Profiles"
-    expires_after="2026-03-01">
+    expires_after="2026-09-08">
+  <owner>piotrkotynia@google.com</owner>
+  <owner>sygiet@google.com</owner>
   <owner>battre@chromium.org</owner>
+  <owner>jsobiech@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     The number of Autofill addresses a user has stored of the given category or
     in total, measured at launch time.
+
+    {Suffix}
   </summary>
   <token key="Suffix" variants="StoredProfileCategories">
     <variant name="Total"/>
+    <variant name="TotalPostalAddressProfiles"
+        summary="The number of Autofill profiles that are considered to be
+                 postal addresses, measured at launch time. A profile is
+                 counted as a postal address if at least two of the following
+                 are set: city, state, street address, or zip code."/>
+    <variant name="WithAlternativeName"
+        summary="The number of Autofill addresses with an alternative name
+                 set, measured at launch time."/>
   </token>
 </histogram>
 
@@ -7497,7 +7569,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram name="Autofill.TestAddressSelected"
     enum="AutofillInDevtoolsAvailableTestAddressesCountries"
-    expires_after="2025-11-09">
+    expires_after="2026-11-09">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -8830,7 +8902,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="WebDatabase.AutofillWebDataBackendImpl.OperationResult"
     enum="AutofillWebDataBackendImplOperationResult" expires_after="2026-03-01">
   <owner>battre@chromium.org</owner>
-  <owner>asully@chromium.org</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     Records the success or failure of various database operations in
     autofill::AutofillWebDataBackendImpl.
@@ -8840,14 +8912,14 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="WebDatabase.DatabaseErrors" enum="SqliteLoggedResultCode"
     expires_after="2026-03-01">
   <owner>battre@chromium.org</owner>
-  <owner>asully@chromium.org</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>Records the errors reported by SQLite.</summary>
 </histogram>
 
 <histogram name="WebDatabase.FailedMigrationToVersion" units="version"
     expires_after="2026-02-22">
   <owner>battre@chromium.org</owner>
-  <owner>asully@chromium.org</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     If a migration to a new WebDatabase schema fails, this histogram records the
     target version to which the migration failed.
@@ -8857,7 +8929,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="WebDatabase.InitResult" enum="WebDatabaseInitResult"
     expires_after="2026-02-22">
   <owner>battre@chromium.org</owner>
-  <owner>asully@chromium.org</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     Records whether WebDatabase::Init succeeds or otherwise a failure reason.
   </summary>

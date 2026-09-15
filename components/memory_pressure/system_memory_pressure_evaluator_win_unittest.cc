@@ -6,6 +6,7 @@
 
 #include "base/byte_count.h"
 #include "base/functional/bind.h"
+#include "base/memory/mock_memory_pressure_listener.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -26,7 +27,7 @@ namespace {
 
 struct PressureSettings {
   base::ByteCount phys_left;
-  base::MemoryPressureListener::MemoryPressureLevel level;
+  base::MemoryPressureLevel level;
 };
 
 constexpr char kCommitLimitMBHistogramName[] = "Memory.CommitLimitMB";
@@ -73,9 +74,6 @@ class TestSystemMemoryPressureEvaluator : public SystemMemoryPressureEvaluator {
   TestSystemMemoryPressureEvaluator& operator=(
       const TestSystemMemoryPressureEvaluator&) = delete;
 
-  MOCK_METHOD1(OnMemoryPressure,
-               void(base::MemoryPressureListener::MemoryPressureLevel level));
-
   // Sets up the memory status to reflect the provided absolute memory left.
   void SetMemoryFree(base::ByteCount phys_left) {
     // ullTotalPhys is set in the constructor and not modified.
@@ -121,28 +119,28 @@ class WinSystemMemoryPressureEvaluatorTest : public testing::Test {
       TestSystemMemoryPressureEvaluator* evaluator) {
     base::ByteCount moderate = evaluator->moderate_threshold();
     evaluator->SetMemoryFree(moderate + base::MiB(1));
-    EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE,
+    EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_NONE,
               evaluator->CalculateCurrentPressureLevel());
 
     evaluator->SetMemoryFree(moderate);
-    EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
+    EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_MODERATE,
               evaluator->CalculateCurrentPressureLevel());
 
     evaluator->SetMemoryFree(moderate - base::MiB(1));
-    EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
+    EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_MODERATE,
               evaluator->CalculateCurrentPressureLevel());
 
     base::ByteCount critical = evaluator->critical_threshold();
     evaluator->SetMemoryFree(critical + base::MiB(1));
-    EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
+    EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_MODERATE,
               evaluator->CalculateCurrentPressureLevel());
 
     evaluator->SetMemoryFree(critical);
-    EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
+    EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_CRITICAL,
               evaluator->CalculateCurrentPressureLevel());
 
     evaluator->SetMemoryFree(critical - base::MiB(1));
-    EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
+    EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_CRITICAL,
               evaluator->CalculateCurrentPressureLevel());
   }
 
@@ -188,33 +186,24 @@ TEST_F(WinSystemMemoryPressureEvaluatorTest,
 TEST_F(WinSystemMemoryPressureEvaluatorTest, CheckMemoryPressure) {
   MultiSourceMemoryPressureMonitor monitor;
 
-  testing::StrictMock<TestSystemMemoryPressureEvaluator> evaluator(
-      monitor.CreateVoter());
+  TestSystemMemoryPressureEvaluator evaluator(monitor.CreateVoter());
 
-  base::MemoryPressureListener listener(
-      FROM_HERE, base::MemoryPressureListenerTag::kTest,
-      base::BindRepeating(&TestSystemMemoryPressureEvaluator::OnMemoryPressure,
-                          base::Unretained(&evaluator)));
+  testing::StrictMock<base::RegisteredMockMemoryPressureListener> listener;
 
   // Checking the memory pressure at 0% load should not produce any
   // events.
   evaluator.SetNone();
   evaluator.CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE,
-            evaluator.current_vote());
+  EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_NONE, evaluator.current_vote());
 
   // Setting the memory level to 80% should produce a moderate pressure level.
-  EXPECT_CALL(
-      evaluator,
-      OnMemoryPressure(
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE));
+  EXPECT_CALL(listener, OnMemoryPressure(base::MEMORY_PRESSURE_LEVEL_MODERATE));
   evaluator.SetModerate();
   evaluator.CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
-            evaluator.current_vote());
-  testing::Mock::VerifyAndClearExpectations(&evaluator);
+  EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_MODERATE, evaluator.current_vote());
+  testing::Mock::VerifyAndClearExpectations(&listener);
 
   // Check that the event gets reposted after a while.
   const int kModeratePressureCooldownCycles =
@@ -222,76 +211,57 @@ TEST_F(WinSystemMemoryPressureEvaluatorTest, CheckMemoryPressure) {
 
   for (int i = 0; i < kModeratePressureCooldownCycles; ++i) {
     if (i + 1 == kModeratePressureCooldownCycles) {
-      EXPECT_CALL(
-          evaluator,
-          OnMemoryPressure(
-              base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE));
+      EXPECT_CALL(listener,
+                  OnMemoryPressure(base::MEMORY_PRESSURE_LEVEL_MODERATE));
     }
     evaluator.CheckMemoryPressure();
     base::RunLoop().RunUntilIdle();
-    EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
-              evaluator.current_vote());
-    testing::Mock::VerifyAndClearExpectations(&evaluator);
+    EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_MODERATE, evaluator.current_vote());
+    testing::Mock::VerifyAndClearExpectations(&listener);
   }
 
   // Setting the memory usage to 99% should produce critical levels.
-  EXPECT_CALL(
-      evaluator,
-      OnMemoryPressure(
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL));
+  EXPECT_CALL(listener, OnMemoryPressure(base::MEMORY_PRESSURE_LEVEL_CRITICAL));
   evaluator.SetCritical();
   evaluator.CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
-            evaluator.current_vote());
-  testing::Mock::VerifyAndClearExpectations(&evaluator);
+  EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_CRITICAL, evaluator.current_vote());
+  testing::Mock::VerifyAndClearExpectations(&listener);
 
   // Calling it again should immediately produce a second call.
-  EXPECT_CALL(
-      evaluator,
-      OnMemoryPressure(
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL));
+  EXPECT_CALL(listener, OnMemoryPressure(base::MEMORY_PRESSURE_LEVEL_CRITICAL));
   evaluator.CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
-            evaluator.current_vote());
-  testing::Mock::VerifyAndClearExpectations(&evaluator);
+  EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_CRITICAL, evaluator.current_vote());
+  testing::Mock::VerifyAndClearExpectations(&listener);
 
   // When lowering the pressure again there should be a notification and the
   // pressure should go back to moderate.
-  EXPECT_CALL(
-      evaluator,
-      OnMemoryPressure(
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE));
+  EXPECT_CALL(listener, OnMemoryPressure(base::MEMORY_PRESSURE_LEVEL_MODERATE));
   evaluator.SetModerate();
   evaluator.CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
-            evaluator.current_vote());
-  testing::Mock::VerifyAndClearExpectations(&evaluator);
+  EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_MODERATE, evaluator.current_vote());
+  testing::Mock::VerifyAndClearExpectations(&listener);
 
   // Check that the event gets reposted after a while.
   for (int i = 0; i < kModeratePressureCooldownCycles; ++i) {
     if (i + 1 == kModeratePressureCooldownCycles) {
-      EXPECT_CALL(
-          evaluator,
-          OnMemoryPressure(
-              base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE));
+      EXPECT_CALL(listener,
+                  OnMemoryPressure(base::MEMORY_PRESSURE_LEVEL_MODERATE));
     }
     evaluator.CheckMemoryPressure();
     base::RunLoop().RunUntilIdle();
-    EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
-              evaluator.current_vote());
-    testing::Mock::VerifyAndClearExpectations(&evaluator);
+    EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_MODERATE, evaluator.current_vote());
+    testing::Mock::VerifyAndClearExpectations(&listener);
   }
 
   // Going down to no pressure should not produce an notification.
   evaluator.SetNone();
   evaluator.CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE,
-            evaluator.current_vote());
-  testing::Mock::VerifyAndClearExpectations(&evaluator);
+  EXPECT_EQ(base::MEMORY_PRESSURE_LEVEL_NONE, evaluator.current_vote());
+  testing::Mock::VerifyAndClearExpectations(&listener);
 }
 
 // RecordCommitHistograms emits the correct histograms when

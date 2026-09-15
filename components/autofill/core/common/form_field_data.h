@@ -183,9 +183,7 @@ class FormFieldData {
 
   // Returns true if the field is focusable to the user.
   // This is an approximation of visibility with false positives.
-  bool IsFocusable() const {
-    return is_focusable() && role() != RoleAttribute::kPresentation;
-  }
+  bool IsFocusable() const;
 
   // NOTE: Update `DeepEqual()` and `FormFieldDataAndroid::SimilarFieldAs()`
   // if needed when adding new a member.
@@ -507,7 +505,7 @@ class FormFieldData {
   bool is_user_edited_ = false;
   CheckStatus check_status_ = CheckStatus::kNotCheckable;
   bool is_focusable_ = true;
-  bool is_visible_ = true;  // See `features::kAutofillDetectFieldVisibility`.
+  bool is_visible_ = true;
   bool should_autocomplete_ = true;
   RoleAttribute role_ = RoleAttribute::kOther;
   base::i18n::TextDirection text_direction_ = base::i18n::UNKNOWN_DIRECTION;

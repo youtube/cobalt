@@ -38,6 +38,12 @@
           "project": "chromium"
         }
       ],
+      "mirroring_builder_group_and_names": [
+        {
+          "builder": "linux-crossbench",
+          "group": "tryserver.crossbench"
+        }
+      ],
       "targets_spec_directory": "src/infra/config/generated/builders/ci/linux-crossbench/targets"
     }
   },
@@ -61,5 +67,11 @@
     ]
   },
   "builder_group": "crossbench",
-  "recipe": "chromium"
+  "gardener_rotations": [
+    "crossbench"
+  ],
+  "recipe": "chromium",
+  "sheriff_rotations": [
+    "crossbench"
+  ]
 }

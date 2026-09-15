@@ -730,7 +730,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AndroidDeviceAccountsNumberWhenEnteringFRE"
-    units="count" expires_after="2026-02-01">
+    units="count" expires_after="2026-04-05">
   <owner>bsazonov@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -805,7 +805,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram
-    name="Signin.BoundSessionCredentials.CookieRotationGenerateAssertionResult.Attempt{Count}"
+    name="Signin.BoundSessionCredentials.CookieRotationGenerateAssertionResult"
     enum="BoundSessionCredentialsCookieRotationGenerateAssertionResult"
     expires_after="2026-02-22">
   <owner>alexilin@chromium.org</owner>
@@ -813,13 +813,9 @@ prefs when the profile is loaded.  -->
   <owner>chrome-signin-team@google.com</owner>
   <summary>
     Records the result of the assertion generation for the cookie rotation
-    request in a bound session. Recorded at the {Count} attempt to sign a given
+    request in a bound session. Recorded at the attempt to sign a given
     server-challenge in order to rotate bound cookies.
   </summary>
-  <token key="Count">
-    <variant name="0" summary="first"/>
-    <variant name="1" summary="second"/>
-  </token>
 </histogram>
 
 <histogram
@@ -903,7 +899,7 @@ prefs when the profile is loaded.  -->
 
 <histogram name="Signin.BoundSessionCredentials.CookieRotationResult{Trigger}"
     enum="BoundSessionCredentialsCookieRotationResult"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1763,6 +1759,8 @@ prefs when the profile is loaded.  -->
     Records that {OptInFlowEvent}, and logs the original access point associated
     with this event.
   </summary>
+<!-- LINT.IfChange(Signin.HistorySyncOptIn) -->
+
   <token key="OptInFlowEvent">
     <variant name="Aborted"
         summary="the history sync screen has been dismissed due to some
@@ -1781,12 +1779,18 @@ prefs when the profile is loaded.  -->
         summary="the user was shown a button that would start the flow to
                  enable history sync (only recorded on Desktop)"/>
     <variant name="Skipped"
-        summary="the history sync screen has been skipped (due to enterprise
+        summary="the history sync screen has been skipped due to enterprise
                  policies disabling sync, history sync, or tabs sync; or if
-                 user is signed out)"/>
+                 user is signed out (note: on Desktop, skipped is only
+                 recorded if the history sync optin flow has been attempted;
+                 it is not recorded for flows that check in advance if
+                 history sync cannot be enabled and prevent the history
+                 screen flow from starting)"/>
     <variant name="Started"
         summary="the user started the flow to enable history sync"/>
   </token>
+<!-- LINT.ThenChange(//chrome/browser/ui/webui/signin/history_sync_optin_helper.cc:FlowEventToString) -->
+
 </histogram>
 
 <histogram name="Signin.IdentityConfirmationSnackbarDecision"
@@ -2261,7 +2265,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.ListFamilyMembersRequest.OverallLatency" units="ms"
-    expires_after="2026-01-31">
+    expires_after="2026-04-05">
   <owner>tju@google.com</owner>
   <owner>chrome-kids-eng@google.com</owner>
   <summary>
@@ -2284,7 +2288,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.ListFamilyMembersRequest.RetryCount" units="retries"
-    expires_after="2026-01-31">
+    expires_after="2026-04-05">
   <owner>tju@google.com</owner>
   <owner>chrome-kids-eng@google.com</owner>
   <summary>
@@ -2366,6 +2370,17 @@ the browser and content area. -->
     has selected on a Gaia page which is to be handled by Chrome, such as adding
     another account or managing accounts on the device. Applies only to
     &quot;Mirror&quot; platforms, i.e. Android, iOS, and ChromeOS.
+  </summary>
+</histogram>
+
+<histogram name="Signin.ManagedUserProfileCreationConflict" enum="BooleanHit"
+    expires_after="2026-02-22">
+  <owner>anthie@chromium.org</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
+  <summary>
+    Recorded when during a flow that requires the creation of a managed profile
+    via the managed disclaimer service, we detect that another managed profile
+    creation for a different user is in progress. Applies to Desktop platforms.
   </summary>
 </histogram>
 
@@ -3084,7 +3099,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninManager.SetPrimaryAccountSigninInStage"
-    enum="GaiaIntegrationState" expires_after="2026-02-01">
+    enum="GaiaIntegrationState" expires_after="2026-04-05">
   <owner>droger@chromium.org</owner>
   <owner>anthie@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3098,7 +3113,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninManager.SigninAccessPoint"
-    enum="SigninAccessPoint" expires_after="2026-02-01">
+    enum="SigninAccessPoint" expires_after="2026-04-05">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3411,9 +3426,8 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.SyncButtons.Clicked" enum="SyncButtonClicked"
-    expires_after="2025-11-16">
-  <owner>tju@chromium.org</owner>
-  <owner>chrome-kids-team@google.com</owner>
+    expires_after="2026-02-16">
+  <owner>tju@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
     Records the flavor of the button clicked on sync or history sync opt in
@@ -3456,16 +3470,6 @@ kept as long as profile signout is possible -->
     decision.
 
     Pre-stable M132 and M133 Desktop binaries have missing data.
-  </summary>
-</histogram>
-
-<histogram name="Signin.SyncDisabledNotificationShown" enum="SigninAccessPoint"
-    expires_after="2025-11-20">
-  <owner>bsazonov@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    This histogram records the sync access point which was used when the sync
-    disabled notification was shown. This is on Android only.
   </summary>
 </histogram>
 

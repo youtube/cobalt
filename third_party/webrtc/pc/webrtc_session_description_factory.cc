@@ -25,7 +25,6 @@
 #include "absl/strings/str_cat.h"
 #include "api/field_trials_view.h"
 #include "api/jsep.h"
-#include "api/jsep_session_description.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"

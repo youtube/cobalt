@@ -37,7 +37,7 @@ source_set("scene_state_header") {
   public_deps = [
     ":scene_activation_level",
     ":scene_state_observer",
-    ":widget_context",
+    ":url_context",
     "//ios/chrome/app/application_delegate:tab_opening",
     "//ios/chrome/browser/scoped_ui_blocker/ui_bundled",
     "//ios/chrome/browser/shared/model/browser",
@@ -159,6 +159,7 @@ source_set("scene") {
     "//ios/chrome/browser/promos_manager/ui_bundled:utils",
     "//ios/chrome/browser/reading_list/model",
     "//ios/chrome/browser/safari_data_import/coordinator",
+    "//ios/chrome/browser/safari_data_import/model:features",
     "//ios/chrome/browser/safari_data_import/public",
     "//ios/chrome/browser/scoped_ui_blocker/ui_bundled",
     "//ios/chrome/browser/screenshot/model",
@@ -166,7 +167,6 @@ source_set("scene") {
     "//ios/chrome/browser/sessions/model:session_restoration_service_factory",
     "//ios/chrome/browser/sessions/model:session_saving",
     "//ios/chrome/browser/settings/ui_bundled:settings_root",
-    "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data:features",
     "//ios/chrome/browser/settings/ui_bundled/password",
     "//ios/chrome/browser/settings/ui_bundled/password/password_checkup",
     "//ios/chrome/browser/settings/ui_bundled/sync",
@@ -295,10 +295,10 @@ source_set("unit_tests") {
   ]
 }
 
-source_set("widget_context") {
+source_set("url_context") {
   sources = [
-    "widget_context.h",
-    "widget_context.mm",
+    "url_context.h",
+    "url_context.mm",
   ]
   deps = []
   frameworks = [ "UIKit.framework" ]

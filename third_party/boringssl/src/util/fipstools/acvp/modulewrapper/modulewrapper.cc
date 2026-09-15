@@ -2046,7 +2046,7 @@ template <typename PrivateKey, size_t PublicKeyBytes,
 static bool MLDSAKeyGen(const Span<const uint8_t> args[],
                         ReplyCallback write_reply) {
   const Span<const uint8_t> seed = args[0];
-  if (seed.size() != BCM_MLDSA_SEED_BYTES) {
+  if (seed.size() != MLDSA_SEED_BYTES) {
     LOG_ERROR("Bad seed size.\n");
     return false;
   }
@@ -2144,7 +2144,7 @@ template <typename PrivateKey, size_t PublicKeyBytes,
 static bool MLKEMKeyGen(const Span<const uint8_t> args[],
                         ReplyCallback write_reply) {
   const Span<const uint8_t> seed = args[0];
-  if (seed.size() != BCM_MLKEM_SEED_BYTES) {
+  if (seed.size() != MLKEM_SEED_BYTES) {
     LOG_ERROR("Bad seed size.\n");
     return false;
   }
@@ -2186,7 +2186,7 @@ static bool MLKEMEncap(const Span<const uint8_t> args[],
   }
 
   uint8_t ciphertext[CiphertextBytes];
-  uint8_t shared_secret[BCM_MLKEM_SHARED_SECRET_BYTES];
+  uint8_t shared_secret[MLKEM_SHARED_SECRET_BYTES];
   Encap(ciphertext, shared_secret, pub.get(), entropy.data());
 
   return write_reply({ciphertext, shared_secret});
@@ -2207,7 +2207,7 @@ static bool MLKEMDecap(const Span<const uint8_t> args[],
     return false;
   }
 
-  uint8_t shared_secret[BCM_MLKEM_SHARED_SECRET_BYTES];
+  uint8_t shared_secret[MLKEM_SHARED_SECRET_BYTES];
   if (!bcm_success(Decap(shared_secret, ciphertext.data(), ciphertext.size(),
                          priv.get()))) {
     LOG_ERROR("ML-KEM decapsulation failed.\n");
@@ -2377,56 +2377,56 @@ static constexpr struct {
     {"ECDH/P-521", 3, ECDH<NID_secp521r1>},
     {"FFDH", 6, FFDH},
     {"ML-DSA-44/keyGen", 1,
-     MLDSAKeyGen<BCM_mldsa44_private_key, BCM_MLDSA44_PUBLIC_KEY_BYTES,
+     MLDSAKeyGen<MLDSA44_private_key, MLDSA44_PUBLIC_KEY_BYTES,
                  BCM_mldsa44_generate_key_external_entropy_fips,
                  BCM_mldsa44_marshal_private_key>},
     {"ML-DSA-65/keyGen", 1,
-     MLDSAKeyGen<BCM_mldsa65_private_key, BCM_MLDSA65_PUBLIC_KEY_BYTES,
+     MLDSAKeyGen<MLDSA65_private_key, MLDSA65_PUBLIC_KEY_BYTES,
                  BCM_mldsa65_generate_key_external_entropy_fips,
                  BCM_mldsa65_marshal_private_key>},
     {"ML-DSA-87/keyGen", 1,
-     MLDSAKeyGen<BCM_mldsa87_private_key, BCM_MLDSA87_PUBLIC_KEY_BYTES,
+     MLDSAKeyGen<MLDSA87_private_key, MLDSA87_PUBLIC_KEY_BYTES,
                  BCM_mldsa87_generate_key_external_entropy_fips,
                  BCM_mldsa87_marshal_private_key>},
     {"ML-DSA-44/sigGen", 3,
-     MLDSASigGen<BCM_mldsa44_private_key, BCM_MLDSA44_SIGNATURE_BYTES,
+     MLDSASigGen<MLDSA44_private_key, MLDSA44_SIGNATURE_BYTES,
                  BCM_mldsa44_parse_private_key, BCM_mldsa44_sign_internal>},
     {"ML-DSA-65/sigGen", 3,
-     MLDSASigGen<BCM_mldsa65_private_key, BCM_MLDSA65_SIGNATURE_BYTES,
+     MLDSASigGen<MLDSA65_private_key, MLDSA65_SIGNATURE_BYTES,
                  BCM_mldsa65_parse_private_key, BCM_mldsa65_sign_internal>},
     {"ML-DSA-87/sigGen", 3,
-     MLDSASigGen<BCM_mldsa87_private_key, BCM_MLDSA87_SIGNATURE_BYTES,
+     MLDSASigGen<MLDSA87_private_key, MLDSA87_SIGNATURE_BYTES,
                  BCM_mldsa87_parse_private_key, BCM_mldsa87_sign_internal>},
     {"ML-DSA-44/sigVer", 3,
-     MLDSASigVer<BCM_mldsa44_public_key, BCM_MLDSA44_SIGNATURE_BYTES,
+     MLDSASigVer<MLDSA44_public_key, MLDSA44_SIGNATURE_BYTES,
                  BCM_mldsa44_parse_public_key, BCM_mldsa44_verify_internal>},
     {"ML-DSA-65/sigVer", 3,
-     MLDSASigVer<BCM_mldsa65_public_key, BCM_MLDSA65_SIGNATURE_BYTES,
+     MLDSASigVer<MLDSA65_public_key, MLDSA65_SIGNATURE_BYTES,
                  BCM_mldsa65_parse_public_key, BCM_mldsa65_verify_internal>},
     {"ML-DSA-87/sigVer", 3,
-     MLDSASigVer<BCM_mldsa87_public_key, BCM_MLDSA87_SIGNATURE_BYTES,
+     MLDSASigVer<MLDSA87_public_key, MLDSA87_SIGNATURE_BYTES,
                  BCM_mldsa87_parse_public_key, BCM_mldsa87_verify_internal>},
     {"ML-KEM-768/keyGen", 1,
-     MLKEMKeyGen<BCM_mlkem768_private_key, BCM_MLKEM768_PUBLIC_KEY_BYTES,
+     MLKEMKeyGen<MLKEM768_private_key, MLKEM768_PUBLIC_KEY_BYTES,
                  BCM_mlkem768_generate_key_external_seed,
                  BCM_mlkem768_marshal_private_key>},
     {"ML-KEM-1024/keyGen", 1,
-     MLKEMKeyGen<BCM_mlkem1024_private_key, BCM_MLKEM1024_PUBLIC_KEY_BYTES,
+     MLKEMKeyGen<MLKEM1024_private_key, MLKEM1024_PUBLIC_KEY_BYTES,
                  BCM_mlkem1024_generate_key_external_seed,
                  BCM_mlkem1024_marshal_private_key>},
     {"ML-KEM-768/encap", 2,
-     MLKEMEncap<BCM_mlkem768_public_key, BCM_mlkem768_parse_public_key,
-                BCM_MLKEM768_CIPHERTEXT_BYTES,
+     MLKEMEncap<MLKEM768_public_key, BCM_mlkem768_parse_public_key,
+                MLKEM768_CIPHERTEXT_BYTES,
                 BCM_mlkem768_encap_external_entropy>},
     {"ML-KEM-1024/encap", 2,
-     MLKEMEncap<BCM_mlkem1024_public_key, BCM_mlkem1024_parse_public_key,
-                BCM_MLKEM1024_CIPHERTEXT_BYTES,
+     MLKEMEncap<MLKEM1024_public_key, BCM_mlkem1024_parse_public_key,
+                MLKEM1024_CIPHERTEXT_BYTES,
                 BCM_mlkem1024_encap_external_entropy>},
     {"ML-KEM-768/decap", 2,
-     MLKEMDecap<BCM_mlkem768_private_key, BCM_mlkem768_parse_private_key,
+     MLKEMDecap<MLKEM768_private_key, BCM_mlkem768_parse_private_key,
                 BCM_mlkem768_decap>},
     {"ML-KEM-1024/decap", 2,
-     MLKEMDecap<BCM_mlkem1024_private_key, BCM_mlkem1024_parse_private_key,
+     MLKEMDecap<MLKEM1024_private_key, BCM_mlkem1024_parse_private_key,
                 BCM_mlkem1024_decap>},
     {"SLH-DSA-SHA2-128s/keyGen", 1, SLHDSAKeyGen},
     {"SLH-DSA-SHA2-128s/sigGen", 3, SLHDSASigGen},

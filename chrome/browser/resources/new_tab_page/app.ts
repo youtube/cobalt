@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import './action_chips.js';
 import './iframe.js';
 import './logo.js';
 import '/strings.m.js';
@@ -12,6 +13,7 @@ import 'chrome://resources/cr_components/composebox/composebox.js';
 
 import type {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customize_buttons/customize_buttons.js';
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
+import type {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
@@ -250,12 +252,26 @@ export class AppElement extends AppElementBase {
       microsoftModuleEnabled_: {type: Boolean},
       microsoftAuthIframePath_: {type: String},
 
+      ntpRealboxNextEnabled_: {
+        type: Boolean,
+        reflect: true,
+      },
+
       /**
        * In order to avoid flicker, the promo and modules are hidden until both
        * are loaded. If modules are disabled, the promo is shown as soon as it
        * is loaded.
        */
       promoAndModulesLoaded_: {type: Boolean},
+
+      realboxLayoutMode_: {
+        type: String,
+        reflect: true,
+      },
+
+      searchboxCyclingPlaceholders_: {
+        type: Boolean,
+      },
 
       showComposebox_: {
         type: Boolean,
@@ -282,6 +298,10 @@ export class AppElement extends AppElementBase {
        * Whether the composebox has been opened at least once.
        */
       wasComposeboxOpened_: {type: Boolean},
+
+      ntpNextFeaturesEnabled_: {type: Boolean},
+
+      dropdownIsVisible_: {type: Boolean, reflect: true},
     };
   }
 
@@ -347,6 +367,15 @@ export class AppElement extends AppElementBase {
   accessor composeboxEnabled: boolean =
       loadTimeData.getBoolean('searchboxShowComposebox');
   protected accessor isFooterVisible_: boolean = false;
+  protected accessor ntpRealboxNextEnabled_: boolean =
+      loadTimeData.getBoolean('ntpRealboxNextEnabled');
+  protected accessor realboxLayoutMode_: string =
+      loadTimeData.getString('realboxLayoutMode');
+  protected accessor searchboxCyclingPlaceholders_: boolean =
+      loadTimeData.getBoolean('searchboxCyclingPlaceholders');
+  protected accessor ntpNextFeaturesEnabled_: boolean =
+      loadTimeData.getBoolean('ntpNextFeaturesEnabled');
+  protected accessor dropdownIsVisible_: boolean = false;
 
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -364,6 +393,8 @@ export class AppElement extends AppElementBase {
   private backgroundImageLoadStartEpoch_: number = 0;
   private backgroundImageLoadStart_: number = 0;
   private showWebstoreToastListenerId_: number|null = null;
+  private pendingComposeboxContextFiles_: ComposeboxFile[] = [];
+  private pendingComposeboxText_: string = '';
 
   constructor() {
     performance.mark('app-creation-start');
@@ -627,6 +658,21 @@ export class AppElement extends AppElementBase {
         changedPrivateProperties.has('showComposebox_')) {
       this.updateOneGoogleBarAppearance_();
     }
+
+    if (changedPrivateProperties.has('showComposebox_') &&
+        this.showComposebox_) {
+      const composebox =
+          this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
+      assert(composebox);
+      if (this.pendingComposeboxContextFiles_.length > 0) {
+        composebox.setContext(this.pendingComposeboxContextFiles_);
+        this.pendingComposeboxContextFiles_ = [];
+      }
+      if (this.pendingComposeboxText_) {
+        composebox.setText(this.pendingComposeboxText_);
+        this.pendingComposeboxText_ = '';
+      }
+    }
   }
 
   // Called to update the OGB of relevant NTP state changes.
@@ -700,6 +746,18 @@ export class AppElement extends AppElementBase {
     }
   }
 
+  protected openComposebox_(e: CustomEvent<{
+      searchboxText: string, contextFiles: ComposeboxFile[],
+  }>) {
+    if (e.detail.searchboxText) {
+      this.pendingComposeboxText_ = e.detail.searchboxText;
+    }
+    if (e.detail.contextFiles && e.detail.contextFiles.length > 0) {
+      this.pendingComposeboxContextFiles_ = e.detail.contextFiles;
+    }
+    this.toggleComposebox_();
+  }
+
   protected toggleComposebox_() {
     this.showComposebox_ = !this.showComposebox_;
     if (!this.wasComposeboxOpened_) {
@@ -715,7 +773,10 @@ export class AppElement extends AppElementBase {
         this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
     assert(composebox);
     const closeComposebox = new CustomEvent('closeComposebox', {
-      detail: {composeboxText: composebox.getText()},
+      detail: {
+        composeboxText: composebox.getText(),
+        contextFiles: composebox.getAndResetContextFiles(),
+      },
       bubbles: true,
       cancelable: true,
     });
@@ -725,14 +786,22 @@ export class AppElement extends AppElementBase {
 
   protected closeComposebox_(e: CustomEvent) {
     const composeboxText = e.detail.composeboxText;
+    const contextFiles = e.detail.contextFiles;
 
     if (composeboxText && composeboxText.trim()) {
       this.$.searchbox.setInputText(composeboxText);
     }
+    if (contextFiles.length > 0) {
+      this.$.searchbox.setContext(contextFiles);
+    }
     const composebox =
         this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
     assert(composebox);
-    composebox.resetText();
+    composebox.setText('');
+    composebox.resetModes();
+    if (this.ntpRealboxNextEnabled_) {
+      composebox.closeDropdown();
+    }
     this.toggleComposebox_();
     this.logoColor_ = this.computeLogoColor_();
     this.singleColoredLogo_ = this.computeSingleColoredLogo_();
@@ -1160,6 +1229,10 @@ export class AppElement extends AppElementBase {
 
   protected showThemeAttribution_(): boolean {
     return !!this.theme_?.backgroundImage?.attributionUrl;
+  }
+
+  protected onDropdownVisibleChanged_(e: CustomEvent<{value: boolean}>) {
+    this.dropdownIsVisible_ = e.detail.value;
   }
 
   protected onRealboxHadSecondarySideChanged_(

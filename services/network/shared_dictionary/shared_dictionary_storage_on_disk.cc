@@ -94,12 +94,11 @@ SharedDictionaryStorageOnDisk::SharedDictionaryStorageOnDisk(
       isolation_key_(isolation_key),
       on_deleted_closure_runner_(std::move(on_deleted_closure_runner)),
       dictionary_cache_(dictionary_cache) {
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
           FROM_HERE,
           base::MemoryPressureListenerTag::kSharedDictionaryStorageOnDisk,
-          base::BindRepeating(&SharedDictionaryStorageOnDisk::OnMemoryPressure,
-                              weak_factory_.GetWeakPtr()));
+          this);
   manager_->metadata_store().GetDictionaries(
       isolation_key_,
       base::BindOnce(
@@ -186,8 +185,7 @@ SharedDictionaryStorageOnDisk::GetDictionarySync(
           weak_factory_.GetWeakPtr(), info->disk_cache_key_token())));
   dictionaries_.emplace(info->disk_cache_key_token(), shared_dictionary.get());
 
-  if (memory_pressure_level_ ==
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+  if (memory_pressure_level_ == base::MEMORY_PRESSURE_LEVEL_NONE) {
     dictionary_cache_->Put(info->disk_cache_key_token(), destination,
                            shared_dictionary);
   }
@@ -317,7 +315,7 @@ void SharedDictionaryStorageOnDisk::OnDictionaryDeleted(
 }
 
 void SharedDictionaryStorageOnDisk::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+    base::MemoryPressureLevel level) {
   memory_pressure_level_ = level;
 }
 

@@ -14,6 +14,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -47,6 +48,7 @@
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
 #include "pc/peer_connection_wrapper.h"
+#include "pc/session_description.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/integration_test_helpers.h"
 #include "pc/test/mock_peer_connection_observers.h"
@@ -1743,5 +1745,96 @@ TEST_F(SdpOfferAnswerTest, PayloadTypeMatchingWithSubsequentOfferAnswer) {
   EXPECT_EQ(codecs[1].name, av1.name);
   EXPECT_EQ(codecs[1].id, av1.id);
 }
+
+class SdpOfferAnswerDirectionTest
+    : public SdpOfferAnswerTest,
+      public testing::WithParamInterface<
+          std::tuple<RtpTransceiverDirection, RtpTransceiverDirection, bool>> {
+ public:
+  SdpOfferAnswerDirectionTest() : SdpOfferAnswerTest() {}
+};
+
+TEST_P(SdpOfferAnswerDirectionTest, IncompatibleDirection) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::VIDEO);
+  EXPECT_TRUE(transceiver->SetDirectionWithError(std::get<0>(GetParam())).ok());
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+
+  ASSERT_THAT(callee->pc()->GetTransceivers(), SizeIs(1));
+  auto callee_transceiver = callee->pc()->GetTransceivers()[0];
+  EXPECT_TRUE(callee_transceiver
+                  ->SetDirectionWithError(RtpTransceiverDirection::kInactive)
+                  .ok());
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  // Modify the answer.
+  ASSERT_THAT(answer->description()->contents(), SizeIs(1));
+  ContentInfo& content = answer->description()->contents()[0];
+  EXPECT_EQ(content.media_description()->direction(),
+            RtpTransceiverDirection::kInactive);
+  content.media_description()->set_direction(std::get<1>(GetParam()));
+
+  EXPECT_EQ(caller->SetRemoteDescription(std::move(answer)),
+            std::get<2>(GetParam()));
+}
+
+INSTANTIATE_TEST_SUITE_P(SdpOfferAnswerDirectionTest,
+                         SdpOfferAnswerDirectionTest,
+                         ::testing::Values(
+                             // sendrecv.
+                             std::make_tuple(RtpTransceiverDirection::kSendRecv,
+                                             RtpTransceiverDirection::kSendRecv,
+                                             true),
+                             std::make_tuple(RtpTransceiverDirection::kSendRecv,
+                                             RtpTransceiverDirection::kSendOnly,
+                                             true),
+                             std::make_tuple(RtpTransceiverDirection::kSendRecv,
+                                             RtpTransceiverDirection::kRecvOnly,
+                                             true),
+                             std::make_tuple(RtpTransceiverDirection::kSendRecv,
+                                             RtpTransceiverDirection::kInactive,
+                                             true),
+                             // sendonly.
+                             std::make_tuple(RtpTransceiverDirection::kSendOnly,
+                                             RtpTransceiverDirection::kSendRecv,
+                                             false),
+                             std::make_tuple(RtpTransceiverDirection::kSendOnly,
+                                             RtpTransceiverDirection::kSendOnly,
+                                             false),
+                             std::make_tuple(RtpTransceiverDirection::kSendOnly,
+                                             RtpTransceiverDirection::kRecvOnly,
+                                             true),
+                             std::make_tuple(RtpTransceiverDirection::kSendOnly,
+                                             RtpTransceiverDirection::kInactive,
+                                             true),
+                             // recvonly.
+                             std::make_tuple(RtpTransceiverDirection::kRecvOnly,
+                                             RtpTransceiverDirection::kSendRecv,
+                                             false),
+                             std::make_tuple(RtpTransceiverDirection::kRecvOnly,
+                                             RtpTransceiverDirection::kSendOnly,
+                                             true),
+                             std::make_tuple(RtpTransceiverDirection::kRecvOnly,
+                                             RtpTransceiverDirection::kRecvOnly,
+                                             false),
+                             std::make_tuple(RtpTransceiverDirection::kRecvOnly,
+                                             RtpTransceiverDirection::kInactive,
+                                             true),
+                             // inactive.
+                             std::make_tuple(RtpTransceiverDirection::kInactive,
+                                             RtpTransceiverDirection::kSendRecv,
+                                             false),
+                             std::make_tuple(RtpTransceiverDirection::kInactive,
+                                             RtpTransceiverDirection::kSendOnly,
+                                             false),
+                             std::make_tuple(RtpTransceiverDirection::kInactive,
+                                             RtpTransceiverDirection::kRecvOnly,
+                                             false),
+                             std::make_tuple(RtpTransceiverDirection::kInactive,
+                                             RtpTransceiverDirection::kInactive,
+                                             true)));
 
 }  // namespace webrtc

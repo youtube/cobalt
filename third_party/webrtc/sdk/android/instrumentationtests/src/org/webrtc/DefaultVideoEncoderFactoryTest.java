@@ -22,7 +22,7 @@ import org.junit.Test;
 /** Unit tests for {@link DefaultVideoEncoderFactory}. */
 public class DefaultVideoEncoderFactoryTest {
   static class CustomHardwareVideoEncoderFactory implements VideoEncoderFactory {
-    private VideoCodecInfo supportedCodec;
+    private final VideoCodecInfo supportedCodec;
 
     public CustomHardwareVideoEncoderFactory(VideoCodecInfo supportedCodec) {
       this.supportedCodec = supportedCodec;

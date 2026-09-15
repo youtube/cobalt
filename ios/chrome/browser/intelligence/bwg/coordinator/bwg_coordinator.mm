@@ -99,6 +99,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
   BwgTabHelper* BWGTabHelper = [self activeWebStateBWGTabHelper];
   if (BWGTabHelper) {
     BWGTabHelper->SetBwgUiShowing(false);
+    BWGTabHelper->SetPreventContextualPanelEntryPoint(NO);
   }
   ios::provider::ResetGemini();
   [self presentPageActionMenuIPH];
@@ -121,6 +122,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
   }
 
   BOOL showPromo = [self shouldShowBWGPromo];
+  BwgTabHelper* BWGTabHelper = [self activeWebStateBWGTabHelper];
 
   if (showPromo) {
     int impressionCount =
@@ -132,6 +134,10 @@ const CGFloat kPromoMaxImpressionCount = 3;
       feature_engagement::TrackerFactory::GetForProfile(self.profile)
           ->NotifyEvent(
               feature_engagement::events::kIOSGeminiPromoFirstCompletion);
+      if (BWGTabHelper) {
+        BWGTabHelper->SetPreventContextualPanelEntryPoint(
+            [self shouldShowAIHubIPH]);
+      }
     }
   }
 
@@ -141,7 +147,6 @@ const CGFloat kPromoMaxImpressionCount = 3;
   _FREWrapperViewController.sheetPresentationController.delegate = self;
   _FREWrapperViewController.mutator = _mediator;
 
-  BwgTabHelper* BWGTabHelper = [self activeWebStateBWGTabHelper];
   BOOL shouldAnimatePresentation =
       BWGTabHelper ? !BWGTabHelper->GetIsBwgSessionActiveInBackground() : YES;
 
@@ -177,7 +182,6 @@ const CGFloat kPromoMaxImpressionCount = 3;
 // Handles the dismissal of the UI.
 - (void)presentationControllerDidDismiss:
     (UIPresentationController*)presentationController {
-  // TODO(crbug.com/419064727): Add metric for dismissing coordinator.
   [_BWGCommandsHandler dismissBWGFlowWithCompletion:nil];
 }
 
@@ -304,17 +308,22 @@ const CGFloat kPromoMaxImpressionCount = 3;
 
 // Prepares UI for AI Hub In-Product Help (IPH) bubble.
 - (void)prepareAIHubIPH {
-  BOOL wouldTriggerIPH =
-      feature_engagement::TrackerFactory::GetForProfile(self.profile)
-          ->WouldTriggerHelpUI(feature_engagement::kIPHIOSPageActionMenu);
-
-  if (_entryPoint != bwg::EntryPoint::AIHub && [self shouldShowBWGPromo] &&
-      wouldTriggerIPH) {
+  if ([self shouldShowAIHubIPH]) {
     // Ensures toolbar is expanded. If the toolbar is not fully expanded, the AI
     // Hub In-Product Help (IPH) bubble will be misaligned from using anchor
     // points relative to a partially expanded toolbar.
     FullscreenController::FromBrowser(self.browser)->ExitFullscreen();
   }
+}
+
+// Returns whether to show AI Hub IPH.
+- (BOOL)shouldShowAIHubIPH {
+  BOOL wouldTriggerIPH =
+      feature_engagement::TrackerFactory::GetForProfile(self.profile)
+          ->WouldTriggerHelpUI(feature_engagement::kIPHIOSPageActionMenu);
+
+  return _entryPoint != bwg::EntryPoint::AIHub && [self shouldShowBWGPromo] &&
+         wouldTriggerIPH;
 }
 
 @end

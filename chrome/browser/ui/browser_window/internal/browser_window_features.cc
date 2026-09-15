@@ -16,6 +16,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/devtools/devtools_ui_controller.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_ui_controller.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
@@ -40,6 +41,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
+#include "chrome/browser/ui/browser_window/public/embedder_browser_window_features.h"
 #include "chrome/browser/ui/commerce/product_specifications_entry_point_controller.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/extensions/mv2_disabled_dialog_controller.h"
@@ -85,6 +87,7 @@
 #include "chrome/browser/ui/views/interaction/browser_elements_views_impl.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/views/location_bar/zoom_bubble_coordinator.h"
 #include "chrome/browser/ui/views/media_router/cast_browser_controller.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_customization_bubble_sync_controller.h"
@@ -117,6 +120,7 @@
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/feature_utils.h"
 #include "components/commerce/core/shopping_service.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/omnibox/browser/location_bar_model_impl.h"
@@ -158,6 +162,7 @@
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_controller.h"
 #include "chrome/browser/ui/views/side_panel/glic/glic_legacy_side_panel_coordinator.h"
 #endif
@@ -389,6 +394,11 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
               session_restore_infobar::SessionRestoreInfobarController>(
               *browser, browser);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+  // Initialize embedder features last.
+  embedder_browser_window_features_ =
+      GetUserDataFactory().CreateInstance<EmbedderBrowserWindowFeatures>(
+          *browser, browser);
 }
 
 void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
@@ -608,6 +618,9 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
             extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
             extension_keybinding_delegate_.get());
   }
+
+  // Initialize post-window dependent embedder features last.
+  embedder_browser_window_features_->InitPostWindowConstruction(browser);
 }
 
 void BrowserWindowFeatures::InitPostBrowserViewConstruction(
@@ -651,6 +664,15 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
             browser_view->browser(), side_panel_coordinator_.get());
   }
 #endif  // BUILDFLAG(ENABLE_GLIC)
+
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    contextual_tasks_side_panel_coordinator_ =
+        GetUserDataFactory()
+            .CreateInstance<
+                contextual_tasks::ContextualTasksSidePanelCoordinator>(
+                *browser_, browser_, side_panel_coordinator_.get());
+  }
+
   side_panel_coordinator_->Init(browser_view->browser());
 
   extension_side_panel_manager_ =
@@ -683,6 +705,12 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                     BrowserElementsViews::From(browser_view->browser())
                         ->GetViewAs<TabStripActionContainer>(
                             kTabStripActionContainerElementId));
+        if (features::kGlicActorUiNudgeRedesign.Get()) {
+          glic_actor_nudge_controller_ =
+              GetUserDataFactory()
+                  .CreateInstance<tabs::GlicActorNudgeController>(*browser_,
+                                                                  browser_);
+        }
       }
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -741,12 +769,23 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
       std::make_unique<WindowsTaskbarIconUpdater>(*browser_view);
 #endif
 
+  zoom_bubble_coordinator_ =
+      GetUserDataFactory().CreateInstance<ZoomBubbleCoordinator>(*browser_,
+                                                                 *browser_view);
+
   user_education_->Init(browser_view);
 
   find_bar_owner_ = std::make_unique<FindBarOwnerViews>(browser_view);
+
+  // Initialize post-BrowserView-dependent embedder features last.
+  embedder_browser_window_features_->InitPostBrowserViewConstruction(
+      browser_view);
 }
 
 void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
+  // Tear down embedder features first, in reverse order of initialization.
+  embedder_browser_window_features_->TearDownPreBrowserWindowDestruction();
+
   accelerator_provider_ = nullptr;
   extension_keybinding_registry_.reset();
   contents_border_controller_.reset();
@@ -763,13 +802,18 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
 #if BUILDFLAG(ENABLE_GLIC)
   glic_button_controller_.reset();
   glic_actor_task_icon_controller_.reset();
+  glic_actor_nudge_controller_.reset();
 #endif
+
+  contextual_tasks_side_panel_coordinator_.reset();
 
 #if !BUILDFLAG(IS_CHROMEOS)
   if (download_toolbar_ui_controller_) {
     download_toolbar_ui_controller_->TearDownPreBrowserWindowDestruction();
   }
 #endif
+
+  zoom_bubble_coordinator_.reset();
 
   comments_side_panel_coordinator_.reset();
 

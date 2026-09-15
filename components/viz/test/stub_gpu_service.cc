@@ -14,6 +14,7 @@ StubGpuService::~StubGpuService() = default;
 void StubGpuService::EstablishGpuChannel(int32_t client_id,
                                          uint64_t client_tracing_id,
                                          bool is_gpu_host,
+                                         bool enable_extra_handles_validation,
                                          EstablishGpuChannelCallback callback) {
 }
 
@@ -94,8 +95,7 @@ void StubGpuService::OnBackgrounded() {}
 void StubGpuService::OnForegrounded() {}
 
 #if !BUILDFLAG(IS_ANDROID)
-void StubGpuService::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {}
+void StubGpuService::OnMemoryPressure(base::MemoryPressureLevel level) {}
 #endif
 
 #if BUILDFLAG(IS_APPLE)

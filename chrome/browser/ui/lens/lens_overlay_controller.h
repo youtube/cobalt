@@ -178,6 +178,7 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
     // Showing an overlay without results.
     kOverlay,
 
+    // TODO(crbug.com/450638028): Remove this state and only keep kOverlay.
     // Showing an overlay with results.
     kOverlayAndResults,
 
@@ -270,6 +271,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   // Returns true if the overlay is currently in the process of closing.
   bool IsOverlayClosing();
+
+  // Returns true if the overlay has a region selection.
+  bool HasRegionSelection() const;
 
   // Pass a result frame URL to load in the side panel.
   void LoadURLInResultsFrame(const GURL& url);
@@ -373,6 +377,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   // Returns the current thumbnail URI for testing.
   const std::string& GetThumbnailForTesting();
+
+  // Clears the region selection for testing.
+  void ClearRegionSelectionForTesting();
 
   // Handles the event where text was modified in the searchbox for testing.
   void OnTextModifiedForTesting();
@@ -910,6 +917,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // points since the state of the overlay has changed.
   void UpdateEntryPointsState();
 
+  // Notifies the side panel whether the overlay is showing.
+  void NotifyIsOverlayShowing(bool is_showing);
+
   // Callback to run when the partial page text is retrieved from the PDF.
   void OnPdfPartialPageTextRetrieved(
       std::vector<std::u16string> pdf_pages_text);
@@ -939,6 +949,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   // Shorthand to grab the LensSearchboxController for this instance of Lens.
   lens::LensSearchboxController* GetLensSearchboxController();
+
+  // Shorthand to grab the LensOverlaySidePanelCoordinator for this instance of Lens.
+  lens::LensOverlaySidePanelCoordinator* GetLensOverlaySidePanelCoordinator();
 
   // Shorthand to grab the LensSearchContextualizationController for this
   // instance of Lens.
@@ -1138,6 +1151,8 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // be assumed to be non-null.
   raw_ptr<SidePanelCoordinator> side_panel_coordinator_ = nullptr;
 
+  // TODO(crbug.com/450336818): Remove this field and use the
+  // LensSearchController to get the side panel coordinator.
   // Side panel coordinator for the side panel coordinator that controls the
   // results side panel. Guaranteed to exist if the overlay is not `kOff`.
   raw_ptr<lens::LensOverlaySidePanelCoordinator>

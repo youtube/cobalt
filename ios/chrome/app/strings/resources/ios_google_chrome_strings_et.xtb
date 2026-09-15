@@ -71,7 +71,6 @@ Tasub teada
 <translation id="2576431527583832481">Chrome muutus just veelgi paremaks! Saadaval on uus versioon.</translation>
 <translation id="257708665678654955">Kas soovite, et Google Chrome pakuks järgmisel korral sellel saidil <ph name="LANGUAGE_NAME" /> keeles olevate lehtede tõlkimise võimalust?</translation>
 <translation id="2668242166988961773">Chrome'is hääle abil otsimine.</translation>
-<translation id="2689064829982324496">Selleks et oma Google'i kontolt kõikidel veebisaitidel välja logida, <ph name="BEGIN_LINK" />logige välja Chrome'ist<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome ei saanud värskendusi otsida. Proovige hiljem uuesti.</translation>
 <translation id="2703746758996815929">Lülitage iOS-i seadetes märguanded sisse, et saada Chrome'i kohta kasulikke nõuandeid.</translation>
 <translation id="2728851697704606655">Tõlkige Google Lensi abil</translation>
@@ -87,6 +86,9 @@ Oodake enne väljalogimist paar minutit. Kui logite kohe välja, siis need andme
 <translation id="2940565985148833945">Chrome'i nõuanne: otsige Lensiga</translation>
 <translation id="2957447865124070833">Valige <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" />.</translation>
 <translation id="2986402782150919988">Järjehoidjate lisamine Chrome'i</translation>
+<translation id="3027236223714901838">Oma pääsuvõtme turvalisuse tagamiseks peate esmalt looma taastekoodi.
+
+        Pääsuvõtmed salvestatakse Google'i paroolihaldurisse, mis võimaldab teil neid Chrome'is kasutada mis tahes seadmes.</translation>
 <translation id="3030414234702425231">Kuna logite välja kontolt, mida haldab <ph name="SIGNOUT_MANAGED_DOMAIN" />, kustutatakse selles seadmes teie Chrome'i andmed. Google'i kontole jäävad teie andmed alles.</translation>
 <translation id="3042447686908081308">Impordi Chrome'i</translation>
 <translation id="3051521853355903257">Paroolide haldamine Chrome'is</translation>
@@ -309,7 +311,6 @@ Teie krüpteeritud andmeid saab lugeda ainult isik, kes teab teie parooli. Paroo
 <translation id="8413500425974960807">Chrome'i nõuanne: teisaldage Chrome dokki</translation>
 <translation id="8413795581997394485">Kaitseb teadaolevalt ohtlike veebisaitide, allalaadimiste ja laienduste vastu. Kui külastate saiti, saadab Chrome privaatsusserveri kaudu Google'ile URL-i hägustatud osa, mis peidab teie IP-aadressi. Kui sait teeb midagi kahtlast, saadetakse nii täielikud URL-id kui ka osa lehe sisust.</translation>
 <translation id="84594714173170813">Jätkake Chrome'i andmete kasutamist Google'i kontol</translation>
-<translation id="8459495907675268833">Valitud andmed eemaldati Chrome'ist ja sünkroonitud seadmetest. Aadressil history.google.com võib teie Google'i kontol olla muus vormis sirvimisajalugu, nagu otsingud ja tegevused muudes Google'i teenustes.</translation>
 <translation id="8491300088149538575">Sisse logitud kasutajana <ph name="EMAIL" />.
 
 Teie andmed krüpteeriti teie parooliga kuupäeval <ph name="TIME" />. Chrome’i andmete kasutamiseks ja salvestamiseks oma Google’i kontole sisestage parool.</translation>

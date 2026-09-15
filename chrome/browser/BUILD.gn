@@ -281,8 +281,6 @@ static_library("browser") {
     "chrome_content_browser_client_receiver_bindings.cc",
     "chrome_resource_bundle_helper.cc",
     "chrome_resource_bundle_helper.h",
-    "client_hints/client_hints_factory.cc",
-    "client_hints/client_hints_factory.h",
     "collaboration/collaboration_service_factory.cc",
     "collaboration/collaboration_service_factory.h",
     "collaboration/comments/comments_service_factory.cc",
@@ -296,8 +294,6 @@ static_library("browser") {
     "command_updater_impl.h",
     "commerce/product_specifications/product_specifications_service_factory.cc",
     "commerce/product_specifications/product_specifications_service_factory.h",
-    "complex_tasks/task_tab_helper.cc",
-    "complex_tasks/task_tab_helper.h",
     "component_updater/afp_blocked_domain_list_component_installer.cc",
     "component_updater/afp_blocked_domain_list_component_installer.h",
     "component_updater/chrome_component_updater_configurator.cc",
@@ -857,6 +853,10 @@ static_library("browser") {
     "ntp_tiles/chrome_popular_sites_factory.h",
     "offline_items_collection/offline_content_aggregator_factory.cc",
     "offline_items_collection/offline_content_aggregator_factory.h",
+    "omnibox/contextual_session_service_factory.cc",
+    "omnibox/contextual_session_service_factory.h",
+    "omnibox/contextual_session_web_contents_helper.cc",
+    "omnibox/contextual_session_web_contents_helper.h",
     "origin_trials/origin_trials_factory.cc",
     "origin_trials/origin_trials_factory.h",
     "page_content_annotations/annotate_page_content_request.cc",
@@ -1888,9 +1888,12 @@ static_library("browser") {
     "//chrome/browser/btm",
     "//chrome/browser/btm:impl",
     "//chrome/browser/chooser_controller",
+    "//chrome/browser/client_hints",
     "//chrome/browser/commerce",
     "//chrome/browser/commerce:impl",
     "//chrome/browser/companion/text_finder",
+    "//chrome/browser/complex_tasks",
+    "//chrome/browser/complex_tasks:impl",
     "//chrome/browser/content_extraction",
     "//chrome/browser/content_settings",
     "//chrome/browser/content_settings:content_settings_factory",
@@ -2169,6 +2172,7 @@ static_library("browser") {
     "//components/custom_handlers",
     "//components/data_sharing/internal",
     "//components/data_sharing/internal:personal_collaboration_data_internal",
+    "//components/data_sharing/migration/internal",
     "//components/data_sharing/public",
     "//components/data_sharing/public:personal_collaboration_data",
     "//components/device_event_log",
@@ -2688,6 +2692,8 @@ static_library("browser") {
       "android/browsing_data/url_filter_bridge.h",
       "android/chrome_startup_flags.cc",
       "android/chrome_startup_flags.h",
+      "android/collection_structure_tracker_android.cc",
+      "android/collection_structure_tracker_android.h",
       "android/compose_bitmaps_helper.cc",
       "android/compose_bitmaps_helper.h",
       "android/compositor/compositor_view.cc",
@@ -3647,6 +3653,11 @@ static_library("browser") {
       # headers get componentized:
       # - c/b/android/tab_android.h
       "//chrome/browser/dom_distiller:impl",
+
+      # TODO(crbug.com/353332589): Remove this circular dependency when the following
+      # headers get componentized:
+      # - c/b/android/tab_android.h
+      "//chrome/browser/complex_tasks:impl",
     ]
 
     if (safe_browsing_mode == 2) {
@@ -4863,22 +4874,6 @@ static_library("browser") {
       "apps/intent_helper/chromeos_disabled_apps_throttle.h",
       "browser_process_platform_part_ash.cc",
       "browser_process_platform_part_ash.h",
-      "certificate_provider/certificate_provider.h",
-      "certificate_provider/certificate_provider_service.cc",
-      "certificate_provider/certificate_provider_service.h",
-      "certificate_provider/certificate_provider_service_factory.cc",
-      "certificate_provider/certificate_provider_service_factory.h",
-      "certificate_provider/certificate_requests.cc",
-      "certificate_provider/certificate_requests.h",
-      "certificate_provider/pin_dialog_manager.cc",
-      "certificate_provider/pin_dialog_manager.h",
-      "certificate_provider/security_token_pin_dialog_host.h",
-      "certificate_provider/security_token_pin_dialog_host_popup_impl.cc",
-      "certificate_provider/security_token_pin_dialog_host_popup_impl.h",
-      "certificate_provider/sign_requests.cc",
-      "certificate_provider/sign_requests.h",
-      "certificate_provider/thread_safe_certificate_map.cc",
-      "certificate_provider/thread_safe_certificate_map.h",
       "chrome_browser_interface_binders_webui_parts_chromeos.cc",
       "component_updater/app_provisioning_component_installer.cc",
       "component_updater/app_provisioning_component_installer.h",
@@ -4948,8 +4943,6 @@ static_library("browser") {
       "memory/oom_kills_monitor.h",
       "metrics/ambient_mode_metrics_provider.cc",
       "metrics/ambient_mode_metrics_provider.h",
-      "metrics/assistant_service_metrics_provider.cc",
-      "metrics/assistant_service_metrics_provider.h",
       "metrics/chromeos_family_link_user_metrics_provider.cc",
       "metrics/chromeos_family_link_user_metrics_provider.h",
       "metrics/chromeos_metrics_provider.cc",
@@ -5534,6 +5527,8 @@ static_library("browser") {
       "//chrome/browser/ash/usb",
       "//chrome/browser/ash/video_conference",
       "//chrome/browser/ash/wallpaper_handlers",
+      "//chrome/browser/certificate_provider",
+      "//chrome/browser/certificate_provider:impl",
       "//chrome/browser/chromeos/app_mode",
       "//chrome/browser/chromeos/arc",
       "//chrome/browser/chromeos/cros_apps",
@@ -6171,6 +6166,11 @@ static_library("browser") {
       # TODO: crbug.com/395179599 - Remove once //chrome/browser/net has its own
       # build target.
       "//remoting/host/chromeos:browser_interop",
+
+      # TODO(crbug.com/353332589): Remove this circular dependency when:
+      # - c/b/profiles/profile_manager.h"
+      # gets componentized.
+      "//chrome/browser/certificate_provider:impl",
     ]
 
     if (is_chrome_branded) {
@@ -6196,10 +6196,6 @@ static_library("browser") {
         "//ash/webui/sample_system_web_app_ui",
         "//ash/webui/sample_system_web_app_ui/mojom:mojo_bindings",
       ]
-    }
-
-    if (enable_cros_libassistant) {
-      deps += [ "//chromeos/ash/services/libassistant/public/mojom" ]
     }
 
     if (enable_server_based_recognition) {
@@ -7142,6 +7138,9 @@ static_library("browser") {
       "shutdown_signal_handlers_posix.cc",
       "shutdown_signal_handlers_posix.h",
     ]
+    if (!is_mac) {
+      deps += [ "//components/os_crypt/async/browser:posix_key_provider" ]
+    }
   }
 
   if (is_win || is_linux || is_chromeos) {

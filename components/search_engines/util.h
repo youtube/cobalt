@@ -221,6 +221,9 @@ TemplateURLService::OwnedTemplateURLVector::iterator FindTemplateURL(
     TemplateURLService::OwnedTemplateURLVector* urls,
     const TemplateURL* url);
 
+// Returns whether the provided `url` leads to the AIM web page.
+bool IsAimURL(const GURL& url);
+
 // Retrieves the URL for the AIM web page.
 // `aim_entrypoint` (aep) is required as it identifies the source of the
 // request. `query_start_time` is the time that the user clicked the submit
@@ -243,8 +246,9 @@ GURL GetUrlForAim(TemplateURLService* turl_service,
 // the server supports it.
 // TODO(crbug.com/446972028): Remove this method in favor of the one below that
 // takes `contextual_inputs` once the server fully supports it.
-GURL GetUrlForMultimodalAim(
+GURL GetUrlForMultimodalSearch(
     TemplateURLService* turl_service,
+    bool is_aim_search,
     omnibox::ChromeAimEntryPoint aim_entrypoint,
     const base::Time& query_start_time,
     const std::string& search_session_id,
@@ -263,8 +267,9 @@ GURL GetUrlForMultimodalAim(
 // to obtain the uploaded context.
 // TODO(crbug.com/430070871): Make `lns_surface` a required parameter when
 // the server supports it.
-GURL GetUrlForMultimodalAim(
+GURL GetUrlForMultimodalSearch(
     TemplateURLService* turl_service,
+    bool is_aim_search,
     omnibox::ChromeAimEntryPoint aim_entrypoint,
     const base::Time& query_start_time,
     const std::string& search_session_id,

@@ -506,6 +506,8 @@ class Heap final {
         native_contexts_list_.load(std::memory_order_acquire));
   }
 
+  V8_EXPORT_PRIVATE void AddToWeakNativeContextList(Tagged<Context> context);
+
   void set_allocation_sites_list(
       Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> object) {
     allocation_sites_list_ = object;
@@ -923,8 +925,9 @@ class Heap final {
   void EnqueueDirtyJSFinalizationRegistry(
       Tagged<JSFinalizationRegistry> finalization_registry,
       std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
-                         Tagged<Object> target)>
-          gc_notify_updated_slot);
+                         Tagged<HeapObject> target)>
+          gc_notify_updated_slot,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER);
 
   MaybeDirectHandle<JSFinalizationRegistry>
   DequeueDirtyJSFinalizationRegistry();
@@ -970,7 +973,9 @@ class Heap final {
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
       PerformHeapLimitCheck check_heap_limit_reached =
-          PerformHeapLimitCheck::kYes);
+          PerformHeapLimitCheck::kYes,
+      PerformIneffectiveMarkCompactCheck check_ineffective_mark_compact =
+          PerformIneffectiveMarkCompactCheck::kYes);
 
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(
@@ -2807,6 +2812,12 @@ class WeakObjectRetainer {
   // object has no references. Otherwise the address of the retained object
   // should be returned as in some GC situations the object has been moved.
   virtual Tagged<Object> RetainAs(Tagged<Object> object) = 0;
+
+  // Return whether updated slots should be recorded.
+  virtual bool ShouldRecordSlots() const = 0;
+
+  virtual void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                          Tagged<HeapObject> object) = 0;
 };
 
 // -----------------------------------------------------------------------------

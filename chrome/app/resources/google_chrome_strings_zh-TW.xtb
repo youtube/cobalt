@@ -250,7 +250,7 @@
 <translation id="383928141529488001">Google Chrome 需要藍牙存取權才能偵測藍牙裝置。<ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="3846683726093018685">**摘要：** 請用一句話 (不超過 30 個字) 說明螢幕截圖內容的主要主題和目的。
 
-          **建議問題：** 生成項目符號清單，列出使用者可以提出的 3 至 5 個問題，以便啟發思考，深入瞭解螢幕截圖內容。其中至少應有一個問題與某個視覺物件、其設計或位置相關。</translation>
+          **建議問題：** 生成項目符號清單，列出使用者可以提出的 3 至 5 個問題，方便他們深入瞭解螢幕截圖內容。其中至少應有一個問題與某個視覺物件、其設計或位置相關。</translation>
 <translation id="386202838227397562">請關閉所有 Google Chrome 視窗，並再試一次</translation>
 <translation id="3873044882194371212">在 Chrome 無痕視窗中開啟連結(&amp;G)</translation>
 <translation id="3885770153807205175">語言選單</translation>
@@ -270,7 +270,6 @@
 <translation id="409936259433005390">即將升級至 Windows 11？請將 Chrome 安裝程式下載到 OneDrive，預先準備即可隨時上路。</translation>
 <translation id="4110895483821904099">設定新的 Chrome 設定檔</translation>
 <translation id="4111566860456076004">Chrome 無法驗證擴充功能的來源，因此可能不安全。請從 Chrome 中移除這項擴充功能，使其無法再查看及變更你瀏覽網站時留下的資料，包括個人資訊。</translation>
-<translation id="4128488089242627000">提高 Chrome 執行速度，讓使用 JavaScript 的功能正常運作 (建議採用)</translation>
 <translation id="4147555960264124640">你已登入管理化環境下的帳戶，並將管理控制權授予你的 Chrome 設定檔。你的 Chrome 資料 (例如應用程式、書籤、記錄、密碼和其他設定) 均將永久與 <ph name="USER_NAME" /> 建立關聯。你可以透過 Google 帳戶資訊主頁刪除這些資料，但你無法將這些資料與其他帳戶建立關聯。<ph name="LEARN_MORE" /></translation>
 <translation id="4148957013307229264">正在安裝...</translation>
 <translation id="4149882025268051530">安裝程式無法解壓縮封存檔案，請再次下載 Google Chrome。</translation>
@@ -521,6 +520,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6967962315388095737">允許 mDNS 流量的 Google Chrome Beta 版輸入規則。</translation>
 <translation id="6979589607440534284">瞭解 Chrome 封鎖某些檔案的原因 (在新分頁中開啟)</translation>
 <translation id="6991926986715044139">一律顯示 Google 智慧鏡頭捷徑</translation>
+<translation id="6999131147875565462">提高 Chrome 執行速度，使用 JavaScript 的功能應該會正常運作</translation>
 <translation id="7011190694940573312">安裝失敗，因為應用程式不支援這個版本的作業系統。</translation>
 <translation id="7024536598735240744">解壓縮錯誤：<ph name="UNPACK_ERROR" />。</translation>
 <translation id="7025789849649390912">已停止安裝。</translation>

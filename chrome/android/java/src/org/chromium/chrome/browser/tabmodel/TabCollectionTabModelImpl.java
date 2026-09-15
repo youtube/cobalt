@@ -872,7 +872,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
                 maybeSendCloseTabGroupEvent(tabsToClose, /* committing= */ false);
         if (params.tabCloseType == TabCloseType.MULTIPLE) {
             for (TabModelObserver obs : mTabModelObservers) {
-                obs.willCloseMultipleTabs(false, tabsToClose);
+                obs.willCloseMultipleTabs(allowUndo, tabsToClose);
             }
         } else if (params.tabCloseType == TabCloseType.ALL) {
             for (TabModelObserver obs : mTabModelObservers) {
@@ -1711,7 +1711,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
             mPendingTabClosureManager.resetState();
         }
 
-        if (ChromeFeatureList.sTabFreezeOnUndoableClosureKillSwitch.isEnabled() && pauseMedia) {
+        if (pauseMedia) {
             for (Tab tab : tabsToRemove) {
                 if (!TabUtils.isCapturingForMedia(tab)) continue;
                 // If media is being captured freeze the tab to disconnect it.

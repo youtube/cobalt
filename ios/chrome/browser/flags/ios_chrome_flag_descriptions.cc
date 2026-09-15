@@ -21,6 +21,12 @@ const char kAIMPrototypeDescription[] =
     "When enabled the AIM ZPS entrypoint will open the AIM prototype which "
     "contains temporary UI exploration for AIM.";
 
+const char kAIMPrototypeAutoattachTabName[] =
+    "Automatically attach current tab within the AIM prototype";
+const char kAIMPrototypeAutoattachTabDescription[] =
+    "When enabled, the AIM prototype will automatically attach curent tab as "
+    "context.";
+
 const char kAIMPrototypeImmersiveSRPName[] =
     "Enable the immersive SRP within the AIM prototype";
 const char kAIMPrototypeImmersiveSRPDescription[] =
@@ -547,11 +553,6 @@ const char kEnableCrossDevicePrefTrackerDescription[] =
     "Enables the tracking and sharing of select non-syncing preference values "
     "across a user's signed-in devices.";
 
-const char kEnableDiscoverFeedDiscoFeedEndpointName[] =
-    "Enable discover feed discofeed";
-const char kEnableDiscoverFeedDiscoFeedEndpointDescription[] =
-    "Enable using the discofeed endpoint for the discover feed.";
-
 const char kEnableFeedAblationName[] = "Enables Feed Ablation";
 const char kEnableFeedAblationDescription[] =
     "If Enabled the Feed will be removed from the NTP";
@@ -811,11 +812,6 @@ const char kInvalidateSearchEngineChoiceOnDeviceRestoreDetectionDescription[] =
     "be considered valid on the restored device, leading to the choice screen "
     "potentially retriggering.";
 
-const char kIOSQuickDeleteName[] = "Quick Delete for iOS";
-const char kIOSQuickDeleteDescription[] =
-    "Enables a new way for users to more easily delete their browsing data in "
-    "iOS.";
-
 const char kNewShareExtensionName[] = "New Share Extension for iOS";
 const char kNewShareExtensionDescription[] =
     "Update the share extension UI and add new share entries";
@@ -855,6 +851,11 @@ const char kIOSStartTimeStartupRemediationsName[] =
 const char kIOSStartTimeStartupRemediationsDescription[] =
     "Enables potential remediations for startup regressions caused by the "
     "reduction of Bling Start time from 6 hours to 4.";
+
+const char kIOSTipsNotificationsStringAlternativesName[] =
+    "Tips notifications alternative string experiment";
+const char kIOSTipsNotificationsStringAlternativesDescription[] =
+    "Enables different alternative strings for tips notifications";
 
 const char kIOSTrustedVaultNotificationName[] =
     "Enable the trusted vault notification on iOS";
@@ -953,12 +954,6 @@ extern const char kLensOverlayEnableLandscapeCompatibilityName[] =
     "Allow Lens overlay to also run in landscape if the feature is enabled";
 extern const char kLensOverlayEnableLandscapeCompatibilityDescription[] =
     "When enabled, it allows Lens Overlay to run in landscape orientation";
-
-extern const char kLensOverlayEnableSameTabNavigationName[] =
-    "Lens overlay same tab navigation";
-extern const char kLensOverlayEnableSameTabNavigationDescription[] =
-    "When enabled, lens overlay navigations are opened in the same tab instead "
-    "of a new tab.";
 
 extern const char kLensOverlayForceShowOnboardingScreenName[] =
     "Force show Lens overlay onboarding screen";
@@ -1255,10 +1250,6 @@ const char kPageContentAnnotationsName[] = "Page content annotations";
 const char kPageContentAnnotationsDescription[] =
     "Enables page content to be annotated on-device.";
 
-const char kPageInfoLastVisitedIOSName[] = "Last Visited in Page Info for iOS";
-const char kPageInfoLastVisitedIOSDescription[] =
-    "Shows the Last Visited row in Page Info for iOS.";
-
 const char kPageContentAnnotationsPersistSalientImageMetadataName[] =
     "Page content annotations - Persist salient image metadata";
 const char kPageContentAnnotationsPersistSalientImageMetadataDescription[] =
@@ -1361,6 +1352,12 @@ const char kReaderModeReadabilityDistillerDescription[] =
 const char kReaderModeTranslationName[] = "Enables Reader Mode Translation";
 const char kReaderModeTranslationDescription[] =
     "Enables translation of web pages in Reader Mode.";
+
+const char kReaderModeTranslationWithInfobarName[] =
+    "Enables Reader Mode Translation Settings";
+const char kReaderModeTranslationWithInfobarDescription[] =
+    "Enables translation of web pages in Reader Mode with Settings available "
+    "via the infobar.";
 
 const char kReaderModeDefaultBrowserPromoName[] =
     "Enables the default browser promo with Reader Mode criteria";
@@ -1609,6 +1606,11 @@ const char kEnableLensViewFinderUnifiedExperienceName[] =
     "Enable LVF Unified Experience";
 const char kEnableLensViewFinderUnifiedExperienceDescription[] =
     "Enables Lens View Finder unified experience";
+
+const char kTabGridDragAndDropName[] = "Enable Drag and Drop in Tab Grid";
+const char kTabGridDragAndDropDescription[] =
+    "Enables drag and drop in the tab grid to reorder tabs and create tab "
+    "groups.";
 
 const char kTabGridNewTransitionsName[] = "Enable new TabGrid transitions";
 const char kTabGridNewTransitionsDescription[] =

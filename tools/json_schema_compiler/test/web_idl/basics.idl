@@ -136,14 +136,14 @@ dictionary UnionTypes {
   required (ExampleType or long) dictTypeOrLong;
 };
 
+callback DictionaryCallback = undefined(DOMString stringArgument);
+dictionary DictionaryWithCallbackMember {
+  required DictionaryCallback callbackMember;
+};
+
 // Enum description.
 enum EnumType {
   // Comment1.
-  "name1",
-  "name2"
-};
-
-[nodoc] enum EnumTypeWithNoDoc {
   "name1",
   "name2"
 };

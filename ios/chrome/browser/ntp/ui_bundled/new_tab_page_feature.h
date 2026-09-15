@@ -39,9 +39,6 @@ enum class NTPMIAEntrypointVariation {
 
 #pragma mark - Feature declarations
 
-// Feature flag to enable discofeed endpoint for the Discover feed.
-BASE_DECLARE_FEATURE(kEnableDiscoverFeedDiscoFeedEndpoint);
-
 // Feature flag to fix the NTP view hierarchy if it is broken before applying
 // constraints.
 // TODO(crbug.com/40799579): Remove this when it is fixed.
@@ -132,7 +129,6 @@ bool IsWebFeedFeedbackRerouteEnabled();
 bool IsiPadFeedGhostCardsEnabled();
 
 // YES if the NTP and feed header elements should be re-positioned as described.
-bool ShouldRemoveDiscoverLabel(bool is_google_default_search_engine);
 bool ShouldEnlargeLogoAndFakebox();
 
 // If feed header should be deprecated, retrieve the value for `param_name` for

@@ -739,7 +739,9 @@ void OmniboxEditModel::EnterKeywordModeForDefaultSearchProvider(
 }
 
 void OmniboxEditModel::OpenAiMode(bool via_keyboard) {
-  std::u16string query_text = current_match_.contents;
+  std::u16string query_text =
+      AutocompleteMatch::IsSearchType(current_match_.type) ?
+      current_match_.contents : u"";
   RecordAiModeMetrics(query_text, /*activated=*/true, via_keyboard);
   GURL ai_mode_url =
       GetUrlForAim(controller_->client()->GetTemplateURLService(),
@@ -1773,7 +1775,6 @@ void OmniboxEditModel::SetPopupSelection(OmniboxPopupSelection new_selection,
   // `popup_selection_` to update themselves.
   const OmniboxPopupSelection old_selection = popup_selection_;
   popup_selection_ = new_selection;
-  popup_view_->OnSelectionChanged(old_selection, popup_selection_);
   observers_.Notify(&Observer::OnSelectionChanged, old_selection,
                     popup_selection_);
 
@@ -2817,7 +2818,7 @@ void OmniboxEditModel::OnFaviconFetched(const GURL& page_url,
     auto& match = autocomplete_controller()->result().match_at(i);
     if (!AutocompleteMatch::IsSearchType(match.type) &&
         match.destination_url == page_url) {
-      popup_view_->OnMatchIconUpdated(i);
+      observers_.Notify(&Observer::OnMatchIconUpdated, i);
     }
   }
 }

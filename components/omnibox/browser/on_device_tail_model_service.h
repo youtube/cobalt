@@ -18,7 +18,8 @@
 // The key service holds on device tail model executor and its model observer.
 class OnDeviceTailModelService
     : public KeyedService,
-      public optimization_guide::OptimizationTargetModelObserver {
+      public optimization_guide::OptimizationTargetModelObserver,
+      public base::MemoryPressureListener {
  public:
   using ResultCallback = base::OnceCallback<void(
       std::vector<OnDeviceTailModelExecutor::Prediction>)>;
@@ -46,8 +47,7 @@ class OnDeviceTailModelService
       ResultCallback result_callback);
 
   // Helper which unloads the executor from memory when memory pressure is high.
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level);
+  void OnMemoryPressure(base::MemoryPressureLevel level) override;
 
  private:
   friend class OnDeviceTailModelServiceTest;
@@ -73,9 +73,8 @@ class OnDeviceTailModelService
 
   // The memory pressure listener which unloads executor when memory pressure
   // level is high.
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
-
-  base::WeakPtrFactory<OnDeviceTailModelService> weak_ptr_factory_{this};
+  std::unique_ptr<base::MemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_ON_DEVICE_TAIL_MODEL_SERVICE_H_

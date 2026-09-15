@@ -16,7 +16,7 @@
 #ifndef OPENSSL_HEADER_EC_H
 #define OPENSSL_HEADER_EC_H
 
-#include <openssl/base.h>   // IWYU pragma: export
+#include <openssl/base.h>  // IWYU pragma: export
 
 #if defined(__cplusplus)
 extern "C" {
@@ -309,6 +309,30 @@ OPENSSL_EXPORT int EC_hash_to_curve_p256_xmd_sha256_sswu(
 // writes the result to |out|, implementing the P384_XMD:SHA-384_SSWU_RO_ suite
 // from RFC 9380. It returns one on success and zero on error.
 OPENSSL_EXPORT int EC_hash_to_curve_p384_xmd_sha384_sswu(
+    const EC_GROUP *group, EC_POINT *out, const uint8_t *dst, size_t dst_len,
+    const uint8_t *msg, size_t msg_len);
+
+// EC_encode_to_curve_p256_xmd_sha256_sswu hashes |msg| to a point on |group|
+// and writes the result to |out|, implementing the P256_XMD:SHA-256_SSWU_NU_
+// suite from RFC 9380. It returns one on success and zero on error.
+//
+// This is a nonuniform encoding from byte strings to points in |group|. That
+// is, the set of possible outputs is only a fraction of the points in |group|,
+// and some points in this set are more likely to be output than others. See
+// also RFC 9380, section 10.4
+OPENSSL_EXPORT int EC_encode_to_curve_p256_xmd_sha256_sswu(
+    const EC_GROUP *group, EC_POINT *out, const uint8_t *dst, size_t dst_len,
+    const uint8_t *msg, size_t msg_len);
+
+// EC_encode_to_curve_p384_xmd_sha384_sswu hashes |msg| to a point on |group|
+// and writes the result to |out|, implementing the P384_XMD:SHA-384_SSWU_NU_
+// suite from RFC 9380. It returns one on success and zero on error.
+//
+// This is a nonuniform encoding from byte strings to points in |group|. That
+// is, the set of possible outputs is only a fraction of the points in |group|,
+// and some points in this set are more likely to be output than others. See
+// also RFC 9380, section 10.4
+OPENSSL_EXPORT int EC_encode_to_curve_p384_xmd_sha384_sswu(
     const EC_GROUP *group, EC_POINT *out, const uint8_t *dst, size_t dst_len,
     const uint8_t *msg, size_t msg_len);
 

@@ -82,6 +82,7 @@ if (rtc_include_tests) {
       "../../pc:pc_test_utils",
       "../../pc:rtp_transport_internal",
       "../../pc:session_description",
+      "../../pc:webrtc_sdp",
       "../../rtc_base:async_packet_socket",
       "../../rtc_base:checks",
       "../../rtc_base:copy_on_write_buffer",

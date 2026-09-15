@@ -88,6 +88,9 @@ void EntityInstanceToPrivateApiEntityInstanceWithLabels(
         base::UTF16ToUTF8(entity_instance.type().GetNameForI18n());
     entity_instance_with_labels.entity_instance_sub_label = base::UTF16ToUTF8(
         base::JoinString(labels_for_entities[i], autofill::kLabelSeparator));
+    entity_instance_with_labels.stored_in_wallet =
+        entity_instance.record_type() ==
+        EntityInstance::RecordType::kServerWallet;
   }
 }
 
@@ -257,7 +260,9 @@ std::optional<EntityInstance> PrivateApiEntityInstanceToEntityInstance(
   return EntityInstance(
       std::move(entity_type), attribute_instances, std::move(guid),
       private_api_entity_instance.nickname, base::Time::Now(), /*use_count=*/0,
-      /*use_date=*/base::Time::Now(), EntityInstance::RecordType::kLocal);
+      /*use_date=*/base::Time::Now(), EntityInstance::RecordType::kLocal,
+      EntityInstance::AreAttributesReadOnly(false),
+      /*frecency_override=*/"");
 }
 
 autofill_private::EntityInstance EntityInstanceToPrivateApiEntityInstance(

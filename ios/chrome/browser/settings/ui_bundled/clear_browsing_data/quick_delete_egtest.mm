@@ -20,9 +20,7 @@
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/cells/clear_browsing_data_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/clear_browsing_data_ui_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/features.h"
+#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_settings_app_interface.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -238,7 +236,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 
   // Disable tab selection so the tab closure animation is not ran in all the
   // tests.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   if (![self isRunningTest:@selector(testInactiveTabsForDeletion)]) {
@@ -262,7 +260,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   [ChromeEarlGrey resetBrowsingDataPrefs];
 
   // Reenable the tab selection so it goes back to the default state.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   if (![self isRunningTest:@selector(testInactiveTabsForDeletion)]) {
@@ -281,7 +279,6 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
   config.relaunch_policy = NoForceRelaunchAndResetState;
-  config.features_enabled.push_back(kIOSQuickDelete);
   config.additional_args.push_back(std::string("--") +
                                    syncer::kSyncShortNudgeDelayForTest);
   config.features_enabled.push_back(
@@ -294,7 +291,6 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 - (void)relaunchAppWithInactiveTabsTestMode {
   AppLaunchConfiguration config;
   config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  config.features_enabled.push_back(kIOSQuickDelete);
   config.additional_args.push_back("-InactiveTabsTestMode");
   config.additional_args.push_back("true");
   [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
@@ -506,17 +502,17 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // selected.
 - (void)testDisabledBrowsingDataButtonWhenNoSelection {
   // Disable selection of all browsing data types.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteBrowsingHistory];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kCloseTabs];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCookies];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCache];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeletePasswords];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteFormData];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -528,7 +524,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
       assertWithMatcher:grey_not(grey_enabled())];
 
   // Select a browsing data type.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kDeleteBrowsingHistory];
 
   // Check that the browsing data button is enabled.
@@ -683,7 +679,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   [ChromeEarlGrey addHistoryServiceTypedURL:kMockURL];
 
   // Set pref to select deletion of browsing history.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kDeleteBrowsingHistory];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -734,15 +730,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // row when browsing history is selected as a data type to be deleted and when
 // the user syncs history. It also tests that the history entries get deleted
 // when the deletion of browsing data is selected.
-// TODO(crbug.com/433322022): Re-enable test on device.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testBrowsingHistoryForDeletionWithHistorySync \
-  testBrowsingHistoryForDeletionWithHistorySync
-#else
-#define MAYBE_testBrowsingHistoryForDeletionWithHistorySync \
-  DISABLED_testBrowsingHistoryForDeletionWithHistorySync
-#endif
-- (void)MAYBE_testBrowsingHistoryForDeletionWithHistorySync {
+- (void)testBrowsingHistoryForDeletionWithHistorySync {
   // Sign in and enable history sync.
   [self signInAndEnableHistorySync];
 
@@ -752,8 +740,18 @@ NSString* CapitalizeFirstLetter(NSString* string) {
                                        timeout:kSyncOperationTimeout];
 
   // Set pref to select deletion of browsing history.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kDeleteBrowsingHistory];
+  [ChromeEarlGrey setBoolValue:NO
+                   forUserPref:browsing_data::prefs::kCloseTabs];
+  [ChromeEarlGrey setBoolValue:NO
+                   forUserPref:browsing_data::prefs::kDeleteCookies];
+  [ChromeEarlGrey setBoolValue:NO
+                   forUserPref:browsing_data::prefs::kDeleteCache];
+  [ChromeEarlGrey setBoolValue:NO
+                   forUserPref:browsing_data::prefs::kDeletePasswords];
+  [ChromeEarlGrey setBoolValue:NO
+                   forUserPref:browsing_data::prefs::kDeleteFormData];
 
   [self openQuickDeleteFromThreeDotMenu];
 
@@ -788,7 +786,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   [ChromeEarlGrey addHistoryServiceTypedURL:kMockURL];
 
   // Set pref to keep browsing history.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteBrowsingHistory];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -820,7 +818,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // that the tabs get closed when the deletion of tabs is selected.
 - (void)testTabsForDeletion {
   // Set pref to close tabs.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   // Load page in tab.
@@ -906,7 +904,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   }
 
   // Set pref to close tabs.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   // Load page in tab.
@@ -947,7 +945,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   }
 
   // Set pref to close tabs.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   // Load page in tab.
@@ -992,17 +990,17 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   [self relaunchAppWithInactiveTabsTestMode];
 
   // Set to close tabs, but nothing else.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteBrowsingHistory];
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kCloseTabs];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCookies];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCache];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeletePasswords];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteFormData];
 
   // Load a url in the NTP tab.
@@ -1052,7 +1050,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 #endif
 
   // Set pref to close tabs.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   // Load page in tab.
@@ -1103,7 +1101,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   }
 
   // Set pref to close tabs.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
@@ -1257,7 +1255,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   [ChromeEarlGrey waitForWebStateContainingText:"Echo"];
 
   // Set pref to close tabs.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1288,11 +1286,11 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // data row when cookies are selected as a data type for deletion.
 - (void)testCookiesForDeletion {
   // Set pref to select deletion of cookies.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kDeleteCookies];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCache];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1323,11 +1321,11 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // browsing data row when cookies are not selected as a data type for deletion.
 - (void)testKeepCookies {
   // Set pref to keep cookies.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCookies];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCache];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1352,11 +1350,11 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // data row when cache is selected as a data type for deletion.
 - (void)testCacheForDeletion {
   // Set pref to select deletion of cache.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kDeleteCache];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCookies];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1387,11 +1385,11 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // browsing data row when cache is not selected as a data type for deletion.
 - (void)testKeepCache {
   // Set pref to keep cache.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCache];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCookies];
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kCloseTabs];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1422,7 +1420,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
       saveExamplePasswordToProfileWithCount:kPasswordCount];
 
   // Set pref to select deletion of passwords.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kDeletePasswords];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1462,7 +1460,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
       saveExamplePasswordToProfileWithCount:kPasswordCount];
 
   // Set pref to keep passwords.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeletePasswords];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1499,7 +1497,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   [AutofillAppInterface saveLocalCreditCard];
 
   // Set pref to select deletion of form data.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kDeleteFormData];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1533,7 +1531,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   [AutofillAppInterface saveLocalCreditCard];
 
   // Set pref to keep form data.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteFormData];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1569,7 +1567,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   }
 
   // Set pref to keep browsing history.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteBrowsingHistory];
 
   [self openQuickDeleteFromThreeDotMenu];
@@ -1591,15 +1589,8 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 
 // Tests the footer search history link is opened correctly and metrics are
 // recorded in the corrresponding histogram bucket.
-// TODO(crbug.com/443704367): Test disabled on simulator.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testOpenSearchHistoryMyActivityFooterLink \
-  DISABLED_testOpenSearchHistoryMyActivityFooterLink
-#else
-#define MAYBE_testOpenSearchHistoryMyActivityFooterLink \
-  testOpenSearchHistoryMyActivityFooterLink
-#endif
-- (void)MAYBE_testOpenSearchHistoryMyActivityFooterLink {
+// TODO(crbug.com/443704367): Re-enable test.
+- (void)DISABLED_testOpenSearchHistoryMyActivityFooterLink {
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
   // Sign in is required to show the footer.
   [self signIn];
@@ -1764,7 +1755,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   }
 
   // Set the cache preference to true.
-  [ChromeEarlGrey setBoolValue:true
+  [ChromeEarlGrey setBoolValue:YES
                    forUserPref:browsing_data::prefs::kDeleteCache];
 
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
@@ -1799,7 +1790,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Set the cache preference to false.
-  [ChromeEarlGrey setBoolValue:false
+  [ChromeEarlGrey setBoolValue:NO
                    forUserPref:browsing_data::prefs::kDeleteCache];
 
   // Focus on the first window.

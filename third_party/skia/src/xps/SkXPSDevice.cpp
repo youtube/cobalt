@@ -1156,9 +1156,7 @@ void SkXPSDevice::drawRect(const SkRect& r,
 
 void SkXPSDevice::drawRRect(const SkRRect& rr,
                             const SkPaint& paint) {
-    SkPath path;
-    path.addRRect(rr);
-    this->drawPath(path, paint);
+    this->drawPath(SkPath::RRect(rr), paint);
 }
 
 void SkXPSDevice::internalDrawRect(const SkRect& r,
@@ -1171,10 +1169,7 @@ void SkXPSDevice::internalDrawRect(const SkRect& r,
 
     //Path the rect if we can't optimize it.
     if (rect_must_be_pathed(paint, this->localToDevice())) {
-        SkPath tmp;
-        tmp.addRect(r);
-        tmp.setFillType(SkPathFillType::kWinding);
-        this->drawPath(tmp, paint);
+        this->drawPath(SkPath::Rect(r), paint);
         return;
     }
 
@@ -1560,7 +1555,7 @@ void SkXPSDevice::drawPath(const SkPath& platonicPath,
 
         //[Fillable-path -> Pixel-path]
         SkPath* pixelPath = pathIsMutable ? fillablePath : &modifiedPath;
-        fillablePath->transform(matrix, pixelPath);
+        *pixelPath = fillablePath->makeTransform(matrix);
         auto pixelRaw = SkPathPriv::Raw(*pixelPath);
         if (!pixelRaw) {
             return;
@@ -1664,7 +1659,7 @@ void SkXPSDevice::drawPath(const SkPath& platonicPath,
     if (!xpsTransformsPath) {
         //[Fillable-path -> Device-path]
         devicePath = pathIsMutable ? xpsCompatiblePath : &modifiedPath;
-        xpsCompatiblePath->transform(matrix, devicePath);
+        *devicePath = xpsCompatiblePath->makeTransform(matrix);
     }
     HRV(this->addXpsPathGeometry(shadedFigures.get(),
                                  stroke, fill, *devicePath));
@@ -1980,9 +1975,7 @@ sk_sp<SkDevice> SkXPSDevice::createDevice(const CreateInfo& info, const SkPaint*
 }
 
 void SkXPSDevice::drawOval( const SkRect& o, const SkPaint& p) {
-    SkPath path;
-    path.addOval(o);
-    this->drawPath(path, p);
+    this->drawPath(SkPath::Oval(o), p);
 }
 
 void SkXPSDevice::drawImageRect(const SkImage* image,

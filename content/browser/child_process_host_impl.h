@@ -84,8 +84,7 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
 
 #if BUILDFLAG(IS_ANDROID)
   // Notifies the child process of memory pressure level.
-  void NotifyMemoryPressureToChildProcess(
-      base::MemoryPressureListener::MemoryPressureLevel level);
+  void NotifyMemoryPressureToChildProcess(base::MemoryPressureLevel level);
 #endif
 
  private:
@@ -100,7 +99,7 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
   // IPC::Listener methods:
   void OnChannelConnected(int32_t peer_pid) override;
   void OnChannelError() override;
-  void OnBadMessageReceived(const IPC::Message& message) override;
+  void OnBadMessageReceived() override;
 
   // Initializes the IPC channel and returns true on success. |channel_| must be
   // non-null.

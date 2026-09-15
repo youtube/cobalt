@@ -69,7 +69,12 @@ void BookmarkBarPreloadPipeline::StartPrefetch(
       std::move(same_url_matcher),
       web_contents.GetPrimaryMainFrame()->GetPageUkmSourceId());
 
-  if (IsSearchUrl(web_contents, url_)) {
+  bool is_search_url = IsSearchUrl(web_contents, url_);
+  base::UmaHistogramBoolean(
+      "Navigation.Prefetch.IsPrefetchingSRPUrl.Embedder_BookmarkBar",
+      is_search_url);
+
+  if (is_search_url) {
     attempt->SetEligibility(ToPreloadingEligibility(
         ChromePreloadingEligibility::KDisallowSearchUrl));
     return;
@@ -87,8 +92,6 @@ void BookmarkBarPreloadPipeline::StartPrefetch(
 void BookmarkBarPreloadPipeline::StartPrerender(
     content::WebContents& web_contents,
     content::PreloadingPredictor predictor) {
-  CHECK(!base::FeatureList::IsEnabled(features::kBookmarkTriggerForPrefetch) ||
-        prefetch_handle_);
   if (base::FeatureList::IsEnabled(
           features::kBookmarkTriggerForPrerender2KillSwitch)) {
     return;
@@ -120,6 +123,8 @@ void BookmarkBarPreloadPipeline::StartPrerender(
         ChromePreloadingEligibility::KDisallowSearchUrl));
     return;
   }
+  CHECK(!base::FeatureList::IsEnabled(features::kBookmarkTriggerForPrefetch) ||
+        prefetch_handle_);
 
   // BookmarkBar only allows https protocol.
   if (!url_.SchemeIs("https")) {

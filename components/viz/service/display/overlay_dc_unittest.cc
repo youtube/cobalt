@@ -110,8 +110,11 @@ ResourceId CreateResource(DisplayResourceProvider* parent_resource_provider,
   std::vector<ResourceId> resource_ids_to_transfer;
   resource_ids_to_transfer.push_back(resource_id);
   std::vector<TransferableResource> list;
-  child_resource_provider->PrepareSendToParent(resource_ids_to_transfer, &list,
-                                               child_context_provider);
+
+  CHECK(child_context_provider);
+  child_resource_provider->PrepareSendToParent(
+      resource_ids_to_transfer, &list,
+      child_context_provider->SharedImageInterface());
   parent_resource_provider->ReceiveFromChild(child_id, list);
 
   // Delete it in the child so it won't be leaked, and will be released once
@@ -262,6 +265,53 @@ SkM44 GetIdentityColorMatrix() {
   return SkM44();
 }
 
+MATCHER(ResourceIdEq, "") {
+  return std::get<0>(arg).resource_id == ResourceId(std::get<1>(arg));
+}
+
+MATCHER(PlaneZOrdersAreUnique, "") {
+  const OverlayCandidateList& candidates = arg;
+  base::flat_set<int> z_orders;
+  for (const auto& candidate : candidates) {
+    z_orders.insert(candidate.plane_z_order);
+  }
+  return candidates.size() == z_orders.size();
+}
+
+// Checks that an `OverlayCandidate` has a `OverlayLayerId` with a layer and
+// namespace id that matches the output of
+// `CreateSharedQuadStateWithLayerNamespaceId`.
+MATCHER(OverlayHasLayerId, "") {
+  return arg.layer_id == gfx::OverlayLayerId(std::make_pair(1, 1), 0);
+}
+
+MATCHER(OverlayIsPrimaryPlane, "") {
+  return arg.is_root_render_pass;
+}
+
+testing::Matcher<const OverlayCandidateList&>
+WhenCandidatesAreSortedElementsAre(
+    std::vector<testing::Matcher<const OverlayCandidate&>> element_matchers) {
+  return testing::AllOf(
+      PlaneZOrdersAreUnique(),
+      testing::WhenSortedBy(test::PlaneZOrderAscendingComparator(),
+                            testing::ElementsAreArray(element_matchers)));
+}
+
+// Checks that, when the overlay candidates list is sorted by z-order, the
+// resource IDs of the candidates matches |expected_resource_ids|. Note these
+// resource IDs are not real and a just used to identify overlay candidates in
+// tests.
+testing::Matcher<const OverlayCandidateList&>
+WhenCandidatesAreSortedResourceIdsAre(
+    const std::vector<int>& expected_resource_ids) {
+  return testing::AllOf(
+      PlaneZOrdersAreUnique(),
+      testing::WhenSortedBy(
+          test::PlaneZOrderAscendingComparator(),
+          testing::Pointwise(ResourceIdEq(), expected_resource_ids)));
+}
+
 class OverlayProcessorTestBase : public testing::Test {
  protected:
   OverlayProcessorTestBase() {
@@ -314,15 +364,6 @@ class OverlayProcessorTestBase : public testing::Test {
     SharedQuadState* sqs = pass->CreateAndAppendSharedQuadState();
     sqs->layer_namespace_id = std::make_pair(1, 1);
     return sqs;
-  }
-
-  // Checks that an `OverlayCandidate` has a `OverlayLayerId` with a layer and
-  // namespace id that matches the output of
-  // `CreateSharedQuadStateWithLayerNamespaceId`.
-  testing::Matcher<const OverlayCandidate&> OverlayHasLayerId() {
-    return testing::Field(
-        "layer_id", &OverlayCandidate::layer_id,
-        testing::Eq(gfx::OverlayLayerId(std::make_pair(1, 1), 0)));
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -2314,33 +2355,6 @@ TEST_F(DCLayerOverlayProcessorTest, DoesNotPromoteNonVideoOrLowLatencyTexture) {
 
 class OverlayProcessorWinStaticTest : public testing::Test {};
 
-MATCHER(ResourceIdEq, "") {
-  return std::get<0>(arg).resource_id == ResourceId(std::get<1>(arg));
-}
-
-MATCHER(PlaneZOrdersAreUnique, "") {
-  const OverlayCandidateList& candidates = arg;
-  base::flat_set<int> z_orders;
-  for (const auto& candidate : candidates) {
-    z_orders.insert(candidate.plane_z_order);
-  }
-  return candidates.size() == z_orders.size();
-}
-
-// Checks that, when the overlay candidates list is sorted by z-order, the
-// resource IDs of the candidates matches |expected_resource_ids|. Note these
-// resource IDs are not real and a just used to identify overlay candidates in
-// tests.
-testing::Matcher<const OverlayCandidateList&>
-WhenCandidatesAreSortedResourceIdsAre(
-    const std::vector<int>& expected_resource_ids) {
-  return testing::AllOf(
-      PlaneZOrdersAreUnique(),
-      testing::WhenSortedBy(
-          test::PlaneZOrderAscendingComparator(),
-          testing::Pointwise(ResourceIdEq(), expected_resource_ids)));
-}
-
 TEST_F(OverlayProcessorWinStaticTest, InsertSurfaceContentOverlay) {
   // Set up a dummy render pass and RPDQ
   AggregatedRenderPass pass;
@@ -2682,7 +2696,7 @@ class OverlayProcessorWinTest : public OverlayProcessorTestBase {
 
     EXPECT_TRUE(overlay_processor_->IsOverlaySupported());
 
-    output_surface_plane_ = OverlayCandidate();
+    output_surface_plane_ = GetDefaultPrimaryPlane(gfx::Size(256, 256));
   }
 
   void TearDown() override {
@@ -2690,8 +2704,11 @@ class OverlayProcessorWinTest : public OverlayProcessorTestBase {
     OverlayProcessorTestBase::TearDown();
   }
 
-  std::optional<OverlayCandidate>& GetOutputSurfacePlane() {
-    return output_surface_plane_;
+  std::optional<OverlayCandidate> GetDefaultPrimaryPlane(
+      const gfx::Size& primary_plane_size) {
+    return overlay_processor_->ProcessOutputSurfaceAsOverlay(
+        primary_plane_size, primary_plane_size, SinglePlaneFormat::kBGRA_8888,
+        gfx::ColorSpace::CreateSRGB(), false, 1.0, gpu::Mailbox());
   }
 
   std::optional<OverlayCandidate> output_surface_plane_;
@@ -2842,13 +2859,13 @@ class OverlayProcessorWinSurfacePlaneTest
                                                      &damage_rect_);
     }
 
-    output_surface_plane_ = OverlayCandidate();
+    output_surface_plane_ =
+        GetDefaultPrimaryPlane(render_passes->back()->output_rect.size());
     overlay_processor_->ProcessForOverlays(
         resource_provider_.get(), render_passes, SkM44(), render_pass_filters,
         render_pass_backdrop_filters,
         std::move(surface_damage_rect_list_in_root_space),
         output_surface_plane_, candidates, &damage_rect_, &content_bounds_);
-    overlay_processor_->AdjustOutputSurfaceOverlay(output_surface_plane_);
 
     // Sort candidates front-to-back so tests can assume they appear in the same
     // order as the input draw quads.
@@ -2880,9 +2897,17 @@ TEST_P(OverlayProcessorWinSurfacePlaneTest, PromoteOverlayFromSurface) {
                      &dc_layer_list);
 
   EXPECT_TRUE(pass_list.back()->needs_synchronous_dcomp_commit);
-  EXPECT_THAT(dc_layer_list, testing::ElementsAreArray({
-                                 OverlayHasLayerId(),
-                             }));
+  if (GetParam() == SurfaceTestMode::SimulatePartiallyDelegated) {
+    // During partial delegation, the primary plane is not promoted.
+    EXPECT_THAT(dc_layer_list, WhenCandidatesAreSortedElementsAre({
+                                   OverlayHasLayerId(),
+                               }));
+  } else {
+    EXPECT_THAT(dc_layer_list, WhenCandidatesAreSortedElementsAre({
+                                   OverlayIsPrimaryPlane(),
+                                   OverlayHasLayerId(),
+                               }));
+  }
 }
 
 // Check that we don't accidentally end up in a case where we try to read back a
@@ -2964,22 +2989,20 @@ TEST_P(OverlayProcessorWinSurfacePlaneTest, UseDCompSurfaceWithVideo) {
     EXPECT_TRUE(pass_list.back()->needs_synchronous_dcomp_commit);
     EXPECT_TRUE(pass_list.back()->has_transparent_background);
     if (GetParam() == SurfaceTestMode::RootSurface) {
-      EXPECT_TRUE(output_surface_plane_);
-      EXPECT_EQ(output_surface_plane_->is_opaque,
-                !pass_list.back()->has_transparent_background);
+      EXPECT_THAT(dc_layer_list,
+                  test::HasPrimaryPlaneWithOpaqueness(
+                      !pass_list.back()->has_transparent_background));
+      EXPECT_THAT(dc_layer_list, WhenCandidatesAreSortedElementsAre({
+                                     OverlayIsPrimaryPlane(),
+                                     OverlayHasLayerId(),
+                                 }));
     } else {
       // Delegated compositing removes the output surface plane.
+      EXPECT_THAT(dc_layer_list, WhenCandidatesAreSortedElementsAre({
+                                     OverlayHasLayerId(),
+                                 }));
     }
 
-    EXPECT_EQ(1U, dc_layer_list.size());
-    EXPECT_THAT(
-        dc_layer_list,
-        testing::ElementsAreArray({
-            testing::AllOf(testing::Field("plane_z_order",
-                                          &OverlayCandidate::plane_z_order,
-                                          testing::Eq(1)),
-                           OverlayHasLayerId()),
-        }));
     EXPECT_EQ(damage_rect_, expected_damage);
 
     Mock::VerifyAndClearExpectations(output_surface_.get());
@@ -3024,14 +3047,18 @@ TEST_P(OverlayProcessorWinSurfacePlaneTest, UseDCompSurfaceWithVideo) {
     EXPECT_EQ(pass_list.back()->has_transparent_background,
               in_dc_layer_hysteresis);
     if (GetParam() == SurfaceTestMode::RootSurface) {
-      EXPECT_TRUE(output_surface_plane_);
-      EXPECT_EQ(output_surface_plane_->is_opaque,
-                !pass_list.back()->has_transparent_background);
+      EXPECT_THAT(dc_layer_list,
+                  test::HasPrimaryPlaneWithOpaqueness(
+                      !pass_list.back()->has_transparent_background));
+      // Primary plane only.
+      EXPECT_THAT(dc_layer_list, WhenCandidatesAreSortedElementsAre({
+                                     OverlayIsPrimaryPlane(),
+                                 }));
     } else {
       // Delegated compositing removes the output surface plane.
+      EXPECT_EQ(0u, dc_layer_list.size());
     }
 
-    EXPECT_EQ(0u, dc_layer_list.size());
     EXPECT_EQ(damage_rect_, expected_damage);
 
     Mock::VerifyAndClearExpectations(output_surface_.get());
@@ -3165,13 +3192,13 @@ TEST_P(OverlayProcessorWinSurfacePlaneFullScreenTest,
                      render_pass_backdrop_filters, SurfaceDamageRectList(),
                      &overlays);
 
-  EXPECT_THAT(overlays, testing::ElementsAreArray({
+  EXPECT_THAT(overlays, WhenCandidatesAreSortedElementsAre({
                             test::OverlayIsFullScreen(),
-                        }));
 
-  // We expect the primary plane to still exist, since there's something above
-  // the video.
-  EXPECT_TRUE(output_surface_plane_.has_value());
+                            // We expect the primary plane to still exist, since
+                            // there's something above the video.
+                            OverlayIsPrimaryPlane(),
+                        }));
 }
 
 // Check that marking a full screen video that with nothing else that occludes
@@ -3287,23 +3314,15 @@ class OverlayProcessorWinDelegatedCompositingTest
     overlay_processor_->ProcessForOverlays(
         resource_provider_.get(), &pass_list, GetIdentityColorMatrix(),
         render_pass_filters, render_pass_backdrop_filters,
-        std::move(surface_damage_rect_list), GetOutputSurfacePlane(),
-        &candidates, &damage_rect_, &content_bounds_);
+        std::move(surface_damage_rect_list), output_surface_plane_, &candidates,
+        &damage_rect_, &content_bounds_);
 
-    overlay_processor_->AdjustOutputSurfaceOverlay(output_surface_plane_);
-    const bool delegation_succeeded = !output_surface_plane_.has_value();
+    const bool delegation_succeeded = std::ranges::none_of(
+        candidates,
+        [](const auto& overlay) { return overlay.is_root_render_pass; });
 
     return DelegationResult(candidates, delegation_succeeded,
                             original_root_surface_damage, damage_rect_);
-  }
-
-  testing::Matcher<const OverlayCandidateList&>
-  WhenCandidatesAreSortedElementsAre(
-      std::vector<testing::Matcher<const OverlayCandidate&>> element_matchers) {
-    return testing::AllOf(
-        PlaneZOrdersAreUnique(),
-        testing::WhenSortedBy(test::PlaneZOrderAscendingComparator(),
-                              testing::ElementsAreArray(element_matchers)));
   }
 
  private:
@@ -3341,7 +3360,9 @@ TEST_F(OverlayProcessorWinDelegatedCompositingTest, TooManyQuads) {
 
   auto result = TryProcessForDelegatedOverlays(pass_list);
   result.ExpectDelegationFailure();
-  EXPECT_THAT(result.candidates(), testing::IsEmpty());
+  EXPECT_THAT(result.candidates(), WhenCandidatesAreSortedElementsAre({
+                                       OverlayIsPrimaryPlane(),
+                                   }));
 }
 
 // Check that we don't try delegated compositing when there are too many complex
@@ -3361,7 +3382,9 @@ TEST_F(OverlayProcessorWinDelegatedCompositingTest, TooManyComplexQuads) {
 
   auto result = TryProcessForDelegatedOverlays(pass_list);
   result.ExpectDelegationFailure();
-  EXPECT_THAT(result.candidates(), testing::IsEmpty());
+  EXPECT_THAT(result.candidates(), WhenCandidatesAreSortedElementsAre({
+                                       OverlayIsPrimaryPlane(),
+                                   }));
 }
 
 // Check that, when delegated compositing fails, we still successfully promote
@@ -3399,6 +3422,7 @@ TEST_F(OverlayProcessorWinDelegatedCompositingTest,
   result.ExpectDelegationFailure();
   EXPECT_THAT(result.candidates(),
               WhenCandidatesAreSortedElementsAre({
+                  OverlayIsPrimaryPlane(),
                   test::OverlayHasResource(video_resource_id),
               }))
       << "The overlay processor fall back to using DCLayerOverlayProcessor on "

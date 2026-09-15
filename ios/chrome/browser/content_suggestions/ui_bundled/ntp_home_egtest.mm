@@ -10,6 +10,7 @@
 #import "build/branding_buildflags.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feed/core/v2/public/ios/pref_names.h"
+#import "components/ntp_tiles/pref_names.h"
 #import "components/omnibox/browser/aim_eligibility_service_features.h"
 #import "components/regional_capabilities/regional_capabilities_switches.h"
 #import "components/safety_check/safety_check_pref_names.h"
@@ -186,7 +187,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
     // Disable AimServerEligibilityEnabledEn so that omnibox doesn't move and
     // shift offset.
     config.additional_args.push_back(base::StringPrintf(
-        "--disable-features=%s", omnibox::kAimServerEligibilityEnabledEn.name));
+        "--disable-features=%s", omnibox::kAimServerEligibilityEnabled.name));
   } else {
     // Show doodle to make sure tests cover async callback logic updating logo.
     // Note: This makes testPositionRestoredWithShiftingOffset and
@@ -1581,7 +1582,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   [ChromeEarlGrey setBoolValue:YES
                    forUserPref:prefs::kHomeCustomizationMostVisitedEnabled];
   [ChromeEarlGrey setBoolValue:YES
-                   forUserPref:prefs::kHomeCustomizationMagicStackEnabled];
+                   forUserPref:ntp_tiles::prefs::kMagicStackHomeModuleEnabled];
 }
 
 #pragma mark - Matchers

@@ -919,7 +919,8 @@ class HistorySyncOptinCoordinator
   // IdentityManager::Observer:
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& /*event*/) override {
-    if (!signin_util::ShouldShowHistorySyncOptinScreen(profile_.get())) {
+    if (signin_util::ShouldShowHistorySyncOptinScreen(profile_.get()) !=
+        signin_util::ShouldShowHistorySyncOptinResult::kShow) {
       // Needed to prevent the promo from showing when it is already triggered
       // and the user sign out or turns on sync without dismissing the promo.
       Collapse();
@@ -1166,7 +1167,8 @@ class SyncErrorBaseStateProvider : public StateProvider,
                                    public syncer::SyncServiceObserver {
  public:
   struct AvatarError {
-    AvatarSyncErrorType avatar_error = AvatarSyncErrorType::kUpgradeClientError;
+    syncer::SyncService::UserActionableError avatar_error =
+        syncer::SyncService::UserActionableError::kNeedsClientUpgrade;
     std::string email;
 
     friend bool operator==(const AvatarError&, const AvatarError&) = default;
@@ -1175,7 +1177,7 @@ class SyncErrorBaseStateProvider : public StateProvider,
   explicit SyncErrorBaseStateProvider(
       Profile* profile,
       StateObserver* state_observer,
-      std::optional<AvatarSyncErrorType> sync_error_type)
+      std::optional<syncer::SyncService::UserActionableError> sync_error_type)
       : StateProvider(profile, state_observer),
         sync_error_type_(sync_error_type),
         last_avatar_error_(GetAvatarError(profile)) {
@@ -1221,22 +1223,26 @@ class SyncErrorBaseStateProvider : public StateProvider,
  private:
   // Computes the current avatar error.
   static std::optional<AvatarError> GetAvatarError(Profile* profile) {
-    std::optional<AvatarSyncErrorType> error_type =
-        ::GetAvatarSyncErrorType(profile);
     const syncer::SyncService* service =
         SyncServiceFactory::GetForProfile(profile);
-
-    // Avoid returning AvatarSyncErrorType::kSyncPaused in case of no sync
-    // consent, as the signin-pending state is handled by
-    // SigninPendingStateProvider.
-    if (!error_type || (error_type == AvatarSyncErrorType::kSyncPaused &&
-                        !service->HasSyncConsent())) {
+    if (!service) {
       return std::nullopt;
     }
 
-    CHECK(service);
+    syncer::SyncService::UserActionableError error_type =
+        service->GetUserActionableError();
 
-    return AvatarError{error_type.value(), service->GetAccountInfo().email};
+    // Avoid returning UserActionableError::kSignInNeedsUpdate in case of no
+    // sync consent, as the signin-pending state is handled by
+    // SigninPendingStateProvider.
+    if (error_type == syncer::SyncService::UserActionableError::kNone ||
+        (error_type ==
+             syncer::SyncService::UserActionableError::kSignInNeedsUpdate &&
+         !service->HasSyncConsent())) {
+      return std::nullopt;
+    }
+
+    return AvatarError{error_type, service->GetAccountInfo().email};
   }
 
   // syncer::SyncServiceObserver:
@@ -1278,7 +1284,8 @@ class SyncErrorBaseStateProvider : public StateProvider,
   }
 
   // std::nullopt to be active on all errors.
-  const std::optional<AvatarSyncErrorType> sync_error_type_;
+  const std::optional<syncer::SyncService::UserActionableError>
+      sync_error_type_;
 
   // Caches the value of the last error so the class can detect when it
   // changes and notify changes.
@@ -1292,9 +1299,10 @@ class SyncPausedStateProvider : public SyncErrorBaseStateProvider {
  public:
   explicit SyncPausedStateProvider(Profile* profile,
                                    StateObserver* state_observer)
-      : SyncErrorBaseStateProvider(profile,
-                                   state_observer,
-                                   AvatarSyncErrorType::kSyncPaused) {}
+      : SyncErrorBaseStateProvider(
+            profile,
+            state_observer,
+            syncer::SyncService::UserActionableError::kSignInNeedsUpdate) {}
 
   ~SyncPausedStateProvider() override = default;
 
@@ -1317,9 +1325,10 @@ class UpgradeClientErrorStateProvider : public SyncErrorBaseStateProvider {
  public:
   explicit UpgradeClientErrorStateProvider(Profile* profile,
                                            StateObserver* state_observer)
-      : SyncErrorBaseStateProvider(profile,
-                                   state_observer,
-                                   AvatarSyncErrorType::kUpgradeClientError) {}
+      : SyncErrorBaseStateProvider(
+            profile,
+            state_observer,
+            syncer::SyncService::UserActionableError::kNeedsClientUpgrade) {}
 
   ~UpgradeClientErrorStateProvider() override = default;
 
@@ -1333,9 +1342,10 @@ class PassphraseErrorStateProvider : public SyncErrorBaseStateProvider {
  public:
   explicit PassphraseErrorStateProvider(Profile* profile,
                                         StateObserver* state_observer)
-      : SyncErrorBaseStateProvider(profile,
-                                   state_observer,
-                                   AvatarSyncErrorType::kPassphraseError) {}
+      : SyncErrorBaseStateProvider(
+            profile,
+            state_observer,
+            syncer::SyncService::UserActionableError::kNeedsPassphrase) {}
 
   ~PassphraseErrorStateProvider() override = default;
 

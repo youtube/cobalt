@@ -118,9 +118,9 @@ void GlicDelegatingSharingManager::GetContextFromTab(
     const mojom::GetTabContextOptions& options,
     base::OnceCallback<void(GlicGetContextResult)> callback) {
   if (!sharing_manager_delegate_) {
-    std::move(callback).Run(base::unexpected(GlicGetContextError{
-        GlicGetContextFromFocusedTabError::kPageContextNotEligible,
-        "tab not eligible"}));
+    std::move(callback).Run(base::unexpected(
+        GlicGetContextError{GlicGetContextFromTabError::kPageContextNotEligible,
+                            "tab not eligible"}));
     return;
   }
 
@@ -133,9 +133,9 @@ void GlicDelegatingSharingManager::GetContextForActorFromTab(
     const mojom::GetTabContextOptions& options,
     base::OnceCallback<void(GlicGetContextResult)> callback) {
   if (!sharing_manager_delegate_) {
-    std::move(callback).Run(base::unexpected(GlicGetContextError{
-        GlicGetContextFromFocusedTabError::kPageContextNotEligible,
-        "tab not eligible"}));
+    std::move(callback).Run(base::unexpected(
+        GlicGetContextError{GlicGetContextFromTabError::kPageContextNotEligible,
+                            "tab not eligible"}));
     return;
   }
 
@@ -163,10 +163,8 @@ base::WeakPtr<GlicSharingManager> GlicDelegatingSharingManager::GetWeakPtr() {
 
 void GlicDelegatingSharingManager::SetDelegate(
     base::WeakPtr<GlicSharingManager> sharing_manager_delegate) {
-  // If the new delegate is already the delegate, do nothing, but watch for the
-  // case when the old delegate was invalidated and the new one is null (should
-  // still proceed).
-  if (sharing_manager_delegate &&
+  // Do nothing if the delegate hasn't changed.
+  if (!sharing_manager_delegate_.WasInvalidated() &&
       sharing_manager_delegate.get() == sharing_manager_delegate_.get()) {
     return;
   }
@@ -263,21 +261,16 @@ void GlicDelegatingSharingManager::ForceNotify(
         tabs::TabInterface::GetFromContents(tab), false);
   }
 
-  if (!sharing_manager_delegate_) {
-    return;
-  }
-
   for (auto* tab : GetPinnedTabs()) {
     tab_pinning_status_changed_callback_list_.Notify(
         tabs::TabInterface::GetFromContents(tab), true);
   }
 
-  focused_tab_changed_callback_list_.Notify(
-      sharing_manager_delegate_->GetFocusedTabData());
-  focused_browser_changed_callback_list_.Notify(
-      sharing_manager_delegate_->GetFocusedBrowser());
-  pinned_tabs_changed_callback_list_.Notify(
-      sharing_manager_delegate_->GetPinnedTabs());
+  // Note: in the case where delegate is now null, we still want to fire these
+  // (with empty arguments).
+  focused_tab_changed_callback_list_.Notify(GetFocusedTabData());
+  focused_browser_changed_callback_list_.Notify(GetFocusedBrowser());
+  pinned_tabs_changed_callback_list_.Notify(GetPinnedTabs());
 }
 
 }  // namespace glic

@@ -9,7 +9,7 @@ import {assertEquals, assertFalse, assertTrue} from 'chrome-untrusted://webui-te
 import {MockTimer} from 'chrome-untrusted://webui-test/mock_timer.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
-import {createAndSetVoices, emitEvent, mockMetrics, setupBasicSpeech} from './common.js';
+import {createAndSetVoices, emitEvent, mockMetrics, setupBasicSpeech, stubAnimationFrame} from './common.js';
 import {TestSpeechBrowserProxy} from './test_speech_browser_proxy.js';
 
 suite('Speech', () => {
@@ -195,6 +195,7 @@ suite('Speech', () => {
         baseTree: any, anchorId: number, anchorOffset: number, focusId: number,
         focusOffset: number, isBackward: boolean = false): void {
       mockTimer.install();
+      stubAnimationFrame();
       const selectedTree = Object.assign(
           {
             selection: {
@@ -235,8 +236,9 @@ suite('Speech', () => {
       assertEquals('None', selection.type);
     });
 
-    test('in middle of node, play from beginning of node', () => {
+    test('in middle of node, play from beginning of node', async() => {
       selectAndPlay(axTree, 5, 10, 5, 20);
+      await microtasksFinished();
       assertEquals(paragraph2[0], getSpokenText());
     });
 
@@ -261,6 +263,30 @@ suite('Speech', () => {
 
       assertEquals(1, speech.getCallCount('cancel'));
       assertEquals(paragraph2[0], getSpokenText());
+    });
+
+    test('after two selections, plays from most recent selection', () => {
+      select(axTree, 5, 0, 5, 10);
+      let domNode = NodeStore.getInstance().getDomNode(1);
+      speechController.initializeSpeechTree(domNode);
+      speechController.setHasSpeechBeenTriggered(true);
+      speech.reset();
+
+      playFromSelection();
+
+      assertEquals(1, speech.getCallCount('cancel'));
+      assertEquals(paragraph2[0], getSpokenText());
+
+      select(axTree, 3, 10, 5, 10);
+      domNode = NodeStore.getInstance().getDomNode(1);
+      speechController.initializeSpeechTree(domNode);
+      speechController.setHasSpeechBeenTriggered(true);
+      speech.reset();
+
+      playFromSelection();
+
+      assertEquals(1, speech.getCallCount('cancel'));
+      assertEquals(paragraph1[0], getSpokenText());
     });
 
     test('play from selection when node split across sentences', () => {
@@ -312,7 +338,8 @@ suite('Speech', () => {
     });
   });
 
-  test('next granularity plays from there', () => {
+  test('next granularity plays from there', async () => {
+    await microtasksFinished();
     emitEvent(app, ToolbarEvent.NEXT_GRANULARITY);
     assertEquals(paragraph1[1], getSpokenText());
   });

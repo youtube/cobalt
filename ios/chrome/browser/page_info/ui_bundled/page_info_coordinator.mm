@@ -123,11 +123,9 @@
 
   const bool isIncognito = self.profile->IsOffTheRecord();
 
-  // Create the PageInfoHistoryMediator only if kPageInfoLastVisitedIOS is
-  // enabled, the browser is not in incognito mode and the page is neither
-  // offline nor a chrome page.
-  if (IsPageInfoLastVisitedIOSEnabled() && !isIncognito &&
-      !_siteSecurityDescription.isEmpty) {
+  // Create the PageInfoHistoryMediator only if the browser is not in incognito
+  // mode and the page is neither offline nor a chrome page.
+  if (!isIncognito && !_siteSecurityDescription.isEmpty) {
     history::HistoryService* historyService =
         ios::HistoryServiceFactory::GetForProfile(
             self.profile, ServiceAccessType::EXPLICIT_ACCESS);
@@ -170,10 +168,8 @@
   self.navigationController = nil;
   self.viewController = nil;
 
-  if (IsPageInfoLastVisitedIOSEnabled()) {
-    [_pageInfoHistoryMediator disconnect];
-    _pageInfoHistoryMediator = nil;
-  }
+  [_pageInfoHistoryMediator disconnect];
+  _pageInfoHistoryMediator = nil;
 
   [_securityCoordinator stop];
   _securityCoordinator.pageInfoPresentationHandler = nil;
@@ -249,7 +245,6 @@
 }
 
 - (void)showLastVisitedPage {
-  CHECK(IsPageInfoLastVisitedIOSEnabled());
   base::RecordAction(base::UserMetricsAction("PageInfo.History.Opened"));
   base::UmaHistogramEnumeration(page_info::kWebsiteSettingsActionHistogram,
                                 page_info::PAGE_INFO_HISTORY_OPENED);
@@ -266,6 +261,21 @@
       self.browser->GetCommandDispatcher(), ApplicationCommands);
   [applicationHandler showReportAnIssueFromViewController:self.viewController
                                                    sender:sender];
+}
+
+// Closes PageInfo sheet and opens Incognito Tracking Protection Settings page.
+- (void)showTrackingProtectionSettingsPage {
+  __weak PageInfoCoordinator* weakSelf = self;
+  __weak id<ApplicationCommands> weakApplicationHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), ApplicationCommands);
+  [self.navigationController.presentingViewController
+      dismissViewControllerAnimated:YES
+                         completion:^{
+                           [weakSelf stop];
+                           [weakApplicationHandler
+                               showTrackingProtectionSettingsFromViewController:
+                                   weakSelf.baseViewController];
+                         }];
 }
 
 #pragma mark - HistoryCoordinatorDelegate

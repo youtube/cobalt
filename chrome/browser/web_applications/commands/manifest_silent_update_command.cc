@@ -11,6 +11,7 @@
 #include <ostream>
 
 #include "base/barrier_closure.h"
+#include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/functional/callback.h"
 #include "base/functional/concurrent_closures.h"
@@ -86,11 +87,7 @@ ConvertIconPurposeToManifestImagePurpose(apps::IconInfo::Purpose app_purpose) {
 void CopyIconsToPendingUpdateInfo(
     const std::vector<apps::IconInfo>& icon_infos,
     google::protobuf::RepeatedPtrField<sync_pb::WebAppIconInfo>*
-        destination_icons,
-    google::protobuf::RepeatedPtrField<proto::DownloadedIconSizeInfo>*
-        destination_size_map) {
-  std::map<sync_pb::WebAppIconInfo::Purpose, std::vector<int32_t>>
-      sizes_by_purpose;
+        destination_icons) {
   for (const auto& icon_info : icon_infos) {
     sync_pb::WebAppIconInfo* pending_icon = destination_icons->Add();
 
@@ -99,24 +96,71 @@ void CopyIconsToPendingUpdateInfo(
         ConvertIconPurposeToSyncPurpose(icon_info.purpose);
     pending_icon->set_purpose(icon_purpose);
     if (icon_info.square_size_px.has_value()) {
-      const int32_t icon_size = icon_info.square_size_px.value();
-      pending_icon->set_size_in_px(icon_size);
-      sizes_by_purpose[icon_purpose].push_back(icon_size);
-    }
-  }
-
-  for (const auto& [purpose, sizes] : sizes_by_purpose) {
-    if (!sizes.empty()) {
-      proto::DownloadedIconSizeInfo* downloaded_icon_info =
-          destination_size_map->Add();
-
-      downloaded_icon_info->set_purpose(purpose);
-      for (int32_t size : sizes) {
-        downloaded_icon_info->add_icon_sizes(size);
-      }
+      pending_icon->set_size_in_px(icon_info.square_size_px.value());
     }
   }
 }
+
+constexpr base::TimeDelta kDelayForTenPercentIconDiffSilentUpdate =
+    base::Days(1);
+constexpr const char kBypassSmallIconDiffThrottle[] =
+    "bypass-small-icon-diff-throttle";
+
+// Returns whether the throttle for less than 10% icon diffs will be applied.
+// This returns false if:
+// 1. This is the first silent icon update that might be triggered.
+// 2. The command line flag to skip the throttle has been applied.
+// 3. If less than (or equal to) 24 hours has passed since the last update was
+// applied for an icon that was less than 10% different.
+bool ThrottleForSilentIconUpdates(
+    std::optional<base::Time> previous_time_for_silent_icon_update,
+    base::Time new_icon_check_time) {
+  if (!previous_time_for_silent_icon_update.has_value()) {
+    return false;
+  }
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          kBypassSmallIconDiffThrottle)) {
+    return false;
+  }
+
+  return (new_icon_check_time <= (*previous_time_for_silent_icon_update +
+                                  kDelayForTenPercentIconDiffSilentUpdate));
+}
+
+google::protobuf::RepeatedPtrField<proto::DownloadedIconSizeInfo>
+GetIconSizesPerPurposeForBitmaps(const IconBitmaps& icon_bitmaps) {
+  google::protobuf::RepeatedPtrField<proto::DownloadedIconSizeInfo>
+      purpose_size_maps;
+
+  proto::DownloadedIconSizeInfo* downloaded_icon_info_any =
+      purpose_size_maps.Add();
+  downloaded_icon_info_any->set_purpose(sync_pb::WebAppIconInfo_Purpose_ANY);
+  for (const auto& [size, _] : icon_bitmaps.any) {
+    downloaded_icon_info_any->add_icon_sizes(size);
+  }
+
+  proto::DownloadedIconSizeInfo* downloaded_icon_info_maskable =
+      purpose_size_maps.Add();
+  downloaded_icon_info_maskable->set_purpose(
+      sync_pb::WebAppIconInfo_Purpose_MASKABLE);
+  for (const auto& [size, _] : icon_bitmaps.maskable) {
+    downloaded_icon_info_maskable->add_icon_sizes(size);
+  }
+
+  proto::DownloadedIconSizeInfo* downloaded_icon_info_monochrome =
+      purpose_size_maps.Add();
+  downloaded_icon_info_monochrome->set_purpose(
+      sync_pb::WebAppIconInfo_Purpose_MONOCHROME);
+  for (const auto& [size, _] : icon_bitmaps.monochrome) {
+    downloaded_icon_info_monochrome->add_icon_sizes(size);
+  }
+
+  CHECK_EQ(static_cast<size_t>(purpose_size_maps.size()), kIconPurposes.size());
+
+  return purpose_size_maps;
+}
+
 }  // namespace
 
 bool IsAppUpdated(ManifestSilentUpdateCheckResult result) {
@@ -136,6 +180,7 @@ bool IsAppUpdated(ManifestSilentUpdateCheckResult result) {
     case ManifestSilentUpdateCheckResult::kAppSilentlyUpdated:
     case ManifestSilentUpdateCheckResult::kAppOnlyHasSecurityUpdate:
     case ManifestSilentUpdateCheckResult::kAppHasNonSecurityAndSecurityChanges:
+    case ManifestSilentUpdateCheckResult::kAppHasSecurityUpdateDueToThrottle:
       return true;
   }
 }
@@ -214,23 +259,52 @@ std::ostream& operator<<(std::ostream& os,
       return os << "kUserNavigated";
     case ManifestSilentUpdateCheckResult::kManifestToWebAppInstallInfoError:
       return os << "kManifestToWebAppInstallInfoError";
+    case ManifestSilentUpdateCheckResult::kAppHasSecurityUpdateDueToThrottle:
+      return os << "kAppHasSecurityUpdateDueToThrottle";
   }
+}
+
+ManifestSilentUpdateCompletionInfo::ManifestSilentUpdateCompletionInfo() =
+    default;
+ManifestSilentUpdateCompletionInfo::ManifestSilentUpdateCompletionInfo(
+    ManifestSilentUpdateCheckResult result)
+    : result(result) {}
+ManifestSilentUpdateCompletionInfo::ManifestSilentUpdateCompletionInfo(
+    ManifestSilentUpdateCompletionInfo&&) = default;
+ManifestSilentUpdateCompletionInfo&
+ManifestSilentUpdateCompletionInfo::operator=(
+    ManifestSilentUpdateCompletionInfo&&) = default;
+
+base::Value::Dict ManifestSilentUpdateCompletionInfo::ToDebugValue() {
+  return base::Value::Dict()
+      .Set("result", base::ToString(result))
+      .Set("time_for_icon_diff_check",
+           time_for_icon_diff_check.has_value()
+               ? base::TimeFormatShortDateAndTime(
+                     time_for_icon_diff_check.value())
+               : base::EmptyString16());
 }
 
 ManifestSilentUpdateCommand::ManifestSilentUpdateCommand(
     content::WebContents& web_contents,
+    std::optional<base::Time> previous_time_for_silent_icon_update,
     CompletedCallback callback)
-    : WebAppCommand<NoopLock, ManifestSilentUpdateCheckResult>(
+    : WebAppCommand<NoopLock, ManifestSilentUpdateCompletionInfo>(
           "ManifestSilentUpdateCommand",
           NoopLockDescription(),
-          base::BindOnce([](ManifestSilentUpdateCheckResult result) {
+          base::BindOnce([](ManifestSilentUpdateCompletionInfo
+                                completion_info) {
             base::UmaHistogramEnumeration(
-                "Webapp.Update.ManifestSilentUpdateCheckResult", result);
-            return result;
+                "Webapp.Update.ManifestSilentUpdateCheckResult",
+                completion_info.result);
+            return completion_info;
           }).Then(std::move(callback)),
           /*args_for_shutdown=*/
-          std::make_tuple(ManifestSilentUpdateCheckResult::kSystemShutdown)),
-      web_contents_(web_contents.GetWeakPtr()) {
+          ManifestSilentUpdateCompletionInfo(
+              ManifestSilentUpdateCheckResult::kSystemShutdown)),
+      web_contents_(web_contents.GetWeakPtr()),
+      previous_time_for_silent_icon_update_(
+          previous_time_for_silent_icon_update) {
   Observe(web_contents_.get());
   SetStage(ManifestSilentUpdateCommandStage::kNotStarted);
 }
@@ -769,23 +843,38 @@ void ManifestSilentUpdateCommand::FinalizeUpdateIfSilentChangesExist() {
     return icon_it->second;
   }();
 
+  base::Time current_time = app_lock_->clock().Now();
+
   // TODO(crbug.com/437379182): HasMoreThanTenPercentImageDiff() should happen
   // in a different thread.
+  // Only update icons silently if the icons are less than ten percent in
+  // difference in a pixel by pixel comparison, and if icon updates shouldn't be
+  // throttled.
+  bool silent_icon_update_throttled = ThrottleForSilentIconUpdates(
+      previous_time_for_silent_icon_update_, current_time);
+  bool silent_icon_update =
+      !HasMoreThanTenPercentImageDiff(&old_trusted_icon, &new_trusted_icon) &&
+      !silent_icon_update_throttled;
+  if (silent_icon_update) {
+    completion_info_.time_for_icon_diff_check = current_time;
+  }
+
   // Case: The icons are being set in the PendingUpdateInfo to be updated later.
-  if (old_trusted_icon.empty() ||
-      HasMoreThanTenPercentImageDiff(&old_trusted_icon, &new_trusted_icon)) {
+  if (old_trusted_icon.empty() || !silent_icon_update) {
     if (!pending_update_info.has_value()) {
       pending_update_info = proto::PendingUpdateInfo();
     }
     GetMutableDebugValue().Set("greater_than_ten_percent", true);
-    CopyIconsToPendingUpdateInfo(
-        new_install_info_->trusted_icons,
-        pending_update_info->mutable_trusted_icons(),
-        pending_update_info->mutable_downloaded_trusted_icons());
-    CopyIconsToPendingUpdateInfo(
-        new_install_info_->manifest_icons,
-        pending_update_info->mutable_manifest_icons(),
-        pending_update_info->mutable_downloaded_manifest_icons());
+    CopyIconsToPendingUpdateInfo(new_install_info_->trusted_icons,
+                                 pending_update_info->mutable_trusted_icons());
+    CopyIconsToPendingUpdateInfo(new_install_info_->manifest_icons,
+                                 pending_update_info->mutable_manifest_icons());
+
+    *pending_update_info->mutable_downloaded_trusted_icons() =
+        GetIconSizesPerPurposeForBitmaps(
+            new_install_info_->trusted_icon_bitmaps);
+    *pending_update_info->mutable_downloaded_manifest_icons() =
+        GetIconSizesPerPurposeForBitmaps(new_install_info_->icon_bitmaps);
     pending_trusted_icon_bitmaps_ = new_install_info_->trusted_icon_bitmaps;
     pending_manifest_icon_bitmaps_ = new_install_info_->icon_bitmaps;
 
@@ -808,11 +897,16 @@ void ManifestSilentUpdateCommand::FinalizeUpdateIfSilentChangesExist() {
             &ManifestSilentUpdateCommand::UpdateFinalizedWritePendingInfo,
             GetWeakPtr(), std::move(pending_update_info)));
   } else {
-    // If there is no silent update, that means it MUST be pending update.
+    // If there is no silent update, that means it MUST be pending update. Also
+    // measure if the pending update is because the icon updates were throttled.
     CHECK(pending_update_info);
-    WritePendingUpdateInfoThenComplete(
-        pending_update_info,
-        ManifestSilentUpdateCheckResult::kAppOnlyHasSecurityUpdate);
+    ManifestSilentUpdateCheckResult result_for_icon_changes =
+        silent_icon_update_throttled
+            ? ManifestSilentUpdateCheckResult::
+                  kAppHasSecurityUpdateDueToThrottle
+            : ManifestSilentUpdateCheckResult::kAppOnlyHasSecurityUpdate;
+    WritePendingUpdateInfoThenComplete(pending_update_info,
+                                       result_for_icon_changes);
   }
 }
 
@@ -857,10 +951,8 @@ void ManifestSilentUpdateCommand::WritePendingUpdateInfoThenComplete(
   const WebApp* web_app = app_lock_->registrar().GetAppById(app_id_);
   CHECK(web_app);
 
-  // Used to notify observers at the end of the command.
-  pending_updated_changed_ = web_app->pending_update_info() != pending_update;
   // Exit early if there is no change to the pending update info.
-  if (!pending_updated_changed_) {
+  if (web_app->pending_update_info() == pending_update) {
     CompleteCommandAndSelfDestruct(FROM_HERE, result);
     return;
   }
@@ -873,13 +965,16 @@ void ManifestSilentUpdateCommand::WritePendingUpdateInfoThenComplete(
       !web_app->pending_update_info()->trusted_icons().empty();
   if (!new_pending_update_has_icons && old_pending_update_has_icons) {
     icon_operation = IconOperation::kDeleteIcons;
-  } else if (new_pending_update_has_icons && pending_updated_changed_) {
+  } else if (new_pending_update_has_icons) {
+    // This is guaranteed to be called if there is a difference in between the
+    // pending update info stored in the app vs an incoming pending update info,
+    // as without that, the command exits early above.
     icon_operation = IconOperation::kWriteIcons;
   }
 
-  auto write_pending_update_info_to_db =
-      base::BindOnce(&ManifestSilentUpdateCommand::WritePendingUpdateToWebApp,
-                     GetWeakPtr(), std::move(pending_update));
+  auto write_pending_update_info_to_db = base::BindOnce(
+      &ManifestSilentUpdateCommand::WritePendingUpdateToWebAppUpdateObservers,
+      GetWeakPtr(), std::move(pending_update));
 
   // Handle any writing or deleting the pending update icons.
   switch (icon_operation) {
@@ -950,18 +1045,45 @@ void ManifestSilentUpdateCommand::WritePendingUpdateInfoThenComplete(
   }
 }
 
-void ManifestSilentUpdateCommand::WritePendingUpdateToWebApp(
+void ManifestSilentUpdateCommand::WritePendingUpdateToWebAppUpdateObservers(
     std::optional<proto::PendingUpdateInfo> pending_update) {
-  web_app::ScopedRegistryUpdate update = app_lock_->sync_bridge().BeginUpdate();
-  web_app::WebApp* app_to_update = update->UpdateApp(app_id_);
-  CHECK(app_to_update);
-  app_to_update->SetPendingUpdateInfo(std::move(pending_update));
+  // The tracking of time for the icon diff check should not happen if there are
+  // icons populated in the `PendingUpdateInfo`.
+  if (pending_update.has_value() && !pending_update->trusted_icons().empty()) {
+    CHECK(!completion_info_.time_for_icon_diff_check.has_value());
+  }
+  bool trigger_pending_update_observers = false;
+  // First write the pending update into the app, and store whether observers
+  // need to be updated.
+  {
+    web_app::ScopedRegistryUpdate update =
+        app_lock_->sync_bridge().BeginUpdate();
+    web_app::WebApp* app_to_update = update->UpdateApp(app_id_);
+    CHECK(app_to_update);
+    trigger_pending_update_observers =
+        app_to_update->pending_update_info() != pending_update;
+
+    // This is used to ensure that the update is shown to the user as an
+    // expanded chip. At this point, it is guaranteed to be a pending update
+    // that the user has not seen before, and thus hasn't ignored it.
+    if (pending_update.has_value()) {
+      pending_update->set_was_ignored(false);
+    }
+    app_to_update->SetPendingUpdateInfo(pending_update);
+  }
+
+  // Only trigger observers of a pending update info change if the value
+  // previously stored in the web app has changed from that of an incoming one.
+  if (trigger_pending_update_observers) {
+    app_lock_->registrar().NotifyPendingUpdateInfoChanged(
+        app_id_, pending_update.has_value(),
+        WebAppRegistrar::PendingUpdateInfoChangePassKey());
+  }
 }
 
 void ManifestSilentUpdateCommand::CompleteCommandAndSelfDestruct(
     base::Location location,
     ManifestSilentUpdateCheckResult check_result) {
-  GetMutableDebugValue().Set("result", base::ToString(check_result));
   Observe(nullptr);
 
   bool record_update;
@@ -980,6 +1102,7 @@ void ManifestSilentUpdateCommand::CompleteCommandAndSelfDestruct(
     case ManifestSilentUpdateCheckResult::kPendingIconWriteToDiskFailed:
     case ManifestSilentUpdateCheckResult::kInvalidManifest:
     case ManifestSilentUpdateCheckResult::kUserNavigated:
+    case ManifestSilentUpdateCheckResult::kAppHasSecurityUpdateDueToThrottle:
       record_update = false;
       command_result = CommandResult::kSuccess;
       break;
@@ -997,12 +1120,11 @@ void ManifestSilentUpdateCommand::CompleteCommandAndSelfDestruct(
     app_lock_->sync_bridge().SetAppManifestUpdateTime(app_id_,
                                                       app_lock_->clock().Now());
   }
-  if (pending_updated_changed_) {
-    app_lock_->registrar().NotifyPendingUpdateInfoChanged(
-        app_id_, /*pending_update_available=*/true,
-        base::PassKey<ManifestSilentUpdateCommand>());
-  }
-  CompleteAndSelfDestruct(command_result, check_result, location);
+  completion_info_.result = check_result;
+  GetMutableDebugValue().Set("completion_info",
+                             completion_info_.ToDebugValue());
+  CompleteAndSelfDestruct(command_result, std::move(completion_info_),
+                          location);
 }
 
 bool ManifestSilentUpdateCommand::IsWebContentsDestroyed() {

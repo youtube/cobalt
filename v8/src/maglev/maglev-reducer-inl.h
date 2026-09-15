@@ -1150,17 +1150,28 @@ template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
     ValueNode* node, NodeType allowed_input_type) {
   NodeType old_type;
-  auto conversion_type = GetTaggedToFloat64ConversionType(allowed_input_type);
+  TaggedToFloat64ConversionType conversion_type =
+      GetTaggedToFloat64ConversionType(allowed_input_type);
   if (EnsureType(node, allowed_input_type, &old_type)) {
     if (old_type == NodeType::kSmi) {
       ValueNode* untagged_smi = BuildSmiUntag(node);
       return AddNewNodeNoAbort<ChangeInt32ToFloat64>({untagged_smi});
     }
-    return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
-        {node}, conversion_type);
+    if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
+      return AddNewNodeNoAbort<UncheckedNumberToFloat64>({node});
+
+    } else {
+      return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
+          {node}, conversion_type);
+    }
   } else {
-    return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>({node},
-                                                              conversion_type);
+    if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
+      return AddNewNodeNoAbort<CheckedNumberToFloat64>({node});
+
+    } else {
+      return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>(
+          {node}, conversion_type);
+    }
   }
 }
 
@@ -1465,6 +1476,17 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64UnaryOperationForToNumber(
   }
 }
 
+namespace details {
+inline bool Float64Equal(std::optional<double> left,
+                         std::optional<double> right) {
+  if (!left.has_value() || !right.has_value()) return false;
+  // This is basically `==` but it returns false for mismatching +0.0/-0.0 and
+  // it returns true for NaN.
+  return base::bit_cast<uint64_t>(*left) == base::bit_cast<uint64_t>(*right) ||
+         (std::isnan(*left) && std::isnan(*right));
+}
+}  // namespace details
+
 template <typename BaseT>
 template <Operation kOperation>
 MaybeReduceResult
@@ -1486,7 +1508,20 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
     double cst_right) {
   auto cst_left =
       TryGetFloat64Constant(UseRepresentation::kFloat64, left, conversion_type);
-  if (!cst_left.has_value()) return {};
+  if (!cst_left.has_value()) {
+    if (details::Float64Equal(cst_right, Float64Identity<kOperation>())) {
+      // This needs to return a Float64.
+      left = GetFloat64(left);
+      return left->Unwrap();
+    }
+    // TODO(dmercadier): we could still do strength reduction, like
+    //     x * 2  ==> x + x
+    //     x ** 2 ==> x * x
+    //     etc.
+    // For inspiration, REDUCE(FloatBinop) in machine-optimization-reducer.h
+    // contains a lot of these.
+    return {};
+  }
   switch (kOperation) {
     case Operation::kAdd:
       return GetNumberConstant(cst_left.value() + cst_right);

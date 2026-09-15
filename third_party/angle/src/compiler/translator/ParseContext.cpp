@@ -250,6 +250,56 @@ bool IsSamplerOrStructWithOnlySamplers(const TType *type)
 {
     return IsSampler(type->getBasicType()) || type->isStructureContainingOnlySamplers();
 }
+
+void MarkClipCullFirstEncounter(const TSourceLoc &line, ClipCullDistanceInfo *info)
+{
+    if (info->firstEncounter.first_line < 0)
+    {
+        info->firstEncounter = line;
+    }
+}
+
+void MarkClipCullRedeclaredSize(const TSourceLoc &line,
+                                uint32_t arraySize,
+                                ClipCullDistanceInfo *info)
+{
+    MarkClipCullFirstEncounter(line, info);
+    info->size = arraySize;
+}
+
+void MarkClipCullArrayLengthMethodCall(const TSourceLoc &line, ClipCullDistanceInfo *info)
+{
+    MarkClipCullFirstEncounter(line, info);
+    info->hasArrayLengthMethodCall = true;
+}
+
+void MarkClipCullIndex(const TSourceLoc &line, TIntermTyped *indexExpr, ClipCullDistanceInfo *info)
+{
+    MarkClipCullFirstEncounter(line, info);
+    const TConstantUnion *constIdx = indexExpr->getConstantValue();
+    if (constIdx)
+    {
+        int idx = 0;
+        switch (constIdx->getType())
+        {
+            case EbtInt:
+                idx = constIdx->getIConst();
+                break;
+            case EbtUInt:
+                idx = constIdx->getUConst();
+                break;
+            default:
+                UNREACHABLE();
+                break;
+        }
+
+        info->maxIndex = std::max(info->maxIndex, idx);
+    }
+    else
+    {
+        info->hasNonConstIndex = true;
+    }
+}
 }  // namespace
 
 // This tracks each binding point's current default offset for inheritance of subsequent
@@ -328,6 +378,7 @@ TParseContext::TParseContext(TSymbolTable &symt,
       mMaxProgramTexelOffset(resources.MaxProgramTexelOffset),
       mMinProgramTextureGatherOffset(resources.MinProgramTextureGatherOffset),
       mMaxProgramTextureGatherOffset(resources.MaxProgramTextureGatherOffset),
+      mMaxCombinedClipAndCullDistances(resources.MaxCombinedClipAndCullDistances),
       mComputeShaderLocalSizeDeclared(false),
       mComputeShaderLocalSize(-1),
       mNumViews(-1),
@@ -1444,7 +1495,7 @@ bool TParseContext::declareVariable(const TSourceLoc &line,
                                     const TType *declarationType,
                                     TVariable **variable)
 {
-    ASSERT((*variable) == nullptr);
+    ASSERT(*variable == nullptr);
 
     // When gl_Position and gl_PointSize are redeclared per EXT_separate_shader_objects, make sure
     // they have the right qualifier.
@@ -1482,7 +1533,7 @@ bool TParseContext::declareVariable(const TSourceLoc &line,
             break;
     }
 
-    (*variable) = new TVariable(&symbolTable, identifier, type, symbolType);
+    *variable = new TVariable(&symbolTable, identifier, type, symbolType);
 
     if (type->getQualifier() == EvqFragmentOut)
     {
@@ -1575,6 +1626,7 @@ bool TParseContext::declareVariable(const TSourceLoc &line,
             {
                 needsReservedCheck = !checkCanUseOneOfExtensions(line, builtInSymbol->extensions());
             }
+            MarkClipCullRedeclaredSize(line, type->getOutermostArraySize(), &mClipDistanceInfo);
         }
         else
         {
@@ -1605,6 +1657,7 @@ bool TParseContext::declareVariable(const TSourceLoc &line,
             {
                 needsReservedCheck = !checkCanUseOneOfExtensions(line, builtInSymbol->extensions());
             }
+            MarkClipCullRedeclaredSize(line, type->getOutermostArraySize(), &mCullDistanceInfo);
         }
         else
         {
@@ -1712,6 +1765,12 @@ void TParseContext::parseParameterQualifier(const TSourceLoc &line,
     {
         type.setPrecise(true);
     }
+}
+
+void TParseContext::addParameter(TFunction *function, TParameter *param)
+{
+    const TVariable *variable = param->createVariable(&symbolTable);
+    function->addParameter(variable);
 }
 
 template <size_t size>
@@ -2963,6 +3022,19 @@ TIntermNode *TParseContext::addConditionInitializer(const TPublicType &pType,
     return nullptr;
 }
 
+void TParseContext::onLoopConditionBegin() {}
+
+void TParseContext::onLoopConditionEnd(TIntermNode *condition) {}
+
+void TParseContext::onLoopContinueEnd(TIntermNode *statement)
+{
+    endStatementWithValue(statement);
+}
+
+void TParseContext::onDoLoopBegin() {}
+
+void TParseContext::onDoLoopConditionBegin() {}
+
 TIntermNode *TParseContext::addLoop(TLoopType type,
                                     TIntermNode *init,
                                     TIntermNode *cond,
@@ -3027,6 +3099,14 @@ TIntermNode *TParseContext::addLoop(TLoopType type,
     block->setLine(line);
     return block;
 }
+
+void TParseContext::onIfTrueBlockBegin(TIntermTyped *cond, const TSourceLoc &loc) {}
+
+void TParseContext::onIfTrueBlockEnd() {}
+
+void TParseContext::onIfFalseBlockBegin() {}
+
+void TParseContext::onIfFalseBlockEnd() {}
 
 TIntermNode *TParseContext::addIfElse(TIntermTyped *cond,
                                       TIntermNodePair code,
@@ -3628,14 +3708,14 @@ TIntermDeclaration *TParseContext::parseSingleDeclaration(
             checkAtomicCounterOffsetIsValid(false, identifierOrTypeLocation, type);
         }
 
+        adjustRedeclaredBuiltInType(identifierOrTypeLocation, identifier, type);
+
         TVariable *variable = nullptr;
         if (declareVariable(identifierOrTypeLocation, identifier, type, &variable))
         {
             symbol = new TIntermSymbol(variable);
         }
     }
-
-    adjustRedeclaredBuiltInType(identifierOrTypeLocation, identifier, type);
 
     TIntermDeclaration *declaration = new TIntermDeclaration();
     declaration->setLine(identifierOrTypeLocation);
@@ -5579,14 +5659,24 @@ TIntermTyped *TParseContext::addIndexExpression(TIntermTyped *baseExpression,
         return CreateZeroNode(TType(EbtFloat, EbpHigh, EvqConst));
     }
 
-    if (baseExpression->getQualifier() == EvqPerVertexIn)
+    switch (baseExpression->getQualifier())
     {
-        if (mGeometryShaderInputPrimitiveType == EptUndefined &&
-            mShaderType == GL_GEOMETRY_SHADER_EXT)
-        {
-            error(location, "missing input primitive declaration before indexing gl_in.", "[");
-            return CreateZeroNode(TType(EbtFloat, EbpHigh, EvqConst));
-        }
+        case EvqPerVertexIn:
+            if (mGeometryShaderInputPrimitiveType == EptUndefined &&
+                mShaderType == GL_GEOMETRY_SHADER_EXT)
+            {
+                error(location, "missing input primitive declaration before indexing gl_in.", "[");
+                return CreateZeroNode(TType(EbtFloat, EbpHigh, EvqConst));
+            }
+            break;
+        case EvqClipDistance:
+            MarkClipCullIndex(location, indexExpression, &mClipDistanceInfo);
+            break;
+        case EvqCullDistance:
+            MarkClipCullIndex(location, indexExpression, &mCullDistanceInfo);
+            break;
+        default:
+            break;
     }
 
     TIntermConstantUnion *indexConstantUnion = indexExpression->getAsConstantUnion();
@@ -7493,6 +7583,12 @@ TIntermTyped *TParseContext::addAssign(TOperator op,
     return node;
 }
 
+void TParseContext::onShortCircuitAndBegin(TIntermTyped *left, const TSourceLoc &loc) {}
+
+void TParseContext::onShortCircuitOrBegin(TIntermTyped *left, const TSourceLoc &loc) {}
+
+void TParseContext::onCommaLeftHandSideParsed(TIntermTyped *left) {}
+
 TIntermTyped *TParseContext::addComma(TIntermTyped *left,
                                       TIntermTyped *right,
                                       const TSourceLoc &loc)
@@ -7594,6 +7690,9 @@ void TParseContext::appendStatement(TIntermBlock *block, TIntermNode *statement)
     {
         markStaticUseIfSymbol(statement);
         block->appendStatement(statement);
+
+        // Discard the value, if any.
+        endStatementWithValue(statement);
     }
 }
 
@@ -8010,6 +8109,18 @@ TIntermTyped *TParseContext::addMethod(TFunctionLookup *fnCall, const TSourceLoc
     }
     else
     {
+        switch (thisNode->getQualifier())
+        {
+            case EvqClipDistance:
+                MarkClipCullArrayLengthMethodCall(loc, &mClipDistanceInfo);
+                break;
+            case EvqCullDistance:
+                MarkClipCullArrayLengthMethodCall(loc, &mCullDistanceInfo);
+                break;
+            default:
+                break;
+        }
+
         TIntermUnary *node = new TIntermUnary(EOpArrayLength, thisNode, nullptr);
         markStaticUseIfSymbol(thisNode);
         node->setLine(loc);
@@ -8112,6 +8223,12 @@ TIntermTyped *TParseContext::addNonConstructorFunctionCall(TFunctionLookup *fnCa
     return CreateZeroNode(TType(EbtFloat, EbpMedium, EvqConst));
 }
 
+void TParseContext::onTernaryConditionParsed(TIntermTyped *cond, const TSourceLoc &line) {}
+
+void TParseContext::onTernaryTrueExpressionParsed(TIntermTyped *trueExpression,
+                                                  const TSourceLoc &line)
+{}
+
 TIntermTyped *TParseContext::addTernarySelection(TIntermTyped *cond,
                                                  TIntermTyped *trueExpression,
                                                  TIntermTyped *falseExpression,
@@ -8186,6 +8303,90 @@ TIntermTyped *TParseContext::addTernarySelection(TIntermTyped *cond,
     markStaticUseIfSymbol(falseExpression);
     node->setLine(loc);
     return expressionOrFoldedResult(node);
+}
+
+void TParseContext::endStatementWithValue(TIntermNode *statement) {}
+
+bool TParseContext::postParseChecks()
+{
+    // If parse failed, we shouldn't reach here.
+    ASSERT(mTreeRoot != nullptr);
+
+    if (!mIsMainDeclared)
+    {
+        error(kNoSourceLoc, "Missing main()", "");
+        return false;
+    }
+
+    bool success = true;
+
+    for (TType *type : mDeferredArrayTypesToSize)
+    {
+        error(kNoSourceLoc, "Unsized global array type: ", type->getBasicString());
+        success = false;
+    }
+
+    // Clip/cull distance validation now that the size can be determined.
+    if (mClipDistanceInfo.size == 0 && mClipDistanceInfo.hasNonConstIndex)
+    {
+        error(mClipDistanceInfo.firstEncounter,
+              "The gl_ClipDistance array must be sized by the shader either redeclaring it with a "
+              "size or indexing it only with constant integral expressions",
+              "gl_ClipDistance");
+        success = false;
+    }
+
+    if (mCullDistanceInfo.size == 0 && mCullDistanceInfo.hasNonConstIndex)
+    {
+        error(mCullDistanceInfo.firstEncounter,
+              "The gl_CullDistance array must be sized by the shader either redeclaring it with a "
+              "size or indexing it only with constant integral expressions",
+              "gl_CullDistance");
+        success = false;
+    }
+
+    const unsigned int usedClipDistances = getClipDistanceArraySize();
+    const unsigned int usedCullDistances = getCullDistanceArraySize();
+    const unsigned int combinedClipAndCullDistances =
+        usedClipDistances > 0 && usedCullDistances > 0 ? usedClipDistances + usedCullDistances : 0;
+
+    // When cull distances are not supported, i.e., when GL_ANGLE_clip_cull_distance is
+    // exposed but GL_EXT_clip_cull_distance is not exposed, the combined limit is 0.
+    if (usedCullDistances > 0 && mMaxCombinedClipAndCullDistances == 0)
+    {
+        error(mCullDistanceInfo.firstEncounter, "Cull distance functionality is not available",
+              "gl_CullDistance");
+        success = false;
+    }
+
+    if (static_cast<int>(combinedClipAndCullDistances) > mMaxCombinedClipAndCullDistances)
+    {
+        std::stringstream strstr = sh::InitializeStream<std::stringstream>();
+        strstr << "The sum of 'gl_ClipDistance' and 'gl_CullDistance' size is greater than "
+                  "gl_MaxCombinedClipAndCullDistances ("
+               << combinedClipAndCullDistances << " > " << mMaxCombinedClipAndCullDistances << ")";
+        error(mClipDistanceInfo.firstEncounter, strstr.str().c_str(), "gl_ClipDistance");
+        success = false;
+    }
+
+    if (mClipDistanceInfo.hasArrayLengthMethodCall && usedClipDistances == 0)
+    {
+        error(mClipDistanceInfo.firstEncounter,
+              "The length() method cannot be called on gl_ClipDistance that is not "
+              "runtime sized and also has not yet been explicitly sized",
+              "gl_ClipDistance");
+        success = false;
+    }
+    if (mCullDistanceInfo.hasArrayLengthMethodCall && usedCullDistances == 0)
+    {
+        error(mCullDistanceInfo.firstEncounter,
+              "The length() method cannot be called on gl_CullDistance that is not "
+              "runtime sized and also has not yet been explicitly sized",
+              "gl_CullDistance");
+        success = false;
+    }
+
+    return success;
 }
 
 //

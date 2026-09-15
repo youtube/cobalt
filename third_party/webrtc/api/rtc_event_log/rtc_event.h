@@ -13,6 +13,8 @@
 
 #include <cstdint>
 
+#include "api/units/timestamp.h"
+
 namespace webrtc {
 
 // This class allows us to store unencoded RTC events. Subclasses of this class
@@ -78,11 +80,15 @@ class RtcEvent {
   int64_t timestamp_ms() const { return timestamp_us_ / 1000; }
   int64_t timestamp_us() const { return timestamp_us_; }
 
+  // Time when the event was logged.
+  Timestamp timestamp() const { return Timestamp::Micros(timestamp_us_); }
+  void SetTimestamp(Timestamp timestamp) { timestamp_us_ = timestamp.us(); }
+
  protected:
   explicit RtcEvent(int64_t timestamp_us) : timestamp_us_(timestamp_us) {}
 
  private:
-  const int64_t timestamp_us_;
+  int64_t timestamp_us_;
 };
 
 }  // namespace webrtc

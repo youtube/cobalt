@@ -10,6 +10,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/home_customization/ui/background_collection_configuration.h"
 #import "ios/chrome/browser/home_customization/ui/background_customization_configuration.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_accessibility_identifiers.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_configuration_mutator.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_cell.h"
@@ -73,6 +74,8 @@
 @synthesize collectionView = _collectionView;
 @synthesize diffableDataSource = _diffableDataSource;
 @synthesize page = _page;
+@synthesize additionalViewWillTransitionToSizeHandler =
+    _additionalViewWillTransitionToSizeHandler;
 
 - (instancetype)init {
   self = [super init];
@@ -100,6 +103,9 @@
   // the UISheetPresentationController which presents it.
   self.view = _collectionView;
 
+  _collectionView.accessibilityIdentifier =
+      kHomeCustomizationMainViewAccessibilityIdentifier;
+
   [_collectionConfigurator configureNavigationBar];
 }
 
@@ -108,6 +114,14 @@
       "IOS.HomeCustomization.Background.RecentlyUsed.ClickCount",
       _recentBackgroundClickCount);
   [super viewWillDisappear:animated];
+}
+
+- (void)viewWillTransitionToSize:(CGSize)size
+       withTransitionCoordinator:
+           (id<UIViewControllerTransitionCoordinator>)coordinator {
+  if (_additionalViewWillTransitionToSizeHandler) {
+    _additionalViewWillTransitionToSizeHandler(size, coordinator);
+  }
 }
 
 #pragma mark - Private
@@ -221,8 +235,10 @@
         verticalListSectionForLayoutEnvironment:layoutEnvironment];
   } else if (sectionIndex == backgroundCustomizationIdentifier) {
     CHECK(IsNTPBackgroundCustomizationEnabled());
+    CGSize windowSize = self.view.window.bounds.size;
     return [_collectionConfigurator
-        backgroundCellSectionForLayoutEnvironment:layoutEnvironment];
+        backgroundCellSectionForLayoutEnvironment:layoutEnvironment
+                                       windowSize:windowSize];
   } else if (sectionIndex == enterpriseIdentifier) {
     return [_collectionConfigurator
         verticalListSectionForLayoutEnvironment:layoutEnvironment];

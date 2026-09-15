@@ -129,10 +129,7 @@ class VideoQualityTestFixtureInterface {
     std::unique_ptr<NetworkBehaviorInterface> sender_network;
     std::unique_ptr<NetworkBehaviorInterface> receiver_network;
 
-    // TODO: b/448299476 - Keep only the field_trials_ptr member.
-    std::string field_trials;
     std::unique_ptr<FieldTrials> field_trials_ptr;
-
     std::unique_ptr<FecControllerFactoryInterface> fec_controller_factory;
     std::unique_ptr<VideoEncoderFactory> video_encoder_factory;
     std::unique_ptr<VideoDecoderFactory> video_decoder_factory;

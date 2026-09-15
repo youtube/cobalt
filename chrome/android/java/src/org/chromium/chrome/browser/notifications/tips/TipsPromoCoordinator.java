@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.notifications.tips;
 
 import android.content.Context;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ViewFlipper;
@@ -15,13 +16,22 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.lens.LensController;
+import org.chromium.chrome.browser.lens.LensEntryPoint;
+import org.chromium.chrome.browser.lens.LensIntentParams;
 import org.chromium.chrome.browser.notifications.scheduler.TipsNotificationsFeatureType;
 import org.chromium.chrome.browser.notifications.tips.TipsPromoProperties.FeatureTipPromoData;
 import org.chromium.chrome.browser.notifications.tips.TipsPromoProperties.ScreenType;
+import org.chromium.chrome.browser.quick_delete.QuickDeleteController;
+import org.chromium.chrome.browser.safe_browsing.metrics.SettingsAccessPoint;
+import org.chromium.chrome.browser.safe_browsing.settings.SafeBrowsingSettingsFragment;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
+import org.chromium.chrome.browser.toolbar.settings.AddressBarSettingsFragment;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
@@ -32,22 +42,36 @@ public class TipsPromoCoordinator {
 
     private final Context mContext;
     private final BottomSheetController mBottomSheetController;
+    private final QuickDeleteController mQuickDeleteController;
+    private final WindowAndroid mWindowAndroid;
+    private final boolean mIsIncognito;
     private final TipsPromoSheetContent mSheetContent;
     private final PropertyModel mPropertyModel;
     private final PropertyModelChangeProcessor mChangeProcessor;
     private final ViewFlipper mViewFlipperView;
     private final View mContentView;
+    private LensController mLensController;
 
     /**
      * Constructor.
      *
      * @param context The Android {@link Context}.
      * @param bottomSheetController The system {@link BottomSheetController}.
+     * @param quickDeleteController The controller to for the quick delete dialog.
      */
-    public TipsPromoCoordinator(Context context, BottomSheetController bottomSheetController) {
+    public TipsPromoCoordinator(
+            Context context,
+            BottomSheetController bottomSheetController,
+            QuickDeleteController quickDeleteController,
+            WindowAndroid windowAndroid,
+            boolean isIncognito) {
         mContext = context;
         mBottomSheetController = bottomSheetController;
+        mQuickDeleteController = quickDeleteController;
+        mWindowAndroid = windowAndroid;
+        mIsIncognito = isIncognito;
         mPropertyModel = TipsPromoProperties.createDefaultModel();
+        mLensController = LensController.getInstance();
 
         mContentView =
                 LayoutInflater.from(context)
@@ -79,11 +103,8 @@ public class TipsPromoCoordinator {
      * Shows the promo. The caller is responsible for all eligibility checks.
      *
      * @param featureType The {@link TipsNotificationsFeatureType} to show.
-     * @param featureActionRunnable The action to run for the associated feature type on positive
-     *     (settings) button click.
      */
-    public void showBottomSheet(
-            @TipsNotificationsFeatureType int featureType, Runnable featureActionRunnable) {
+    public void showBottomSheet(@TipsNotificationsFeatureType int featureType) {
         FeatureTipPromoData data = TipsUtils.getFeatureTipPromoDataForType(mContext, featureType);
         mPropertyModel.set(TipsPromoProperties.FEATURE_TIP_PROMO_DATA, data);
         mPropertyModel.set(TipsPromoProperties.CURRENT_SCREEN, ScreenType.MAIN_SCREEN);
@@ -97,9 +118,40 @@ public class TipsPromoCoordinator {
                 TipsPromoProperties.SETTINGS_BUTTON_CLICK_LISTENER,
                 (view) -> {
                     mBottomSheetController.hideContent(mSheetContent, /* animate= */ true);
-                    featureActionRunnable.run();
+                    performFeatureAction(featureType);
                 });
         mBottomSheetController.requestShowContent(mSheetContent, /* animate= */ true);
+    }
+
+    private void performFeatureAction(@TipsNotificationsFeatureType int featureType) {
+        switch (featureType) {
+            case TipsNotificationsFeatureType.ENHANCED_SAFE_BROWSING:
+                Intent intent =
+                        SettingsNavigationFactory.createSettingsNavigation()
+                                .createSettingsIntent(
+                                        mContext,
+                                        SafeBrowsingSettingsFragment.class,
+                                        SafeBrowsingSettingsFragment.createArguments(
+                                                SettingsAccessPoint.TIPS_NOTIFICATIONS_PROMO));
+                mContext.startActivity(intent);
+                break;
+            case TipsNotificationsFeatureType.QUICK_DELETE:
+                mQuickDeleteController.showDialog();
+                break;
+            case TipsNotificationsFeatureType.GOOGLE_LENS:
+                mLensController.startLens(
+                        mWindowAndroid,
+                        new LensIntentParams.Builder(
+                                        LensEntryPoint.TIPS_NOTIFICATIONS, mIsIncognito)
+                                .build());
+                break;
+            case TipsNotificationsFeatureType.BOTTOM_OMNIBOX:
+                SettingsNavigationFactory.createSettingsNavigation()
+                        .startSettings(mContext, AddressBarSettingsFragment.class);
+                break;
+            default:
+                assert false : "Invalid feature type: " + featureType;
+        }
     }
 
     private class TipsPromoSheetContent implements BottomSheetContent {
@@ -237,5 +289,9 @@ public class TipsPromoCoordinator {
 
     View getViewForTesting() {
         return mContentView;
+    }
+
+    void setLensControllerForTesting(LensController lensController) {
+        mLensController = lensController;
     }
 }

@@ -1034,6 +1034,21 @@ bool PDFiumEngine::PageIndexInBounds(int index) const {
   return index >= 0 && index < static_cast<int>(pages_.size());
 }
 
+void PDFiumEngine::ScrollToChar(const PageCharacterIndex& index) {
+  CHECK(PageIndexInBounds(index.page_index));
+  PDFiumPage* page = pages_[index.page_index].get();
+
+  if (page->GetCharCount() == 0 && index.char_index == 0) {
+    ScrollToPage(index.page_index);
+    return;
+  }
+
+  CHECK(page->IsCharIndexInBounds(index.char_index));
+
+  PDFiumRange range(page, index.char_index, 1);
+  ScrollToBoundingRects(range, /*force_smooth_scroll=*/false);
+}
+
 void PDFiumEngine::StartSelection(const PageCharacterIndex& index) {
   CHECK(PageIndexInBounds(index.page_index));
   CHECK_GT(GetCharCount(index.page_index), 0u);
@@ -1415,6 +1430,23 @@ AccessibilityFocusInfo PDFiumEngine::GetFocusInfo() {
 
 bool PDFiumEngine::IsPDFDocTagged() const {
   return FPDFCatalog_IsTagged(doc());
+}
+
+std::unique_ptr<AccessibilityStructureElement> PDFiumEngine::GetStructureTree()
+    const {
+  auto structure_tree_root = std::make_unique<AccessibilityStructureElement>();
+  structure_tree_root->type = PdfTagType::kDocument;
+  structure_tree_root->children.reserve(pages_.size());
+  // TODO(crbug.com/40707542): Get the /Lang string from
+  // AccessibilityStructureElement.
+  for (const std::unique_ptr<PDFiumPage>& page : pages_) {
+    auto page_structure = page->GetStructureTree();
+    if (page_structure) {
+      page_structure->parent = structure_tree_root.get();
+    }
+    structure_tree_root->children.push_back(std::move(page_structure));
+  }
+  return structure_tree_root;
 }
 
 uint32_t PDFiumEngine::GetLoadedByteSize() {

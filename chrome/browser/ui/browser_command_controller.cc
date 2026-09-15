@@ -751,6 +751,9 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
     case IDC_SHOW_SYNC_SETTINGS:
       chrome::ShowSettingsSubPage(browser_, chrome::kSyncSetupSubPage);
       break;
+    case IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL:
+      ShowContextualTasksSidePanel(browser_);
+      break;
     case IDC_TURN_ON_SYNC:
       signin_ui_util::EnableSyncFromSingleAccountPromo(
           browser_->profile(), GetAccountInfoFromProfile(browser_->profile()),
@@ -1280,15 +1283,7 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       base::MakeRefCounted<shell_integration::DefaultBrowserWorker>()
           ->StartSetAsDefault(base::DoNothing());
 
-      // Log metrics before clearing prefs and closing prompts.
-      if (g_browser_process->local_state()->HasPrefPath(
-              prefs::kDefaultBrowserFirstShownTime)) {
-        base::UmaHistogramCounts100(
-            "DefaultBrowser.AppMenu.TimesShownBeforeAccept",
-            g_browser_process->local_state()->GetInteger(
-                prefs::kDefaultBrowserDeclinedCount) +
-                1);
-      }
+      // Clear prefs and close prompts.
       chrome::startup::default_prompt::UpdatePrefsForDismissedPrompt(
           browser_->profile());
       DefaultBrowserPromptManager::GetInstance()->CloseAllPrompts(
@@ -1642,6 +1637,9 @@ void BrowserCommandController::InitCommandState() {
                                         enable_tab_search_commands);
   command_updater_.UpdateCommandEnabled(IDC_TAB_SEARCH_CLOSE,
                                         enable_tab_search_commands);
+
+  command_updater_.UpdateCommandEnabled(IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL,
+                                        true);
 
   if (base::FeatureList::IsEnabled(features::kUIDebugTools)) {
     command_updater_.UpdateCommandEnabled(IDC_DEBUG_TOGGLE_TABLET_MODE, true);

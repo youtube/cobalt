@@ -37,7 +37,6 @@
 #include "third_party/skia/include/gpu/ganesh/GrTypes.h"
 #include "third_party/skia/include/gpu/graphite/BackendTexture.h"
 #include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
-#include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
@@ -763,6 +762,14 @@ gfx::Rect CompoundImageBacking::ClearedRect() const {
 }
 
 void CompoundImageBacking::SetClearedRect(const gfx::Rect& cleared_rect) {}
+
+void CompoundImageBacking::MarkForDestruction() {
+  for (const auto& element : elements_) {
+    if (element.backing) {
+      element.backing->MarkForDestruction();
+    }
+  }
+}
 
 gfx::GpuMemoryBufferHandle CompoundImageBacking::GetGpuMemoryBufferHandle() {
   auto& element = GetShmElement();

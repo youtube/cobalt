@@ -24,14 +24,14 @@ class API_AVAILABLE(macos(14.4)) ContextImplCoreml final
  public:
   ContextImplCoreml(
       mojo::PendingReceiver<mojom::WebNNContext> receiver,
-      WebNNContextProviderImpl* context_provider,
+      base::WeakPtr<WebNNContextProviderImpl> context_provider,
       mojom::CreateContextOptionsPtr options,
       gpu::CommandBufferId command_buffer_id,
       std::unique_ptr<ScopedSequence> sequence,
-      scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
       scoped_refptr<gpu::MemoryTracker> memory_tracker,
       scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
-      gpu::SharedImageManager* shared_image_manager);
+      gpu::SharedImageManager* shared_image_manager,
+      scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
 
   ContextImplCoreml(const WebNNContextImpl&) = delete;
   ContextImplCoreml& operator=(const ContextImplCoreml&) = delete;

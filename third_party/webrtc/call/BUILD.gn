@@ -214,6 +214,7 @@ rtc_library("rtp_sender") {
     "../modules:module_fec_api",
     "../modules/congestion_controller/rtp:control_handler",
     "../modules/congestion_controller/rtp:transport_feedback",
+    "../modules/congestion_controller/scream:scream_network_controller",
     "../modules/pacing",
     "../modules/rtp_rtcp",
     "../modules/rtp_rtcp:rtp_rtcp_format",

@@ -102,21 +102,10 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   void DeregisterReceivedPacketCallback(void* id);
 
   // Signalled each time a packet is sent on this channel.
-  sigslot::signal2<PacketTransportInternal*, const SentPacketInfo&>
-      SignalSentPacket;
   void NotifySentPacket(PacketTransportInternal* transport,
                         const SentPacketInfo& info) {
     SignalSentPacket(transport, info);
   }
-  // SignalSentPacket is sometimes invoked recursively, so if one were to
-  // replace all occurrences of SignalSentPacket.subscribe() with
-  // SubscribeSentPacket(), this would cause a CHECK failure in some
-  // cases because CallbackList does not support recursive invocations.
-  // The test RtpTransportTest::RecursiveOnSentPacketDoesNotCrash is
-  // an example of a test that will do a CHECK failure if CallbackList is
-  // used.
-  // TODO: bugs.webrtc.org/448409800 - use SubscribeSentPacket in a safe way.
-  // This should eventually allow removal of SignalSentPacket.
   void SubscribeSentPacket(
       void* tag,
       absl::AnyInvocable<void(PacketTransportInternal*, const SentPacketInfo&)>
@@ -148,6 +137,9 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   SequenceChecker network_checker_{SequenceChecker::kDetached};
 
  private:
+  sigslot::signal2<PacketTransportInternal*, const SentPacketInfo&>
+      SignalSentPacket;
+
   sigslot::signal1<PacketTransportInternal*> SignalWritableState;
   sigslot::signal1<PacketTransportInternal*> SignalReadyToSend;
   sigslot::signal1<PacketTransportInternal*> SignalReceivingState;

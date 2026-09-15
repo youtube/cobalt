@@ -113,15 +113,12 @@
 #import "ios/chrome/browser/ntp/model/features.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
-#import "ios/chrome/browser/page_info/ui_bundled/features.h"
-#import "ios/chrome/browser/passwords/model/features.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/policy/model/reporting/features.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/feature_flags.h"
 #import "ios/chrome/browser/promos_manager/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/screen_time/model/screen_time_buildflags.h"
-#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/features.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/features.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_manager_ui_features.h"
 #import "ios/chrome/browser/settings/ui_bundled/privacy/privacy_guide/features.h"
@@ -130,6 +127,7 @@
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_features.h"
 #import "ios/chrome/browser/text_selection/model/text_selection_util.h"
 #import "ios/chrome/browser/web/model/features.h"
+#import "ios/chrome/browser/welcome_back/model/features.h"
 #import "ios/chrome/browser/whats_new/coordinator/whats_new_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/components/enterprise/data_controls/features.h"
@@ -681,6 +679,14 @@ const FeatureEntry::FeatureParam kTabResumptionWithImpressionLimitsFront[] = {
     {"ShopCardVariant", "arm_5"},
     {"ShopCardPosition", "shop_card_front"},
 };
+const FeatureEntry::FeatureParam kPriceDropOnTabDelayedDataAcquisition[] = {
+    {"ShopCardVariant", "arm_6"},
+};
+const FeatureEntry::FeatureParam kPriceDropOnTabDelayedDataAcquisitionFront[] =
+    {
+        {"ShopCardVariant", "arm_6"},
+        {"ShopCardPosition", "shop_card_front"},
+};
 
 // Address Bar Position
 const FeatureEntry::FeatureParam kTipsAddressBarPositionForceShowArm[] = {
@@ -799,6 +805,13 @@ const FeatureEntry::FeatureVariation kShopCardOverrideOptions[] = {
     {"Card 5 Tab Resumption with Impression Limits at front of magic stack",
      kTabResumptionWithImpressionLimitsFront,
      std::size(kTabResumptionWithImpressionLimitsFront), nullptr},
+    {"Card 6 Price Drop on Tab Resumption with delayed data acquisition",
+     kPriceDropOnTabDelayedDataAcquisition,
+     std::size(kPriceDropOnTabDelayedDataAcquisition), nullptr},
+    {"Card 6 Price Drop on Tab Resumption with delayed data acquisition at "
+     "front of magic stack",
+     kPriceDropOnTabDelayedDataAcquisitionFront,
+     std::size(kPriceDropOnTabDelayedDataAcquisitionFront), nullptr},
 };
 
 const FeatureEntry::FeatureVariation kEphemeralCardRankerCardOverrideOptions[] =
@@ -1183,13 +1196,13 @@ const FeatureEntry::FeatureVariation
 // LINT.ThenChange(/chrome/browser/about_flags.cc:AutofillVcnEnrollStrikeExpiryTime)
 
 const FeatureEntry::FeatureParam kWelcomeBackInFirstRunArm1[] = {
-    {first_run::kWelcomeBackInFirstRunParam, "1"}};
+    {kWelcomeBackInFirstRunParam, "1"}};
 const FeatureEntry::FeatureParam kWelcomeBackInFirstRunArm2[] = {
-    {first_run::kWelcomeBackInFirstRunParam, "2"}};
+    {kWelcomeBackInFirstRunParam, "2"}};
 const FeatureEntry::FeatureParam kWelcomeBackInFirstRunArm3[] = {
-    {first_run::kWelcomeBackInFirstRunParam, "3"}};
+    {kWelcomeBackInFirstRunParam, "3"}};
 const FeatureEntry::FeatureParam kWelcomeBackInFirstRunArm4[] = {
-    {first_run::kWelcomeBackInFirstRunParam, "4"}};
+    {kWelcomeBackInFirstRunParam, "4"}};
 
 const FeatureEntry::FeatureVariation kWelcomeBackInFirstRunVariations[] = {
     {" - Variant A: Basics with Locked Incognito", kWelcomeBackInFirstRunArm1,
@@ -1408,6 +1421,23 @@ const FeatureEntry::FeatureVariation kTaiyakiChoiceScreenSurfaceVariations[] = {
     {"FRE only", kTaiyakiChoiceScreenSurfaceParamFREOnly,
      std::size(kTaiyakiChoiceScreenSurfaceParamFREOnly), nullptr},
 };
+
+// Tips Notifications alternative strings.
+const FeatureEntry::FeatureParam kTipsNotificationsAlternative1[] = {
+    {kTipsNotificationsAlternativeStringVersion, "1"}};
+const FeatureEntry::FeatureParam kTipsNotificationsAlternative2[] = {
+    {kTipsNotificationsAlternativeStringVersion, "2"}};
+const FeatureEntry::FeatureParam kTipsNotificationsAlternative3[] = {
+    {kTipsNotificationsAlternativeStringVersion, "3"}};
+
+const FeatureEntry::FeatureVariation
+    kTipsNotificationsAlternativeStringVariation[] = {
+        {" - 1", kTipsNotificationsAlternative1,
+         std::size(kTipsNotificationsAlternative1), nullptr},
+        {" - 2", kTipsNotificationsAlternative2,
+         std::size(kTipsNotificationsAlternative2), nullptr},
+        {" - 3", kTipsNotificationsAlternative3,
+         std::size(kTipsNotificationsAlternative3), nullptr}};
 
 // To add a new entry, add to the end of kFeatureEntries. There are four
 // distinct types of entries:
@@ -1633,11 +1663,6 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kEnableLensViewFinderUnifiedExperienceDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableLensViewFinderUnifiedExperience)},
-    {"enable-disco-feed-endpoint",
-     flag_descriptions::kEnableDiscoverFeedDiscoFeedEndpointName,
-     flag_descriptions::kEnableDiscoverFeedDiscoFeedEndpointDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kEnableDiscoverFeedDiscoFeedEndpoint)},
     {"ntp-view-hierarchy-repair",
      flag_descriptions::kNTPViewHierarchyRepairName,
      flag_descriptions::kNTPViewHierarchyRepairDescription, flags_ui::kOsIos,
@@ -1794,6 +1819,9 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
                                     kFeedBackgroundRefreshVariations,
                                     "FeedBackgroundRefresh")},
 #endif  // BUILDFLAG(IOS_BACKGROUND_MODE_ENABLED)
+    {"tab-grid-drag-and-drop", flag_descriptions::kTabGridDragAndDropName,
+     flag_descriptions::kTabGridDragAndDropDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kTabGridDragAndDrop)},
     {"tab-grid-new-transitions", flag_descriptions::kTabGridNewTransitionsName,
      flag_descriptions::kTabGridNewTransitionsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kTabGridNewTransitions)},
@@ -1959,9 +1987,6 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          password_manager::features::kPasswordFormClientsideClassifier)},
-    {"ios-quick-delete", flag_descriptions::kIOSQuickDeleteName,
-     flag_descriptions::kIOSQuickDeleteDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kIOSQuickDelete)},
     {"omnibox-suggestion-answer-migration",
      flag_descriptions::kOmniboxSuggestionAnswerMigrationName,
      flag_descriptions::kOmniboxSuggestionAnswerMigrationDescription,
@@ -2063,10 +2088,6 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
     {"autofill-across-iframes", flag_descriptions::kAutofillAcrossIframesName,
      flag_descriptions::kAutofillAcrossIframesDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(autofill::features::kAutofillAcrossIframesIos)},
-    {"ios-page-info-last-visited",
-     flag_descriptions::kPageInfoLastVisitedIOSName,
-     flag_descriptions::kPageInfoLastVisitedIOSDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kPageInfoLastVisitedIOS)},
     {"enable-trait-collection-registration",
      flag_descriptions::kEnableTraitCollectionRegistrationName,
      flag_descriptions::kEnableTraitCollectionRegistrationDescription,
@@ -2144,10 +2165,6 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kLensUnaryApisWithHttpTransportEnabledDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kLensUnaryApisWithHttpTransportEnabled)},
-    {"lens-overlay-enable-same-tab-navigation",
-     flag_descriptions::kLensOverlayEnableSameTabNavigationName,
-     flag_descriptions::kLensOverlayEnableSameTabNavigationDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kLensOverlayEnableSameTabNavigation)},
     {"ios-chrome-startup-parameters-async",
      flag_descriptions::kChromeStartupParametersAsyncName,
      flag_descriptions::kChromeStartupParametersAsyncDescription,
@@ -2438,7 +2455,7 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
          "AutofillVcnEnrollStrikeExpiryTime")},
     {"ios-welcome-back-screen", flag_descriptions::kWelcomeBackInFirstRunName,
      flag_descriptions::kWelcomeBackInFirstRunDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(first_run::kWelcomeBackInFirstRun,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kWelcomeBackInFirstRun,
                                     kWelcomeBackInFirstRunVariations,
                                     "WelcomeBackInFirstRun")},
     {"autofill-enable-flat-rate-card-benefits-from-curinos",
@@ -2455,6 +2472,11 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kReaderModeTranslationName,
      flag_descriptions::kReaderModeTranslationDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableReaderModeTranslation)},
+    {"reader-mode-translation-with-infobar-enabled",
+     flag_descriptions::kReaderModeTranslationWithInfobarName,
+     flag_descriptions::kReaderModeTranslationWithInfobarDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kEnableReaderModeTranslationWithInfobar)},
     {"reader-mode-debug-info-enabled",
      flag_descriptions::kReaderModeDebugInfoName,
      flag_descriptions::kReaderModeDebugInfoDescription, flags_ui::kOsIos,
@@ -2754,11 +2776,6 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          sync_preferences::features::kEnableCrossDevicePrefTracker)},
-    {"aim-server-eligibility-en",
-     flag_descriptions::kIOSOmniboxAimServerEligibilityEnName,
-     flag_descriptions::kIOSOmniboxAimServerEligibilityEnDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(omnibox::kAimServerEligibilityEnabledEn)},
     {"reader-mode-new-css-enabled", flag_descriptions::kReaderModeNewCssName,
      flag_descriptions::kReaderModeNewCssDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(dom_distiller::kEnableReaderModeNewCss)},
@@ -2784,6 +2801,10 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
     {"persist-tab-context", flag_descriptions::kPersistTabContextName,
      flag_descriptions::kPersistTabContextDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kPersistTabContext)},
+    {"aim-prototype-autoattach-tab",
+     flag_descriptions::kAIMPrototypeAutoattachTabName,
+     flag_descriptions::kAIMPrototypeAutoattachTabDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kAIMPrototypeAutoattachTab)},
     {"aim-prototype-immersive-srp",
      flag_descriptions::kAIMPrototypeImmersiveSRPName,
      flag_descriptions::kAIMPrototypeImmersiveSRPDescription, flags_ui::kOsIos,
@@ -2818,7 +2839,14 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
     {"show-tab-grid-on-start", flag_descriptions::kShowTabGridOnStartName,
      flag_descriptions::kShowTabGridOnStartDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kShowTabGridOnStart)},
-};
+    {"ios-tips-notifications-string-alternatives",
+     flag_descriptions::kIOSTipsNotificationsStringAlternativesName,
+     flag_descriptions::kIOSTipsNotificationsStringAlternativesDescription,
+     flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(
+         kIOSTipsNotificationsAlternativeStrings,
+         kTipsNotificationsAlternativeStringVariation,
+         "IOSTipsNotificationsAlternativeStrings")}};
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {
   return false;

@@ -66,7 +66,7 @@ class WebStateList {
     InsertionParams& operator=(InsertionParams&&);
 
     WebStateOpener opener;
-    raw_ptr<const TabGroup, DanglingUntriaged> in_group = nullptr;
+    raw_ptr<const TabGroup> in_group = nullptr;
     int desired_index = kInvalidIndex;
     bool inherit_opener = false;
     bool activate = false;
@@ -513,11 +513,11 @@ class WebStateList {
   // The WebStateList groups delegate.
   raw_ptr<WebStateListGroupsDelegate> groups_delegate_ = nullptr;
 
-  // Wrappers to the WebStates hosted by the WebStateList.
-  std::vector<std::unique_ptr<WebStateWrapper>> web_state_wrappers_;
-
   // The current set of groups.
   std::set<std::unique_ptr<TabGroup>, base::UniquePtrComparator> groups_;
+
+  // Wrappers to the WebStates hosted by the WebStateList.
+  std::vector<std::unique_ptr<WebStateWrapper>> web_state_wrappers_;
 
   // List of observers notified of changes to the model.
   base::ObserverList<WebStateListObserver, true> observers_;

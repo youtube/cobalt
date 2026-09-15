@@ -51,7 +51,12 @@
                 .totalTabCount="${item.totalTabCount}">
             </ntp-icon-container>
             <div class="tab-group-info">
-              <div class="tab-group-title">${item.title}</div>
+              <div class="tab-group-title-row">
+                <div class="color-dot"
+                    style="background-color: var(${this.computeTabGroupDotColor_(item.color)})">
+                </div>
+                <div class="tab-group-title">${item.title}</div>
+              </div>
               <div class="tab-group-description">${this.computeDescription_(item.updateTime, item.deviceName)}</div>
             </div>
             ${item.isSharedTabGroup ? html`
@@ -68,7 +73,7 @@
             class="create-new-tab-group"
             @click="${() => this.onCreateNewTabGroupClick_(false)}">
           <div class="row-content">
-            <cr-icon id="createNewsTabGroupIcon"
+            <cr-icon id="createNewTabGroupIcon"
                 icon="tab_groups:create_new_tab_group" slot="icon">
             </cr-icon>
             <div id="createNewTabGroupText" class="tab-group-title">

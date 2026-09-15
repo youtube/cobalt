@@ -19,7 +19,7 @@ class Statement;
 
 namespace optimization_guide {
 
-// Stores page content (in the form of AnnotatedPageContent protos) in an
+// Stores page content (in the form of PageContext protos) in an
 // SQLite database.
 class PageContentStore {
  public:
@@ -38,22 +38,20 @@ class PageContentStore {
   // from the page.
   // `tab_id` is platform specific information used to identify tabs. It is
   // integer in iOS and Android. This database should be migrated to a cross
-  // platform tab ID implementation once available. This method will return
-  // false if an entry with the same `tab_id` already exists. The caller is
-  // responsible for deleting the old entry first.
+  // platform tab ID implementation once available. If an entry with the same
+  // non-null `tab_id` already exists, it will be overwritten.
   bool AddPageContent(const GURL& url,
-                      const proto::AnnotatedPageContent& apc,
+                      const proto::PageContext& page_context,
                       base::Time visit_timestamp,
                       base::Time extraction_timestamp,
                       std::optional<int64_t> tab_id);
 
   // Retrieves the page content for a given URL. If multiple, the most recent
   // based on visit timestamp.
-  std::optional<proto::AnnotatedPageContent> GetPageContent(const GURL& url);
+  std::optional<proto::PageContext> GetPageContent(const GURL& url);
 
   // Retrieves the page content for a given tab ID.
-  std::optional<proto::AnnotatedPageContent> GetPageContentForTab(
-      int64_t tab_id);
+  std::optional<proto::PageContext> GetPageContentForTab(int64_t tab_id);
 
   // Deletes page content, where visit timestamp older than a given `timestamp`.
   bool DeletePageContentOlderThan(base::Time timestamp);
@@ -70,7 +68,7 @@ class PageContentStore {
  private:
   bool InitializeDb();
 
-  std::optional<proto::AnnotatedPageContent> GetPageContentFromStatement(
+  std::optional<proto::PageContext> GetPageContentFromStatement(
       sql::Statement* statement);
 
   base::FilePath db_path_;

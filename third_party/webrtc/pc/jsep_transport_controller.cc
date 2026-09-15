@@ -57,7 +57,6 @@
 #include "pc/rtp_transport_internal.h"
 #include "pc/sctp_transport.h"
 #include "pc/session_description.h"
-#include "pc/srtp_transport.h"
 #include "pc/transport_stats.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
@@ -578,24 +577,6 @@ JsepTransportController::CreateUnencryptedRtpTransport(
     unencrypted_rtp_transport->SetRtcpPacketTransport(rtcp_packet_transport);
   }
   return unencrypted_rtp_transport;
-}
-
-std::unique_ptr<SrtpTransport> JsepTransportController::CreateSdesTransport(
-    const std::string& transport_name,
-    DtlsTransportInternal* rtp_dtls_transport,
-    DtlsTransportInternal* rtcp_dtls_transport) {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  auto srtp_transport = std::make_unique<SrtpTransport>(
-      rtcp_dtls_transport == nullptr, env_.field_trials());
-  RTC_DCHECK(rtp_dtls_transport);
-  srtp_transport->SetRtpPacketTransport(rtp_dtls_transport);
-  if (rtcp_dtls_transport) {
-    srtp_transport->SetRtcpPacketTransport(rtcp_dtls_transport);
-  }
-  if (config_.enable_external_auth) {
-    srtp_transport->EnableExternalAuth();
-  }
-  return srtp_transport;
 }
 
 std::unique_ptr<DtlsSrtpTransport>
@@ -1154,7 +1135,6 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
 
   std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport;
   std::unique_ptr<RtpTransport> unencrypted_rtp_transport;
-  std::unique_ptr<SrtpTransport> sdes_transport;
   std::unique_ptr<DtlsSrtpTransport> dtls_srtp_transport;
 
   scoped_refptr<IceTransportInterface> rtcp_ice;
@@ -1188,9 +1168,9 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
   std::unique_ptr<JsepTransport> jsep_transport =
       std::make_unique<JsepTransport>(
           content_info.mid(), certificate_, std::move(ice), std::move(rtcp_ice),
-          std::move(unencrypted_rtp_transport), std::move(sdes_transport),
-          std::move(dtls_srtp_transport), std::move(rtp_dtls_transport),
-          std::move(rtcp_dtls_transport), std::move(sctp_transport),
+          std::move(unencrypted_rtp_transport), std::move(dtls_srtp_transport),
+          std::move(rtp_dtls_transport), std::move(rtcp_dtls_transport),
+          std::move(sctp_transport),
           [&]() {
             RTC_DCHECK_RUN_ON(network_thread_);
             UpdateAggregateStates_n();

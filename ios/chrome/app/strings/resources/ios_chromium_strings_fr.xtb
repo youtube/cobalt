@@ -89,7 +89,6 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="2977470724722393594">Chromium est à jour</translation>
 <translation id="3044857325852340337">Données Chromium supprimées</translation>
 <translation id="3054480780637153380">Ouvrez les réglages Chromium sous iOS, appuyez sur "Appli du navigateur par défaut", puis sélectionnez Chromium.</translation>
-<translation id="3102849287235003384">Pour vous déconnecter de votre compte Google sur tous les sites Web, <ph name="BEGIN_LINK" />déconnectez-vous de Chromium<ph name="END_LINK" />.</translation>
 <translation id="3115956258722352278">Définir Chromium comme navigateur par défaut ?</translation>
 <translation id="3180939591219927904">Activez "Verrouiller les onglets de navigation privée lorsque vous fermez Chromium"</translation>
 <translation id="328933489847748230">{count,plural, =1{1 fenêtre Chromium actuellement affichée}one{{count} fenêtre Chromium actuellement affichée}other{{count} fenêtres Chromium actuellement affichées}}</translation>
@@ -200,6 +199,9 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="5671188105328420281">Astuces Chromium</translation>
 <translation id="5688047395118852662">Cette fiche vous propose des suggestions pour profiter pleinement de Chromium.</translation>
 <translation id="5700709190537129682">Chromium ne parvient pas à vérifier vos mots de passe</translation>
+<translation id="5731004036450828399">Pour protéger vos clés d'accès, vous devez d'abord créer un code de récupération.
+
+        Les clés d'accès sont enregistrées dans le Gestionnaire de mots de passe, ce qui vous permet de les utiliser dans Chromium sur n'importe quel appareil.</translation>
 <translation id="584550191241316896">Connecté à Chromium</translation>
 <translation id="5862307444128926510">Bienvenue dans Chromium</translation>
 <translation id="5889847953983052353">Lorsque cette option est activée :
@@ -265,8 +267,8 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="7269362888766543920">Certains modules complémentaires entraînent le plantage de Chromium. Veuillez essayer de les désinstaller.</translation>
 <translation id="7285031092584344905">Accéder à vos mots de passe Chromium et plus dans d'autres applis.</translation>
 <translation id="7337881442233988129">Chromium</translation>
-<translation id="7357211569052832586">Les données sélectionnées ont été supprimées de Chromium et des appareils synchronisés. Votre compte Google conserve peut-être d'autres formes d'historique de navigation sur la page history.google.com concernant, par exemple, vos recherches ou vos activités via d'autres services Google.</translation>
 <translation id="7395825497086981028">Votre mot de passe sera enregistré dans le Gestionnaire de mots de passe pour <ph name="EMAIL" />.</translation>
+<translation id="7434848749522628428">La clé d'accès sera enregistrée dans le Gestionnaire de mots de passe pour <ph name="USER_EMAIL" /></translation>
 <translation id="7504829997542308412">Ouvrez Chromium</translation>
 <translation id="7531461704633548377">Source : Chromium</translation>
 <translation id="7554983317097061001">Astuce Chromium : déplacez Chromium vers le dock</translation>
@@ -300,6 +302,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="8254729934443216898">Découvrez les nouvelles fonctionnalités qui vous aideront à exploiter tout le potentiel de Chromium.</translation>
 <translation id="8293572045658095405">Vous êtes en navigation privée Chromium</translation>
 <translation id="830951810931292870">Ouvre les URL saisies dans Chromium en navigation privée.</translation>
+<translation id="8385503371191508165">Commencez à enregistrer des clés d'accès avec le Gestionnaire de mots de passe</translation>
 <translation id="8390323835464055390">Connectez-vous avec vos mots de passe et clés d'accès enregistrés depuis n'importe quelle appli avec Chromium pour la saisie automatique</translation>
 <translation id="8409374867500149834">Vous disposez du plus haut niveau de sécurité de Chromium contre les sites dangereux</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{Cela se produit quand Chromium est inutilisé pendant {THRESHOLD} minute. Les données enregistrées uniquement sur cet appareil lorsque vous étiez connecté seront supprimées. Il peut s'agir de l'historique et de mots de passe.}one{Cela se produit quand Chromium est inutilisé pendant {THRESHOLD} minute. Les données enregistrées uniquement sur cet appareil lorsque vous étiez connecté seront supprimées. Il peut s'agir de l'historique et de mots de passe.}other{Cela se produit quand Chromium est inutilisé pendant {THRESHOLD} minutes. Les données enregistrées uniquement sur cet appareil lorsque vous étiez connecté seront supprimées. Il peut s'agir de l'historique et de mots de passe.}}</translation>

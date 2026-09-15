@@ -552,15 +552,14 @@ bool MemoryCache::OnMemoryDump(WebMemoryDumpLevelOfDetail level_of_detail,
   return true;
 }
 
-void MemoryCache::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+void MemoryCache::OnMemoryPressure(base::MemoryPressureLevel level) {
   if (base::FeatureList::IsEnabled(
           features::kReleaseResourceStrongReferencesOnMemoryPressure)) {
     ClearStrongReferences();
   }
 
 #if BUILDFLAG(IS_COBALT)
-  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL &&
+  if (level == base::MEMORY_PRESSURE_LEVEL_CRITICAL &&
       base::FeatureList::IsEnabled(
           features::kEvictMemoryCacheOnCriticalMemoryPressure)) {
     EvictResources();

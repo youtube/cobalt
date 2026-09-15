@@ -36,16 +36,19 @@ source_set("internal") {
       "browser_window_interface_iterator_non_android.cc",
       "create_browser_window_non_android.cc",
       "desktop_browser_window_capabilities.cc",
+      "embedder_browser_window_features.cc",
     ]
     public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 
     deps += [
       "//chrome/browser/actor/ui",
       "//chrome/browser/autocomplete:aim_eligibility_service",
+      "//chrome/browser/contextual_tasks:ui",
       "//chrome/browser/devtools",
       "//chrome/browser/extensions",
       "//chrome/browser/lens/region_search",
       "//chrome/browser/media/router:media_router_feature",
+      "//chrome/browser/prefs",
       "//chrome/browser/tab_group_sync:factories",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/bookmarks",
@@ -94,6 +97,10 @@ source_set("internal") {
 
     if (is_win || is_mac || is_linux) {
       deps += [ "//chrome/browser/ui/views/session_restore_infobar" ]
+    }
+
+    if (is_chromeos) {
+      deps += [ "//components/session_manager/core" ]
     }
 
     if (enable_glic) {
@@ -158,6 +165,7 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowEnumerator.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowCreatorBridge.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowInterfaceIteratorAndroid.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskBoundsConstraints.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskImpl.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerFactory.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerImpl.java",
@@ -201,6 +209,7 @@ if (is_android) {
     sources = [
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowCreateParamsImplUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowCreatorBridgeUnitTest.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskBoundsConstraintsUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskImplUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerImplUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/PendingActionManagerUnitTest.java",

@@ -11,6 +11,8 @@
 #include "modules/congestion_controller/scream/scream_network_controller.h"
 
 #include <memory>
+#include <optional>
+#include <utility>
 
 #include "api/transport/bandwidth_usage.h"
 #include "api/transport/network_control.h"
@@ -27,7 +29,7 @@ static constexpr DataRate kDefaultStartRate = DataRate::KilobitsPerSec(300);
 
 ScreamNetworkController::ScreamNetworkController(NetworkControllerConfig config)
     : env_(config.env),
-      scream_(std::make_unique<ScreamV2>(env_)),
+      scream_(std::in_place, env_),
       target_rate_constraints_(config.constraints) {
   if (config.constraints.min_data_rate.has_value() ||
       config.constraints.max_data_rate.has_value()) {
@@ -47,7 +49,7 @@ NetworkControlUpdate ScreamNetworkController::OnNetworkAvailability(
     return CreateUpdate(
         msg.at_time,
         target_rate_constraints_.starting_rate.value_or(kDefaultStartRate),
-        /*rtt*/ TimeDelta::Zero());
+        /*rtt=*/TimeDelta::Zero());
   }
   return NetworkControlUpdate();
 }
@@ -56,7 +58,7 @@ NetworkControlUpdate ScreamNetworkController::OnNetworkRouteChange(
     NetworkRouteChange msg) {
   RTC_LOG(LS_INFO) << " OnNetworkRouteChange, resetting ScreamV2.";
   target_rate_constraints_ = msg.constraints;
-  scream_ = std::make_unique<ScreamV2>(env_);
+  scream_.emplace(env_);
   // TODO: bugs.webrtc.org/447037083 - We should use the minimum rate from
   // constraints, REMB and remote network state estimates.
   scream_->SetTargetBitrateConstraints(
@@ -68,7 +70,7 @@ NetworkControlUpdate ScreamNetworkController::OnNetworkRouteChange(
   return CreateUpdate(
       msg.at_time,
       target_rate_constraints_.starting_rate.value_or(kDefaultStartRate),
-      /*rtt*/ TimeDelta::Zero());
+      /*rtt=*/TimeDelta::Zero());
 }
 
 NetworkControlUpdate ScreamNetworkController::OnProcessInterval(

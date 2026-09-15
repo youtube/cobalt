@@ -50,10 +50,8 @@
 #include "extensions/common/manifest_handlers/options_page_info.h"
 #include "extensions/common/mojom/api_permission_id.mojom-shared.h"
 #include "extensions/common/mojom/context_type.mojom.h"
-#include "extensions/common/permissions/api_permission.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
-#include "third_party/blink/public/common/features.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
@@ -62,42 +60,28 @@
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #else
-#include "base/no_destructor.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/types/expected_macros.h"
-#include "chrome/browser/browser_process.h"  // nogncheck
-#include "chrome/browser/extensions/tab_helper.h"
-#include "chrome/browser/platform_util.h"  // nogncheck
 #include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
-#include "chrome/browser/ui/browser.h"                   // nogncheck
-#include "chrome/browser/ui/browser_finder.h"            // nogncheck
-#include "chrome/browser/ui/browser_window.h"            // nogncheck
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"  // nogncheck
+#include "chrome/browser/ui/browser.h"                             // nogncheck
+#include "chrome/browser/ui/browser_finder.h"                      // nogncheck
+#include "chrome/browser/ui/browser_window.h"                      // nogncheck
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/recently_audible_helper.h"             // nogncheck
-#include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"     // nogncheck
-#include "chrome/browser/ui/singleton_tabs.h"                      // nogncheck
 #include "chrome/browser/ui/tab_contents/tab_contents_iterator.h"  // nogncheck
-#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"  // nogncheck
-#include "chrome/browser/ui/tabs/tab_enums.h"        // nogncheck
-#include "chrome/browser/ui/tabs/tab_group_model.h"  // nogncheck
-#include "chrome/browser/ui/tabs/tab_strip_model.h"  // nogncheck
-#include "chrome/browser/ui/tabs/tab_utils.h"        // nogncheck
-#include "chrome/browser/ui/ui_features.h"           // nogncheck
+#include "chrome/browser/ui/tabs/tab_enums.h"                      // nogncheck
+#include "chrome/browser/ui/tabs/tab_group_model.h"                // nogncheck
+#include "chrome/browser/ui/tabs/tab_strip_model.h"                // nogncheck
+#include "chrome/browser/ui/tabs/tab_utils.h"                      // nogncheck
 #include "chrome/common/extensions/api/tabs.h"
 #include "chrome/common/url_constants.h"
 #include "components/data_sharing/public/features.h"
-#include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
-#include "components/sessions/content/session_tab_helper.h"
 #include "components/tab_groups/tab_group_id.h"  // nogncheck
+#include "components/tabs/public/tab_group.h"
 #include "content/public/browser/back_forward_cache.h"
-#include "extensions/common/feature_switch.h"
 #include "extensions/common/manifest_handlers/incognito_info.h"
-#include "extensions/common/manifest_handlers/options_page_info.h"
 #endif
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
@@ -165,25 +149,28 @@ BrowserWindowInterface* GetBrowserForWebContents(
 
 #if !BUILDFLAG(IS_ANDROID)
 
-Browser* CreateBrowser(Profile* profile, bool user_gesture) {
+BrowserWindowInterface* CreateBrowser(Profile* profile, bool user_gesture) {
   if (Browser::GetCreationStatusForProfile(profile) !=
       Browser::CreationStatus::kOk) {
     return nullptr;
   }
 
-  Browser::CreateParams params(Browser::TYPE_NORMAL, profile, user_gesture);
-  return Browser::Create(params);
+  BrowserWindowCreateParams params(BrowserWindowInterface::TYPE_NORMAL,
+                                   *profile, user_gesture);
+  // TODO(https://crbug.com/430344931): When this is ported to android platfoms,
+  // this window isn't guaranteed to be fully initialized.
+  return CreateBrowserWindow(std::move(params));
 }
 
-Browser* CreateAndShowBrowser(Profile* profile,
-                              bool user_gesture,
-                              std::string* error) {
-  Browser* browser = CreateBrowser(profile, user_gesture);
+BrowserWindowInterface* CreateAndShowBrowser(Profile* profile,
+                                             bool user_gesture,
+                                             std::string* error) {
+  BrowserWindowInterface* browser = CreateBrowser(profile, user_gesture);
   if (!browser) {
     *error = ExtensionTabUtil::kBrowserWindowNotAllowed;
     return nullptr;
   }
-  browser->window()->Show();
+  browser->GetWindow()->Show();
   return browser;
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -316,11 +303,11 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
   // windowId defaults to "current" window.
   int window_id = params.window_id.value_or(extension_misc::kCurrentWindowId);
 
-  Browser* browser = nullptr;
+  BrowserWindowInterface* browser = nullptr;
   std::string error;
   if (WindowController* controller =
           GetControllerFromWindowID(chrome_details, window_id, &error)) {
-    browser = controller->GetBrowser();
+    browser = controller->GetBrowserWindowInterface();
   } else {
     // No matching window.
     if (!params.create_browser_if_needed)
@@ -333,10 +320,12 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
   }
 
   // Ensure the selected browser is normal.
-  if (!browser->is_type_normal() && browser->IsAttemptingToCloseBrowser())
+  if (browser->GetType() != BrowserWindowInterface::TYPE_NORMAL &&
+      browser->GetBrowserForMigrationOnly()->IsAttemptingToCloseBrowser()) {
     browser = chrome::FindTabbedBrowser(
         profile, function->include_incognito_information());
-  if (!browser || !browser->window()) {
+  }
+  if (!browser || !browser->GetWindow()) {
     return base::unexpected(kNoCurrentWindowError);
   }
 
@@ -381,8 +370,8 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
   // uses split mode. Special case to fall back to a tabbed window.
   if (url.SchemeIs(kExtensionScheme) &&
       (!extension || !IncognitoInfo::IsSplitMode(extension)) &&
-      browser->profile()->IsOffTheRecord()) {
-    Profile* original_profile = browser->profile()->GetOriginalProfile();
+      browser->GetProfile()->IsOffTheRecord()) {
+    Profile* original_profile = browser->GetProfile()->GetOriginalProfile();
 
     browser = chrome::FindTabbedBrowser(original_profile, false);
     if (!browser) {
@@ -393,8 +382,8 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
     }
   }
 
-  Browser* opener_browser =
-      opener_window ? opener_window->GetBrowser() : nullptr;
+  BrowserWindowInterface* opener_browser =
+      opener_window ? opener_window->GetBrowserWindowInterface() : nullptr;
   if (opener_browser && browser != opener_browser) {
     return base::unexpected(
         "Tab opener must be in the same window as the updated tab.");
@@ -403,7 +392,9 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
   // If index is specified, honor the value, but keep it bound to
   // -1 <= index <= tab_strip->count() where -1 invokes the default behavior.
   int index = params.index.value_or(-1);
-  index = std::clamp(index, -1, browser->tab_strip_model()->count());
+  index = std::clamp(
+      index, -1,
+      browser->GetBrowserForMigrationOnly()->tab_strip_model()->count());
 
   int add_types = active ? AddTabTypes::ADD_ACTIVE : AddTabTypes::ADD_NONE;
   add_types |= AddTabTypes::ADD_FORCE_INDEX;
@@ -447,7 +438,8 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
 
   // The tab may have been created in a different window, so make sure we look
   // at the right tab strip.
-  TabStripModel* tab_strip = navigate_params.browser->tab_strip_model();
+  TabStripModel* tab_strip =
+      navigate_params.browser->GetBrowserForMigrationOnly()->tab_strip_model();
   const int new_index = tab_strip->GetIndexOfWebContents(
       navigate_params.navigated_or_inserted_contents);
   if (opener) {
@@ -1349,17 +1341,9 @@ base::expected<GURL, std::string> ExtensionTabUtil::PrepareURLForNavigation(
     return base::unexpected(kNoCrashBrowserError);
   }
 
-  // Don't let the extension navigate directly to devtools scheme pages, unless
-  // they have applicable permissions.
+  // Don't let the extension navigate directly to devtools scheme pages.
   if (url.SchemeIs(content::kChromeDevToolsScheme)) {
-    bool has_permission =
-        extension && (extension->permissions_data()->HasAPIPermission(
-                          APIPermissionID::kDevtools) ||
-                      extension->permissions_data()->HasAPIPermission(
-                          APIPermissionID::kDebugger));
-    if (!has_permission) {
-      return base::unexpected(kCannotNavigateToDevtools);
-    }
+    return base::unexpected(kCannotNavigateToDevtools);
   }
 
   // Don't let the extension navigate directly to chrome-untrusted scheme pages.
@@ -1398,7 +1382,7 @@ void ExtensionTabUtil::CreateTab(
     bool user_gesture) {
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
-  Browser* browser = chrome::FindTabbedBrowser(profile, false);
+  BrowserWindowInterface* browser = chrome::FindTabbedBrowser(profile, false);
   const bool browser_created = !browser;
   if (!browser)
     browser = CreateBrowser(profile, user_gesture);
@@ -1422,8 +1406,9 @@ void ExtensionTabUtil::CreateTab(
   Navigate(&params);
 
   // Close the browser if Navigate created a new one.
-  if (browser_created && (browser != params.browser))
-    browser->window()->Close();
+  if (browser_created && (browser != params.browser)) {
+    browser->GetWindow()->Close();
+  }
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -1498,7 +1483,7 @@ bool ExtensionTabUtil::OpenOptionsPageFromAPI(
   // mode extension, this API could only be called from a regular profile, since
   // that's the only place it's running.
   DCHECK(!profile->IsOffTheRecord() || IncognitoInfo::IsSplitMode(extension));
-  Browser* browser = chrome::FindBrowserWithProfile(profile);
+  BrowserWindowInterface* browser = chrome::FindBrowserWithProfile(profile);
   if (!browser)
     browser = CreateBrowser(profile, true);
   if (!browser)
@@ -1508,7 +1493,7 @@ bool ExtensionTabUtil::OpenOptionsPageFromAPI(
 
 // static
 bool ExtensionTabUtil::OpenOptionsPage(const Extension* extension,
-                                       Browser* browser) {
+                                       BrowserWindowInterface* browser) {
   const std::optional<GURL> url = GetOptionsPageUrlToNavigate(extension);
   if (!url) {
     return false;

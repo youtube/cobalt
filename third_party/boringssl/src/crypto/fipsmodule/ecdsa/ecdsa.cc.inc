@@ -22,6 +22,7 @@
 #include <openssl/mem.h>
 
 #include "../../internal.h"
+#include "../bcm_interface.h"
 #include "../bn/internal.h"
 #include "../ec/internal.h"
 #include "../service_indicator/internal.h"
@@ -229,13 +230,13 @@ int ecdsa_sign_fixed(const uint8_t *digest, size_t digest_len, uint8_t *sig,
 
   // Pass a SHA512 hash of the private key and digest as additional data
   // into the RBG. This is a hardening measure against entropy failure.
-  static_assert(BCM_SHA512_DIGEST_LENGTH >= 32,
+  static_assert(SHA512_DIGEST_LENGTH >= 32,
                 "additional_data is too large for SHA-512");
 
   FIPS_service_indicator_lock_state();
 
   SHA512_CTX sha;
-  uint8_t additional_data[BCM_SHA512_DIGEST_LENGTH];
+  uint8_t additional_data[SHA512_DIGEST_LENGTH];
   BCM_sha512_init(&sha);
   BCM_sha512_update(&sha, priv_key->words, order->width * sizeof(BN_ULONG));
   BCM_sha512_update(&sha, digest, digest_len);

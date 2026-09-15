@@ -18,6 +18,7 @@
 #include "chrome/browser/glic/fre/glic_fre.mojom.h"
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
+class BrowserWindowInterface;
 class PrefService;
 
 namespace glic {
@@ -36,13 +37,19 @@ class GlicButton : public TabStripNudgeButton,
                       PressedCallback close_pressed_callback,
                       base::RepeatingClosure hovered_callback,
                       base::RepeatingClosure mouse_down_callback,
+                      base::RepeatingClosure expansion_animation_done_callback,
                       const std::u16string& tooltip);
   GlicButton(const GlicButton&) = delete;
   GlicButton& operator=(const GlicButton&) = delete;
   ~GlicButton() override;
 
+  static GlicButton* FromBrowser(BrowserWindowInterface* browser);
+
   void SetNudgeLabel(std::string label);
   void RestoreDefaultLabel();
+
+  // Update button for glic attachment state.
+  void SetGlicDetached(bool detached);
 
   // TabStripNudgeButton:
   void SetIsShowingNudge(bool is_showing) override;
@@ -75,6 +82,8 @@ class GlicButton : public TabStripNudgeButton,
 
   // gfx::AnimationDelegate:
   void AnimationProgressed(const gfx::Animation* animation) override;
+  void AnimationEnded(const gfx::Animation* animation) override;
+  void AnimationCanceled(const gfx::Animation* animation) override;
 
   bool IsContextMenuShowingForTest();
 
@@ -86,6 +95,8 @@ class GlicButton : public TabStripNudgeButton,
 
   // Called when the slide animation finishes.
   void OnAnimationEnded();
+
+  gfx::SlideAnimation* GetExpansionAnimationForTesting() override;
 
  private:
   // views::LabelButton:
@@ -113,6 +124,9 @@ class GlicButton : public TabStripNudgeButton,
 
   void StartShowAnimation();
   void StartHideAnimation();
+  void ApplyTextAndFadeIn(std::optional<std::u16string> text,
+                          base::TimeDelta delay,
+                          base::TimeDelta duration);
   void MaybeFadeHighlightOnHover(float final_opacity);
   void StartExpansionAnimations(bool show,
                                 base::TimeDelta overall_duration,
@@ -160,6 +174,9 @@ class GlicButton : public TabStripNudgeButton,
   // (i.e., the user is very likely to interact with it soon).
   base::RepeatingClosure mouse_down_callback_;
 
+  // Invoked when the button hide animation finishes.
+  base::RepeatingClosure expansion_animation_done_callback_;
+
   // Cached widths for animating label changes.
   int initial_width_ = 0;
   int expanded_width_ = 0;
@@ -174,8 +191,14 @@ class GlicButton : public TabStripNudgeButton,
   // changing the button width when the nudge is shown.
   std::unique_ptr<gfx::SlideAnimation> expansion_animation_;
 
+  // Holds the incoming nudge text until the point in the animation when it can
+  // be applied.
+  std::optional<std::u16string> pending_text_;
+
   const ui::ImageModel normal_icon_;
   const ui::ImageModel icon_for_highlight_;
+
+  base::WeakPtrFactory<GlicButton> weak_ptr_factory_{this};
 };
 
 }  // namespace glic

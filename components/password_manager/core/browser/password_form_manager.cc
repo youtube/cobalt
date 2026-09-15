@@ -67,10 +67,6 @@
 #include "components/webauthn/android/webauthn_cred_man_delegate.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-#include "components/os_crypt/sync/os_crypt.h"
-#endif
-
 using autofill::FieldDataManager;
 using autofill::FieldRendererId;
 using autofill::FormData;
@@ -945,7 +941,7 @@ void PasswordFormManager::OnFetchCompleted() {
           form_fetcher_->GetProfileStoreBackendError())) {
     client_->NotifyKeychainError();
   } else {
-    if (OSCrypt::IsEncryptionAvailable() && client_->GetPrefs()) {
+    if (client_->GetPrefs()) {
       client_->GetPrefs()->SetInteger(
           password_manager::prefs::kRelaunchChromeBubbleDismissedCounter, 0);
     }
@@ -1078,7 +1074,6 @@ bool PasswordFormManager::ProvisionallySave(
   is_submitted_ = true;
   CalculateSubmittedFormFrameMetric();
   CalculateSubmittedFormTypeMetric();
-  metrics_recorder_->set_possible_username_used(false);
   if (votes_uploader_.has_value()) {
     votes_uploader_->clear_single_username_votes_data();
     votes_uploader_->set_should_send_username_first_flow_votes(false);
@@ -1748,7 +1743,6 @@ void PasswordFormManager::HandleUsernameFirstFlow(
     SetUsernameValueFromOutsideOfForm(picked_username.data.value,
                                       *parsed_submitted_form_.get());
   }
-  metrics_recorder_->set_possible_username_used(true);
 }
 
 void PasswordFormManager::HandleForgotPasswordFormData() {
@@ -1905,6 +1899,10 @@ void PasswordFormManager::AddObserver(PasswordFormManagerObserver* observer) {
 void PasswordFormManager::RemoveObserver(
     PasswordFormManagerObserver* observer) {
   form_parsed_observers_.RemoveObserver(observer);
+}
+
+void PasswordFormManager::SetShouldStoreActorLoginPermission() {
+  password_save_manager_->SetShouldStoreActorLoginPermission();
 }
 
 }  // namespace password_manager

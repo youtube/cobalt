@@ -36,9 +36,7 @@ vars = {
   # infra/3pp/tools/cmake/linux-amd64
   'cmake_version': 'version:3@3.31.9.chromium.8',
   # infra/3pp/tools/go/linux-amd64
-  # We should upgrade this to Go 1.25, but some of the Macs on our CI need to be
-  # updated first. See https://crbug.com/448848885
-  'go_version': 'version:3@1.24.7',
+  'go_version': 'version:3@1.25.1',
   # infra/3pp/tools/perl/windows-amd64
   'perl_version': 'version:3@5.38.2.2',
   # chrome_internal/third_party/sdk/windows, but if an update switches this to a

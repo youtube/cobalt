@@ -914,6 +914,7 @@ clang_tot_linux_builder(
             "shared",
             "release",
             "x64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -928,6 +929,7 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "rel",
+    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -953,6 +955,7 @@ clang_tot_linux_builder(
             "shared",
             "debug",
             "x64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -966,6 +969,7 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "dbg",
+    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -992,6 +996,7 @@ clang_tot_linux_builder(
             "lsan",
             "release_builder",
             "x64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -1011,6 +1016,7 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "asn",
+    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -1033,6 +1039,7 @@ clang_tot_linux_builder(
         configs = [
             "libfuzzer",
             "asan",
+            "remoteexec",
             "clang_tot_gn",
             "no_treat_warnings_as_errors",
             "shared",
@@ -1057,6 +1064,7 @@ clang_tot_linux_builder(
     # Requires a large disk, so has a machine specifically devoted to it
     builderless = False,
     short_name = "fuz",
+    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -1099,6 +1107,7 @@ clang_tot_linux_builder(
             "msan",
             "release",
             "x64",
+            # TODO(crbug.com/450862240) enable "remoteexec" here
         ],
     ),
     targets = targets.bundle(
@@ -1139,6 +1148,7 @@ clang_tot_linux_builder(
             "no_symbols",
             "pgo_phase_1",
             "x64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -1153,6 +1163,7 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "pgo",
+    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -1178,6 +1189,7 @@ clang_tot_linux_builder(
             "tsan",
             "release",
             "x64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -1192,6 +1204,7 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "tsn",
+    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -1217,6 +1230,7 @@ clang_tot_linux_builder(
             "ubsan_vptr_no_recover_hack",
             "release_builder",
             "x64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -1231,6 +1245,7 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "usn",
+    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 ci.builder(
@@ -1427,6 +1442,9 @@ ci.builder(
 
 ci.builder(
     name = "ToTWin64(dbg)",
+    triggering_policy = scheduler.greedy_batching(
+        max_concurrent_invocations = 5,
+    ),
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
@@ -1463,9 +1481,11 @@ ci.builder(
             "win10",
         ],
     ),
-    cores = "32",
+    # TODO(b/449722288): Reduce to 1 concurrent build after picking best
+    # machine type.
+    builderless = False,
+    cores = None,
     os = os.WINDOWS_DEFAULT,
-    free_space = builders.free_space.high,
     console_view_entry = consoles.console_view_entry(
         category = "ToT Windows|x64",
         short_name = "dbg",
@@ -1860,7 +1880,6 @@ ci.builder(
             "has_native_resultdb_integration",
             "ios_restart_device",
             "limited_capacity_bot",
-            "mac_default_x64",
             "mac_toolchain",
             "out_dir_arg",
             "xcode_26_main",

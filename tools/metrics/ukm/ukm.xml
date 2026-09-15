@@ -9406,7 +9406,7 @@ be describing additional metrics about the same event.
 
 <event name="Feedback.HappinessTrackingSurvey">
   <owner>zhouzj@google.com</owner>
-  <owner>fjacky@google.com</owner>
+  <owner>msramek@google.com</owner>
   <summary>
     Recorded when a user completes a HaTS survey.
   </summary>
@@ -11921,9 +11921,9 @@ be describing additional metrics about the same event.
     </aggregation>
   </metric>
   <metric
-      name="SubmitUpdateDisplayTreeToPresentationCompositorFrame.RecieveUpdateDisplayTreeToStartPrepareToDraw">
+      name="SubmitUpdateDisplayTreeToPresentationCompositorFrame.ReceiveUpdateDisplayTreeToStartPrepareToDraw">
     <summary>
-      [TreesInViz only] The time from when the display compositor recieves an
+      [TreesInViz only] The time from when the display compositor receives an
       UpdateDisplayTree to when it starts to prepare to draw the frame, in
       microseconds.
     </summary>
@@ -11937,10 +11937,10 @@ be describing additional metrics about the same event.
     </aggregation>
   </metric>
   <metric
-      name="SubmitUpdateDisplayTreeToPresentationCompositorFrame.SendUpdateDisplayTreeToRecieveUpdateDisplayTree">
+      name="SubmitUpdateDisplayTreeToPresentationCompositorFrame.SendUpdateDisplayTreeToReceiveUpdateDisplayTree">
     <summary>
       [TreesInViz only] The time from when an UpdateDisplayTree is submitted to
-      the display compositor to when it is recieved by the display compositor,
+      the display compositor to when it is received by the display compositor,
       in microseconds.
     </summary>
     <aggregation>
@@ -22169,6 +22169,11 @@ be describing additional metrics about the same event.
     <summary>
       The type of action that the user has taken after being shown an abusive
       notification auto-revocation in Safety Hub.
+    </summary>
+  </metric>
+  <metric name="RevocationSource" enum="NotificationRevocationSource">
+    <summary>
+      The reason for auto-revocation.
     </summary>
   </metric>
 </event>

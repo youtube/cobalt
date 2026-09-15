@@ -647,9 +647,11 @@ class VideoStreamEncoder::DegradationPreferenceManager
  public:
   explicit DegradationPreferenceManager(
       VideoStreamAdapter* video_stream_adapter)
-      : degradation_preference_(DegradationPreference::DISABLED),
+      : degradation_preference_(
+            DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION),
         is_screenshare_(false),
-        effective_degradation_preference_(DegradationPreference::DISABLED),
+        effective_degradation_preference_(
+            DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION),
         video_stream_adapter_(video_stream_adapter) {
     RTC_DCHECK(video_stream_adapter_);
     sequence_checker_.Detach();

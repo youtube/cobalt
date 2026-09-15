@@ -35,12 +35,13 @@ import android.graphics.drawable.Drawable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.chrome.browser.autofill.AutofillImageFetcher;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.BnplIssuer;
+import org.chromium.chrome.browser.autofill.PersonalDataManager.BnplIssuerContext;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.Iban;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.ImageSize;
 import org.chromium.components.autofill.LoyaltyCard;
+import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -125,13 +126,18 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
     }
 
     @Override
-    public void showBnplIssuers(List<BnplIssuer> bnplIssuers) {
-        mMediator.showBnplIssuers(bnplIssuers);
+    public void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts) {
+        mMediator.showBnplIssuers(bnplIssuerContexts);
     }
 
     @Override
     public void showErrorScreen(String title, String description) {
         mMediator.showErrorScreen(title, description);
+    }
+
+    @Override
+    public void showBnplIssuerTos(BnplIssuerTosDetail bnplIssuerTosDetail) {
+        mMediator.showBnplIssuerTos(bnplIssuerTosDetail);
     }
 
     @Override

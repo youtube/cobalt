@@ -1548,11 +1548,6 @@ OPENSSL_EXPORT uint16_t SSL_CIPHER_get_max_version(const SSL_CIPHER *cipher);
 // example, "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256".
 OPENSSL_EXPORT const char *SSL_CIPHER_standard_name(const SSL_CIPHER *cipher);
 
-// SSL_CIPHER_get_name returns the OpenSSL name of |cipher|. For example,
-// "ECDHE-RSA-AES128-GCM-SHA256". Callers are recommended to use
-// |SSL_CIPHER_standard_name| instead.
-OPENSSL_EXPORT const char *SSL_CIPHER_get_name(const SSL_CIPHER *cipher);
-
 // SSL_CIPHER_get_kx_name returns a string that describes the key-exchange
 // method used by |cipher|. For example, "ECDHE_ECDSA". TLS 1.3 AEAD-only
 // ciphers return the string "GENERIC".
@@ -5301,6 +5296,11 @@ OPENSSL_EXPORT const char *SSL_CIPHER_get_version(const SSL_CIPHER *cipher);
 // 0x03000000. This is part of OpenSSL's SSL 2.0 legacy. SSL 2.0 has long since
 // been removed from BoringSSL. Use |SSL_CIPHER_get_protocol_id| instead.
 OPENSSL_EXPORT uint32_t SSL_CIPHER_get_id(const SSL_CIPHER *cipher);
+
+// SSL_CIPHER_get_name returns the OpenSSL name of |cipher|. For example,
+// "ECDHE-RSA-AES128-GCM-SHA256". Callers are recommended to use
+// |SSL_CIPHER_standard_name| instead.
+OPENSSL_EXPORT const char *SSL_CIPHER_get_name(const SSL_CIPHER *cipher);
 
 typedef void COMP_METHOD;
 typedef struct ssl_comp_st SSL_COMP;

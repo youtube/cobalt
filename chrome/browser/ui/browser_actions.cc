@@ -80,6 +80,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/collaboration/public/messaging/activity_log.h"
 #include "components/commerce/core/metrics/discounts_metric_collector.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_features.h"
 #include "components/media_router/browser/media_router_dialog_controller.h"
 #include "components/media_router/browser/media_router_metrics.h"
@@ -488,6 +489,22 @@ void BrowserActions::InitializeBrowserActions() {
   }
 
   root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                chrome::NewTab(bwi->GetBrowserForMigrationOnly());
+              },
+              bwi))
+          .SetActionId(kActionNewTab)
+          .SetText(BrowserActions::GetCleanTitleAndTooltipText(
+              l10n_util::GetStringUTF16(IDS_NEW_TAB)))
+          .SetTooltipText(BrowserActions::GetCleanTitleAndTooltipText(
+              l10n_util::GetStringUTF16(IDS_NEW_TAB)))
+          .SetImage(ui::ImageModel::FromVectorIcon(kAddIcon, ui::kColorIcon))
+          .Build());
+
+  root_action_item_->AddChild(
       ChromeMenuAction(
           base::BindRepeating(
               [](BrowserWindowInterface* bwi, actions::ActionItem* item,
@@ -684,7 +701,8 @@ void BrowserActions::InitializeBrowserActions() {
                       ManagePasswordsUIController::FromWebContents(
                           web_contents);
                   if (controller->IsShowingBubble()) {
-                    controller->HideBubble();
+                    controller->HideBubble(
+                        /*initiated_by_bubble_manager=*/false);
                   } else {
                     chrome::ManagePasswordsForPage(bwi);
                   }
@@ -1043,6 +1061,16 @@ void BrowserActions::InitializeBrowserActions() {
                         IDS_COLLABORATION_SHARED_TAB_GROUPS_COMMENTS_TITLE,
                         vector_icons::kChatIcon, kActionSidePanelShowComments,
                         bwi, false)
+            .Build());
+  }
+
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    root_action_item_->AddChild(
+        SidePanelAction(SidePanelEntryId::kContextualTasks,
+                        IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE,
+                        IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE,
+                        vector_icons::kChatIcon,
+                        kActionSidePanelShowContextualTasks, bwi, false)
             .Build());
   }
 

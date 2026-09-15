@@ -9,7 +9,7 @@ import type {SearchboxElement} from './searchbox.js';
 export function getHtml(this: SearchboxElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-${this.realboxLayoutMode === 'Tall' ? html`
+${this.ntpRealboxNextEnabled ? html`
 <ntp-error-scrim id="errorScrim"></ntp-error-scrim>` : ''}
 <div id="inputWrapper" @focusout="${this.onInputWrapperFocusout_}"
     @keydown="${this.onInputWrapperKeydown_}">
@@ -39,55 +39,45 @@ ${this.realboxLayoutMode === 'Tall' ? html`
       </cr-searchbox-thumbnail>
     </div>
   ` : ''}
-  ${this.searchboxChromeRefreshTheming ? html`
-    ${this.searchboxVoiceSearchEnabled_ ? html`
-      <div class="searchbox-icon-button-container voice">
-        <button id="voiceSearchButton" class="searchbox-icon-button"
-            @click="${this.onVoiceSearchClick_}"
-            title="${this.i18n('voiceSearchButtonLabel')}">
-        </button>
-      </div>
-    ` : ''}
-    ${this.searchboxLensSearchEnabled_ ? html`
-      <div class="searchbox-icon-button-container lens">
-        <button id="lensSearchButton" class="searchbox-icon-button"
-            @click="${this.onLensSearchClick_}"
-            title="${this.i18n('lensSearchButtonLabel')}">
-        </button>
-      </div>
-    ` : ''}
-  ` : ''}
 
-  ${!this.searchboxChromeRefreshTheming ? html`
-    ${this.searchboxVoiceSearchEnabled_ ? html`
+  ${this.searchboxVoiceSearchEnabled_ ? html`
+    <div class="searchbox-icon-button-container voice">
       <button id="voiceSearchButton" class="searchbox-icon-button"
           @click="${this.onVoiceSearchClick_}"
           title="${this.i18n('voiceSearchButtonLabel')}">
       </button>
-    ` : ''}
-    ${this.searchboxLensSearchEnabled_ ? html`
+    </div>
+  ` : ''}
+
+  ${this.searchboxLensSearchEnabled_ ? html`
+    <div class="searchbox-icon-button-container lens">
       <button id="lensSearchButton" class="searchbox-icon-button lens"
           @click="${this.onLensSearchClick_}"
           title="${this.i18n('lensSearchButtonLabel')}">
       </button>
-    ` : ''}
-    ${this.composeButtonEnabled ? html`
-      <cr-searchbox-compose-button id="composeButton"
-          @compose-click="${this.onComposeButtonClick_}">
-      </cr-searchbox-compose-button>
-    ` : ''}
+    </div>
   ` : ''}
 
-  ${this.realboxLayoutMode === 'Tall' ? html`
+  ${this.composeButtonEnabled ? html`
+    <cr-searchbox-compose-button id="composeButton"
+        @compose-click="${this.onComposeButtonClick_}">
+    </cr-searchbox-compose-button>
+  ` : ''}
+
+  ${this.ntpRealboxNextEnabled ? html`
     <div class="dropdownContainer">
       <contextual-entrypoint-and-carousel id="context"
+          part="contextual-entrypoint-and-carousel"
+          exportparts="composebox-entrypoint"
           @add-tab-context="${this.addTabContext_}"
           @add-file-context="${this.addFileContext_}"
           @delete-context="${this.deleteContext_}"
           @refresh-tab-suggestions="${this.refreshTabSuggestions_}"
           @on-context-files-changed="${this.onContextFilesChanged_}"
           @on-file-validation-error="${this.onFileValidationError_}"
-          ?show-dropdown="${this.dropdownIsVisible}">
+          @get-tab-preview="${this.getTabPreview_}"
+          ?show-dropdown="${this.dropdownIsVisible}"
+          realbox-layout-mode="${this.realboxLayoutMode}">
         <cr-searchbox-dropdown id="matches" part="searchbox-dropdown"
             exportparts="dropdown-content"
             role="listbox" .result="${this.result_}"

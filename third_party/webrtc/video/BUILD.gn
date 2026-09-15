@@ -671,6 +671,7 @@ if (rtc_include_tests) {
         "../api/units:data_rate",
         "../api/video_codecs:video_codecs_api",
         "../modules/video_coding:webrtc_vp9",
+        "../test:create_test_field_trials",
         "../test:fileutils",
         "../test:test_support",
         "config:encoder_config",

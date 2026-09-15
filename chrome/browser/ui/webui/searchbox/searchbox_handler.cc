@@ -25,18 +25,14 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
-#include "content/public/browser/render_widget_host_view.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
-#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
-#include "components/lens/tab_contextualization_controller.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -293,9 +289,6 @@ std::string GetBase64UrlVariations(Profile* profile) {
   return variations_base64url;
 }
 
-constexpr int kThumbnailWidth = 125;
-constexpr int kThumbnailHeight = 200;
-
 }  // namespace
 
 // static
@@ -303,26 +296,24 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                                             Profile* profile,
                                             bool enable_voice_search,
                                             bool enable_lens_search) {
-  // Embedders which are served from chrome-untrusted:// URLs should override
-  // this to false. The chrome.timeTicks capability that the metrics reporter
-  // depends on is not defined in chrome-untrusted environments and attempting
-  // to use it will lead to a renderer process crash. See
-  // http://g/chrome-webui/haW6I9yt-uA/38ckX-aGAgAJ for details.
-  source->AddBoolean("reportMetrics", true);
-
   // The WebUI Omnibox code will override this to `true` to adjust various
   // color and layout options.
   source->AddBoolean("isTopChromeSearchbox", false);
-
   // The lens searchboxes overrides this to true to adjust various color and
   // layout options.
   source->AddBoolean("isLensSearchbox", false);
+
+  source->AddBoolean("reportMetrics", false);
+  source->AddString("charTypedToPaintMetricName", "");
+  source->AddString("resultChangedToPaintMetricName", "");
+
   source->AddBoolean("forceHideEllipsis", false);
   source->AddBoolean("enableThumbnailSizingTweaks", false);
   source->AddBoolean("enableCsbMotionTweaks", false);
 
   static constexpr webui::LocalizedString kStrings[] = {
-      {"lensSearchButtonLabel", IDS_TOOLTIP_LENS_SEARCH},
+      {"lensSearchButtonLabel",
+       IDS_TOOLTIP_LENS_REINVOKE_VISUAL_SELECTION_A11Y_LABEL},
       {"searchboxSeparator", IDS_AUTOCOMPLETE_MATCH_DESCRIPTION_SEPARATOR},
       {"removeSuggestion", IDS_OMNIBOX_REMOVE_SUGGESTION},
       {"searchBoxHint", IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD},
@@ -366,6 +357,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"uploadFile", IDS_NTP_COMPOSE_ADD_FILE},
       {"deepSearch", IDS_NTP_COMPOSE_DEEP_SEARCH},
       {"createImages", IDS_NTP_COMPOSE_CREATE_IMAGES},
+      {"composeDeepSearchPlaceholder", IDS_COMPOSE_DEEP_SEARCH_PLACEHOLDER},
+      {"composeCreateImagePlaceholder", IDS_COMPOSE_CREATE_IMAGE_PLACEHOLDER},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -409,14 +402,6 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                          ntp_composebox::FeatureConfig::Get()
                              .config.entry_point()
                              .num_page_load_animations());
-  source->AddString("realboxLayoutMode",
-                    ntp_realbox::IsNtpRealboxNextEnabled(profile)
-                        ? ntp_realbox::RealboxLayoutModeToString(
-                              ntp_realbox::kRealboxLayoutMode.Get())
-                        : "");
-  source->AddBoolean("searchboxCyclingPlaceholders",
-                     ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
-                         ntp_realbox::kCyclingPlaceholders.Get());
 }
 
 std::string SearchboxHandler::AutocompleteIconToResourceName(
@@ -768,13 +753,10 @@ SearchboxHandler::SearchboxHandler(
     mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
     Profile* profile,
     content::WebContents* web_contents,
-    MetricsReporter* metrics_reporter,
     std::unique_ptr<OmniboxController> controller)
     : profile_(profile),
       web_contents_(web_contents),
-      metrics_reporter_(metrics_reporter),
       owned_controller_(std::move(controller)),
-      page_set_(false),
       page_handler_(this, std::move(pending_page_handler)) {
   controller_ = owned_controller_.get();
 }
@@ -785,13 +767,15 @@ SearchboxHandler::~SearchboxHandler() {
 }
 
 bool SearchboxHandler::IsRemoteBound() const {
-  return page_set_;
+  return page_.is_bound();
 }
 
 void SearchboxHandler::SetPage(
     mojo::PendingRemote<searchbox::mojom::Page> pending_page) {
   page_.Bind(std::move(pending_page));
-  page_set_ = page_.is_bound();
+  if (page_is_bound_callback_for_testing_) {
+    std::move(page_is_bound_callback_for_testing_).Run();
+  }
 }
 
 void SearchboxHandler::OnFocusChanged(bool focused) {
@@ -838,6 +822,8 @@ void SearchboxHandler::QueryAutocomplete(const std::u16string& input,
           controller_->client()->GetLensOverlaySuggestInputs()) {
     autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
   }
+
+  autocomplete_input.set_aim_tool_mode(GetAimToolMode());
 
   edit_model()->SetAutocompleteInput(autocomplete_input);
   omnibox_controller()->StartAutocomplete(autocomplete_input);
@@ -979,125 +965,9 @@ void SearchboxHandler::GetPlaceholderConfig(
   std::move(callback).Run(std::move(config));
 }
 
-void SearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
-  std::vector<searchbox::mojom::TabInfoPtr> tabs;
 
-  auto* browser_window_interface =
-      webui::GetBrowserWindowInterface(web_contents_);
-  if (!browser_window_interface) {
-    std::move(callback).Run(std::move(tabs));
-    return;
-  }
-
-  // Iterate through the tab strip model, getting the data for each tab
-  auto* tab_strip_model = browser_window_interface->GetTabStripModel();
-  UMA_HISTOGRAM_COUNTS_1000(
-      "NewTabPage.Composebox.ActiveTabsCountOnContextMenuOpen",
-      tab_strip_model->count());
-
-  for (int i = 0; i < tab_strip_model->count(); i++) {
-    content::WebContents* web_contents = tab_strip_model->GetWebContentsAt(i);
-    tabs::TabInterface* const tab = tab_strip_model->GetTabAtIndex(i);
-    TabRendererData tab_renderer_data =
-        TabRendererData::FromTabInModel(tab_strip_model, i);
-    const auto& last_committed_url = tab_renderer_data.last_committed_url;
-    // Skip tabs that are still loading, and skip webui.
-    if (!last_committed_url.is_valid() || last_committed_url.is_empty() ||
-        last_committed_url.SchemeIs(content::kChromeUIScheme) ||
-        last_committed_url.SchemeIs(content::kChromeUIUntrustedScheme)) {
-      continue;
-    }
-    auto tab_data = searchbox::mojom::TabInfo::New();
-    tab_data->tab_id = tab->GetHandle().raw_value();
-    tab_data->title = base::UTF16ToUTF8(tab_renderer_data.title);
-    tab_data->url = last_committed_url;
-    tab_data->last_active =
-        std::max(web_contents->GetLastActiveTimeTicks(),
-                 web_contents->GetLastInteractionTimeTicks());
-    tabs.push_back(std::move(tab_data));
-  }
-
-  // Count duplicate tab titles to record in an UMA histogram.
-  // For example, If 2 tabs with title "Wikipedia" and 3 tabs with title
-  // "Weather" are open, this histogram will record 2.
-  std::map<std::string, int> title_counts;
-  for (const auto& tab : tabs) {
-    title_counts[tab->title]++;
-  }
-  int duplicate_count =
-      std::count_if(title_counts.begin(), title_counts.end(),
-                    [](const std::pair<const std::string, int>& pair) {
-                      return pair.second > 1;
-                    });
-  UMA_HISTOGRAM_COUNTS_100000(
-      "NewTabPage.Composebox.DuplicateTabTitlesShownCount", duplicate_count);
-
-  // Sort the tabs by last active time, and truncate to the maximum number of
-  // tabs to return.
-  int max_tab_suggestions =
-      std::min(static_cast<int>(tabs.size()),
-               ntp_composebox::kContextMenuMaxTabSuggestions.Get());
-  std::partial_sort(tabs.begin(), tabs.begin() + max_tab_suggestions,
-                    tabs.end(),
-                    [](const searchbox::mojom::TabInfoPtr& a,
-                       const searchbox::mojom::TabInfoPtr& b) {
-                      return a->last_active > b->last_active;
-                    });
-  tabs.resize(max_tab_suggestions);
-
-  // Invoke the callback with the results.
-  std::move(callback).Run(std::move(tabs));
-}
-
-std::optional<lens::ImageEncodingOptions>
-SearchboxHandler::CreateTabPreviewEncodingOptions(
-    content::WebContents* web_contents) {
-  float scale_factor = 1.0f;
-  if (content::RenderWidgetHostView* view =
-          web_contents->GetRenderWidgetHostView()) {
-    scale_factor = view->GetDeviceScaleFactor();
-  }
-  const int max_height_pixels =
-      static_cast<int>(kThumbnailHeight * scale_factor);
-  const int max_width_pixels = static_cast<int>(kThumbnailWidth * scale_factor);
-  return lens::ImageEncodingOptions{.max_height = max_height_pixels,
-                                    .max_width = max_width_pixels};
-}
-
-// TODO(crbug.com/447629531): Move the implementation to the
-// ContextualSearchboxHandler and put an empty implementation in the header for
-// this class.
-void SearchboxHandler::GetTabPreview(int32_t tab_id,
-                                     GetTabPreviewCallback callback) {
-  const tabs::TabHandle handle = tabs::TabHandle(tab_id);
-  tabs::TabInterface* const tab = handle.Get();
-  if (!tab) {
-    std::move(callback).Run(std::nullopt);
-    return;
-  }
-
-  lens::TabContextualizationController* tab_context_controller =
-      tab->GetTabFeatures()->tab_contextualization_controller();
-
-  content::WebContents* web_contents = tab->GetContents();
-  tab_context_controller->CaptureScreenshot(
-      CreateTabPreviewEncodingOptions(web_contents),
-      base::BindOnce(&SearchboxHandler::OnPreviewReceived,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
-}
-
-void SearchboxHandler::OnPreviewReceived(GetTabPreviewCallback callback,
-                                         const SkBitmap& preview_bitmap) {
-  std::move(callback).Run(
-      preview_bitmap.isNull()
-          ? std::nullopt
-          : std::make_optional(webui::GetBitmapDataUrl(preview_bitmap)));
-}
 void SearchboxHandler::OnResultChanged(AutocompleteController* controller,
                                        bool default_match_changed) {
-  if (metrics_reporter_ && !metrics_reporter_->HasLocalMark("ResultChanged")) {
-    metrics_reporter_->Mark("ResultChanged");
-  }
   page_->AutocompleteResultChanged(CreateAutocompleteResult(
       autocomplete_controller()->input().text(),
       autocomplete_controller()->result(), edit_model(),
@@ -1152,12 +1022,25 @@ const AutocompleteMatch* SearchboxHandler::GetMatchWithUrl(size_t index,
   return &match;
 }
 
+omnibox::ChromeAimToolsAndModels SearchboxHandler::GetAimToolMode() {
+  return omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
+}
+
 OmniboxController* SearchboxHandler::omnibox_controller() {
   return controller_;
 }
 
 AutocompleteController* SearchboxHandler::autocomplete_controller() {
   return omnibox_controller()->autocomplete_controller();
+}
+
+void SearchboxHandler::set_page_is_bound_callback_for_testing(
+    base::OnceClosure callback) {
+  if (page_.is_bound() && callback) {
+    std::move(callback).Run();
+    return;
+  }
+  page_is_bound_callback_for_testing_ = std::move(callback);
 }
 
 OmniboxEditModel* SearchboxHandler::edit_model() {

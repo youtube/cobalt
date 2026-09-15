@@ -122,7 +122,8 @@ class QueuedHistoryDBTask {
 class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
                        public HistoryBackendForSync,
                        public HistoryBackendNotifier,
-                       public favicon::FaviconBackendDelegate {
+                       public favicon::FaviconBackendDelegate,
+                       public base::MemoryPressureListener {
  public:
   // Interface implemented by the owner of the HistoryBackend object. Normally,
   // the history service implements this to send stuff back to the main thread.
@@ -313,13 +314,15 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // redirected to. There may be more than one redirect in a row, so this
   // function will fill the given array with the entire chain. If there are
   // no redirects for the most recent visit of the URL, or the URL is not
-  // in history, the array will be empty.
+  // in history, the array will be empty. Excludes redirects that result in a
+  // 404 status code.
   RedirectList QueryRedirectsFrom(const GURL& url);
 
   // Similar to above function except computes a chain of redirects to the
   // given URL. Stores the most recent list of redirects ending at `url` in the
   // given RedirectList. For example, if we have the redirect list A -> B -> C,
   // then calling this function with url=C would fill redirects with {B, A}.
+  // Includes redirects that result in a 404 response.
   RedirectList QueryRedirectsTo(const GURL& url);
 
   VisibleVisitCountToHostResult GetVisibleVisitCountToHost(const GURL& url);
@@ -744,7 +747,8 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   // Returns the visit matching a given timestamp. In case of redirects (where
   // multiple visits can have the same timestamp), returns the last visit in the
-  // redirect chain.
+  // redirect chain. Includes visits and redirects that result in a 404 response
+  // code.
   bool GetLastVisitByTime(base::Time visit_time, VisitRow* visit_row) override;
 
   // Returns the sync controller delegate for syncing history. The returned
@@ -789,7 +793,8 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // Bookmarks -----------------------------------------------------------------
 
   // Notification that a URL is no longer bookmarked. If there are no visits
-  // for the specified url, it is deleted.
+  // for the specified url, it is deleted. Includes visits that result in a 404
+  // status code.
   void URLsNoLongerBookmarked(const std::set<GURL>& urls);
 
   // Callbacks To Kill Database When It Gets Corrupted -------------------------
@@ -854,7 +859,7 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   // Called when the system is under memory pressure.
   void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+      base::MemoryPressureLevel memory_pressure_level) override;
 
   // Closes all databases managed by HistoryBackend. Commits any pending
   // transactions.
@@ -908,9 +913,13 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   // Returns a redirect-or-referral chain in `redirects` for the VisitID
   // `cur_visit`. `cur_visit` is assumed to be valid. Assumes that
-  // this HistoryBackend object has been Init()ed successfully.
-  void GetRedirectsFromSpecificVisit(VisitID cur_visit,
-                                     RedirectList* redirects);
+  // this HistoryBackend object has been Init()ed successfully. Includes or
+  // excludes redirects that result in a 404 response based on
+  // `policy_for_404_visits`.
+  void GetRedirectsFromSpecificVisit(
+      VisitID cur_visit,
+      RedirectList* redirects,
+      VisitQuery404sPolicy policy_for_404_visits);
 
   // Similar to the above function except returns a redirect-or-referral list
   // ending at `cur_visit`. E.g. if visit A redirected to visit B, which
@@ -1142,7 +1151,8 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // Listens for the system being under memory pressure.
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   // Contains diagnostic information about the sql database that is non-empty
   // when a catastrophic error occurs.

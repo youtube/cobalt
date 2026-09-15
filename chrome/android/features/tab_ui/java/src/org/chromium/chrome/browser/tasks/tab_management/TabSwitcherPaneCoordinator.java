@@ -30,6 +30,7 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.util.Function;
 import androidx.core.util.Pair;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
 import org.chromium.base.Callback;
@@ -53,6 +54,7 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.hub.DirectionalScrollListener;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.share.ShareDelegate;
@@ -75,7 +77,6 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.GridCard
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageUpdateObserver;
 import org.chromium.chrome.browser.tasks.tab_management.pinned_tabs_strip.PinnedTabStripCoordinator;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
-import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarThrottle;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -190,8 +191,7 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
     private @Nullable Function<Integer, View> mFetchViewByIndex;
     private @Nullable Supplier<Pair<Integer, Integer>> mGetVisibleIndex;
 
-    /** Not null when drawing the hub edge to edge. */
-    private @Nullable EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
+    private EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
 
     private TabListCoordinator.@Nullable DragObserver mDragObserver;
     private @Nullable TabSwitcherGroupSuggestionService mTabSwitcherGroupSuggestionService;
@@ -229,6 +229,8 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
      * @param undoBarThrottle Throttle to block undo snackbar.
      * @param setOverlayViewCallback Callback to set the current overlay view.
      * @param tabSwitcherDragHandler An instance of the {@link TabSwitcherDragHandler}.
+     * @param directionalScrollListener The {@link DirectionalScrollListener} to add to the tab
+     *     list.
      */
     public TabSwitcherPaneCoordinator(
             Activity activity,
@@ -257,7 +259,8 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
             ObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
             UndoBarThrottle undoBarThrottle,
             Callback<@Nullable View> setOverlayViewCallback,
-            @Nullable TabSwitcherDragHandler tabSwitcherDragHandler) {
+            @Nullable TabSwitcherDragHandler tabSwitcherDragHandler,
+            RecyclerView.@Nullable OnScrollListener searchBoxVisibilityScrollListener) {
         try (TraceEvent e = TraceEvent.scoped("TabSwitcherPaneCoordinator.constructor")) {
             mProfileProvider = profileProvider;
             mIsVisibleSupplier = isVisibleSupplier;
@@ -413,7 +416,11 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
                 // a sibling of the regular tab list. The pinned tab strip will be positioned above
                 // the regular tab list.
                 mPinnedTabsCoordinator =
-                        new PinnedTabStripCoordinator(mActivity, parentView, tabListCoordinator);
+                        new PinnedTabStripCoordinator(
+                                mActivity,
+                                parentView,
+                                tabListCoordinator,
+                                mTabGroupModelFilterSupplier);
 
                 TabListRecyclerView pinnedTabStripRecyclerView =
                         mPinnedTabsCoordinator.getPinnedTabsRecyclerView();
@@ -434,24 +441,26 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
             recyclerView.setVisibility(View.VISIBLE);
             recyclerView.setBackgroundColor(Color.TRANSPARENT);
             recyclerView.addOnScrollListener(mTabListOnScrollListener);
+            if (ChromeFeatureList.sAndroidPinnedTabs.isEnabled()
+                    && searchBoxVisibilityScrollListener != null) {
+                recyclerView.addOnScrollListener(searchBoxVisibilityScrollListener);
+            }
             mContainerViewChangeProcessor =
                     PropertyModelChangeProcessor.create(
                             containerViewModel, recyclerView, TabListContainerViewBinder::bind);
 
-            if (EdgeToEdgeUtils.isDrawKeyNativePageToEdgeEnabled()) {
-                mEdgeToEdgePadAdjuster =
-                        new EdgeToEdgePadAdjuster() {
-                            @Override
-                            public void overrideBottomInset(int inset) {
-                                mEdgeToEdgeBottomInsets = inset;
-                                updateBottomPadding();
-                            }
+            mEdgeToEdgePadAdjuster =
+                    new EdgeToEdgePadAdjuster() {
+                        @Override
+                        public void overrideBottomInset(int inset) {
+                            mEdgeToEdgeBottomInsets = inset;
+                            updateBottomPadding();
+                        }
 
-                            @Override
-                            public void destroy() {}
-                        };
-                mEdgeToEdgeSupplier.addObserver(mOnEdgeToEdgeControllerChangedCallback);
-            }
+                        @Override
+                        public void destroy() {}
+                    };
+            mEdgeToEdgeSupplier.addObserver(mOnEdgeToEdgeControllerChangedCallback);
 
             RecordHistogram.recordTimesHistogram(
                     "Android.TabSwitcher.SetupRecyclerView.Time",
@@ -922,7 +931,6 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
     }
 
     /** Return the Edge to edge pad adjuster. */
-    @Nullable
     EdgeToEdgePadAdjuster getEdgeToEdgePadAdjusterForTesting() {
         return mEdgeToEdgePadAdjuster;
     }
@@ -955,13 +963,9 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
     }
 
     private void updateBottomPadding() {
-        int bottomPadding = 0;
-        if (EdgeToEdgeUtils.isDrawKeyNativePageToEdgeEnabled()) {
-            bottomPadding = mEdgeToEdgeBottomInsets;
-            mContainerViewModel.set(
-                    TabListContainerProperties.IS_CLIP_TO_PADDING, bottomPadding == 0);
-        }
-        mContainerViewModel.set(TabListContainerProperties.BOTTOM_PADDING, bottomPadding);
+        mContainerViewModel.set(
+                TabListContainerProperties.IS_CLIP_TO_PADDING, mEdgeToEdgeBottomInsets == 0);
+        mContainerViewModel.set(TabListContainerProperties.BOTTOM_PADDING, mEdgeToEdgeBottomInsets);
     }
 
     private void onFilterChange(@Nullable TabGroupModelFilter filter) {

@@ -127,6 +127,11 @@ class LensOverlaySidePanelCoordinator
     return lens_search_controller_->lens_overlay_controller();
   }
 
+  // Return the LensOverlayQueryController that is part of this tab.
+  LensOverlayQueryController* GetLensOverlayQueryController() {
+    return lens_search_controller_->lens_overlay_query_controller();
+  }
+
   // Return the LensSearchboxController that is part of this tab.
   LensSearchboxController* GetLensSearchboxController() {
     return lens_search_controller_->lens_searchbox_controller();
@@ -196,6 +201,9 @@ class LensOverlaySidePanelCoordinator
   // (`file://`). This is used to determine whether to scroll in the main tab or
   // open a new tab.
   void SetLatestPageUrlWithResponse(const GURL& url);
+
+  // Sets whether the lens overlay is showing in the side panel WebUI.
+  virtual void SetIsOverlayShowing(bool is_showing);
 
   // Internal state machine. States are mutually exclusive. Exposed for testing.
   enum class State {

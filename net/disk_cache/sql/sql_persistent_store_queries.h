@@ -31,6 +31,8 @@ inline constexpr const char kInitSchema_CreateTableResources[] =
         "bytes_usage INTEGER NOT NULL,"
         // Flag for entries pending deletion
         "doomed INTEGER NOT NULL,"
+        // The checksum `crc32(head + cache_key_hash)`.
+        "check_sum INTEGER NOT NULL,"
         // The hash of `cache_key` created by simple_util::GetEntryHashKey()
         "cache_key_hash INTEGER NOT NULL,"
         // The cache key created by HttpCache::GenerateCacheKeyForRequest()
@@ -51,6 +53,8 @@ inline constexpr const char kInitSchema_CreateTableBlobs[] =
         "start INTEGER NOT NULL,"
         // End offset of this blob chunk
         "end INTEGER NOT NULL,"
+        // The checksum `crc32(blob + cache_key_hash)`.
+        "check_sum INTEGER NOT NULL,"
         // The actual data chunk
         "blob BLOB NOT NULL)";
 // clang-format on
@@ -62,17 +66,13 @@ inline constexpr const char kIndex_ResourcesCacheKeyHashDoomed[] =
     "CREATE INDEX index_resources_cache_key_hash_doomed ON "
     "resources(cache_key_hash, doomed)";
 
-// An index on `last_used` for live entries (`doomed=0`). This is crucial for
-// eviction logic, which targets the least recently used entries.
+// An index on `last_used` and `bytes_usage` for live entries (`doomed=0`). This
+// is crucial for eviction logic, which targets the least recently used entries.
+// To avoid looking at the actual resources table during eviction, this creates
+// a covering index.
 inline constexpr const char kIndex_LiveResourcesLastUsed[] =
-    "CREATE INDEX index_live_resources_last_used ON "
-    "resources(last_used) WHERE doomed=0";
-
-// An index on `res_id` for doomed entries (`doomed=1`). This is used to
-// efficiently find and clean up doomed entries.
-inline constexpr const char kIndex_DoomedResourcesResId[] =
-    "CREATE INDEX index_doomed_resources_res_id ON "
-    "resources(res_id) WHERE doomed=1";
+    "CREATE INDEX index_live_resources_last_used_bytes_usage ON "
+    "resources(last_used, bytes_usage) WHERE doomed=0";
 
 // A unique index on `(res_id, start)` in the `blobs` table. This is critical
 // for quickly finding the correct data blobs for a given entry when reading or
@@ -89,7 +89,8 @@ inline constexpr const char kOpenEntry_SelectLiveResources[] =
         "res_id,"      // 0
         "last_used,"   // 1
         "body_end,"    // 2
-        "head "        // 3
+        "check_sum,"   // 3
+        "head "        // 4
     "FROM resources "
     "WHERE "
         "cache_key_hash=? AND " // 0
@@ -105,9 +106,10 @@ inline constexpr const char kCreateEntry_InsertIntoResources[] =
         "body_end,"       // 1
         "bytes_usage,"    // 2
         "doomed,"
-        "cache_key_hash," // 3
-        "cache_key) "     // 4
-    "VALUES(?,?,?,0,?,?) "
+        "check_sum,"      // 3
+        "cache_key_hash," // 4
+        "cache_key) "     // 5
+    "VALUES(?,?,?,0,?,?,?) "
     "RETURNING res_id";
 // clang-format on
 
@@ -129,14 +131,6 @@ inline constexpr const char kDeleteDoomedEntry_DeleteFromResources[] =
     "WHERE "
         "res_id=? AND "  // 0
         "doomed=1";
-// clang-format on
-
-inline constexpr const char kDeleteDoomedEntries_SelectDoomedResources[] =
-    // clang-format off
-    "SELECT "
-        "res_id "       // 0
-    "FROM resources "
-    "WHERE doomed=1";
 // clang-format on
 
 inline constexpr const char kDeleteLiveEntry_DeleteFromResources[] =
@@ -161,8 +155,7 @@ inline constexpr const char kDeleteLiveEntriesBetween_SelectLiveResources[] =
     // clang-format off
     "SELECT "
         "res_id,"       // 0
-        "bytes_usage,"  // 1
-        "cache_key "    // 2
+        "bytes_usage "  // 1
     "FROM resources "
     "WHERE "
         "last_used>=? AND "  // 0
@@ -201,7 +194,8 @@ inline constexpr const char kUpdateEntryHeaderAndLastUsed_UpdateResource[] =
     "SET "
         "last_used=?, "                // 0
         "bytes_usage=bytes_usage+?, "  // 1
-        "head=? "                      // 2
+        "check_sum=?, "                // 2
+        "head=? "                      // 3
     "WHERE "
         "res_id=? AND "                // 3
         "doomed=0 "
@@ -240,7 +234,8 @@ inline constexpr const char kTrimOverlappingBlobs_SelectOverlapping[] =
       "blob_id,"           // 0
       "start,"             // 1
       "end,"               // 2
-      "blob "              // 3
+      "check_sum,"         // 3
+      "blob "              // 4
   "FROM blobs "
   "WHERE "
       "res_id=? AND "      // 0
@@ -265,8 +260,9 @@ inline constexpr const char kInsertNewBlob_InsertIntoBlobs[] =
         "res_id,"      // 0
         "start,"       // 1
         "end,"         // 2
-        "blob) "       // 3
-    "VALUES(?,?,?,?)";
+        "check_sum,"   // 3
+        "blob) "       // 4
+    "VALUES(?,?,?,?,?)";
 // clang-format on
 
 inline constexpr const char kDeleteBlobById_DeleteFromBlobs[] =
@@ -291,7 +287,8 @@ inline constexpr const char kReadEntryData_SelectOverlapping[] =
     "SELECT "
         "start,"             // 0
         "end,"               // 1
-        "blob "              // 2
+        "check_sum,"         // 2
+        "blob "              // 3
     "FROM blobs "
     "WHERE "
         "res_id=? AND "      // 0
@@ -331,8 +328,9 @@ inline constexpr const char kOpenLatestEntryBeforeResId_SelectLiveResources[] =
         "res_id,"      // 0
         "last_used,"   // 1
         "body_end,"    // 2
-        "cache_key,"   // 3
-        "head "        // 4
+        "check_sum,"   // 3
+        "cache_key,"   // 4
+        "head "        // 5
     "FROM resources "
     "WHERE "
         "res_id<? AND "  // 0
@@ -344,8 +342,7 @@ inline constexpr const char kRunEviction_SelectLiveResources[] =
     // clang-format off
     "SELECT "
         "res_id,"       // 0
-        "cache_key,"    // 1
-        "bytes_usage "  // 2
+        "bytes_usage "  // 1
     "FROM resources "
     "WHERE "
         "doomed=0 "
@@ -387,13 +384,11 @@ enum class Query {
 
   kIndex_ResourcesCacheKeyHashDoomed,
   kIndex_LiveResourcesLastUsed,
-  kIndex_DoomedResourcesResId,
   kIndex_BlobsResIdStart,
   kOpenEntry_SelectLiveResources,
   kCreateEntry_InsertIntoResources,
   kDoomEntry_MarkDoomedResources,
   kDeleteDoomedEntry_DeleteFromResources,
-  kDeleteDoomedEntries_SelectDoomedResources,
   kDeleteLiveEntry_DeleteFromResources,
   kDeleteAllEntries_DeleteFromResources,
   kDeleteAllEntries_DeleteFromBlobs,
@@ -433,8 +428,6 @@ inline base::cstring_view GetQuery(Query query) {
       return internal::kIndex_ResourcesCacheKeyHashDoomed;
     case Query::kIndex_LiveResourcesLastUsed:
       return internal::kIndex_LiveResourcesLastUsed;
-    case Query::kIndex_DoomedResourcesResId:
-      return internal::kIndex_DoomedResourcesResId;
     case Query::kIndex_BlobsResIdStart:
       return internal::kIndex_BlobsResIdStart;
     case Query::kOpenEntry_SelectLiveResources:
@@ -445,8 +438,6 @@ inline base::cstring_view GetQuery(Query query) {
       return internal::kDoomEntry_MarkDoomedResources;
     case Query::kDeleteDoomedEntry_DeleteFromResources:
       return internal::kDeleteDoomedEntry_DeleteFromResources;
-    case Query::kDeleteDoomedEntries_SelectDoomedResources:
-      return internal::kDeleteDoomedEntries_SelectDoomedResources;
     case Query::kDeleteLiveEntry_DeleteFromResources:
       return internal::kDeleteLiveEntry_DeleteFromResources;
     case Query::kDeleteAllEntries_DeleteFromResources:

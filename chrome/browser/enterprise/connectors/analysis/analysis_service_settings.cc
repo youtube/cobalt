@@ -18,35 +18,33 @@ namespace enterprise_connectors {
 
 AnalysisServiceSettings::AnalysisServiceSettings(
     const base::Value& settings_value,
-    const ServiceProviderConfig& service_provider_config) {
-  if (!settings_value.is_dict()) {
+    const ServiceProviderConfig& service_provider_config)
+    : AnalysisServiceSettingsBase(settings_value, service_provider_config) {
+  if (!analysis_config_) {
+    // Parsing in the base class failed
     return;
   }
 
+#if BUILDFLAG(IS_CHROMEOS)
   const auto& settings_dict = settings_value.GetDict();
-  if (!TryParseServiceProviderData(settings_dict, service_provider_config)) {
-    return;
-  }
 
-  // Add the patterns to the settings, which configures settings.matcher and
-  // settings.*_pattern_settings. No enable patterns implies the settings are
-  // invalid.
+  // Add the source/destination patterns to the settings, which configures
+  // settings.matcher and settings.*_pattern_settings. No enable patterns
+  // implies the settings are invalid.
   const auto* enabled_pattern_settings_list =
       settings_dict.FindList(kKeyEnable);
   if (!enabled_pattern_settings_list ||
       enabled_pattern_settings_list->empty()) {
     return;
   }
-  base::MatcherStringPattern::ID id(0);
-  ParsePatternSettings(enabled_pattern_settings_list, true, id);
-  ParsePatternSettings(settings_dict.FindList(kKeyDisable), false, id);
 
-  ParseBlockSettings(settings_dict);
-  ParseMinimumDataSize(settings_dict);
-  ParseCustomMessages(settings_dict);
-  ParseJustificationTags(settings_dict);
+  ParseSourceDestinationPatternSettings(enabled_pattern_settings_list, true);
+  ParseSourceDestinationPatternSettings(settings_dict.FindList(kKeyDisable),
+                                        false);
+#endif
+
 #if BUILDFLAG(ENTERPRISE_LOCAL_CONTENT_ANALYSIS)
-  ParseVerificationSignatures(settings_dict);
+  ParseVerificationSignatures(settings_value.GetDict());
 #endif
 }
 
@@ -74,29 +72,6 @@ void AnalysisServiceSettings::ParseVerificationSignatures(
   }
 }
 #endif
-
-// static
-std::optional<AnalysisServiceSettings::URLPatternSettings>
-AnalysisServiceSettings::GetPatternSettings(
-    const PatternSettings& patterns,
-    base::MatcherStringPattern::ID match) {
-  // If the pattern exists directly in the map, return its settings.
-  if (patterns.count(match) == 1) {
-    return patterns.at(match);
-  }
-
-  // If the pattern doesn't exist in the map, it might mean that it wasn't the
-  // only pattern to correspond to its settings and that the ID added to
-  // the map was the one of the last pattern corresponding to those settings.
-  // This means the next match ID greater than |match| has the correct
-  // settings if it exists.
-  auto next = patterns.upper_bound(match);
-  if (next != patterns.end()) {
-    return next->second;
-  }
-
-  return std::nullopt;
-}
 
 AnalysisSettings AnalysisServiceSettings::GetAnalysisSettingsWithTags(
     std::map<std::string, TagSettings> tags,
@@ -184,67 +159,36 @@ std::optional<AnalysisSettings> AnalysisServiceSettings::GetAnalysisSettings(
 
   return GetAnalysisSettingsWithTags(std::move(tags), data_region);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
-bool AnalysisServiceSettings::ShouldBlockUntilVerdict() const {
-  if (!IsValid()) {
-    return false;
+void AnalysisServiceSettings::ParseSourceDestinationPatternSettings(
+    const base::Value::List* pattern_settings_list,
+    bool is_enabled_pattern) {
+  if (!pattern_settings_list || pattern_settings_list->empty()) {
+    return;
   }
 
-  return block_until_verdict_ == BlockUntilVerdict::kBlock;
-}
+  for (const base::Value& pattern_setting : *pattern_settings_list) {
+    const base::Value::Dict* pattern_dict = pattern_setting.GetIfDict();
+    if (!pattern_dict) {
+      continue;
+    }
 
-bool AnalysisServiceSettings::ShouldBlockByDefault() const {
-  if (!IsValid()) {
-    return false;
+    auto* url_list = pattern_dict->FindList(kKeyUrlList);
+    auto* source_destination_list =
+        pattern_dict->FindList(kKeySourceDestinationList);
+
+    if (url_list && source_destination_list) {
+      DLOG(ERROR) << kKeyUrlList << " and " << kKeySourceDestinationList
+                  << " specified together. Ignoring it.";
+    } else if (source_destination_list) {
+      AddSourceDestinationSettings(*pattern_dict, is_enabled_pattern);
+    }
   }
-
-  return default_action_ == DefaultAction::kBlock;
 }
 
-std::optional<std::u16string> AnalysisServiceSettings::GetCustomMessage(
-    const std::string& tag) {
-  const auto& element = tags_.find(tag);
-
-  if (!IsValid() || element == tags_.end() ||
-      element->second.custom_message.message.empty()) {
-    return std::nullopt;
-  }
-
-  return element->second.custom_message.message;
-}
-
-std::optional<GURL> AnalysisServiceSettings::GetLearnMoreUrl(
-    const std::string& tag) {
-  const auto& element = tags_.find(tag);
-
-  if (!IsValid() || element == tags_.end() ||
-      element->second.custom_message.learn_more_url.is_empty()) {
-    return std::nullopt;
-  }
-
-  return element->second.custom_message.learn_more_url;
-}
-
-bool AnalysisServiceSettings::GetBypassJustificationRequired(
-    const std::string& tag) {
-  return tags_.find(tag) != tags_.end() && tags_.at(tag).requires_justification;
-}
-
-bool AnalysisServiceSettings::is_cloud_analysis() const {
-  return analysis_config_ && analysis_config_->url != nullptr;
-}
-
-bool AnalysisServiceSettings::is_local_analysis() const {
-  return analysis_config_ && analysis_config_->local_path != nullptr;
-}
-
-#if BUILDFLAG(IS_CHROMEOS)
 void AnalysisServiceSettings::AddSourceDestinationSettings(
     const base::Value::Dict& source_destination_settings_value,
-    bool enabled,
-    base::MatcherStringPattern::ID* id) {
-  DCHECK(id);
+    bool enabled) {
   DCHECK(analysis_config_);
   DCHECK(source_destination_matcher_);
   if (enabled) {
@@ -279,73 +223,21 @@ void AnalysisServiceSettings::AddSourceDestinationSettings(
     return;
   }
 
-  base::MatcherStringPattern::ID previous_id = *id;
-  source_destination_matcher_->AddFilters(id, source_destination_list);
-  if (previous_id == *id) {
+  base::MatcherStringPattern::ID previous_id = id_;
+  source_destination_matcher_->AddFilters(&id_, source_destination_list);
+  if (previous_id == id_) {
     // No rules were added, so don't save settings, as they would override other
     // valid settings.
     return;
   }
 
   if (enabled) {
-    enabled_patterns_settings_[*id] = std::move(setting);
+    enabled_patterns_settings_[id_] = std::move(setting);
   } else {
-    disabled_patterns_settings_[*id] = std::move(setting);
+    disabled_patterns_settings_[id_] = std::move(setting);
   }
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-std::map<std::string, TagSettings> AnalysisServiceSettings::GetTags(
-    const std::set<base::MatcherStringPattern::ID>& matches) const {
-  std::set<std::string> enable_tags;
-  std::set<std::string> disable_tags;
-  for (const base::MatcherStringPattern::ID match : matches) {
-    // Enabled patterns need to be checked first, otherwise they always match
-    // the first disabled pattern.
-    bool enable = true;
-    auto maybe_pattern_setting =
-        GetPatternSettings(enabled_patterns_settings_, match);
-    if (!maybe_pattern_setting.has_value()) {
-      maybe_pattern_setting =
-          GetPatternSettings(disabled_patterns_settings_, match);
-      enable = false;
-    }
-
-    DCHECK(maybe_pattern_setting.has_value());
-    auto tags = std::move(maybe_pattern_setting.value().tags);
-    if (enable) {
-      enable_tags.insert(tags.begin(), tags.end());
-    } else {
-      disable_tags.insert(tags.begin(), tags.end());
-    }
-  }
-
-  for (const std::string& tag_to_disable : disable_tags) {
-    enable_tags.erase(tag_to_disable);
-  }
-
-  std::map<std::string, TagSettings> output;
-  for (const std::string& tag : enable_tags) {
-    if (tags_.count(tag)) {
-      output[tag] = tags_.at(tag);
-    } else {
-      output[tag] = TagSettings();
-    }
-  }
-
-  return output;
-}
-
-bool AnalysisServiceSettings::IsValid() const {
-  // The settings are invalid if no provider was given.
-  if (!analysis_config_) {
-    return false;
-  }
-
-  // The settings are invalid if no enabled pattern(s) exist since that would
-  // imply no URL can ever have an analysis.
-  return !enabled_patterns_settings_.empty();
-}
 
 AnalysisServiceSettings::AnalysisServiceSettings(AnalysisServiceSettings&&) =
     default;

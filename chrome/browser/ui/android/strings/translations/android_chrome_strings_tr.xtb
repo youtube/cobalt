@@ -87,6 +87,7 @@
 <translation id="1360432990279830238">Oturum ve senkronizasyon kapatılsın mı?</translation>
 <translation id="1363028406613469049">Takip Et</translation>
 <translation id="1366525380420346469">Açık olduğunda</translation>
+<translation id="1372840539168747818">{NUM_SITES,plural, =1{Bu sitenin gelecekte bildirim göndermesini engelleyebilirsiniz.}other{Bu sitelerin gelecekte bildirim göndermesini engelleyebilirsiniz.}}</translation>
 <translation id="1373696734384179344">Seçilen içeriği indirmek için bellek yetersiz.</translation>
 <translation id="1376578503827013741">Hesaplanıyor…</translation>
 <translation id="1381838868249179644">Güvenliğinizi sağlamak için bazı sitelerin izinleri kaldırıldı</translation>
@@ -159,6 +160,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="1726477445370128854">Chrome, ziyaret edebileceğinizi düşündüğü sayfaları önceden yüklediğinde daha hızlı göz atıp arama yapabilirsiniz</translation>
 <translation id="1728803206919861584">Geçiş anahtarı Gizli mod dışında kaydedilsin mi?</translation>
 <translation id="1732514748744806741">Şifrelerinizin güvenliği ihlal edilirse size haber veririz</translation>
+<translation id="1737694586321018892">Chrome'un en güçlü güvenlik özelliklerini edinin</translation>
 <translation id="1747593111377567311">{NUM_SITES,plural, =1{1 site son zamanlarda çok fazla bildirim gönderdi}other{# site son zamanlarda çok fazla bildirim gönderdi}}</translation>
 <translation id="1749561566933687563">Yer işaretlerinizi senkronize edin</translation>
 <translation id="1750238553597293878">Google Hesabınızdaki şifreleri kullanmaya devam edin</translation>
@@ -348,7 +350,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="2605017215201958293">Bu sayfayı yapay zeka ile dinleyin</translation>
 <translation id="2607441479295509868">Oturum kapatıldı. Hesabınızdaki yer işaretlerini, şifreleri ve diğer öğeleri kullanmak için tekrar oturum açın.</translation>
 <translation id="2620314865574742210"><ph name="NAME" /> sizi paylaşılan bir öğeye erişmeye davet etti.</translation>
-<translation id="2630630219780173487">Bu sitelerin gelecekte bildirim göndermesini engelleyebilirsiniz.</translation>
 <translation id="2634393460268044753">Ziyaret ettiğiniz sitelerin URL'lerinin yanı sıra sayfa içeriği, indirmeler, uzantı etkinliği ve sistem bilgilerinin küçük bir örneğini Google Güvenli Tarama'ya göndererek bunların zararlı olup olmadığını kontrol eder.</translation>
 <translation id="2643064289437760082">Tarama verilerini silerek reklam ölçümü verilerini istediğiniz zaman silebilirsiniz</translation>
 <translation id="2647434099613338025">Dil ekle</translation>
@@ -390,6 +391,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="2834884592945939112">Ayarlar, Google Hesabı hatası</translation>
 <translation id="2838367486340230368">Gizlilik kılavuzu açıklaması ekranın yarısına kadar açıldı</translation>
 <translation id="2839327205551510876"><ph name="SITE_NAME" /> takibi bırakıldı</translation>
+<translation id="2839604041336226596"><ph name="TAB_TITLE" />, Birden Çok Seçili Sabit Sekme</translation>
 <translation id="2840810876587895427">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> gizli sekme kapatılacak}other{<ph name="TAB_COUNT_MANY" /> gizli sekme kapatılacak}}</translation>
 <translation id="2841216154655874070">{NUM_DAYS,plural, =1{1 gün önce kontrol edildi}other{# gün önce kontrol edildi}}</translation>
 <translation id="2842985007712546952">Ana klasör</translation>
@@ -506,7 +508,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="3334729583274622784">Dosya uzantısı değiştirilsin mi?</translation>
 <translation id="333863344734218290">Sizi herkese açık ve gizli durumdaki güvensiz sitelerle ilgili uyarır</translation>
 <translation id="3341262203274374114">Takip bırakılamıyor. Bir sorun oldu.</translation>
-<translation id="3351165113450806415">Kaydırmanın yeni yolu</translation>
 <translation id="3359667936385849800">Mevcut servis sağlayıcınızı kullanın</translation>
 <translation id="3373701465337594448">Bu ayar açık olduğunda, ziyaret ettiğiniz ve ilgi alanlarınızı tahmin eden sitelerin listesi burada gösterilir</translation>
 <translation id="3384347053049321195">Resmi paylaş</translation>
@@ -525,7 +526,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="3467081767799433066">Reklam ölçümleri, sitelerin gösterdikleri reklamların performansını ölçmeleri için sınırlı türde verinin (ör. bir siteyi ziyaret ettikten sonra satın alma işlemi yapıp yapmadığınız) siteler arasında paylaşılmasını sağlar.</translation>
 <translation id="3474624961160222204"><ph name="NAME" /> olarak devam et</translation>
 <translation id="3478363558367712427">Arama motorunuzu seçebilirsiniz</translation>
-<translation id="3479552764303398839">Şimdi değil</translation>
 <translation id="3482805106082349287">Klavye, ses, gizli mod veya kamera kullanarak arama yapın</translation>
 <translation id="3487903178221457900">Dışa aktarılan dosyaya, uygulamalar da dahil olmak üzere başkaları tarafından erişilebilir. Dışa aktarma işlemi tamamlandıktan sonra şifreleriniz Chrome'dan silinir.</translation>
 <translation id="3488199663160411179">ad</translation>
@@ -700,6 +700,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="4285846616383034558">Çerezler, önbellek ve diğer site verileri</translation>
 <translation id="4291407919474070700"><ph name="BEGIN_LINK" />Android ayarlarında ekran kilidini açın<ph name="END_LINK" /></translation>
 <translation id="4296252229500326964">Yeni Gizli sekme</translation>
+<translation id="4298161202289999785"><ph name="TAB_TITLE" />, Birden Çok Seçili Gizli Sekme</translation>
 <translation id="4298388696830689168">Bağlantılı siteler</translation>
 <translation id="4300632303535881174">Önceki sayfaya gidin</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
@@ -873,7 +874,6 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="4996042648402406470">Al</translation>
 <translation id="4996095658297597226">Önerilen şifre kullanılsın mı?</translation>
 <translation id="5001388021414335527">Siteyi buradan takip edin</translation>
-<translation id="5004416275253351869">Google etkinlik kontrolleri</translation>
 <translation id="5007392906805964215">İncele</translation>
 <translation id="5010886807652684893">Görsel görünüm</translation>
 <translation id="5011311129201317034"><ph name="SITE" /> bağlanmak istiyor</translation>
@@ -974,6 +974,7 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> olarak katılın</translation>
 <translation id="5517326820028369152">Son etkinlik alt sayfası</translation>
 <translation id="5526281268548144413">Birden fazla pencerede kapatılamaz</translation>
+<translation id="5532536403031755365">İnternetteki tehditlere karşı ek güvenlik katmanı için gelişmiş korumayı kullanın</translation>
 <translation id="5548606607480005320">Güvenlik kontrolü</translation>
 <translation id="5554520618550346933">Kullandığınız bir şifre internette yayınlanmışsa Chrome sizi uyarır. Bu işlem sırasında şifreleriniz ve kullanıcı adlarınız şifrelendiğinden, Google dahil olmak üzere hiç kimse tarafından okunamaz.</translation>
 <translation id="5555525474779371165">Güvenli Tarama korumanızı seçin</translation>
@@ -1140,6 +1141,7 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 Örneğin bazı web siteleri bu isteği size daha önce gezdiğiniz web sitelerine dayalı olmayan reklamları göstererek yanıtlayabilir. Birçok web sitesi (örneğin güvenliği iyileştirmek; içerik, reklam, öneri sağlamak ve raporlama istatistikleri oluşturmak gibi amaçlarla) göz atma verilerinizi toplayıp kullanmayı sürdürecektir.</translation>
 <translation id="6247557882553405851">Google Şifre Yöneticisi</translation>
 <translation id="6248988683584659830">Ayarlarda arayın</translation>
+<translation id="6250847299079540062"><ph name="TAB_TITLE" />, Birden Çok Seçili Sabit Gizli Sekme</translation>
 <translation id="6251449557817521191">Chrome geçmişinizi burada görüntüleyin</translation>
 <translation id="6254139308321626268">Bir PDF dosyası görüntülüyorsunuz</translation>
 <translation id="6255809143828972562">Chrome araçları ile güvenli bir şekilde göz atabilir ve kontrolü elinizde tutabilirsiniz</translation>
@@ -1183,6 +1185,7 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="6410883413783534063">Aynı anda birden fazla sayfayı ziyaret etmek için yeni sekme açın</translation>
 <translation id="6411009031428071896">Feed'i dinleyin</translation>
 <translation id="6411219469806822692">Daha yukarı çıkılamıyor. Sayfanın daha yukarısından başlamayı deneyin.</translation>
+<translation id="6412215853589222273"><ph name="TAB_TITLE" />, Birden Çok Seçili Sekme</translation>
 <translation id="641643625718530986">Yazdır…</translation>
 <translation id="6433501201775827830">Arama motorunuzu seçin</translation>
 <translation id="6434309073475700221">Kapat</translation>
@@ -1379,6 +1382,7 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="7177873915659574692">QR Kodu oluşturulamıyor. URL, <ph name="CHARACTER_LIMIT" /> karakterden fazlasını içeriyor.</translation>
 <translation id="7180611975245234373">Yenile</translation>
 <translation id="7182051712900867547">Farklı bir hesap kullan</translation>
+<translation id="7182520625618447753">Özelleştirilmiş bir göz atma deneyimi için adres çubuğunuzun konumunu yukarıda veya aşağıda olacak şekilde değiştirin</translation>
 <translation id="7183517696921903380">Uygulama filtreleme sayfası açıldı.</translation>
 <translation id="7186568385131859684">Tarama geçmişinizin Google hizmetlerinde diğer verilerinizle nasıl kullanıldığını kontrol edin</translation>
 <translation id="7190921792980745354"><ph name="MEMBER_FULL_NAME" /> engellensin mi?</translation>
@@ -1433,7 +1437,6 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="7411224099004328643">Google Hesabı kullanıcısı</translation>
 <translation id="7419565702166471774">Her zaman güvenli bağlantılar kullan</translation>
 <translation id="7421293530411019405">Sekme grubundan ayrılmak istiyor musunuz?</translation>
-<translation id="7431991332293347422">Göz atma geçmişinizin Arama ve diğer hizmetleri kişiselleştirmek için nasıl kullanıldığını kontrol edin</translation>
 <translation id="7435356471928173109">Yöneticiniz tarafından kapatıldı</translation>
 <translation id="7437998757836447326">Chrome oturumunu kapat</translation>
 <translation id="7439467816829380878">Sekmeyi gruba taşı</translation>
@@ -1627,7 +1630,6 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="8221985041778490865">Tarama verileri siliniyor…</translation>
 <translation id="8223642481677794647">Akış kartı menüsü</translation>
 <translation id="82296173028782770"><ph name="SEARCH_QUERY" /> arama sorgusunu düzenleyin</translation>
-<translation id="8236063039629122676">Artık sağa kaydırdığınızda geri giderek ziyaret ettiğiniz önceki sayfaları görecek, sola kaydırdığınızda ise ileri gideceksiniz</translation>
 <translation id="8236097722223016103">Yer işaretlerine ekle</translation>
 <translation id="8243077599929149377">Kullanıcı adınızı ekleyin</translation>
 <translation id="8244387390464017490">Yeni sekmeyi özelleştir</translation>
@@ -1831,6 +1833,7 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="9133397713400217035">Çevrimdışıyken Keşfet</translation>
 <translation id="9143389653531441385"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ile kaydolun</translation>
 <translation id="9148126808321036104">Tekrar oturum açın</translation>
+<translation id="9148564897242852377">Sekme seçimini aç/kapat</translation>
 <translation id="9157212632995922070"><ph name="SITE_ETLD_PLUS_ONE" /> web sitesine devam etmek için bir hesap seçin</translation>
 <translation id="9158770349521403363">Yalnızca içerik paylaşılıyor</translation>
 <translation id="9161172953291434881">Verilerinize erişmesi konusunda bu siteye güveniyor musunuz?</translation>

@@ -267,9 +267,6 @@ BASE_DECLARE_FEATURE(kLensOverlayEnableIPadCompatibility);
 // Feature to allow landscape support of lens overlay.
 BASE_DECLARE_FEATURE(kLensOverlayEnableLandscapeCompatibility);
 
-// Feature to open lens overlay navigation in the same tab.
-BASE_DECLARE_FEATURE(kLensOverlayEnableSameTabNavigation);
-
 // Feature to enable force showing the lens overlay onboarding screen.
 BASE_DECLARE_FEATURE(kLensOverlayForceShowOnboardingScreen);
 
@@ -299,6 +296,9 @@ BASE_DECLARE_FEATURE(kNTPMIAEntrypointAllLocales);
 // When enabled the AIM ZPS entrypoint will open the AIM prototype which
 // contains temporary UI exploration for AIM.
 BASE_DECLARE_FEATURE(kAIMPrototype);
+
+// Autoattach current tab in AIM prototype.
+BASE_DECLARE_FEATURE(kAIMPrototypeAutoattachTab);
 
 // Used to gate the immersive SRP in the AIM prototype.
 BASE_DECLARE_FEATURE(kAIMPrototypeImmersiveSRP);
@@ -333,6 +333,9 @@ bool IsTabGridEmptyThumbnailUIEnabled();
 
 // When enabled uses new transitions in the TabGrid.
 BASE_DECLARE_FEATURE(kTabGridNewTransitions);
+
+// Feature flag for the tab grid drag and drop functionality.
+BASE_DECLARE_FEATURE(kTabGridDragAndDrop);
 
 // Whether the new tab grid tabs transitions should be enabled.
 bool IsNewTabGridTransitionsEnabled();
@@ -1072,5 +1075,30 @@ bool IsUseDefaultAppsDestinationForPromosEnabled();
 // Enabled by default. Can be disabled if the bug is fixed on iOS 26.
 BASE_DECLARE_FEATURE(kSynchronousEditMenuItems);
 bool ShouldShowEditMenuItemsSynchronously();
+
+// Feature flag for tips notifications alternative string experiment.
+BASE_DECLARE_FEATURE(kIOSTipsNotificationsAlternativeStrings);
+bool IsTipsNotificationsAlternativeStringsEnabled();
+
+// Feature flag to allow users to import passwords from Safari.
+BASE_DECLARE_FEATURE(kImportPasswordsFromSafari);
+
+// Name of the parameter that controls tips notifications alternative string
+// version.
+extern const char kTipsNotificationsAlternativeStringVersion[];
+
+// Tips notifications alternative string version for
+// ```kIOSTipsNotificationsAlternativeStrings``` experiment.
+enum class TipsNotificationsAlternativeStringVersion {
+  kDefault = 0,
+  kAlternative1 = 1,
+  kAlternative2 = 2,
+  kAlternative3 = 3,
+};
+
+// Returns the string alternative version for
+// ```kIOSTipsNotificationsAlternativeStrings``` experiment.
+TipsNotificationsAlternativeStringVersion
+GetTipsNotificationsAlternativeStringVersion();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

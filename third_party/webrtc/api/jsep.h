@@ -263,7 +263,7 @@ class SessionDescriptionInternal {
 // and is therefore not expected to be thread safe.
 //
 // An instance can be created by CreateSessionDescription.
-class RTC_EXPORT SessionDescriptionInterface
+class RTC_EXPORT SessionDescriptionInterface final
     : public SessionDescriptionInternal {
  public:
   static std::unique_ptr<SessionDescriptionInterface> Create(
@@ -283,31 +283,31 @@ class RTC_EXPORT SessionDescriptionInterface
   static const char kAnswer[];
   static const char kRollback[];
 
-  virtual ~SessionDescriptionInterface() {}
+  ~SessionDescriptionInterface();
 
   // Create a new SessionDescriptionInterface object
   // with the same values as the old object.
-  virtual std::unique_ptr<SessionDescriptionInterface> Clone() const;
+  std::unique_ptr<SessionDescriptionInterface> Clone() const;
 
   // Only for use internally.
-  virtual SessionDescription* description() {
+  SessionDescription* description() {
     return SessionDescriptionInternal::description();
   }
-  virtual const SessionDescription* description() const {
+  const SessionDescription* description() const {
     return SessionDescriptionInternal::description();
   }
 
   // Get the session id and session version, which are defined based on
   // RFC 4566 for the SDP o= line.
-  virtual std::string session_id() const { return std::string(id()); }
-  virtual std::string session_version() const { return std::string(version()); }
+  std::string session_id() const { return std::string(id()); }
+  std::string session_version() const { return std::string(version()); }
 
   // Returns the type of this session description as an SdpType. Descriptions of
   // the various types are found in the SdpType documentation.
-  virtual SdpType GetType() const { return sdp_type(); }
+  SdpType GetType() const { return sdp_type(); }
 
   // TODO(steveanton): Remove this in favor of `GetType` that returns SdpType.
-  virtual std::string type() const { return SdpTypeToString(sdp_type()); }
+  std::string type() const { return SdpTypeToString(sdp_type()); }
 
   // Adds the specified candidate to the description.
   //
@@ -316,7 +316,7 @@ class RTC_EXPORT SessionDescriptionInterface
   // Returns false if the session description does not have a media section
   // that corresponds to `candidate.sdp_mid()` or
   // `candidate.sdp_mline_index()`.
-  virtual bool AddCandidate(const IceCandidate* candidate);
+  bool AddCandidate(const IceCandidate* candidate);
 
   // Removes the first matching candidate (at most 1) from the description
   // that meets the `Candidate::MatchesForRemoval()` requirement and matches
@@ -324,31 +324,36 @@ class RTC_EXPORT SessionDescriptionInterface
   // `IceCandidate::sdp_mline_index()`.
   //
   // Returns false if no matching candidate was found (and removed).
-  virtual bool RemoveCandidate(const IceCandidate* candidate);
+  bool RemoveCandidate(const IceCandidate* candidate);
 
   // Returns the number of m= sections in the session description.
-  virtual size_t number_of_mediasections() const {
-    return mediasection_count();
-  }
+  size_t number_of_mediasections() const { return mediasection_count(); }
 
   // Returns a collection of all candidates that belong to a certain m=
   // section.
-  virtual const IceCandidateCollection* candidates(
-      size_t mediasection_index) const;
+  const IceCandidateCollection* candidates(size_t mediasection_index) const;
 
   // Serializes the description to SDP.
-  virtual bool ToString(std::string* out) const;
+  bool ToString(std::string* out) const {
+    if (!out)
+      return false;
+    *out = ToString();
+    return !out->empty();
+  }
+
+  // Serializes the description to SDP.
+  std::string ToString() const;
 
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const SessionDescriptionInterface& p) {
     sink.Append("\n--- BEGIN SDP ");
     absl::Format(&sink, "%v", p.GetType());
     sink.Append(" ---\n");
-    std::string temp;
-    if (p.ToString(&temp)) {
+    std::string temp = p.ToString();
+    if (!temp.empty()) {
       sink.Append(temp);
     } else {
-      sink.Append("Error in ToString\n");
+      sink.Append("<no session description>\n");
     }
     sink.Append("--- END SDP ---\n");
   }

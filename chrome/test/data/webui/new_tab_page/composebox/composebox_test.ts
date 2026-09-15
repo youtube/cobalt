@@ -571,6 +571,32 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(searchboxHandler.getCallCount('notifySessionStarted'), 1);
   });
 
+  test('lens icon click calls handler', async () => {
+    createComposeboxElement();
+
+    const lensIcon = $$<HTMLElement>(composeboxElement, '#lensIcon');
+    assertTrue(!!lensIcon);
+
+    lensIcon.click();
+    await handler.whenCalled('handleLensButtonClick');
+    assertEquals(1, handler.getCallCount('handleLensButtonClick'));
+  });
+
+  test('lens icon mousedown prevents default', async () => {
+    createComposeboxElement();
+    await microtasksFinished();
+
+    const lensIcon = $$<HTMLElement>(composeboxElement, '#lensIcon');
+    assertTrue(!!lensIcon);
+
+    const event = new MouseEvent(
+        'mousedown', {bubbles: true, cancelable: true, composed: true});
+    lensIcon.dispatchEvent(event);
+    await microtasksFinished();
+
+    assertTrue(event.defaultPrevented);
+  });
+
   test('image upload button clicks file input', async () => {
     loadTimeData.overrideValues({
       'composeboxShowContextMenu': false,
@@ -653,6 +679,7 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
     const event = await whenCloseComposebox;
     assertEquals(event.detail.composeboxText, 'test');
+    assertEquals(event.detail.contextFiles.length, 0);
   });
 
   test('session abandoned on cancel button click', async () => {
@@ -667,7 +694,9 @@ suite('NewTabPageComposeboxTest', () => {
     const cancelIcon = $$<HTMLElement>(composeboxElement, '#cancelIcon');
     assertTrue(!!cancelIcon);
     cancelIcon.click();
-    await whenCloseComposebox;
+    const event = await whenCloseComposebox;
+    assertEquals(event.detail.composeboxText, '');
+    assertEquals(event.detail.contextFiles.length, 0);
   });
 
   test('submit button click leads to handler called', async () => {
@@ -704,7 +733,7 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     // Assert call does not occur.
-    assertEquals(handler.getCallCount('submitQuery'), 0);
+    assertEquals(searchboxHandler.getCallCount('submitQuery'), 0);
     assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
   });
 
@@ -896,6 +925,42 @@ suite('NewTabPageComposeboxTest', () => {
     // disabled.
     assertTrue(composeboxDropdown.hidden);
   });
+
+  test(
+      'dropdown visibility change fires an event when Realbox Next is enabled',
+      async () => {
+        loadTimeData.overrideValues({
+          composeboxShowZps: true,
+          composeboxShowTypedSuggest: true,
+        });
+        createComposeboxElement();
+        composeboxElement.ntpRealboxNextEnabled = true;
+
+        let whenDropdownVisibleChanged = eventToPromise(
+            'composebox-dropdown-visible-changed', composeboxElement);
+
+        // Add typed input.
+        composeboxElement.$.input.value = 'Test';
+        composeboxElement.$.input.style.height = '48px';
+        composeboxElement.$.input.dispatchEvent(new Event('input'));
+        await microtasksFinished();
+        const matches = [
+          createSearchMatch(),
+        ];
+        searchboxCallbackRouterRemote.autocompleteResultChanged(
+            createAutocompleteResult({
+              input: 'Test',
+              matches: matches,
+            }));
+        const e1 = await whenDropdownVisibleChanged;
+        assertTrue(e1.detail.value);
+
+        whenDropdownVisibleChanged = eventToPromise(
+            'composebox-dropdown-visible-changed', composeboxElement);
+        composeboxElement.closeDropdown();
+        const e2 = await whenDropdownVisibleChanged;
+        assertFalse(e2.detail.value);
+      });
 
   test('arrow up/down moves selection / focus', async () => {
     loadTimeData.overrideValues({composeboxShowZps: true});
@@ -1097,10 +1162,15 @@ suite('NewTabPageComposeboxTest', () => {
   test('tab adds smart compose to input', async () => {
     createComposeboxElement();
     await microtasksFinished();
+    // Autocomplete queried once when composebox is opened.
+    assertEquals(searchboxHandler.getCallCount('queryAutocomplete'), 1);
 
     // Add input.
     composeboxElement.$.input.value = 'smart ';
     composeboxElement.$.input.dispatchEvent(new Event('input'));
+
+    // Autocomplete queried on input.
+    assertEquals(searchboxHandler.getCallCount('queryAutocomplete'), 2);
 
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
@@ -1122,12 +1192,14 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(tabEvent.defaultPrevented);
 
     assertEquals('smart compose', composeboxElement.$.input.value);
+    // Autocomplete queried when smart compose accepted.
+    assertEquals(searchboxHandler.getCallCount('queryAutocomplete'), 3);
   });
 
   test('composebox does not open match when only file present', async () => {
     createComposeboxElement();
 
-    assertEquals(handler.getCallCount('submitQuery'), 0);
+    assertEquals(searchboxHandler.getCallCount('submitQuery'), 0);
     const token = {low: BigInt(1), high: BigInt(2)};
     await uploadFileAndVerify(
         token, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
@@ -1136,7 +1208,7 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     // Assert call occurs.
-    assertEquals(handler.getCallCount('submitQuery'), 1);
+    assertEquals(searchboxHandler.getCallCount('submitQuery'), 1);
     assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
   });
 
@@ -1269,7 +1341,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(destinationUrl, keydownArgs[1]);
     assertEquals(1, searchboxHandler.getCallCount('deleteAutocompleteMatch'));
     // Pressing the 'Enter' button doesn't accidentally trigger navigation.
-    assertEquals(0, handler.getCallCount('submitQuery'));
+    assertEquals(0, searchboxHandler.getCallCount('submitQuery'));
     searchboxHandler.reset();
     handler.reset();
 
@@ -1281,7 +1353,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(destinationUrl, clickArgs[1]);
     assertEquals(1, searchboxHandler.getCallCount('deleteAutocompleteMatch'));
     // Clicking the button doesn't accidentally trigger navigation.
-    assertEquals(0, handler.getCallCount('submitQuery'));
+    assertEquals(0, searchboxHandler.getCallCount('submitQuery'));
   });
 
   test('composebox stops autocomplete when clearing input', async () => {
@@ -1351,6 +1423,18 @@ suite('NewTabPageComposeboxTest', () => {
       assertEquals(files.length, 1);
       assertEquals(files[0]!.type, 'tab');
       assertEquals(files[0]!.name, sampleTabTitle);
+
+      // Close composebox by escaping, and ensure files are returned.
+      const whenCloseComposebox =
+          eventToPromise('close-composebox', composeboxElement);
+      composeboxElement.$.composebox.dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'Escape'}));
+      await microtasksFinished();
+      const event = await whenCloseComposebox;
+      assertEquals(event.detail.composeboxText, '');
+      assertEquals(event.detail.contextFiles.length, 1);
+      assertEquals(event.detail.contextFiles[0].type, 'tab');
+      assertEquals(event.detail.contextFiles[0].name, sampleTabTitle);
     });
   });
 });

@@ -337,6 +337,7 @@
 <translation id="1216891999012841486">আপডেট সংক্রান্ত সমস্যা সমাধানের জন্য আরও জানুন</translation>
 <translation id="1217114730239853757">আপনি কি ChromeOS Flex-এর বিল্ট-ইন স্ক্রিন রিডার ChromeVox অ্যাক্টিভেট চালু করতে চাইছেন? উত্তর হ্যাঁ হলে, স্পেসবার প্রেস করুন।</translation>
 <translation id="1217117837721346030">সন্দেহজনক ফাইল ডাউনলোড করুন</translation>
+<translation id="1217437913373100941"><ph name="GROUP_NAME" />-এ নতুন ট্যাব</translation>
 <translation id="1217483152325416304">আপনার স্থানীয় ডেটা শীঘ্রই মুছে যাবে</translation>
 <translation id="1217668622537098248">কাজটি হয়ে গেলে লেফ্ট ক্লিকে ফিরে যান</translation>
 <translation id="1218015446623563536">Linux মুছে ফেলুন</translation>
@@ -1002,6 +1003,7 @@
 <translation id="166278006618318542">বিষয় সর্বজনীন কী অ্যালগারিদম</translation>
 <translation id="1662801900924515589"><ph name="APP" /> ইনস্টল করা হয়ে গেছে</translation>
 <translation id="1663698992894057019">সর্বশেষ নিরাপত্তা এবং সফ্টওয়্যারের জন্য একটি নতুন Chromebook-এ আপগ্রেড করুন</translation>
+<translation id="1664497218584335032">ওয়েবসাইট কোনও একটি অ্যাপে এই লিঙ্ক খুলতে চায়।</translation>
 <translation id="166454475160289583">আপনার কীবোর্ডের ইনপুট ওভাররাইড করার জন্য অনুমতি দেওয়া হয়নি</translation>
 <translation id="1665328953287874063">আপনার <ph name="DEVICE_TYPE" /> আনলক করতে পাসওয়ার্ড বা পিন ব্যবহার করুন</translation>
 <translation id="1665859804801131136">এক্সপ্রেশনিজম</translation>
@@ -1647,6 +1649,7 @@
 <translation id="2102495993840063010">Android অ্যাপ্লিকেশানগুলি</translation>
 <translation id="2104166991923847969">হটস্পট অটোমেটিক বন্ধ করুন</translation>
 <translation id="2105809836724866556"><ph name="MODULE_TITLE" /> লুকানো আছে</translation>
+<translation id="2106439768713835453">এছাড়াও অ্যাপ্লিকেশন অডিও শেয়ার করুন</translation>
 <translation id="2108204112555497972"><ph name="NUM_DAYS_HOURS_MINUTES" /> আগে চেক করা হয়েছে</translation>
 <translation id="2108349519800154983">{COUNT,plural, =1{ফোন নম্বর}one{#টি ফোন নম্বর}other{#টি ফোন নম্বর}}</translation>
 <translation id="2109384632594340939">প্রোফাইল ছবি</translation>
@@ -1786,6 +1789,7 @@
 <translation id="2204034823255629767">আপনি যা টাইপ করেন তা পড়ুন এবং পরিবর্তন করুন</translation>
 <translation id="2204168219363024184">Google Password Manager ব্যবহার করে এই পাসকী তৈরি করতে, আপনার পরিচয় যাচাই করান</translation>
 <translation id="2204387456724731099">বেছে নেওয়া টেক্সট অনুবাদ করা যায়নি</translation>
+<translation id="2204613850236199029">তথ্য সরিয়ে দেওয়া হয়েছে</translation>
 <translation id="2207116775853792104">এই এক্সটেনশন রেখে দিন</translation>
 <translation id="2209841631181508629">চালিয়ে যেতে, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> এই সাইটের সাথে আপনার <ph name="FIELDS_STRING" /> শেয়ার করবে। এই সাইটের <ph name="BEGIN_LINK" />পরিষেবার শর্তাবলী<ph name="END_LINK" /> দেখুন।</translation>
 <translation id="2210462644007531147">ইনস্টলেশন সম্পূর্ণ করা যায়নি</translation>
@@ -2886,6 +2890,7 @@
 <translation id="2950666755714083615">আমি সাইন-আপ করতে চাই</translation>
 <translation id="2953210795988451570">নিরাপত্তা আপডেট শেষ হয়েছে। একটি নতুন Chromebook-এ আপগ্রেড করুন।</translation>
 <translation id="2953218713108551165"><ph name="SITE" />-এর জন্য বিজ্ঞপ্তির অনুমতি নেই। আপনার পরবর্তী ভিজিটে আপনাকে আবার জিজ্ঞাসা করা হবে।</translation>
+<translation id="2955048943983973430">সম্পর্কিত Google পরিষেবা</translation>
 <translation id="2956070239128776395">বিভাগ গ্রুপে নেস্ট করা হয়েছে: <ph name="ERROR_LINE" /></translation>
 <translation id="2957124229512318478">এই এক্সটেনশন ব্যবহার করতে ডেভেলপার মোড চালু করুন, যেটি Chrome ওয়েব স্টোরের মাধ্যমে পর্যালোচনা করা যাবে না।</translation>
 <translation id="2958721676848865875">প্যাক এক্সটেনশনের সতর্কীকরণ</translation>
@@ -3024,6 +3029,7 @@
 <translation id="3038612606416062604">নিজ হাতে একটি প্রিন্টার যোগ করুন</translation>
 <translation id="3038628620670416486">আপনার মাউসে থাকা বোতামে ক্লিক করুন</translation>
 <translation id="3039491566278747710">ডিভাইসে অফলাইন নীতি ইনস্টল করা যায়নি।</translation>
+<translation id="3040435070100611531">Google Wallet পাস</translation>
 <translation id="3040982432432547149">Chromebook-এর জন্য Steam উন্নত করতে আমাদের সাহায্য করুন</translation>
 <translation id="304169924727249890"><ph name="OWNER_FIRST_NAME" />-এর সাথে ট্যাব গ্রুপে যোগ দিন</translation>
 <translation id="3042097545107738107">অপ্টিমাইজড চার্জিং কৌশল পরিবর্তন করুন।</translation>
@@ -3232,6 +3238,7 @@
         <ph name="BREAK" />
         <ph name="BREAK" />
         Customize Chrome-এ আপনি যেকোনও সময় এই কার্ড থেকে সেটিংস ম্যানেজ করতে অথবা আরও বিকল্প দেখতে পারবেন।</translation>
+<translation id="3207909572959773060">{NUM_TABS,plural, =1{১টি ট্যাবে নতুন ট্যাব}one{#টি ট্যাবে নতুন ট্যাব}other{#টি ট্যাবে নতুন ট্যাব}}</translation>
 <translation id="3207960819495026254">বুকমার্ক করা হয়েছে</translation>
 <translation id="3208584281581115441">এখনই চেক করুন</translation>
 <translation id="3208703785962634733">অনিশ্চিত</translation>
@@ -3407,6 +3414,7 @@
 <translation id="3334632933872291866"><ph name="WINDOW_TITLE" /> - ভিডিওটি ছবির-মধ্যে-ছবি মোডে চালানো হচ্ছে</translation>
 <translation id="3335380372402547327">ফ্ল্যাশ নোটিফিকেশনের প্রিভিউ দেখুন</translation>
 <translation id="3335947283844343239">বন্ধ হওয়া ট্যাব আবার খুলুন</translation>
+<translation id="3336661809256024098"><ph name="GROUP_NAME" />-এ নতুন ট্যাব</translation>
 <translation id="3336855445806447827">নিশ্চিত নই</translation>
 <translation id="3337568642696914359">প্রোটোকল ব্যবহার করার অনুমতি দেয় না</translation>
 <translation id="333863344734218290">এর ফলে আপনি অসুরক্ষিত সাইট সম্পর্কে বিজ্ঞপ্তি পেতে পারেন</translation>
@@ -3884,6 +3892,7 @@
 <translation id="3656328935986149999">কার্সরের স্পিড</translation>
 <translation id="3656701180077048004">আপনি 'কী' প্রেস করা ও তা চালু হওয়ার সময়ের মধ্যে বিলম্ব যোগ করে</translation>
 <translation id="3658871634334445293">TrackPoint অ্যাক্সিলারেশন</translation>
+<translation id="3659483399659250379">কোনও ট্যাব ও আরও অনেক কিছু যোগ করুন</translation>
 <translation id="3659929705630080526">আপনি অনেক বার ভুল অ্যাক্সেস কোড লিখেছেন। পরে আবার চেষ্টা করুন</translation>
 <translation id="3661106764436337772">আরও দ্রুত ও বেশি আত্মবিশ্বাসের সাথে লিখুন</translation>
 <translation id="3661297433172569100">{NUM_PASSWORDS,plural, =1{আগে থাকা ১টি পাসওয়ার্ড পাওয়া গেছে}one{আগে থাকা {NUM_PASSWORDS}টি পাসওয়ার্ড পাওয়া গেছে}other{আগে থাকা {NUM_PASSWORDS}টি পাসওয়ার্ড পাওয়া গেছে}}</translation>
@@ -4642,6 +4651,7 @@
 <translation id="4151503145138736576">মোছার জন্য অফলাইনে কোনও স্টোরেজ নেই</translation>
 <translation id="4152011295694446843">আপনি নিজের বুকমার্ক এখানে খুঁজে পাবেন</translation>
 <translation id="4152670763139331043">{NUM_TABS,plural, =1{১টি ট্যাব}one{#টি ট্যাব}other{#টি ট্যাব}}</translation>
+<translation id="4153858337812834972">সবচেয়ে সাম্প্রতিক ট্যাব</translation>
 <translation id="4154658846204884961">কমেট</translation>
 <translation id="4154664944169082762">আঙ্গুলের ছাপ</translation>
 <translation id="4156297721709710037"><ph name="WINDOW_TITLE" /> - বাঁদিকের ভিউ</translation>
@@ -4807,6 +4817,7 @@
 <translation id="4278498748067682896">আপনি 'কিয়স্ক' ও 'সাইনেজ' আপগ্রেড ব্যবহার করবেন, যা ডিভাইসটিকে শুধু 'কিয়স্ক' বা 'সাইনেজ' মোডে রান করার অনুমতি দেয়। আপনি যদি চান যে ব্যবহারকারীরা ডিভাইসে সাইন-ইন করবে, তাহলে ফিরে গিয়ে Chrome Enterprise আপগ্রেড ব্যবহার করে এনরোল করুন।</translation>
 <translation id="4278779213160967034">এই প্রক্রিয়া সম্পূর্ণ করতে কয়েক মিনিট সময় লাগতে পারে। ফাইল ডাউনলোড করা হচ্ছে।</translation>
 <translation id="4279129444466079448">আপনি এই ডিভাইসে সর্বাধিক <ph name="PROFILE_LIMIT" />টি eSIM প্রোফাইল ইনস্টল করতে পারবেন। আরেকটি প্রোফাইল যোগ করতে, আগে থেকে আছে এমন প্রোফাইল সরান।</translation>
+<translation id="427987768447457592">নতুন ট্যাব গ্রুপ</translation>
 <translation id="4280325816108262082">ডিভাইসটি বন্ধ হয়ে গেলে বা ব্যবহার করা না হলে অটোমেটিক ডিসকানেক্ট হয়ে যাবে</translation>
 <translation id="4281412694055934031">সাইট আপনার ডিভাইসে ওয়েব অ্যাপ ইনস্টল করার অনুমতি চাইতে পারে</translation>
 <translation id="4281789858103154731">তৈরি করুন</translation>
@@ -4946,6 +4957,7 @@
 <translation id="437809255587011096">টেক্সট স্টাইল ঘোষণা করুন</translation>
 <translation id="4378154925671717803">ফোন</translation>
 <translation id="4378308539633073595">স্ক্রল করে এগিয়ে যান</translation>
+<translation id="4378363201814870400">আরও দ্রুত ব্রাউজ করার জন্য আপনার অটোফিল তথ্য ম্যানেজ করুন — পাসওয়ার্ড, পেমেন্ট পদ্ধতি, ঠিকানা ও আইডি কার্ডের মতো তথ্য</translation>
 <translation id="4378551569595875038">সংযুক্ত হচ্ছে...</translation>
 <translation id="4378556263712303865">ডিভাইসের অনুরোধ</translation>
 <translation id="4378589147979399051">আপনার প্রাইমারি কীবোর্ডের সাহায্যে মাউসের কার্সর নিয়ন্ত্রণ করুন</translation>
@@ -5413,6 +5425,7 @@
 <translation id="4707337002099455863">সব সাইটে সবসময় অ্যাক্সেস পাবে</translation>
 <translation id="4708849949179781599"><ph name="PRODUCT_NAME" /> থেকে প্রস্থান করুন</translation>
 <translation id="4708892882822652439">এছাড়াও অডিও ট্যাবে অনুমতি দিন</translation>
+<translation id="4710347732286177840">ফলো-আপের জন্য স্ক্রিনের অংশ বেছে নিন</translation>
 <translation id="4711638718396952945">সেটিংস পুনরুদ্ধার করুন</translation>
 <translation id="4712404868219726379">Windows Hello</translation>
 <translation id="4713409221649555176">সমস্ত উইন্ডো বন্ধ করার সময় মুছুন</translation>
@@ -6562,10 +6575,12 @@
 <translation id="5517304475148761050">Play Store অ্যাক্সেস করতে এই অ্যাপকে অনুমতি দিতে হবে</translation>
 <translation id="5517412723934627386"><ph name="NETWORK_TYPE" /> - <ph name="NETWORK_DISPLAY_NAME" /></translation>
 <translation id="5519195206574732858">LTE</translation>
+<translation id="5519766046604311137"><ph name="PROTOCOL_SCHEME" /> লিঙ্ক সবসময় এই অ্যাপে খুলুন</translation>
 <translation id="5520605865175417976"><ph name="ACTION_TO_REMOVE" /> অ্যাকশন সরিয়ে দিন</translation>
 <translation id="5521078259930077036">আপনি কি এই পৃষ্ঠাটিকে হোম পৃষ্টা হিসেবে আশা করছিলেন?</translation>
 <translation id="5522156646677899028">এই এক্সটেনশনটিতে একটি গুরুতর নিরাপত্তার দুর্বলতা রয়েছে৷</translation>
 <translation id="5523149538118225875">{NUM_EXTENSIONS,plural, =1{আপনার অ্যাডমিনিস্ট্রেটর একটি এক্সটেনশন ইনস্টল করেছেন}one{আপনার অ্যাডমিনিস্ট্রেটর #টি এক্সটেনশন ইনস্টল করেছেন}other{আপনার অ্যাডমিনিস্ট্রেটর #টি এক্সটেনশন ইনস্টল করেছেন}}</translation>
+<translation id="5523203511530504754"><ph name="APP_NAME" /> অ্যাপে <ph name="PROTOCOL_SCHEME" /> লিঙ্ক খুলুন</translation>
 <translation id="5523532775593636291">আপনার যোগ করা সাইট সব সময় অ্যাক্টিভ থাকবে এবং সেগুলি থেকে মেমরি খালি হয়ে যাবে না</translation>
 <translation id="5523558474028191231">নামে অক্ষর, সংখ্যা ও বিশেষ অক্ষর ব্যবহার করা যেতে পারে এবং সর্বাধিক <ph name="MAX_CHARACTER_COUNT" /> অক্ষরের মধ্যে লিখতে হবে</translation>
 <translation id="5526745900034778153">সিঙ্ক আবার চালু করতে আবার সাইন-ইন করুন</translation>
@@ -6982,6 +6997,7 @@
 <translation id="5830205393314753525"><ph name="APP_NAME" /> খোলা যাচ্ছে না</translation>
 <translation id="5830512293931520102">আপনার পাসওয়ার্ড এনক্রিপটেড এবং অন্য কেউ দেখতে পাবে না</translation>
 <translation id="5830720307094128296">&amp;পৃষ্ঠা সেভ করুন...</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583179300286794292"><ph name="SPAN_START" /><ph name="DRIVE_ACCOUNT_EMAIL" /><ph name="SPAN_END" /> হিসেবে সাইন-ইন করেছেন</translation>
 <translation id="5831950941058843834"><ph name="SITE_NAME" />, এটির অধীনে থাকা সব সাইট ও এটির ইনস্টল করা অ্যাপের জন্য সাইট ডেটা ও অনুমতি মুছবেন?</translation>
 <translation id="5832813618714645810">প্রোফাইল</translation>
@@ -7117,6 +7133,7 @@
 <translation id="5919305207330938913">Google-এর <ph name="BEGIN_LINK" />গোপনীয়তা নীতি<ph name="END_LINK" /> মেনে সংগ্রহ করা সব ডেটা ব্যবহার করা হবে।</translation>
 <translation id="5919486630433391408">আপনার অ্যাডমিনিস্ট্রেটর ফার্মওয়্যার আপডেট বন্ধ করেছেন।</translation>
 <translation id="5920543303088087579">এই নেটওয়ার্কের সাথে সংযোগ আপনার প্রশাসক দ্বারা অক্ষম করা হয়েছে</translation>
+<translation id="5922493635960054020">নতুন ভিজিট করা সাইটে JavaScript অপ্টিমাইজারের অ্যাক্সেস ব্লক করুন। Safe Browsing প্রয়োজন</translation>
 <translation id="5922963926582976524">ইনস্ট্যান্ট হটস্পট নেটওয়ার্ক ডিসকানেক্ট করুন</translation>
 <translation id="5924047253200400718">সাহায্য পান<ph name="SCANNING_STATUS" /></translation>
 <translation id="5924438086390153180">Google Drive-এ Microsoft-এর ফাইল কপি করা বা সরানোর আগে জিজ্ঞেস করুন</translation>
@@ -8945,6 +8962,7 @@
 <translation id="7211783048245131419">এখনও কোনও সুইচ অ্যাসাইন করা হয়নি</translation>
 <translation id="7212097698621322584">পরিবর্তন করার জন্য আপনি পিন লিখুন। আপনি যদি পিন না জানেন তাহলে আপনাকে নিরাপত্তা কী রিসেট করতে হবে, তারপর নতুন পিন তৈরি করুন।</translation>
 <translation id="7214047272988222011">ব্যবহারের অনুমতি দেওয়া হয়েছে – <ph name="PERMISSION_DETAILS" />। <ph name="LINK_BEGIN" />সিস্টেম ক্যামেরার অ্যাক্সেস<ph name="LINK_END" /> চালু করুন।</translation>
+<translation id="7214104268140700348">{NUM_TABS,plural, =1{১টি ট্যাবে নতুন ট্যাব}one{#টি ট্যাবে নতুন ট্যাব}other{#টি ট্যাবে নতুন ট্যাব}}</translation>
 <translation id="721490496276866468">পাসওয়ার্ড ইমপোর্ট করুন</translation>
 <translation id="7217208603285112910">বেছে নেওয়া কন্টেন্ট <ph name="LANGUAGE" /> ভাষায় নেই</translation>
 <translation id="7219254577985949841">সাইট ডেটা মুছবেন?</translation>
@@ -9232,6 +9250,7 @@
 <translation id="7410344089573941623"><ph name="HOST" /> আপনার ক্যামেরা এবং মাইক্রোফোন অ্যাক্সেস  করতে চায় কিনা জিজ্ঞাসা করুন</translation>
 <translation id="7410421966064092098">আপনি বট নন তা যাচাই করতে সাইটগুলি সাহায্য করতে পারে না</translation>
 <translation id="7410852728357935715">কোনও ডিভাইসে কাস্ট করুন</translation>
+<translation id="741148343080227980"><ph name="BEGIN_LINK" />আপনার Google অ্যাকাউন্ট <ph name="USERNAME" /> থেকে<ph name="END_LINK" /> আপনি নিজের নাম এডিট করতে পারবেন।</translation>
 <translation id="741204030948306876">হ্যাঁ, আমি রাজি</translation>
 <translation id="7412226954991670867">GPU মেমোরি</translation>
 <translation id="741370456693729525">ব্রাউজিং ইতিহাস সার্চ করতে এবং আপনার দেখা সাইটগুলি খুঁজে পেতে দৈনন্দিন ভাষা ব্যবহার করুন</translation>
@@ -9411,6 +9430,7 @@
 <translation id="7531771599742723865">ডিভাইসটি ব্যবহার করা হচ্ছে</translation>
 <translation id="7531779363494549572">সেটিংস &gt; অ্যাপ এবং বিজ্ঞপ্তি &gt; বিজ্ঞপ্তিতে যান।</translation>
 <translation id="7532009420053991888"><ph name="LINUX_APP_NAME" /> উত্তর দিচ্ছে না। অ্যাপটি বন্ধ করতে "জোর করে বন্ধ করুন" বিকল্পটি বেছে নিন।</translation>
+<translation id="75362970626182391">নতুন ট্যাব গ্রুপ</translation>
 <translation id="7536815228183532290"><ph name="EMAIL" /> হিসেবে সাইন-ইন করেছেন</translation>
 <translation id="7538013435257102593">এই ধরনের ফাইল সাধারণত ডাউনলোড করা হয় না এবং এটি বিপজ্জনক হতে পারে</translation>
 <translation id="7540972813190816353">আপডেট পরীক্ষা করার সময় একটি ত্রুটি হয়েছে: <ph name="ERROR" /></translation>
@@ -9597,6 +9617,7 @@
 <translation id="7663859337051362114">ই-সিম প্রোফাইল যোগ করুন</translation>
 <translation id="76641554187607347">কোনও কীবোর্ড কানেক্ট করা নেই</translation>
 <translation id="7664442418269614729">আপনার iPhone-এ এই কার্ড ব্যবহার করুন</translation>
+<translation id="7664822217939981459"><ph name="PROTOCOL_SCHEME" /> লিঙ্ক খুলতে হলে কোনও একটি অ্যাপ বেছে নিন</translation>
 <translation id="7665082356120621510">সাইজ সেভ করুন</translation>
 <translation id="7665369617277396874">অ্যাকাউন্ট যোগ করুন</translation>
 <translation id="7665445336029073980">ডাউনলোডের সম্পূর্ণ ইতিহাস</translation>
@@ -10911,7 +10932,6 @@
 <translation id="8549127125482561383">অনুরোধ দেখানোর পদ্ধতি</translation>
 <translation id="8549316893834449916">আপনার Chromebook-এ সাইন-ইন করার জন্য আপনার Google অ্যাকাউন্ট ব্যবহার করুন - সেই একই অ্যাকাউন্ট যা আপনি Gmail, Drive, YouTube এবং Google-এর আরও পরিষেবায় ব্যবহার করেন।</translation>
 <translation id="8550239873869577759">সন্দেহজনক ফাইল ডাউনলোড করা হয়েছে</translation>
-<translation id="8551246044333727813">আপনি নিজের নাম আপনারই <ph name="BEGIN_LINK" />Google অ্যাকাউন্ট <ph name="USERNAME" /><ph name="END_LINK" /> থেকে এডিট করতে পারবেন।</translation>
 <translation id="8551388862522347954">লাইসেন্সগুলি</translation>
 <translation id="8551588720239073785">তারিখ ও সময়ের সেটিংস</translation>
 <translation id="8551647092888540776">অফলাইনে থাকায় <ph name="FILE_NAMES" /> ফাইলটি খোলা যাচ্ছে না</translation>
@@ -11219,6 +11239,7 @@
 <translation id="8750786237117206586">ChromeOS Flex অডিও সেটিংস ম্যানেজ করুন</translation>
 <translation id="8751034568832412184">স্কুল</translation>
 <translation id="8751329102746373229">আপনার অ্যাডমিনিস্ট্রেটরের থেকে</translation>
+<translation id="875242763254084885">সাইট <ph name="ORIGIN" />, কোনও একটি অ্যাপে এই লিঙ্ক খুলতে চায়।</translation>
 <translation id="8752451679755290210">অটোমেটিক একটি আইটেম থেকে অন্য আইটেমে যান</translation>
 <translation id="8753948258138515839">Google Drive, এক্সটার্নাল স্টোরেজ অথবা আপনার ChromeOS Flex ডিভাইসে আপনি যে ফাইলগুলি সেভ করেছেন ফাইল অ্যাপ সেগুলিতে দ্রুত অ্যাক্সেস প্রদান করে।</translation>
 <translation id="8754200782896249056">&lt;p&gt;কোন সমর্থিত ডেস্কটপ পরিবেশে <ph name="PRODUCT_NAME" /> চলার সময়, সিস্টেম প্রক্সি সেটিংস ব্যবহার করা হবে৷ যদিও, আপনার সিস্টেম সমর্থিত নয় অথবা আপনার সিস্টেম কনফিগারেশন প্রবর্তন করার সময় একটি সমস্যা হয়েছে।&lt;/p&gt;

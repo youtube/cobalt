@@ -171,6 +171,18 @@ struct CrossThreadCopier<webrtc::SentPacket>
   STATIC_ONLY(CrossThreadCopier);
 };
 
+template <>
+struct CrossThreadCopier<webrtc::Environment>
+    : public CrossThreadCopierPassThrough<webrtc::Environment> {
+  STATIC_ONLY(CrossThreadCopier);
+};
+
+template <>
+struct CrossThreadCopier<webrtc::Timestamp>
+    : public CrossThreadCopierPassThrough<webrtc::Timestamp> {
+  STATIC_ONLY(CrossThreadCopier);
+};
+
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_ADAPTERS_WEB_RTC_CROSS_THREAD_COPIER_H_

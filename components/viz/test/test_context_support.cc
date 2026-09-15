@@ -114,14 +114,4 @@ bool TestContextSupport::CanDecodeWithHardwareAcceleration(
   return false;
 }
 
-bool TestContextSupport::HasGrContextSupport() const {
-  return true;
-}
-
-void TestContextSupport::SetGrContext(GrDirectContext* gr) {}
-
-void TestContextSupport::WillCallGLFromSkia() {}
-
-void TestContextSupport::DidCallGLFromSkia() {}
-
 }  // namespace viz

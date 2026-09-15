@@ -233,7 +233,7 @@ ban_features = [
 # https://crbug.com/396419181.
 configs_to_remove = ['//build/config/compiler:default_optimization']
 configs_to_add = ['//build/config/compiler:optimize']
-allow_unsafe = false
+allow_unsafe = true
 
 [crate.foldhash.extra_kv]
 allow_unsafe = true
@@ -585,6 +585,12 @@ extra_kv = { allow_unsafe = false }
 
 [crate.writeable.extra_kv]
 allow_unsafe = true
+
+[crate.xml]
+license_files = [ "LICENSE" ]
+
+[crate.xml.extra_kv]
+allow_unsafe = false
 
 [crate.yoke.extra_kv]
 allow_unsafe = true

@@ -922,7 +922,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Call.EstimatedSendBitrateInKbps" units="kbps"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>holmer@chromium.org</owner>
   <summary>
     Average estimated send bitrate during a call, counted from first packet sent
@@ -1227,6 +1227,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebRTC.P2P.UDP.SetTosErrorCountByArgument"
+    enum="SetTosArguments" expires_after="2026-03-01">
+  <owner>frederikh@google.com</owner>
+  <owner>webrtc-dev@chromium.org</owner>
+  <summary>
+    This histogram logs how often setting the Type of service (TOS) byte on a
+    UDP socket failed for certain types of arguments. This is recorded every
+    time setting the TOS byte on a UDP socket fails with a non-transient error.
+    Note that setting the TOS byte is attempted every time an outgoing packet's
+    TOS byte is different from the previously sent packet's TOS byte.
+  </summary>
+</histogram>
+
 <histogram name="WebRTC.PeerConnection.AddIceCandidate"
     enum="AddIceCandidateResult" expires_after="2026-03-01">
   <owner>hta@chromium.org</owner>
@@ -1365,7 +1378,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.Duration.Worker" units="microseconds"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>handellm@google.com</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1473,6 +1486,28 @@ chromium-metrics-reviews@google.com.
     Warning: This metric does not include reports from clients with
     low-resolution clocks (i.e. on Windows, ref.
     |TimeTicks::IsHighResolution()|).
+  </summary>
+</histogram>
+
+<histogram name="WebRTC.PeerConnection.LocalNetworkAccess.RequestType"
+    enum="LocalNetworkAccessRequestType" expires_after="2026-10-01">
+  <owner>hta@chromium.org</owner>
+  <owner>ortuno@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
+  <summary>
+    Records the pair of IP address spaces for each potential outbound WebRTC
+    connection, including to peers (ICE candidates) and intermediary servers
+    (STUN/TURN).
+
+    This metric is recorded just before the connection attempt, when checking if
+    Local Network Access permission is required. The pair consists of the IP
+    address space of the document that created the PeerConnection (originator)
+    and the IP address space of the target.
+
+    A permission prompt is shown to the user when a connection is attempted to
+    an address space that is more private than the originator's (e.g., a public
+    website connecting to a private IP). This metric is primarily used to
+    estimate how frequently this prompt will be shown to users.
   </summary>
 </histogram>
 
@@ -1675,7 +1710,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.UsagePattern"
-    enum="WebRtcPeerConnectionUsagePattern" expires_after="2026-02-01">
+    enum="WebRtcPeerConnectionUsagePattern" expires_after="2026-04-05">
   <owner>hta@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1872,7 +1907,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.UserMediaRequest.Result2"
-    enum="MediaStreamRequestResult2" expires_after="2026-02-01">
+    enum="MediaStreamRequestResult2" expires_after="2026-04-05">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <summary>

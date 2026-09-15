@@ -1347,9 +1347,9 @@ NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
                                 (GridItemIdentifier*)selectedItemIdentifier
                                           snapshot:(GridSnapshot*)snapshot {
   CHECK(item.type == GridItemType::kTab || item.type == GridItemType::kGroup);
-  // TODO(crbug.com/40069795): There are crash reports that show there could be
-  // cases where the open tabs section is not present in the snapshot. If so,
-  // don't perform the update.
+  // There are crash reports that showed there were cases where the open tabs
+  // section is not present in the snapshot. If so, don't perform the update.
+  // See crbug.com/40069795 for more details.
   NSInteger section =
       [snapshot indexOfSectionIdentifier:kGridOpenTabsSectionIdentifier];
   DUMP_WILL_BE_CHECK(section != NSNotFound)
@@ -1839,8 +1839,6 @@ NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
 
 // Animates the empty state into view.
 - (void)animateEmptyStateIn {
-  // TODO(crbug.com/40566436) : Polish the animation, and put constants where
-  // they belong.
   [self.emptyStateAnimator stopAnimation:YES];
   self.emptyStateAnimator = [[UIViewPropertyAnimator alloc]
       initWithDuration:1.0 - self.emptyStateView.alpha
@@ -1854,8 +1852,6 @@ NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
 
 // Removes the empty state out of view, with animation if `animated` is YES.
 - (void)removeEmptyStateAnimated:(BOOL)animated {
-  // TODO(crbug.com/40566436) : Polish the animation, and put constants where
-  // they belong.
   [self.emptyStateAnimator stopAnimation:YES];
   auto removeEmptyState = ^{
     self.emptyStateView.alpha = 0.0;

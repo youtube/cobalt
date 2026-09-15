@@ -1309,7 +1309,12 @@ TEST_P(SiteSettingsHandlerSchemeTest, HandleClearUnpartitionedUsage) {
       expected_browsing_data_model_entries);
 }
 
-class SiteSettingsHandlerTest : public SiteSettingsHandlerBaseTest {};
+class SiteSettingsHandlerTest : public SiteSettingsHandlerBaseTest {
+#if BUILDFLAG(IS_CHROMEOS)
+ private:
+  base::test::ScopedFeatureList feature_list_{blink::features::kSmartCard};
+#endif  // BUILDFLAG(IS_CHROMEOS)
+};
 
 TEST_F(SiteSettingsHandlerTest, GetAndSetDefault) {
   // Test the JS -> C++ -> JS callback path for getting and setting defaults.
@@ -2267,7 +2272,7 @@ TEST_F(SiteSettingsHandlerTest, ClearHeuristicData) {
 
   {
     // Grant a temporary permission to create heuristic data.
-    permission_actions_history->RecordTemporaryGrantAndSetAutoGrantIfNecessary(
+    permission_actions_history->RecordTemporaryGrant(
         GURL(kOrigin), ContentSettingsType::GEOLOCATION);
 
     // Verify that heuristic data exists.
@@ -2293,7 +2298,7 @@ TEST_F(SiteSettingsHandlerTest, ClearHeuristicData) {
   });
   for (const ContentSetting content_setting : kContentSettings) {
     // Grant a temporary permission to create heuristic data.
-    permission_actions_history->RecordTemporaryGrantAndSetAutoGrantIfNecessary(
+    permission_actions_history->RecordTemporaryGrant(
         GURL(kOrigin), ContentSettingsType::GEOLOCATION);
 
     // Verify that heuristic data exists.

@@ -1140,6 +1140,8 @@ if (rtc_include_tests) {
       "../api:turn_customizer",
       "../api/crypto:options",
       "../api/environment",
+      "../api/task_queue",
+      "../api/task_queue:pending_task_safety_flag",
       "../api/transport:ecn_marking",
       "../api/transport:enums",
       "../api/transport:stun_types",

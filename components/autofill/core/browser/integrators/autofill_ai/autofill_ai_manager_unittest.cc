@@ -129,6 +129,10 @@ class MockAutofillClient : public TestAutofillClient {
               TriggerAutofillAiSavePromptSurvey,
               (bool prompt_accepted),
               (override));
+  MOCK_METHOD(void,
+              TriggerAutofillAiFillingJourneySurvey,
+              (bool suggestion_accepted, EntityType type),
+              (override));
 };
 class AutofillAiManagerTest : public testing::Test {
  public:
@@ -151,6 +155,24 @@ class AutofillAiManagerTest : public testing::Test {
     autofill_client().set_sync_service(&sync_service_);
     autofill_client().GetSyncService()->GetUserSettings()->SetSelectedType(
         syncer::UserSelectableType::kPayments, true);
+  }
+
+  std::u16string GetValueFromEntity(const EntityInstance entity,
+                                    AttributeType attribute,
+                                    const std::string& app_locale = "") {
+    return entity.attribute(attribute)->GetCompleteInfo(app_locale);
+  }
+
+  std::u16string GetValueFromEntityForAttributeTypeName(
+      const EntityInstance entity,
+      AttributeTypeName type,
+      const std::string& app_locale) {
+    AttributeType attribute_type = AttributeType(type);
+    base::optional_ref<const AttributeInstance> instance =
+        entity.attribute(attribute_type);
+    CHECK(instance);
+    return instance->GetInfo(attribute_type.field_type(), app_locale,
+                             /*format_string=*/std::nullopt);
   }
 
   // Given a `FormStructure` sets `field_types_predictions` for each field in
@@ -256,6 +278,31 @@ TEST_F(AutofillAiManagerTest,
       manager().ShouldDisplayIph(form_structure, form.fields()[0].global_id()));
 }
 
+// Tests that IPH is not displayed if the user has disabled, say,
+// identity-related entities, and the submitted form would import (only) an
+// identity-related entity.
+TEST_F(AutofillAiManagerTest,
+       ShouldNotDisplayIphWhenUserHasDisabledTheGroupOfEntities) {
+  test::FormDescription form_description = {.fields = {{}}};
+  FormData form = test::GetFormData(form_description);
+  FormStructure form_structure = FormStructure(form);
+  FieldGlobalId field_id = form.fields()[0].global_id();
+  AddPredictionsToFormStructure(form_structure, {{PASSPORT_NUMBER}});
+  AddAutofillProfile();
+  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
+
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAiTravelEntitiesEnabled, false);
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAiIdentityEntitiesEnabled, false);
+  EXPECT_FALSE(manager().ShouldDisplayIph(form_structure, field_id));
+
+  // Confirm that it is only the pref for identity entities that affects IPH.
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAiIdentityEntitiesEnabled, true);
+  EXPECT_TRUE(manager().ShouldDisplayIph(form_structure, field_id));
+}
+
 // Tests that if kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph is
 // enabled, IPH should be displayed when the user is opted out of the feature
 // and does not have address or payments data stored.
@@ -314,6 +361,93 @@ TEST_F(AutofillAiManagerTest, ShouldNotDisplayIphOnUnrelatedField) {
 
   EXPECT_FALSE(
       manager().ShouldDisplayIph(form_structure, form.fields()[1].global_id()));
+}
+
+TEST_F(AutofillAiManagerTest,
+       FillingMomentSurvey_SuggestionAccepted_ShowSurvey) {
+  EntityInstance passport_entity = test::GetPassportEntityInstance();
+  AddOrUpdateEntityInstance(passport_entity);
+
+  test::FormDescription form_description = {.fields = {{}, {}}};
+  FormData form = test::GetFormData(form_description);
+  FormStructure form_structure = FormStructure(form);
+  AddPredictionsToFormStructure(form_structure,
+                                {{NAME_FULL}, {PASSPORT_NUMBER}});
+  form_structure.field(0)->set_value(GetValueFromEntityForAttributeTypeName(
+      passport_entity, AttributeTypeName::kPassportName, /*app_locale=*/""));
+  form_structure.field(1)->set_value(GetValueFromEntityForAttributeTypeName(
+      passport_entity, AttributeTypeName::kPassportNumber, /*app_locale=*/""));
+
+  manager().OnSuggestionsShown(form_structure, *form_structure.field(0),
+                               {EntityType(EntityTypeName::kPassport)}, {});
+  manager().OnDidFillSuggestion(passport_entity, form_structure,
+                                *form_structure.field(0),
+                                /*filled_fiekds*/ {}, {});
+
+  EXPECT_CALL(autofill_client(),
+              TriggerAutofillAiFillingJourneySurvey(
+                  /*suggestion_accepted=*/true, passport_entity.type()));
+  ASSERT_FALSE(manager().OnFormSubmitted(form_structure, /*ukm_source_id=*/{}));
+}
+
+TEST_F(AutofillAiManagerTest,
+       FillingMomentSurvey_SuggestionDeclined_ShowSurvey) {
+  EntityInstance passport_entity = test::GetPassportEntityInstance();
+  AddOrUpdateEntityInstance(passport_entity);
+
+  test::FormDescription form_description = {.fields = {{}, {}}};
+  FormData form = test::GetFormData(form_description);
+  FormStructure form_structure = FormStructure(form);
+  AddPredictionsToFormStructure(form_structure,
+                                {{NAME_FULL}, {PASSPORT_NUMBER}});
+  form_structure.field(0)->set_value(GetValueFromEntityForAttributeTypeName(
+      passport_entity, AttributeTypeName::kPassportName, /*app_locale=*/""));
+  form_structure.field(1)->set_value(GetValueFromEntityForAttributeTypeName(
+      passport_entity, AttributeTypeName::kPassportNumber, /*app_locale=*/""));
+
+  manager().OnSuggestionsShown(form_structure, *form_structure.field(0),
+                               {EntityType(EntityTypeName::kPassport)}, {});
+
+  EXPECT_CALL(autofill_client(),
+              TriggerAutofillAiFillingJourneySurvey(
+                  /*suggestion_accepted=*/false, passport_entity.type()));
+  ASSERT_FALSE(manager().OnFormSubmitted(form_structure, /*ukm_source_id=*/{}));
+}
+
+// Tests that surveys are only shown if no save (or update) prompts are shown.
+TEST_F(
+    AutofillAiManagerTest,
+    FillingMomentSurvey_SuggestionAccepted_SavePromptShown_SurveyIsNotShown) {
+  EntityInstance passport_entity = test::GetPassportEntityInstance();
+  AddOrUpdateEntityInstance(passport_entity);
+
+  test::FormDescription form_description = {.fields = {{}, {}}};
+  FormData form = test::GetFormData(form_description);
+  FormStructure form_structure = FormStructure(form);
+  AddPredictionsToFormStructure(form_structure,
+                                {{NAME_FULL}, {PASSPORT_NUMBER}});
+  form_structure.field(0)->set_value(GetValueFromEntityForAttributeTypeName(
+      passport_entity, AttributeTypeName::kPassportName, /*app_locale=*/""));
+  // Fill the passport number with a different value to trigger a save prompt
+  // survey.
+  form_structure.field(1)->set_value(u"12345");
+
+  manager().OnSuggestionsShown(form_structure, *form_structure.field(0),
+                               {EntityType(EntityTypeName::kPassport)}, {});
+  manager().OnDidFillSuggestion(passport_entity, form_structure,
+                                *form_structure.field(0),
+                                /*filled_fiekds*/ {}, {});
+
+  EXPECT_CALL(autofill_client(), TriggerAutofillAiFillingJourneySurvey)
+      .Times(0);
+  std::optional<EntityInstance> new_entity;
+  std::optional<EntityInstance> old_entity;
+  AutofillClient::EntitySaveOrUpdatePromptResultCallback save_callback;
+  EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble)
+      .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity)));
+  EXPECT_TRUE(manager().OnFormSubmitted(form_structure, /*ukm_source_id=*/{}));
+  ASSERT_FALSE(old_entity);
+  ASSERT_TRUE(new_entity);
 }
 
 class AutofillAiManagerImportFormTest : public AutofillAiManagerTest {
@@ -913,6 +1047,37 @@ TEST_F(AutofillAiManagerImportFormTest,
   EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
 }
 
+// Test that disabling the property for, say, identity-related entities
+// suppresses import.
+TEST_F(AutofillAiManagerImportFormTest,
+       DoNotImportIfPrefForEntityGroupDisabled) {
+  using enum AttributeTypeName;
+  std::unique_ptr<FormStructure> form =
+      CreateFormStructure({NAME_FULL, DRIVERS_LICENSE_NUMBER});
+  EntityInstance entity = test::GetDriversLicenseEntityInstance();
+  form->field(0)->set_value(u"Jon Doe");
+  form->field(1)->set_value(u"1234321");
+
+  MockFunction<void(std::string_view)> check;
+  {
+    InSequence s;
+    EXPECT_CALL(check, Call("pref disabled"));
+    EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble).Times(0);
+    EXPECT_CALL(check, Call("pref enabled"));
+    EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble);
+  }
+
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAiIdentityEntitiesEnabled, false);
+  check.Call("pref disabled");
+  EXPECT_FALSE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAiIdentityEntitiesEnabled, true);
+  check.Call("pref enabled");
+  EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+}
+
 TEST_F(AutofillAiManagerImportFormTest,
        EntityContainsRequiredAttributes_ShowPromptAndAccept) {
   std::unique_ptr<FormStructure> form = CreateFormStructure(
@@ -1204,6 +1369,11 @@ TEST_F(AutofillAiManagerImportFormTest,
   ASSERT_EQ(old_entity->record_type(), EntityInstance::RecordType::kLocal);
   EXPECT_EQ(new_entity->record_type(),
             EntityInstance::RecordType::kServerWallet);
+  // Accept the bubble.
+  std::move(save_callback)
+      .Run(AutofillClient::EntitySaveOrUpdatePromptResult(
+          /*did_user_decline=*/false, new_entity));
+  EXPECT_THAT(GetEntityInstances(), testing::UnorderedElementsAre(new_entity));
 }
 
 TEST_F(AutofillAiManagerImportFormTest, UpdateEntity_UpdateInfo) {
@@ -1437,14 +1607,22 @@ TEST_F(AutofillAiManagerUpstreamTest,
 
   std::optional<EntityInstance> entity_to_upstream;
   std::optional<EntityInstance> old_entity;
+  AutofillClient::EntitySaveOrUpdatePromptResultCallback upstream_callback;
   EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble)
-      .WillOnce(
-          DoAll(SaveArg<0>(&entity_to_upstream), SaveArg<1>(&old_entity)));
+      .WillOnce(DoAll(SaveArg<0>(&entity_to_upstream), SaveArg<1>(&old_entity),
+                      MoveArg<2>(&upstream_callback)));
   EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
   ASSERT_FALSE(old_entity);
   ASSERT_TRUE(entity_to_upstream);
   // `local_entity_2` was recently used.
   EXPECT_EQ(entity_to_upstream->guid(), local_entity_2.guid());
+
+  // Accept the bubble.
+  std::move(upstream_callback)
+      .Run(AutofillClient::EntitySaveOrUpdatePromptResult(
+          /*did_user_decline=*/false, entity_to_upstream));
+  EXPECT_THAT(GetEntityInstances(), testing::UnorderedElementsAre(
+                                        local_entity_1, entity_to_upstream));
 }
 
 TEST_F(AutofillAiManagerUpstreamTest, FeatureOff_DoNotShowMigrationPrompt) {
@@ -1468,6 +1646,45 @@ TEST_F(AutofillAiManagerUpstreamTest, FeatureOff_DoNotShowMigrationPrompt) {
 
   EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble).Times(0);
   EXPECT_FALSE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+}
+
+// Tests that disabling the pref for, say, travel-related entities suppresses
+// the wallet migration prompt.
+TEST_F(AutofillAiManagerUpstreamTest,
+       PrefForEntityGroupOff_DoNotShowMigrationPrompt) {
+  std::unique_ptr<FormStructure> form = CreateTestForm();
+  EntityInstance local_entity = test::GetVehicleEntityInstance();
+  AddOrUpdateEntityInstance(local_entity);
+
+  form->field(0)->set_value(
+      local_entity.attribute(AttributeType(AttributeTypeName::kVehicleOwner))
+          ->GetRawInfo(NAME_FULL));
+  form->field(1)->set_value(
+      local_entity.attribute(AttributeType(AttributeTypeName::kVehicleVin))
+          ->GetRawInfo(VEHICLE_VIN));
+  form->field(2)->set_value(
+      local_entity
+          .attribute(AttributeType(AttributeTypeName::kVehiclePlateNumber))
+          ->GetRawInfo(VEHICLE_LICENSE_PLATE));
+
+  MockFunction<void(std::string_view)> check;
+  {
+    InSequence s;
+    EXPECT_CALL(check, Call("pref disabled"));
+    EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble).Times(0);
+    EXPECT_CALL(check, Call("pref enabled"));
+    EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble);
+  }
+
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAiTravelEntitiesEnabled, false);
+  check.Call("pref disabled");
+  EXPECT_FALSE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAiTravelEntitiesEnabled, true);
+  check.Call("pref enabled");
+  EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
 }
 
 // Tests that a migration prompt is not shown if the user entered data in the

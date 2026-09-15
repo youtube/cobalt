@@ -30,8 +30,6 @@ source_set("cells") {
     "settings_search_engine_item.mm",
     "sync_switch_item.h",
     "sync_switch_item.mm",
-    "table_view_clear_browsing_data_item.h",
-    "table_view_clear_browsing_data_item.mm",
     "version_item.h",
     "version_item.mm",
   ]
@@ -60,15 +58,6 @@ source_set("cells") {
     "//ios/chrome/common/ui/util",
     "//ios/public/provider/chrome/browser/signin:signin_resources_api",
     "//ui/base",
-  ]
-
-  public_deps = [ ":clear_browsing_data_constants" ]
-}
-
-source_set("clear_browsing_data_constants") {
-  sources = [
-    "clear_browsing_data_constants.h",
-    "clear_browsing_data_constants.mm",
   ]
 }
 

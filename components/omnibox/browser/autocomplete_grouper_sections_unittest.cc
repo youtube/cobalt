@@ -274,6 +274,29 @@ TEST(AutocompleteGrouperSectionsTest, DesktopNTPZpsSection) {
             88,
         });
   }
+  {
+    SCOPED_TRACE("Up to 5 contextual search suggestions should be added.");
+    test(
+        {
+            CreateMatch(90, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(89, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(88, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(87, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(86, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(85, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(84, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(83, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(82, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(81, omnibox::GROUP_CONTEXTUAL_SEARCH),
+        },
+        {
+            90,
+            89,
+            88,
+            87,
+            86,
+        });
+  }
 }
 
 // Tests the groups, limits, and rules for the Desktop NTP ZPS section.
@@ -2529,4 +2552,34 @@ TEST(AutocompleteGrouperSectionsTest,
   }
 }
 
+TEST(AutocompleteGrouperSectionsTest, AndroidComposeboxZpsSection) {
+  auto test = [](ACMatches matches, std::vector<int> expected_relevances) {
+    PSections sections;
+    omnibox::GroupConfigMap group_configs;
+    sections.push_back(std::make_unique<AndroidComposeboxZpsSection>(
+        group_configs, /*max_suggestions=*/5u,
+        /*max_aim_suggestions=*/5u,
+        /*max_contextual_suggestions=*/5u));
+    auto out_matches = Section::GroupMatches(std::move(sections), matches);
+    VerifyMatches(out_matches, expected_relevances);
+  };
+  {
+    SCOPED_TRACE("ZPS personalized zero suggest and aim suggestions only");
+    test(
+        {
+            CreateMatch(103, omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST),
+            CreateMatch(102, omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST),
+            CreateMatch(101, omnibox::GROUP_MIA_RECOMMENDATIONS),
+            CreateMatch(99, omnibox::GROUP_MOST_VISITED),
+            CreateMatch(98, omnibox::GROUP_VISITED_DOC_RELATED),
+            CreateMatch(97, omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST),
+            CreateMatch(96, omnibox::GROUP_MIA_RECOMMENDATIONS),
+            CreateMatch(95, omnibox::GROUP_CONTEXTUAL_SEARCH),
+            CreateMatch(94, omnibox::GROUP_CONTEXTUAL_SEARCH_ACTION),
+            CreateMatch(93, omnibox::GROUP_CONTEXTUAL_SEARCH),
+        },
+        // Nothing but personalized zero suggest and aim recommendations.
+        {103, 102, 97, 101, 96});
+  }
+}
 #endif

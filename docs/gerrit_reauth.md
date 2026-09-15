@@ -55,9 +55,13 @@ If you work remotely over SSH or remote desktop, please follow steps in
 [ReAuth in git-cl remotely](#ReAuth-in-git_cl-remotely) to setup your
 environment.
 
-If you use Linux, you might need to
-[configure your system](#linux-security-keys-access) to make security keys
-usable.
+If you use Linux:
+
+1. You need to install a GUI-based `pinentry` program to enter security key
+   PINs. Certain security keys models mandate PIN entry at all times.
+
+1. You might also need to [configure your system](#linux-security-keys-access)
+   to make security keys usable.
 ***
 
 ## Prerequisites
@@ -80,11 +84,25 @@ Please include this info when reporting issues.
 **Important Note**: Passkeys won't be supported by ReAuth. A physical security
 key is required.
 
+**If you use Firefox**: You need to allow the website to collect extended
+information about your security key in this dialog. Otherwise the key won't be
+able to ReAuth (you'll see BAD_REQUEST error in the log). If you've already
+registered the key, remove it from the security key list, then re-adding it.
+
 If you’re using a Google Workspace account, make sure
 "[2-Step Verification](https://myaccount.google.com/signinoptions/twosv)" is
 turned on.
 
 ![Two-step verification](./images/gerrit_reauth_2sv.png)
+
+""" note
+**Known Issue:** If you sign in to your Google account via an external identity provider
+such as **Active Directory, Entra ID, or Okta**, you may see `NO_AVAILABLE_CHALLENGES` error
+when you ReAuth immediately after registering your security key.
+
+You may need to **wait for a few hours** before your first ReAuth can proceed. We're still
+investigating the cause.
+"""
 
 ### Accurate Timezone / Time
 
@@ -155,6 +173,40 @@ keys.
 The configuration steps vary by Linux distributions. We recommend following
 [Yubico’s guide](https://support.yubico.com/hc/en-us/articles/360013708900-Troubleshooting-using-your-YubiKey-with-Linux)
 , which we confirmed to be working on Ubuntu 24.04 LTS Desktop.
+
+### Linux: security key PIN entry program
+
+ReAuth doesn't require security key PINs. But PINs entry might be enforced by
+the security key manufacturer, or if you have configured your key to do so.
+
+On Linux, you need the `pinentry` program to input PINs. If you don't have this
+program, your security key will refuse to complete the ReAuth challenge. You
+typically see `BAD_REQUEST` or `PinRequiredError` in the logs depending on the
+security key.
+
+For the best experience, we recommend using a **GUI based pinentry** program.
+
+Terminal based pinentry only works with local ReAuth. If you don't need to
+ReAuth over SSH, feel free to use one.
+
+To install a GUI-based pinentry program:
+
+* Ubuntu, Debian: `sudo apt install pinentry-gnome3`
+* Fedora: `sudo dnf install pinentry-qt`
+
+After installing the package, your system should default to the newly installed
+GUI-based pinentry program.
+
+You can check the current pinentry program by running:
+
+```
+readlink -f $( which pinentry )
+```
+
+The output path's suffix should be a GUI based name, such as "-gnome" or "-qt".
+
+If the above path ends with terminal based name, such as "tty" or "curses", set
+`LUCI_AUTH_PINENTRY=pinentry-gnome3` environment variable to override.
 
 ## ReAuth in Gerrit Web UI
 

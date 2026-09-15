@@ -85,6 +85,14 @@ export class SearchboxIconElement extends CrLitElement {
       },
 
       /**
+       * Whether icon belongs to a starter pack match.
+       */
+      isStarterPack: {
+        type: Boolean,
+        reflect: true,
+      },
+
+      /**
        * Whether suggestion answer is of answer type weather. Weather answers
        * don't have the same background as other suggestion answers.
        */
@@ -151,6 +159,7 @@ export class SearchboxIconElement extends CrLitElement {
   accessor hasIconContainerBackground: boolean = false;
   accessor inSearchbox: boolean = false;
   accessor isAnswer: boolean = false;
+  accessor isStarterPack = false;
   accessor isWeatherAnswer: boolean = false;
   accessor isEnterpriseSearchAggregatorPeopleType: boolean = false;
   accessor maskImage: string = '';
@@ -174,6 +183,7 @@ export class SearchboxIconElement extends CrLitElement {
       this.isAnswer = this.computeIsAnswer_();
       this.isEnterpriseSearchAggregatorPeopleType =
           this.computeIsEnterpriseSearchAggregatorPeopleType_();
+      this.isStarterPack = this.computeIsStarterPack_();
       this.isWeatherAnswer = this.computeIsWeatherAnswer_();
       this.maskImage = this.computeMaskImage_();
     }
@@ -294,10 +304,10 @@ export class SearchboxIconElement extends CrLitElement {
     }
 
     // Navigation suggestions should always use the background image, except for
-    // Lens searchboxes and starter pack suggestions, which prefer to use the
-    // default icon in the mask image.
+    // Lens searchboxes and pedal/starter pack suggestions, which prefer to use
+    // the default icon in the mask image.
     if (!this.isLensSearchbox_ && this.match && !this.match.isSearchType &&
-        this.match.type !== STARTER_PACK) {
+        this.match.type !== STARTER_PACK && this.match.type !== PEDAL) {
       return true;
     }
 
@@ -389,6 +399,10 @@ export class SearchboxIconElement extends CrLitElement {
           (!!this.match.answer && !this.isWeatherAnswer);
     }
     return false;
+  }
+
+  private computeIsStarterPack_(): boolean {
+    return this.match?.type === STARTER_PACK;
   }
 }
 

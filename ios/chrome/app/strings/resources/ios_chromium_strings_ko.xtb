@@ -89,7 +89,6 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="2977470724722393594">Chromium이 최신 버전임</translation>
 <translation id="3044857325852340337">Chromium 데이터 삭제됨</translation>
 <translation id="3054480780637153380">iOS에서 Chromium Settings(Chromium 설정)를 열고 'Default Browser App(기본 브라우저 앱)'을 탭한 다음 Chromium을 선택합니다</translation>
-<translation id="3102849287235003384">웹사이트에 로그인되어 있는 Google 계정에서 모두 로그아웃하려면 <ph name="BEGIN_LINK" />Chromium에서 로그아웃<ph name="END_LINK" />하세요.</translation>
 <translation id="3115956258722352278">Chromium을 기본 브라우저로 지정할까요?</translation>
 <translation id="3180939591219927904">'Chromium 종료 시 시크릿 탭 잠금'을 사용 설정합니다.</translation>
 <translation id="328933489847748230">{count,plural, =1{Chromium 창 1개 표시 중}other{Chromium 창 {count}개 표시 중}}</translation>
@@ -200,6 +199,9 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="5671188105328420281">Chromium 사용 팁</translation>
 <translation id="5688047395118852662">이 카드는 Chromium을 최대한 활용하는 방법에 관한 추천을 보여줍니다.</translation>
 <translation id="5700709190537129682">Chromium에서 비밀번호를 확인할 수 없습니다.</translation>
+<translation id="5731004036450828399">패스키를 안전하게 보호하려면 먼저 복구 PIN을 만들어야 합니다.
+
+        패스키는 비밀번호 관리자에 저장됩니다. 비밀번호 관리자를 통해 모든 기기의 Chromium에서 패스키를 사용할 수 있습니다</translation>
 <translation id="584550191241316896">Chromium에 로그인함</translation>
 <translation id="5862307444128926510">Chromium에 오신 것을 환영합니다.</translation>
 <translation id="5889847953983052353">사용 설정 되어 있을 때:
@@ -265,8 +267,8 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="7269362888766543920">일부 부가기능으로 인해 Chromium이 비정상 종료됩니다. 해당 부가기능을 제거하세요.</translation>
 <translation id="7285031092584344905">다른 앱에서 Chromium 비밀번호 등 다양한 항목에 액세스합니다.</translation>
 <translation id="7337881442233988129">Chromium</translation>
-<translation id="7357211569052832586">선택한 데이터가 Chromium 및 동기화된 기기에서 삭제되었습니다. history.google.com에서 검색이나 기타 Google 서비스에서의 활동 등 내 Google 계정에 있는 다른 형식의 탐색 기록을 확인할 수 있습니다.</translation>
 <translation id="7395825497086981028">비밀번호가 <ph name="EMAIL" />의 비밀번호 관리자에 저장됩니다.</translation>
+<translation id="7434848749522628428">이 패스키는 <ph name="USER_EMAIL" />의 비밀번호 관리자에 저장됩니다.</translation>
 <translation id="7504829997542308412">Chromium을 엽니다.</translation>
 <translation id="7531461704633548377">Chromium에서</translation>
 <translation id="7554983317097061001">Chromium 도움말: Chromium을 도크로 이동</translation>
@@ -300,6 +302,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="8254729934443216898">Chromium을 최대한 활용하는 데 도움이 되는 새로운 기능을 살펴보세요.</translation>
 <translation id="8293572045658095405">Chromium 시크릿 모드 사용 중</translation>
 <translation id="830951810931292870">Chromium에 입력된 URL을 시크릿 모드로 엽니다.</translation>
+<translation id="8385503371191508165">비밀번호 관리자로 패스키 저장</translation>
 <translation id="8390323835464055390">Chromium 자동 완성을 사용하여 저장된 비밀번호 및 패스키로 모든 앱에서 로그인하세요</translation>
 <translation id="8409374867500149834">유해한 웹사이트에 대한 Chromium의 가장 강력한 보안 기능을 갖추고 있습니다.</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{이 현상은 Chromium을 {THRESHOLD}분 동안 사용하지 않는 경우에 발생합니다. 로그인되어 있는 동안 이 기기에만 저장된 데이터는 삭제됩니다. 여기에는 방문 기록 및 비밀번호가 포함될 수 있습니다.}other{이 현상은 Chromium을 {THRESHOLD}분 동안 사용하지 않는 경우에 발생합니다. 로그인되어 있는 동안 이 기기에만 저장된 데이터는 삭제됩니다. 여기에는 방문 기록 및 비밀번호가 포함될 수 있습니다.}}</translation>

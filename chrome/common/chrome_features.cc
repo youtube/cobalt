@@ -291,6 +291,9 @@ BASE_FEATURE(kGeoLanguage, base::FEATURE_DISABLED_BY_DEFAULT);
 // Controls whether the actor component of Glic is enabled.
 BASE_FEATURE(kGlicActor, base::FEATURE_ENABLED_BY_DEFAULT);
 
+const base::FeatureParam<base::TimeDelta> kGlicActorClickDelay{
+    &kGlicActor, "glic-actor-click-delay", base::Milliseconds(5)};
+
 // Controls whether the Actor UI components are enabled.
 BASE_FEATURE(kGlicActorUi, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -401,6 +404,13 @@ const base::FeatureParam<size_t> kGlicActorIncrementalTypingLongTextThreshold{
     &kGlicActorIncrementalTyping,
     "glic-actor-incremental-typing-long-text-threshold", 45};
 
+// When incremental typing is enabled, for even longer text (as defined by this
+// threshold), directly paste the text instead of simulate typing.
+const base::FeatureParam<size_t>
+    kGlicActorIncrementalTypingLongTextPasteThreshold{
+        &kGlicActorIncrementalTyping, "glic-actor-long-text-paste-threshold",
+        200};
+
 // If the TypeTool is invoked with followed_by_enter, the enter key is
 // dispatched with this delay.
 const base::FeatureParam<base::TimeDelta> kGlicActorTypeToolEnterDelay{
@@ -412,6 +422,10 @@ const base::FeatureParam<bool> kGlicActorScrollTargetIntoView{
 BASE_FEATURE(kGlicActorPermissionsBypass, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicActorToctouValidation, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether the Glic FRE dialog is displayed in the same window as the
+// main app.
+BASE_FEATURE(kGlicUnifiedFreScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(ENABLE_GLIC)
 // Controls whether the Glic feature is enabled.
@@ -429,6 +443,11 @@ BASE_FEATURE(kGlicMultiInstance, base::FEATURE_DISABLED_BY_DEFAULT);
 // if user manually resizes.
 const base::FeatureParam<int> kGlicSidePanelMinWidth{
     &kGlicMultiInstance, "glic-side-panel-min-width", 384};
+// Controls the width and height of the multi-instance floating panel.
+const base::FeatureParam<int> kGlicMultiInstanceFloatyWidth{
+    &kGlicMultiInstance, "glic-multi-instance-floaty-width", 400};
+const base::FeatureParam<int> kGlicMultiInstanceFloatyHeight{
+    &kGlicMultiInstance, "glic-multi-instance-floaty-height", 400};
 
 // Controls whether the Glic feature's z order changes based on the webclient
 // mode.
@@ -775,9 +794,9 @@ extern const base::FeatureParam<std::string> kGlicCaaGuestRedirectPatterns{
     "https://access.workspace.google.com https://admin.google.com "
     "https://accounts.google.com/info/servicerestricted"};
 
-BASE_FEATURE(kGlicEntrypointVariations, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicEntrypointVariations, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<bool> kGlicEntrypointVariationsShowLabel{
-    &kGlicEntrypointVariations, "glic-entrypoint-variations-show-label", false};
+    &kGlicEntrypointVariations, "glic-entrypoint-variations-show-label", true};
 const base::FeatureParam<bool> kGlicEntrypointVariationsAltIcon{
     &kGlicEntrypointVariations, "glic-entrypoint-variations-alt-icon", false};
 const base::FeatureParam<bool> kGlicEntrypointVariationsHighlightNudge{
@@ -791,10 +810,6 @@ BASE_FEATURE(kGlicShareImage, base::FEATURE_DISABLED_BY_DEFAULT);
 // Force Privacy Guide to be available even if it would be unavailable
 // otherwise. This is meant for development and test purposes only.
 BASE_FEATURE(kPrivacyGuideForceAvailable, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Defines if the linked services setting is eligible to be shown in Chrome
-// settings.
-BASE_FEATURE(kLinkedServicesSetting, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID)
 // Enables or disables the Happiness Tracking System demo mode for Desktop
@@ -1207,6 +1222,9 @@ BASE_FEATURE(kUseManagedPrintJobOptionsInPrintPreview,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+BASE_FEATURE(kUserValueDefaultBrowserStrings,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables or disables push subscriptions keeping Chrome running in the
 // background when closed.
 BASE_FEATURE(kPushMessagingBackgroundMode, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1247,22 +1265,27 @@ BASE_FEATURE(kSafetyHubExtensionsOffStoreTrigger,
 BASE_FEATURE(kSafetyHubThreeDotDetails, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSafetyHubDisruptiveNotificationRevocation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 constexpr base::FeatureParam<int>
     kSafetyHubDisruptiveNotificationRevocationExperimentVersion{
         &kSafetyHubDisruptiveNotificationRevocation,
-        /*name=*/"experiment_version", /*default_value=*/0};
+        /*name=*/"experiment_version", /*default_value=*/1};
 
 constexpr base::FeatureParam<bool>
     kSafetyHubDisruptiveNotificationRevocationShadowRun{
         &kSafetyHubDisruptiveNotificationRevocation,
-        /*name=*/"shadow_run", /*default_value=*/true};
+        /*name=*/"shadow_run", /*default_value=*/false};
 
 constexpr base::FeatureParam<int>
     kSafetyHubDisruptiveNotificationRevocationMinNotificationCount{
         &kSafetyHubDisruptiveNotificationRevocation,
-        /*name=*/"min_notification_count", /*default_value=*/3};
+        /*name=*/"min_notification_count", /*default_value=*/4};
 
 constexpr base::FeatureParam<double>
     kSafetyHubDisruptiveNotificationRevocationMaxEngagementScore{
@@ -1272,7 +1295,7 @@ constexpr base::FeatureParam<double>
 constexpr base::FeatureParam<base::TimeDelta>
     kSafetyHubDisruptiveNotificationRevocationWaitingTimeAsProposed{
         &kSafetyHubDisruptiveNotificationRevocation,
-        /*name=*/"waiting_time_as_proposed", /*default_value=*/base::Days(0)};
+        /*name=*/"waiting_time_as_proposed", /*default_value=*/base::Days(4)};
 
 constexpr base::FeatureParam<int>
     kSafetyHubDisruptiveNotificationRevocationNotificationTimeoutSeconds{
@@ -1297,7 +1320,7 @@ constexpr base::FeatureParam<int>
 constexpr base::FeatureParam<double>
     kSafetyHubDisruptiveNotificationRevocationMinSiteEngagementScoreDelta{
         &kSafetyHubDisruptiveNotificationRevocation,
-        /*name=*/"min_engagement_score_delta", /*default_value=*/0.0};
+        /*name=*/"min_engagement_score_delta", /*default_value=*/3.0};
 
 constexpr base::FeatureParam<int>
     kSafetyHubDisruptiveNotificationRevocationUserRegrantWaitingPeriod{
@@ -1307,14 +1330,11 @@ constexpr base::FeatureParam<int>
 constexpr base::FeatureParam<int>
     kSafetyHubDisruptiveNotificationRevocationWaitingForMetricsDays{
         &kSafetyHubDisruptiveNotificationRevocation,
-        /*name=*/"waiting_for_metrics_days", /*default_value=*/7};
+        /*name=*/"waiting_for_metrics_days", /*default_value=*/1};
 
 #if BUILDFLAG(IS_ANDROID)
 // Enables Safety Hub card in magic stack.
 BASE_FEATURE(kSafetyHubMagicStack, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables Safety Hub followup work.
-BASE_FEATURE(kSafetyHubFollowup, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Safety Hub organic HaTS survey on Android.
 BASE_FEATURE(kSafetyHubAndroidOrganicSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1349,27 +1369,10 @@ BASE_FEATURE(kSafetyHubUnifiedPasswordsModule,
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
-// Enables Safety Hub services on start up feature.
-BASE_FEATURE(kSafetyHubServicesOnStartUp, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables or disables the Trust Safety Sentiment Survey for Safety Hub.
 BASE_FEATURE(kSafetyHubTrustSafetySentimentSurvey,
              "TrustSafetySentimentSurveyForSafetyHub",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables or disables the A/B Experiment Survey for Safety Hub.
-BASE_FEATURE(kSafetyHubHaTSOneOffSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<std::string>
-    kHatsSurveyTriggerSafetyHubOneOffExperimentControlTriggerId{
-        &kSafetyHubHaTSOneOffSurvey, "safety-hub-ab-control-trigger-id", ""};
-const base::FeatureParam<std::string>
-    kHatsSurveyTriggerSafetyHubOneOffExperimentNotificationTriggerId{
-        &kSafetyHubHaTSOneOffSurvey, "safety-hub-ab-notification-trigger-id",
-        ""};
-const base::FeatureParam<std::string>
-    kHatsSurveyTriggerSafetyHubOneOffExperimentInteractionTriggerId{
-        &kSafetyHubHaTSOneOffSurvey, "safety-hub-ab-interaction-trigger-id",
-        ""};
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Controls whether SCT audit reports are queued and the rate at which they
@@ -1673,6 +1676,15 @@ BASE_FEATURE(kWebAppManifestPolicyAppIdentityUpdate,
 
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kWebium, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables rendering the top chrome in WebUI. This is a central flag to enable
+// the WebUI implementation of top chrome. Individual features will be
+// additionally gated by this flag.
+BASE_FEATURE(kInitialWebUI, base::FEATURE_DISABLED_BY_DEFAULT);
+// When enable, the reload button will be replaced with the a WebView, and
+// chrome://reload-button.top-chrome will be loaded as the content.
+// crbug.com/444358999
+BASE_FEATURE(kWebUIReloadButton, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables the User-Agent override fix for SearchPrefetch. This will work only

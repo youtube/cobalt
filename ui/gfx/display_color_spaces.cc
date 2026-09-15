@@ -84,25 +84,17 @@ DisplayColorSpaces::DisplayColorSpaces(const ColorSpace& c,
   }
 }
 
-void DisplayColorSpaces::SetOutputBufferFormats(
-    gfx::BufferFormat buffer_format_no_alpha,
-    gfx::BufferFormat buffer_format_needs_alpha) {
+void DisplayColorSpaces::SetOutputFormats(
+    viz::SharedImageFormat format_no_alpha,
+    viz::SharedImageFormat format_with_alpha) {
   for (const auto& color_usage : kAllColorUsages) {
     size_t i_no_alpha = GetIndex(color_usage, false);
     size_t i_needs_alpha = GetIndex(color_usage, true);
-    buffer_formats_[i_no_alpha] = buffer_format_no_alpha;
-    buffer_formats_[i_needs_alpha] = buffer_format_needs_alpha;
+    buffer_formats_[i_no_alpha] =
+        viz::SinglePlaneSharedImageFormatToBufferFormat(format_no_alpha);
+    buffer_formats_[i_needs_alpha] =
+        viz::SinglePlaneSharedImageFormatToBufferFormat(format_with_alpha);
   }
-}
-
-void DisplayColorSpaces::SetOutputColorSpaceAndBufferFormat(
-    ContentColorUsage color_usage,
-    bool needs_alpha,
-    const gfx::ColorSpace& color_space,
-    gfx::BufferFormat buffer_format) {
-  size_t i = GetIndex(color_usage, needs_alpha);
-  color_spaces_[i] = color_space;
-  buffer_formats_[i] = buffer_format;
 }
 
 void DisplayColorSpaces::SetOutputColorSpaceAndFormat(
@@ -110,9 +102,9 @@ void DisplayColorSpaces::SetOutputColorSpaceAndFormat(
     bool needs_alpha,
     const gfx::ColorSpace& color_space,
     viz::SharedImageFormat format) {
-  SetOutputColorSpaceAndBufferFormat(
-      color_usage, needs_alpha, color_space,
-      viz::SinglePlaneSharedImageFormatToBufferFormat(format));
+  size_t i = GetIndex(color_usage, needs_alpha);
+  color_spaces_[i] = color_space;
+  buffer_formats_[i] = viz::SinglePlaneSharedImageFormatToBufferFormat(format);
 }
 
 ColorSpace DisplayColorSpaces::GetOutputColorSpace(
@@ -121,10 +113,11 @@ ColorSpace DisplayColorSpaces::GetOutputColorSpace(
   return color_spaces_[GetIndex(color_usage, needs_alpha)];
 }
 
-BufferFormat DisplayColorSpaces::GetOutputBufferFormat(
+viz::SharedImageFormat DisplayColorSpaces::GetOutputFormat(
     ContentColorUsage color_usage,
     bool needs_alpha) const {
-  return buffer_formats_[GetIndex(color_usage, needs_alpha)];
+  return viz::GetSharedImageFormat(
+      buffer_formats_[GetIndex(color_usage, needs_alpha)]);
 }
 
 ColorSpace DisplayColorSpaces::GetRasterAndCompositeColorSpace(
@@ -187,7 +180,7 @@ ColorSpace DisplayColorSpaces::GetScreenInfoColorSpace() const {
 void DisplayColorSpaces::ToStrings(
     std::vector<std::string>* out_names,
     std::vector<gfx::ColorSpace>* out_color_spaces,
-    std::vector<gfx::BufferFormat>* out_buffer_formats) const {
+    std::vector<viz::SharedImageFormat>* out_formats) const {
   // The names of the configurations.
   std::array<const char*, kConfigCount> config_names = {
       "sRGB/no-alpha", "sRGB/alpha",   "WCG/no-alpha",
@@ -242,7 +235,7 @@ void DisplayColorSpaces::ToStrings(
 
     // Add an entry, and continue with the interval [j, j).
     out_names->push_back(name);
-    out_buffer_formats->push_back(buffer_formats_[i]);
+    out_formats->push_back(viz::GetSharedImageFormat(buffer_formats_[i]));
     out_color_spaces->push_back(color_spaces_[i]);
     i = j;
   };

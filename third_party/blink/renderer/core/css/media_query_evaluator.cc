@@ -1761,6 +1761,13 @@ KleeneValue MediaQueryEvaluator::EvalFeature(
     return KleeneValue::kUnknown;
   }
 
+  if (RuntimeEnabledFeatures::CSSCustomMediaEnabled() &&
+      feature.IsCustomMedia() &&
+      CSSVariableParser::IsValidVariableName(feature.Name())) {
+    // TODO(crbug.com/40781325): Support evaluation of custom-media queries.
+    return KleeneValue::kUnknown;
+  }
+
   if (feature.HasStyleRange() ||
       CSSVariableParser::IsValidVariableName(feature.Name())) {
     return EvalStyleFeature(feature, result_flags);
@@ -1858,7 +1865,7 @@ KleeneValue MediaQueryEvaluator::EvalStyleFeature(
     Document* document = media_values_->GetDocument();
 
     StyleResolverState state(*document, *container);
-    state.SetStyle(container->ComputedStyleRef());
+    state.CreateNewClonedStyle(container->ComputedStyleRef());
     const auto* context = MakeGarbageCollected<CSSParserContext>(*document);
 
     const CSSValue* reference = StyleCascade::CoerceIntoNumericValue(

@@ -133,6 +133,8 @@ CcFeedbackGenerator::MaybeSendFeedback(Timestamp time) {
     PacketResult packet_result;
     packet_result.sent_packet.send_time =
         packets_in_flight_.front().send_time();
+    packet_result.sent_packet.sequence_number =
+        packets_in_flight_.front().packet_id;
     packet_result.sent_packet.size = packets_in_flight_.front().packet_size();
 
     packet_result.receive_time =

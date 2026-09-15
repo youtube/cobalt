@@ -22,6 +22,23 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="PanelEvent">
+  <variant name="OnClose" summary="the glic panel is closed."/>
+  <variant name="OnOpen" summary="the glic panel is opened."/>
+</variants>
+
+<variants name="WebClientMode">
+  <variant name="Audio" summary="audio input mode"/>
+  <variant name="Text" summary="text input mode"/>
+  <variant name="Unknown" summary="an unknown mode"/>
+</variants>
+
+<variants name="WebClientModeWithAll">
+  <variant name="All"/>
+  <variant name="Audio"/>
+  <variant name="Text"/>
+</variants>
+
 <histogram name="Glic.Actor.JournalEvent.{EventType}" units="ms"
     expires_after="2026-08-29">
   <owner>dtapuska@google.com</owner>
@@ -43,22 +60,6 @@ chromium-metrics-reviews@google.com.
     Records the latency of fetching zero state suggestions whenever the glic web
     client requests zero state suggestions from Chrome.
   </summary>
-</histogram>
-
-<histogram name="Glic.Api.GetContextFromFocusedTab.Error.{Mode}"
-    enum="GlicGetContextFromFocusedTabError" expires_after="2026-03-22">
-  <owner>carlosk@chromium.org</owner>
-  <owner>harringtond@chromium.org</owner>
-  <owner>birnie@google.com</owner>
-  <summary>
-    Records an error that occurred while trying to get context from the focused
-    tab. The error is broken down by the last known user input mode.
-  </summary>
-  <token key="Mode">
-    <variant name="Audio"/>
-    <variant name="Text"/>
-    <variant name="Unknown"/>
-  </token>
 </histogram>
 
 <histogram name="Glic.Api.NotifyPanelWillOpen" enum="GlicWebClientMode"
@@ -196,6 +197,28 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Api.{TabContextOperation}.Error.{Mode}"
+    enum="GlicGetContextFromTabError" expires_after="2026-03-22">
+  <owner>carlosk@chromium.org</owner>
+  <owner>harringtond@chromium.org</owner>
+  <owner>birnie@google.com</owner>
+  <owner>bokan@chromium.org</owner>
+  <summary>
+    Records errors that occurred while attempting to extract tab context using
+    {TabContextOperation} while the web client was in {Mode}.
+  </summary>
+  <token key="TabContextOperation">
+    <variant name="GetContextForActorFromTab"
+        summary="GetContextForActorFromTab (context from an arbitrary tab for
+                 an actor)"/>
+    <variant name="GetContextFromFocusedTab"
+        summary="GetContextFromFocusedTab (context from the focused tab)"/>
+    <variant name="GetContextFromTab"
+        summary="GetContextFromTab (context from an arbitrary tab)"/>
+  </token>
+  <token key="Mode" variants="WebClientMode"/>
+</histogram>
+
 <histogram name="Glic.AttachedToBrowser" enum="GlicAttachChangeReason"
     expires_after="2026-01-15">
   <owner>dullweber@chromium.org</owner>
@@ -274,6 +297,39 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Fre.InteractionTime.Accepted" units="ms"
+    expires_after="2026-08-03">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@google.com</owner>
+  <summary>
+    Records the time elapsed between the FRE being fully loaded (the Ready
+    state) and the user clicking the accept/continue button. This is logged when
+    the user accepts the FRE.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.InteractionTime.Dismissed" units="ms"
+    expires_after="2026-08-03">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@google.com</owner>
+  <summary>
+    Records the time elapsed between the FRE being fully loaded (the Ready
+    state) and the user dismissing the dialog through an indirect action (e.g.,
+    closing the tab, pressing Esc, clicking outside the dialog).
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.InteractionTime.NoThanks" units="ms"
+    expires_after="2026-08-03">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@google.com</owner>
+  <summary>
+    Records the time elapsed between the FRE being fully loaded (the Ready
+    state) and the user explicitly clicking the No thanks button. This is logged
+    when the user rejects the FRE.
+  </summary>
+</histogram>
+
 <histogram name="Glic.FRE.InvocationSource" enum="GlicInvocationSource"
     expires_after="2026-03-22">
   <owner>cuianthony@google.com</owner>
@@ -281,6 +337,36 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the entry point used to trigger the opening of the glic FRE modal.
     Recorded when the FRE is shown to the user.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.TotalTime.Accepted" units="ms"
+    expires_after="2026-08-03">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@google.com</owner>
+  <summary>
+    Records the time elapsed from when the FRE is first opened until the user
+    accepts it.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.TotalTime.Dismissed" units="ms"
+    expires_after="2026-08-03">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@google.com</owner>
+  <summary>
+    Records the time elapsed from when the FRE is first opened until it is
+    dismissed by the user (e.g. closing the tab).
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.TotalTime.NoThanks" units="ms"
+    expires_after="2026-08-03">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@google.com</owner>
+  <summary>
+    Records the time elapsed from when the FRE is first opened until the user
+    clicks the No Thanks button.
   </summary>
 </histogram>
 
@@ -325,15 +411,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Glic.Fre.WidgetClosedReason" enum="WidgetClosedReason"
+<histogram name="Glic.Fre.WidgetClosedReason2" enum="GlicFreWidgetClosedReason"
     expires_after="2026-07-01">
   <owner>birnie@google.com</owner>
   <owner>cuianthony@google.com</owner>
   <summary>
-    The FRE widget is configured to synchronously close the widget in response
-    to a few specific browser actions. This histogram records the reason why the
-    FRE widget was closed by the browser in such scenarios. This is logged by
-    GlicFreController::CloseWithReason().
+    Records the reason why the Glic FRE widget was closed. This is a successor
+    to Glic.Fre.WidgetClosedReason and includes more detailed reasons related to
+    tab movement and close in addition to the standard WidgetCloseReasons from
+    before.
   </summary>
 </histogram>
 
@@ -467,7 +553,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Host.WebView.AutoPlay" enum="WebViewAutoPlayProgress"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>carlosk@chromium.org</owner>
   <owner>dewittj@google.com</owner>
   <summary>
@@ -589,18 +675,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Glic.PageContextFetcher.GetContextEligibility" units="ms"
-    expires_after="2026-01-15">
-  <owner>carlosk@chromium.org</owner>
-  <owner>harringtond@chromium.org</owner>
-  <owner>erikchen@chromium.org</owner>
-  <owner>sophiechang@chromium.org</owner>
-  <summary>
-    Recorded when a page context gets context eligibility. Measure the time from
-    start.
-  </summary>
-</histogram>
-
 <histogram name="Glic.PageContextFetcher.GetEncodedScreenshot" units="ms"
     expires_after="2026-03-22">
   <owner>carlosk@chromium.org</owner>
@@ -677,21 +751,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Glic.PanelPresentationTime.{InputMode}" units="ms"
-    expires_after="2026-04-30">
-  <owner>dewittj@google.com</owner>
-  <owner>iwells@google.com</owner>
-  <summary>
-    After glic is triggered, measure how long it takes to show the glic panel
-    using the {InputMode} mode. Desktop Chrome only (Windows and Mac).
-  </summary>
-  <token key="InputMode">
-    <variant name="All"/>
-    <variant name="Audio"/>
-    <variant name="Text"/>
-  </token>
-</histogram>
-
 <histogram name="Glic.PanelPresentationTime2.{InputMode}" units="ms"
     expires_after="2026-03-22">
   <owner>dewittj@google.com</owner>
@@ -701,11 +760,7 @@ chromium-metrics-reviews@google.com.
     using the {InputMode} mode excluding the cases that require
     re-authentication. Desktop Chrome only (Windows and Mac).
   </summary>
-  <token key="InputMode">
-    <variant name="All"/>
-    <variant name="Audio"/>
-    <variant name="Text"/>
-  </token>
+  <token key="InputMode" variants="WebClientModeWithAll"/>
 </histogram>
 
 <histogram name="Glic.PanelWebUi.ElapsedTimeBetweenSessions" units="seconds"
@@ -807,13 +862,10 @@ chromium-metrics-reviews@google.com.
   <owner>andreaxg@google.com</owner>
   <owner>iwells@google.com</owner>
   <summary>
-    Record the percent overlap of Glic with the active Chrome window. Rounded to
-    the nearest 10%. {Event}
+    Record the percent overlap of the Glic panel with the active Chrome window.
+    Rounded to the nearest 10%. Recorded when {Event}.
   </summary>
-  <token key="Event">
-    <variant name="OnClose" summary="Recorded when the glic window is closed."/>
-    <variant name="OnOpen" summary="Recorded when the glic window is opened."/>
-  </token>
+  <token key="Event" variants="PanelEvent"/>
 </histogram>
 
 <histogram name="Glic.PositionOnChrome.{Event}" enum="ChromeRelativePosition"
@@ -821,33 +873,22 @@ chromium-metrics-reviews@google.com.
   <owner>andreaxg@google.com</owner>
   <owner>iwells@google.com</owner>
   <summary>
-    Record the position of the glic window's center point relative to the active
-    Chrome window. {Event}
+    Record the position of the glic panel's center point relative to the active
+    Chrome window. Recorded when {Event}.
   </summary>
-  <token key="Event">
-    <variant name="OnClose" summary="Recorded when the glic window is closed."/>
-    <variant name="OnOpen" summary="Recorded when the glic window is opened."/>
-  </token>
+  <token key="Event" variants="PanelEvent"/>
 </histogram>
 
-<histogram name="Glic.PositionOnDisplay.OnClose" enum="DisplayPosition"
+<histogram name="Glic.PositionOnDisplay.{Event}" enum="DisplayPosition"
     expires_after="2026-03-22">
   <owner>andreaxg@google.com</owner>
   <owner>iwells@google.com</owner>
   <summary>
-    Record the position of the glic window on close relative to the current
-    display. The value Unknown is not expected to be recorded but is a backup.
+    Record the position of the glic panel relative to the current display where
+    it's shown. The value Unknown is not expected to be recorded but is a
+    backup. Recorded when {Event}.
   </summary>
-</histogram>
-
-<histogram name="Glic.PositionOnDisplay.OnOpen" enum="DisplayPosition"
-    expires_after="2026-03-22">
-  <owner>andreaxg@google.com</owner>
-  <owner>iwells@google.com</owner>
-  <summary>
-    Record the position of the glic window on open relative to the display glic
-    opens in. The value Unknown is not expected to be recorded but is a backup.
-  </summary>
+  <token key="Event" variants="PanelEvent"/>
 </histogram>
 
 <histogram name="Glic.Prewarming.ChecksResult"
@@ -954,64 +995,39 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Glic.Response.StartTime.InputMode.Audio" units="ms"
+<histogram name="Glic.Response.StartTime.InputMode.{Mode}" units="ms"
     expires_after="2026-03-22">
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <summary>
-    Recorded when a response starts and was visible and the input mode was
-    audio. Measures the time from a user's submitted input until a response
-    starts and was visible to the user.
+    Recorded when a response starts being presented to the user in {Mode}.
+    Measures the time from when the user submitted input until a response starts
+    being presented to the user.
   </summary>
+  <token key="Mode" variants="WebClientMode"/>
 </histogram>
 
-<histogram name="Glic.Response.StartTime.InputMode.Text" units="ms"
+<histogram name="Glic.Response.StartTime.{ContextStatus}" units="ms"
     expires_after="2026-03-22">
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <summary>
-    Recorded when a response starts and was visible and the input mode was text.
-    Measures the time from a user's submitted input until a response starts and
-    was visible to the user.
-  </summary>
-</histogram>
+    Recorded when a response starts being presented to the user and
+    {ContextStatus} (*). Measures the time from when the user submitted input
+    until a response starts being presented to the user. This is reported for
+    all web client modes (text or audio).
 
-<histogram name="Glic.Response.StartTime.InputMode.Unknown" units="ms"
-    expires_after="2026-01-15">
-  <owner>carlosk@chromium.org</owner>
-  <owner>harringtond@chromium.org</owner>
-  <owner>erikchen@chromium.org</owner>
-  <summary>
-    Recorded when a response starts and was visible and the input mode was
-    unknown. Measures the time from a user's submitted input until a response
-    starts and was visible to the user.
+    (*) Chrome knows if context was or was not requested by the web client, but
+    not if it was actually included in any requests.
   </summary>
-</histogram>
-
-<histogram name="Glic.Response.StartTime.WithContext" units="ms"
-    expires_after="2026-03-22">
-  <owner>carlosk@chromium.org</owner>
-  <owner>harringtond@chromium.org</owner>
-  <owner>erikchen@chromium.org</owner>
-  <summary>
-    Recorded when a response starts and was visible and context was attached.
-    Measures the time from a user's submitted input until a response starts and
-    was visible to the user.
-  </summary>
-</histogram>
-
-<histogram name="Glic.Response.StartTime.WithoutContext" units="ms"
-    expires_after="2026-03-22">
-  <owner>carlosk@chromium.org</owner>
-  <owner>harringtond@chromium.org</owner>
-  <owner>erikchen@chromium.org</owner>
-  <summary>
-    Recorded when a response starts and was visible and context was attached.
-    Measures the time from a user's submitted input until a response starts and
-    was visible to the user.
-  </summary>
+  <token key="ContextStatus">
+    <variant name="WithContext"
+        summary="context was requested by the web client"/>
+    <variant name="WithoutContext"
+        summary="context was NOT requested by the web client"/>
+  </token>
 </histogram>
 
 <histogram name="Glic.Response.StopTime{Cause}" units="ms"
@@ -1099,18 +1115,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Glic.ScrollTo.UserPromptToScrollTime.{InputMode}" units="ms"
+<histogram name="Glic.ScrollTo.UserPromptToScrollTime.{Mode}" units="ms"
     expires_after="2026-01-15">
   <owner>liuwilliam@google.com</owner>
   <owner>adithyas@google.com</owner>
   <summary>
     Records the time between when the user submitting input and a scroll
-    (triggered by scrollTo()) starting.
+    (triggered by scrollTo()) starting, when the web client is in {Mode}.
   </summary>
-  <token key="InputMode">
-    <variant name="Audio"/>
-    <variant name="Text"/>
-  </token>
+  <token key="Mode" variants="WebClientMode"/>
 </histogram>
 
 <histogram name="Glic.Session.AttachStateChanges" units="count"
@@ -1268,10 +1281,11 @@ chromium-metrics-reviews@google.com.
   <owner>carlosk@chromium.org</owner>
   <owner>vollick@chromium.org</owner>
   <summary>
-    Recorded when an attempt to send context to glic completes. Precisely, this
-    records the time from the start of a request to the time that data was sent
-    to glic via glic.mojom, but does not capture any subsequent processing time
-    by the web client. This is not recorded if sharing fails.
+    Recorded when an attempt to send an image as context to glic is completed.
+    Precisely, this records the time from the start of an image context sharing
+    request until when the data finishes being sent via glic.mojom. It does not
+    capture any subsequent processing time by the web client. This is not
+    recorded if sharing fails.
   </summary>
 </histogram>
 

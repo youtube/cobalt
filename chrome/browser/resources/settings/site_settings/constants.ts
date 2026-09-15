@@ -8,7 +8,7 @@
  * individual permissions under Site Details should appear here.
  * This should be kept in sync with the |kContentSettingsTypeGroupNames| array
  * in chrome/browser/ui/webui/settings/site_settings_helper.cc. See
- * chrome/browser/resources/settings/site_settings_page/site_settings_page_util
+ * chrome/browser/resources/settings/site_settings/site_settings_page_util
  * for translations.
  */
 
@@ -205,14 +205,6 @@ export enum AllSitesDialog {
  * match for SiteExceptions.
  */
 export const SITE_EXCEPTION_WILDCARD: string = '*';
-
-/**
- * Corresponds to the animation-duration CSS parameter defined in
- * chrome/browser/resources/settings/site_settings_page/site_review_shared.css.
- * Set to be slightly higher, as we want to ensure that the animation is
- * finished before updating the model for the right visual effect.
- */
-export const MODEL_UPDATE_DELAY_MS = 300;
 
 /**
  * Types of cookies exceptions based on the use of wildcard in the patterns:

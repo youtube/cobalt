@@ -42,7 +42,6 @@
 #include "base/numerics/ostream_operators.h"
 #include "build/build_config.h"
 #include "cc/layers/texture_layer.h"
-#include "components/viz/common/resources/resource_sizes.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/common/resources/transferable_resource.h"
@@ -1725,6 +1724,18 @@ void DrawingBuffer::RestoreAllState() {
   client_->DrawingBufferClientRestoreFramebufferBinding();
   client_->DrawingBufferClientRestorePixelUnpackBufferBinding();
   client_->DrawingBufferClientRestorePixelPackBufferBinding();
+}
+
+bool DrawingBuffer::SupportsNoCopyExportForLowLatency() {
+  if (!back_color_buffer_) {
+    return false;
+  }
+
+  // If the back buffer has concurrent R/W usage, then it means that (a) we are
+  // in low-latency mode, and (b) we determined that it is possible to support
+  // concurrent read/writes on the back buffer's SI.
+  return back_color_buffer_->shared_image->usage().Has(
+      gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE);
 }
 
 bool DrawingBuffer::Multisample() const {

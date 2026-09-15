@@ -616,6 +616,7 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 <translation id="1438739959477268107">預設金鑰產生設定</translation>
 <translation id="1440408958042020947">允許 Phone Hub 的使用者存取手機上最近拍攝的相片和影片</translation>
 <translation id="1443532790824582949">啟用觸控虛擬鍵盤</translation>
+<translation id="1447252610864877219">允許 Gemini 應用程式在網頁執行動作。</translation>
 <translation id="1449083855104537880">將這項政策設為 True 時，系統匣選單中會顯示無障礙工具選項。如果將這項政策設為 False，選單中不會顯示無障礙工具選項。
 
       如果設定這項政策，使用者將無法變更。如果未設定，選單中不會顯示無障礙工具選項，但使用者可以前往「設定」頁面將其設為顯示。
@@ -766,6 +767,7 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 <translation id="1523774894176285446">要啟動的替代瀏覽器 (適用於已設定的網站)。</translation>
 <translation id="152657506688053119">預設搜尋的替代網址清單</translation>
 <translation id="1530812829012954197">一律在瀏覽器中算繪以下網址模式</translation>
+<translation id="1533353321560451784">Vids (自 143 版起支援)</translation>
 <translation id="1534007181698071943">允許在淘汰期間預設停用卸載事件處理常式</translation>
 <translation id="1539343118617844331">學校</translation>
 <translation id="1542491165152947087">允許使用者在裝置上開啟或關閉 <ph name="PRIVACY_SANDBOX_NAME" /> 廣告主題設定。</translation>
@@ -1278,6 +1280,15 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 
 如果是 <ph name="PRODUCT_NAME" />，裝置必須使用 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> 註冊，這項政策才會生效。
 如果是 <ph name="PRODUCT_OS_NAME" />，這項政策會一律生效。</translation>
+<translation id="1878535132109943599">如果將這項政策設為啟用，<ph name="LOCAL_NETWORK_ACCESS" />要求只會在 <ph name="CHROME_DEVTOOLS_NAME" />中顯示<ph name="LOCAL_NETWORK_ACCESS" />檢查失敗的警告。如果將這項政策設為停用或未設定，系統會使用預設處理方式處理<ph name="LOCAL_NETWORK_ACCESS" />要求。
+
+如要瞭解<ph name="LOCAL_NETWORK_ACCESS" />限制，請前往 https://wicg.github.io/local-network-access/。
+
+這項企業政策只是臨時措施，將於 M146 版之後移除。
+
+長期來看，使用 <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> 政策將網址模式加入許可清單，就能自動授予<ph name="LOCAL_NETWORK_ACCESS" />權限。
+
+請注意，如果啟用 <ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" /> 政策，該政策的優先順序會高於本政策。</translation>
 <translation id="187961648719201562">刪除現有的本機檔案 (自 137 版起支援)</translation>
 <translation id="1883274744253492031">啟用複合型內容自動升級</translation>
 <translation id="1885782360784839335">允許顯示完整分頁宣傳內容</translation>
@@ -6655,6 +6666,21 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 <translation id="5625771176514429288">系統會允許 Chrome 應用程式在這些平台上執行。</translation>
 <translation id="5627270992026554674">禁止老師使用 Google Classroom 課程學生名單。</translation>
 <translation id="5630352020869108293">還原上次工作階段</translation>
+<translation id="5630952076819481843">設定這項政策後，你可以建立網址模式清單，指定 Chrome 可自動選取用戶端憑證的網站。政策值是字串化的 JSON 條目陣列，每個條目的格式都是 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />，<ph name="URL_PATTERN_PLACEHOLDER" /> 是內容設定格式。<ph name="FILTER_PLACEHOLDER" /> 會限制瀏覽器可自動選取的用戶端憑證。無論是否設定篩選器，瀏覽器都只會選取符合伺服器憑證要求的憑證。在 Android 上，Chrome 只能選取自行佈建的用戶端憑證，無法存取安裝於作業系統層級的憑證。
+
+      <ph name="FILTER_PLACEHOLDER" /> 區段的實際應用範例：
+
+      * 如果將 <ph name="FILTER_PLACEHOLDER" /> 設為 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_FILTER_EXAMPLE" />，瀏覽器只會選取憑證機構 CommonName 是 <ph name="ISSUER_CN_PLACEHOLDER" /> 核發的客戶端憑證。
+
+      * 如果 <ph name="FILTER_PLACEHOLDER" /> 包含 <ph name="ISSUER_STRING_VALUE" /> 和 <ph name="SUBJECT_STRING_VALUE" /> 區段，瀏覽器只會選取同時符合兩個條件的用戶端憑證。
+
+      * 如果 <ph name="FILTER_PLACEHOLDER" /> 包含值為 <ph name="FILTER_STRING_ORGANIZATION" /> 的 <ph name="SUBJECT_STRING_VALUE" /> 區段，憑證必須有至少一個機構符合指定值，Chrome 才會選取。
+
+      * 如果 <ph name="FILTER_PLACEHOLDER" /> 包含值為 <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" /> 的 <ph name="SUBJECT_STRING_VALUE" /> 區段，憑證必須有至少一個組織單位符合指定值，Chrome 才會選取。
+
+      * 如果將 <ph name="FILTER_PLACEHOLDER" /> 設為 <ph name="EMPTY_DICTIONARY" />，瀏覽器在選取用戶端憑證時不會有額外限制。請注意，網路伺服器提供的篩選器仍然適用。
+
+      如果未設定這項政策，Chrome 不會自動選取任何網站的用戶端憑證。</translation>
 <translation id="5633871703004128675">啟用插入點醒目顯示無障礙功能</translation>
 <translation id="5634032995857968056">啟用轉譯器應用程式容器沙箱</translation>
 <translation id="5638334542697444045">不允許使用者使用即時網路共用功能</translation>
@@ -6848,6 +6874,7 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 <translation id="5774856474228476867">預設搜尋引擎搜尋網址</translation>
 <translation id="5775235485119094648">當電量位於特定範圍內時進行充電。</translation>
 <translation id="5776485039795852974">每當網站要顯示桌面通知時詢問我</translation>
+<translation id="5776508475264864949">禁止 Gemini 應用程式在網頁執行動作。</translation>
 <translation id="5783009211970309878">列印頁首和頁尾</translation>
 <translation id="5790763087505467169">減少顯示受管理訪客工作階段的自動啟動通知</translation>
 <translation id="5794205610250307906">這項政策可控管瀏覽器是否使用「Web Audio 自動調節緩衝」。這項功能可能會減少音訊不流暢的情況，但可能導致延遲時間有所增加。
@@ -7425,6 +7452,7 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
       如果將這項政策設為 <ph name="ASK_LOCAL_FONTS_POLICY_NAME" /> (值 3)，系統預設會在網站要求本機字型權限時向使用者顯示提示訊息。如果使用者授予權限，網站就能查看本機字型相關資訊。
 
       如果不設定這項政策，系統就會套用向使用者顯示訊息的預設行為，但使用者可以變更這項設定。</translation>
+<translation id="6203014458380972093">暫時停止區域網路端點的要求限制</translation>
 <translation id="6203715554101884845">你可以透過這項政策設定網址清單，指定哪些網站會自動取得權限，能夠在登入畫面中存取具有指定廠商 ID 和產品 ID 的 HID 裝置。清單中的每個項目都必須包含「<ph name="DEVICES_FIELD_NAME" />」和「<ph name="URLS_FIELD_NAME" />」欄位，這個項目才會生效，否則將遭到忽略。「<ph name="DEVICES_FIELD_NAME" />」欄位中的每個項目都必須包含「<ph name="VENDOR_ID_FIELD_NAME" />」，且可能包含「<ph name="PRODUCT_ID_FIELD_NAME" />」欄位。如果省略「<ph name="PRODUCT_ID_FIELD_NAME" />」欄位，建立的政策將適用於具有指定廠商 ID 的任何裝置。假如項目包含「<ph name="PRODUCT_ID_FIELD_NAME" />」欄位，但缺少「<ph name="VENDOR_ID_FIELD_NAME" />」欄位，則無法生效且會遭到忽略。
 
 如果不設定這項政策，所有網站都將使用全域預設值 (不會自動取得存取權)。</translation>
@@ -7697,6 +7725,14 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 警告：變更這項設定時請小心，以免破壞與地理位置相關的其他政策 (例如 <ph name="SYSTEM_TIMEZONE_AUTOMATIC_DETECTION_POLICY" />)！具體來說，如果將這項政策設為「<ph name="DISALLOW" />」，<ph name="SYSTEM_TIMEZONE_AUTOMATIC_DETECTION_POLICY" /> 政策的 <ph name="POLICY_ENUM_SYSTEMTIMEZONEAUTOMATICDETECTION_TIMEZONEAUTOMATICDETECTIONSENDWIFIACCESSPOINTS" /> 和 <ph name="POLICY_ENUM_SYSTEMTIMEZONEAUTOMATICDETECTION_TIMEZONEAUTOMATICDETECTIONSENDALLLOCATIONINFO" /> 選項就會失去作用，屆時只能在 <ph name="LOG_IN" /> 畫面上根據 <ph name="IP" /> 判斷位置。</translation>
 <translation id="6338982178236723271">回報系統資訊</translation>
 <translation id="6339355882150329269">影片播放時不要將使用者狀態視為閒置</translation>
+<translation id="6347110299837147365">這項政策可讓管理員加密磁碟上的瀏覽器 HTTP 快取。
+目前僅支援 Windows。
+
+如果啟用這項政策，系統會加密瀏覽器快取。
+
+如果停用這項政策或未設定，瀏覽器快取就不會加密。
+
+加密瀏覽器快取可能會影響效能。</translation>
 <translation id="6352714113109004581">你可以透過這項政策建立網址模式清單，用於指定可要求使用者授予 HID 裝置存取權的網站。
 
       如果未設定這項政策，系統會針對所有網站套用 <ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" /> 政策 (如果已設定)。否則系統會套用使用者的個人設定。
@@ -9191,6 +9227,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="7323896582714668701"><ph name="PRODUCT_NAME" /> 額外命令列參數</translation>
 <translation id="7325801934761922681">禁止 Chrome 封鎖在沙箱 iframe 中瀏覽外部通訊協定的作業</translation>
 <translation id="7326394567531622570">與 Wipe (值 2) 類似，但會嘗試保留登入憑證，因此使用者不必重新登入。</translation>
+<translation id="7331098674887251788">允許 Gemini 應用程式整合功能直接在網頁執行動作</translation>
 <translation id="7331387825106440104">不要在本機新增的信任錨點上強制執行限制</translation>
 <translation id="7331962793961469250">設為 True 時，新分頁上將不會顯示「Chrome 線上應用程式商店」應用程式的宣傳資訊。將這個選項設為 False 或不設定選項時，新分頁上會顯示「Chrome 線上應用程式商店」應用程式的宣傳資訊</translation>
 <translation id="7332963785317884918">這項政策已被取代。<ph name="PRODUCT_OS_NAME" /> 將一律使用「RemoveLRU」清理策略。
@@ -9969,6 +10006,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="7985242821674907985"><ph name="PRODUCT_NAME" /></translation>
 <translation id="7985781946183471651"><ph name="PRODUCT_OS_NAME" />上的 Glanceables</translation>
 <translation id="7986473886676689183">啟用 Android 報告功能</translation>
+<translation id="798671159602573821">指定是否要 (暫時) 停止區域網路存取權限制</translation>
 <translation id="7990280274626154329">啟用 <ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /></translation>
 <translation id="7991022023019679916">請注意，這項政策已遭淘汰，並將在 <ph name="PRODUCT_OS_NAME" />第 85 版中移除。請改用 <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />。
 
@@ -10289,6 +10327,15 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
       如果將這項政策設為 Disabled，表示已註冊的裝置不會取得精細回報控制項。</translation>
 <translation id="82530263956734297">要從封鎖清單中排除的擴充功能 ID</translation>
 <translation id="8254749125469750814">不要驗證能否透過雲端服務安裝擴充功能。</translation>
+<translation id="825509998103089977">控管 Gemini 應用程式能否代表使用者在網頁執行動作。
+
+0/未設定  = Gemini 應用程式可以在網頁執行動作。
+
+1 = Gemini 應用程式不可以在網頁執行動作。
+
+如果停用 Gemini 應用程式，這項政策就不會生效。例如，<ph name="GEMINI_SETTINGS_POLICY_NAME" /> 政策可能會停用 Gemini 應用程式。
+
+詳情請參閱 https://support.google.com/chrome/a/answer/16291696。</translation>
 <translation id="8256006033157034334">這項政策已淘汰，因此系統不再支援，請改用 <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" />。</translation>
 <translation id="8256688113167012935">控制 <ph name="PRODUCT_OS_NAME" /> 在登入畫面上顯示的帳戶名稱，以表示相對應的裝置本機帳戶。
 

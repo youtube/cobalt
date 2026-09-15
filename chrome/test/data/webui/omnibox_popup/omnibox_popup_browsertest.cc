@@ -3,23 +3,52 @@
 // found in the LICENSE file.
 
 #include "base/test/scoped_feature_list.h"
+#include "build/config/coverage/buildflags.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/web_ui_mocha_browser_test.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "content/public/test/browser_test.h"
 
-class OmniboxPopupBrowserTest : public WebUIMochaBrowserTest {
+class OmniboxPopupTest : public WebUIMochaBrowserTest {
  protected:
-  OmniboxPopupBrowserTest() {
+  OmniboxPopupTest() {
     set_test_loader_host(chrome::kChromeUIOmniboxPopupHost);
+    scoped_feature_list_.InitWithFeatures({omnibox::kWebUIOmniboxPopup},
+                                          {omnibox::kWebUIOmniboxFullPopup});
   }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      omnibox::kWebUIOmniboxPopup};
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-typedef OmniboxPopupBrowserTest OmniboxPopupTest;
-IN_PROC_BROWSER_TEST_F(OmniboxPopupTest, App) {
+#if BUILDFLAG(USE_JAVASCRIPT_COVERAGE)
+// TODO(crbug.com/40284073): Test fails with JS coverage turned on.
+#define MAYBE_App DISABLED_App
+#else
+#define MAYBE_App App
+#endif
+IN_PROC_BROWSER_TEST_F(OmniboxPopupTest, MAYBE_App) {
   RunTest("omnibox_popup/app_test.js", "mocha.run();");
+}
+
+class OmniboxPopupFullTest : public WebUIMochaBrowserTest {
+ protected:
+  OmniboxPopupFullTest() {
+    set_test_loader_host(chrome::kChromeUIOmniboxPopupHost);
+    scoped_feature_list_.InitWithFeatures(
+        {omnibox::kWebUIOmniboxPopup, omnibox::kWebUIOmniboxFullPopup}, {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+#if BUILDFLAG(USE_JAVASCRIPT_COVERAGE)
+// TODO(crbug.com/40284073): Test fails with JS coverage turned on.
+#define MAYBE_App DISABLED_App
+#else
+#define MAYBE_App App
+#endif
+IN_PROC_BROWSER_TEST_F(OmniboxPopupFullTest, MAYBE_App) {
+  RunTest("omnibox_popup/full_app_test.js", "mocha.run();");
 }

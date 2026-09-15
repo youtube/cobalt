@@ -280,14 +280,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       const VideoFrameLayout& layout,
       const gfx::Rect& visible_rect,
       const gfx::Size& natural_size,
-      const uint8_t* data,
-      size_t data_size,
-      base::TimeDelta timestamp);
-
-  static scoped_refptr<VideoFrame> WrapExternalDataWithLayout(
-      const VideoFrameLayout& layout,
-      const gfx::Rect& visible_rect,
-      const gfx::Size& natural_size,
       base::span<const uint8_t> data,
       base::TimeDelta timestamp);
 
@@ -304,17 +296,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       base::span<const uint8_t> y_data,
       base::span<const uint8_t> u_data,
       base::span<const uint8_t> v_data,
-      base::TimeDelta timestamp);
-
-  // Wraps external YUV data with VideoFrameLayout. The returned VideoFrame does
-  // not own the data passed in.
-  static scoped_refptr<VideoFrame> WrapExternalYuvDataWithLayout(
-      const VideoFrameLayout& layout,
-      const gfx::Rect& visible_rect,
-      const gfx::Size& natural_size,
-      const uint8_t* y_data,
-      const uint8_t* u_data,
-      const uint8_t* v_data,
       base::TimeDelta timestamp);
 
   static scoped_refptr<VideoFrame> WrapExternalYuvDataWithLayout(

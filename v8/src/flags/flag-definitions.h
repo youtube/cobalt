@@ -293,7 +293,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V) V(harmony_temporal, "Temporal")
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V)
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V) V(js_upsert, "upsert")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                    \
@@ -624,11 +624,18 @@ DEFINE_BOOL(maglev_pretenure_store_values, true,
             "allocation sites.")
 DEFINE_BOOL(maglev_poly_calls, true, "Support (inlining) polymorphic calls")
 DEFINE_BOOL(maglev_truncation, true, "Enable Maglev truncation pass")
+
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
+
+DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
+                            "Enable Maglev range value analysis pass")
+DEFINE_BOOL(trace_maglev_range_analysis, false,
+            "Trace Maglev range value analysis pass")
+DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,
@@ -1197,9 +1204,11 @@ DEFINE_WEAK_IMPLICATION(trace_baseline, trace_baseline_batch_compilation)
 #define FLAG FLAG_FULL
 
 // Internalize into a shared string table in the shared isolate
+DEFINE_BOOL(shared_strings, false, "allow sharing of strings")
+DEFINE_IMPLICATION(shared_strings, shared_heap)
 DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
+DEFINE_IMPLICATION(shared_string_table, shared_strings)
 DEFINE_IMPLICATION(harmony_struct, shared_string_table)
-DEFINE_IMPLICATION(shared_string_table, shared_heap)
 DEFINE_BOOL_READONLY(always_use_string_forwarding_table, false,
                      "use string forwarding table instead of thin strings for "
                      "all strings (experimental)")
@@ -1670,7 +1679,7 @@ DEFINE_WEAK_IMPLICATION(future, typed_array_length_loading)
 
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
-DEFINE_IMPLICATION(experimental_wasm_shared, shared_string_table)
+DEFINE_IMPLICATION(experimental_wasm_shared, shared_strings)
 #endif
 
 DEFINE_BOOL(
@@ -1901,6 +1910,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     wasm_fast_api,
     "Enable direct calls from wasm to fast API functions with bound "
     "call function to pass the the receiver as first parameter")
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    wasm_assert_types,
+    "Enable additional type assertions in generated code (e.g. turbofan)")
 
 #if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || \
     V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X ||     \

@@ -76,12 +76,11 @@ VulkanInProcessContextProvider::VulkanInProcessContextProvider(
       sync_cpu_memory_limit_(sync_cpu_memory_limit),
       cooldown_duration_at_memory_pressure_critical_(
           cooldown_duration_at_memory_pressure_critical) {
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
           FROM_HERE,
           base::MemoryPressureListenerTag::kVulkanInProcessContextProvider,
-          base::BindRepeating(&VulkanInProcessContextProvider::OnMemoryPressure,
-                              base::Unretained(this)));
+          this);
 }
 
 VulkanInProcessContextProvider::~VulkanInProcessContextProvider() {
@@ -251,9 +250,10 @@ std::optional<uint32_t> VulkanInProcessContextProvider::GetSyncCpuMemoryLimit()
 }
 
 void VulkanInProcessContextProvider::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
-  if (level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL)
+    base::MemoryPressureLevel level) {
+  if (level != base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
     return;
+  }
 
   critical_memory_pressure_expiration_time_ =
       base::TimeTicks::Now() + cooldown_duration_at_memory_pressure_critical_;

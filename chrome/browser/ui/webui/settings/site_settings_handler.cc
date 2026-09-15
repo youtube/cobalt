@@ -1132,6 +1132,8 @@ void SiteSettingsHandler::HandleSetDefaultValueForContentType(
       map->GetDefaultContentSetting(type, nullptr);
   map->SetDefaultContentSetting(type, default_setting);
 
+  content_settings_uma_util::RecordContentSettingChange(default_setting, type);
+
   if (type == ContentSettingsType::SOUND &&
       previous_setting != default_setting) {
     if (default_setting == CONTENT_SETTING_BLOCK) {
@@ -2378,6 +2380,16 @@ void SiteSettingsHandler::StopObservingSourcesForProfile(Profile* profile) {
           file_system_access_permission_context);
     }
   }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  if (base::FeatureList::IsEnabled(blink::features::kSmartCard)) {
+    auto& smart_card_context =
+        SmartCardPermissionContextFactory::GetForProfile(*profile);
+    if (chooser_observations_.IsObservingSource(&smart_card_context)) {
+      chooser_observations_.RemoveObservation(&smart_card_context);
+    }
+  }
+#endif
 
   observed_profiles_.RemoveObservation(profile);
 }

@@ -720,7 +720,10 @@ OPENSSL_EXPORT int ASN1_mbstring_ncopy(ASN1_STRING **out, const uint8_t *in,
 // |mask|, |minsize|, and |maxsize| based on |nid|. When |nid| is a recognized
 // X.509 attribute type, it will pick a suitable ASN.1 string type and bounds.
 // For most attribute types, it preferentially chooses UTF8String. If |nid| is
-// unrecognized, it uses UTF8String by default.
+// unrecognized, it uses UTF8String by default. This function will also enforce
+// any known attribute-specific constraints on the sizes of the string and fail
+// if the size is invalid. In RFC 5280, these bounds are specified by
+// constraints like "SIZE (1..ub-common-name)" in ASN.1.
 //
 // Slightly unlike |ASN1_mbstring_ncopy|, this function interprets |out| and
 // returns its result as follows: If |out| is NULL, it returns a newly-allocated

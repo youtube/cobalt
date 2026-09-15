@@ -29,6 +29,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.R;
 import org.chromium.ui.UiUtils;
+import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
+import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
 import org.chromium.ui.listmenu.ListMenuUtils.AccessibilityListObserver;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -148,14 +150,18 @@ public class BasicListMenu implements ListMenu {
         View hairline = mListMenuLayout.findViewById(R.id.menu_header_bottom_hairline);
 
         mContentModelList = data;
-        mContentAdapter = createAdapter(data, Set.of(), (model) -> callDelegate(delegate, model));
+        mContentAdapter =
+                createAdapter(data, Set.of(), (model, view) -> callDelegate(delegate, model, view));
         mContentListView = mListMenuLayout.findViewById(R.id.menu_list);
         mContentListView.setAdapter(mContentAdapter);
         mContentListView.setDivider(null);
 
         mHeaderModelList = new ModelList();
         mHeaderAdapter =
-                createAdapter(mHeaderModelList, Set.of(), (model) -> callDelegate(delegate, model));
+                createAdapter(
+                        mHeaderModelList,
+                        Set.of(),
+                        (model, view) -> callDelegate(delegate, model, view));
         mHeaderListView = mListMenuLayout.findViewById(R.id.menu_header);
         mHeaderListView.setAdapter(mHeaderAdapter);
 
@@ -245,22 +251,26 @@ public class BasicListMenu implements ListMenu {
      * If an item doesn't already have a click callback in its model, no click callback is added.
      *
      * @param dismissDialog The {@link Runnable} to run.
-     * @param ListMenuFlyoutController The {@link ListMenuFlyoutController} to use for flyout menus.
+     * @param FlyoutHandler The {@link FlyoutHandler} to use for flyout menus.
      */
     public void setupCallbacksRecursively(
             Runnable dismissDialog,
             @Nullable Boolean drillDownOverrideValue,
-            @Nullable ListMenuFlyoutController flyoutController) {
+            @Nullable FlyoutHandler flyoutHandler) {
+        HierarchicalMenuController hierarchicalMenuController =
+                new HierarchicalMenuController(
+                        new ListMenuUtils.ListMenuKeyProvider(), flyoutHandler);
+
         ListMenuUtils.setupCallbacksRecursively(
                 mHeaderModelList,
                 mContentModelList,
                 dismissDialog,
-                flyoutController,
+                hierarchicalMenuController.getFlyoutController(),
                 drillDownOverrideValue);
     }
 
-    private void callDelegate(@Nullable Delegate delegate, PropertyModel model) {
-        if (delegate != null) delegate.onItemSelected(model);
+    private void callDelegate(@Nullable Delegate delegate, PropertyModel model, View view) {
+        if (delegate != null) delegate.onItemSelected(model, view);
         // We will run the runnables that are registered by the time this lambda
         // is called.
         for (Runnable r : mClickRunnables) {

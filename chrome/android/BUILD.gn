@@ -1040,6 +1040,7 @@ if (_is_default_toolchain) {
       "junit:chrome_junit_tests_org.chromium.chrome.browser.background_sync",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.bookmarks",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.browserservices",
+      "junit:chrome_junit_tests_org.chromium.chrome.browser.chrome_item_picker",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.compositor",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.contextmenu",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.contextualsearch",
@@ -2098,6 +2099,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/app/serial/SerialNotificationService.java",
       "java/src/org/chromium/chrome/browser/app/usb/UsbNotificationService.java",
       "java/src/org/chromium/chrome/browser/backup/ChromeBackupAgent.java",
+      "java/src/org/chromium/chrome/browser/base/ApplicationInitHook.java",
       "java/src/org/chromium/chrome/browser/base/ColdStartTracker.java",
       "java/src/org/chromium/chrome/browser/base/DexFixer.java",
       "java/src/org/chromium/chrome/browser/base/DexFixerReason.java",
@@ -2179,6 +2181,7 @@ if (_is_default_toolchain) {
       # TODO(crbug.com/40148088): Consider moving these to the chrome module to
       # reduce base dex size.
       "$google_play_services_package:google_play_services_cast_framework_java",
+      "//base:service_loader_java",
       "//chrome/android/modules/on_demand:provider_java",
       "//components/background_task_scheduler:background_task_scheduler_java",
       "//components/payments/content/android:service_java",

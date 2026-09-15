@@ -320,7 +320,6 @@
 <translation id="1521655867290435174">Google Sheets</translation>
 <translation id="1524669537550112617">সুসজ্জিত ভাড়ায় নেওয়া প্রপার্টি</translation>
 <translation id="1527263332363067270">সংযোগের জন্য অপেক্ষা করা হচ্ছে...</translation>
-<translation id="1528311629279578926">কানেকশনটি ব্লক করা হয়েছে, কারণ কোনও সর্বজনীন পৃষ্ঠা থেকে আপনার প্রাইভেট নেটওয়ার্কের ডিভাইস বা পরিষেবায় কানেক্ট করার জন্য প্রসেসটি শুরু করা হয়েছিল। কানেকশনকে অনুমতি দিতে এই পৃষ্ঠা রিলোড করুন।</translation>
 <translation id="1529789484829130889">ট্রে ৮</translation>
 <translation id="1530707389502320859">এখন যে সাইট দেখার চেষ্টা করছেন তা নকল বলে মনে হচ্ছে। ইউআরএলে সামান্য বা সহজে দেখা যায় না এমন পরিবর্তন করে আক্রমণকারীরা সাইট নকল করে।</translation>
 <translation id="1532118530259321453">এই পৃষ্ঠায় এটি দেখানো হচ্ছে</translation>
@@ -815,6 +814,7 @@
 <translation id="2321291402658100099">তথ্য ম্যানেজ করুন</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{১টি উইন্ডো}one{#টি উইন্ডো}other{#টি উইন্ডো}}</translation>
 <translation id="232390861414237658">Google Pay-তে ব্যবহারের জন্য এই কার্ড সেভ করা হলে, Chrome-এ করা কেনাকাটার জন্য এটি অটোফিল করুন</translation>
+<translation id="2326283484705860548">আপনি এখন Google Wallet থেকে আরও তথ্য অটোফিল করতে পারবেন</translation>
 <translation id="2328651992442742497">অনুমতি আছে (ডিফল্ট)</translation>
 <translation id="2328955282645810595">নির্মাণ ও পাওয়ার টুল</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" />-এর মেয়াদ, <ph name="EXPIRATION_DATE_ABBR" /> তারিখে শেষ হবে</translation>
@@ -825,6 +825,7 @@
 <translation id="2346319942568447007">আপনার কপি করা ছবি</translation>
 <translation id="2347764072711098973">কিস্তিতে পেমেন্ট করতে Affirm, Zip বা Klarna ব্যবহার করুন</translation>
 <translation id="2348509731468399833">দাম ট্র্যাকিংয়ের সুবিধা বন্ধ আছে।</translation>
+<translation id="2348836501965732644">'সেটিংস' থেকে আপনার তথ্য ম্যানেজ বা এইসব সাজেশন বন্ধ করুন</translation>
 <translation id="2349957959687031096">'ছদ্মবেশী ট্যাব খুলুন' বোতাম, গোপনে ব্রাউজ করার জন্য নতুন 'ছদ্মবেশী' ট্যাব খুলতে এটি চালু করুন</translation>
 <translation id="2350796302381711542"><ph name="REPLACED_HANDLER_TITLE" /> এর পরিবর্তে সমস্ত <ph name="PROTOCOL" /> লিঙ্কগুলি খুলতে <ph name="HANDLER_HOSTNAME" />কে অনুমোদিত করবেন?</translation>
 <translation id="2351718832234620840">এই সার্ভারটি প্রমাণ দিতে পারেনি যে এটি <ph name="DOMAIN" />, কারণ এটি এমন একটি নিরাপত্তা সার্টিফিকেট ব্যবহার করছে যা Chromium বা আপনার ওয়েব ট্রাফিক এনক্রিপশনের জন্য সেট করা সিস্টেম কনফিগারেশনের বিশ্বস্ত নয়। ভুল কনফিগারেশনের কারণে বা কোনও আক্রমণকারী আপনার কানেকশন ইন্টারসেপ্ট করার চেষ্টা করলে এটি হতে পারে।</translation>
@@ -1238,6 +1239,7 @@
 <translation id="305162504811187366">টাইমস্ট্যাম্প, হোস্ট এবং ক্লায়েন্ট সেশন আইডি সহ Chrome রিমোট ডেস্কটপ ইতিহাস</translation>
 <translation id="3052868890529250114">সাধারণত আপনি এই সাইট নিরাপদে কানেক্ট করেন, তবে এখন Chrome কোনও সুরক্ষিত কানেকশন ব্যবহার করতে পারছে না। কোনও হ্যাকার হয়ত আপনার নেটওয়ার্ক কানেকশনে গোপনে আড়ি পাততে চাইছে বা সেটি পরিবর্তন করার চেষ্টা করছে। <ph name="BEGIN_LEARN_MORE_LINK" />এই সতর্কতা সম্পর্কে আরও জানুন<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138"><ph name="PRODUCT_NAME" />-এ <ph name="PRICE_DROP" /> দাম কমে গেছে</translation>
+<translation id="3056660797732519147">'এখন কিনুন, পরে পেমেন্ট করুন' পেমেন্ট পদ্ধতি সম্পর্কিত সমস্যা দেখানো স্ক্রিন। কীবোর্ড লুকানো রয়েছে।</translation>
 <translation id="3061707000357573562">প্যাচ পরিষেবা</translation>
 <translation id="3062655045399308513">ব্রাউজ করা ডেটা মুছে দিন...</translation>
 <translation id="3063453392496098461">VPN ব্যাকগ্রাউন্ড পরিষেবা ইনস্টলেশন করা যায়নি।</translation>
@@ -1409,7 +1411,6 @@
 <translation id="3325662270238538525">ফাইলের নাম, ফাইল কন্টেন্টের ডিজিটাল ফিঙ্গারপ্রিন্ট, ডাউনলোড সোর্স ও মেটাডেটা সহ ফাইলে করা সাম্প্রতিক অ্যাক্সেস ও পরিবর্তন সংক্রান্ত তথ্য</translation>
 <translation id="3329013043687509092">পরিপৃক্তি</translation>
 <translation id="3333762389743153920">ভার্চুয়াল কার্ডের জন্য যোগ্য নয়</translation>
-<translation id="3336044043987989409">আপনার প্রাইভেট নেটওয়ার্কের ডিভাইস বা সার্ভারে কানেকশনের অনুমতি দিতে 'রিলোড করুন' বোতাম প্রেস করুন।</translation>
 <translation id="3338095232262050444">সুরক্ষিত</translation>
 <translation id="333839153442689579">হাই ইনটেনসিটি ইন্টারভ্যাল ট্রেনিং</translation>
 <translation id="3339446062576134663">ক্লাউড (Ash)</translation>
@@ -1453,6 +1454,7 @@
 <translation id="340924996148642843">এই মুহুর্তে তুলনা করার সুবিধা উপলভ্য নয়</translation>
 <translation id="3409896703495473338">আপনার নিরাপত্তা সেটিংস ম্যানেজ করুন</translation>
 <translation id="3411091017011773343"><ph name="HOURS" /> ঘণ্টায় আপলোড করুন</translation>
+<translation id="341134412449102894"><ph name="ACCOUNT" />-এর জন্য আপনার তথ্য <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" />-এ সেভ করা আছে</translation>
 <translation id="3413466783792948876">আপনি যদি কোনও পাবলিক নেটওয়ার্ক ব্যবহার করেন, তাহলে সবচেয়ে নিরাপদ হল আপনি পরে সাইটে যান। আপনার বাড়ি বা অফিসের ওয়াই-ফাইয়ের মতো বিশ্বস্ত নেটওয়ার্কের ক্ষেত্রে ঝুঁকির সম্ভাবনা কম।</translation>
 <translation id="3414275587143250384">ডিস্ট্রিবিউট করা হয়েছে এবং ক্লাউড কম্পিউটিং</translation>
 <translation id="3414952576877147120">মাপ:</translation>
@@ -1992,6 +1994,7 @@
 <translation id="4242981939686657948">আপনার ব্রাউজিং ইতিহাস সার্চ করার আরও ভালো উপায়ের জন্য, এটি চালু করুন</translation>
 <translation id="4244926541863471678">ফিল্ম</translation>
 <translation id="4246517972543675653">বিদেশে পড়াশুনো করা</translation>
+<translation id="4250343410682686342">'এখন কিনুন, পরে পেমেন্ট করুন' পেমেন্ট পদ্ধতি সম্পর্কিত সমস্যা দেখানো স্ক্রিন সম্পূর্ণ স্ক্রিন জুড়ে খোলা আছে।</translation>
 <translation id="4250431568374086873">এই সাইটে আপনার সংযোগ সম্পূর্ণরূপে নিরাপদ নয়</translation>
 <translation id="4250680216510889253">না</translation>
 <translation id="4250716950689692560">A4x4</translation>
@@ -2508,6 +2511,7 @@
 <translation id="5122786942953798871">এনভেলপ (কটন)</translation>
 <translation id="5123063207673082822">সপ্তাহান্ত</translation>
 <translation id="5123433949759960244">বাস্কেটবল</translation>
+<translation id="5124797626438336458">'এখন কিনুন, পরে পেমেন্ট করুন' পেমেন্ট পদ্ধতি সম্পর্কিত সমস্যা দেখানো স্ক্রিন অর্ধেক স্ক্রিন জুড়ে খোলা আছে।</translation>
 <translation id="5125575917473813637">আইডি কার্ড এডিট করুন</translation>
 <translation id="5125751979347152379">ভুল ইউআরএল৷</translation>
 <translation id="512592033764059484">ফুটবল</translation>
@@ -3141,6 +3145,7 @@
 <translation id="6189351761800074311">আপনার টেক্সট ও পৃষ্ঠার কন্টেন্ট Google-কে পাঠানো হয়, তবে AI উন্নত করতে ব্যবহার করা হয় না।
     <ph name="BEGIN_LINK" />আরও জানুন<ph name="END_LINK" /></translation>
 <translation id="6190518157737269631">আপনার কীবোর্ডে কিছু কী ওভাররাইড করুন, যেমন Esc</translation>
+<translation id="6192524964213419211">Google প্রোডাক্ট জুড়ে, বিভিন্ন বিষয় আরও দ্রুত করতে, আপনার তথ্য সেভ করুন। <ph name="ACCOUNT" />-এর জন্য <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" />-এ আপনার তথ্য সেভ করা হয়।</translation>
 <translation id="6194209731893739467">এখানে আপনার সবকটি ট্র্যাক করা প্রোডাক্ট দেখুন</translation>
 <translation id="6195371403461054755">জিওলজি</translation>
 <translation id="6195418151868446719">কনজিউমার ইলেক্ট্রনিক্স</translation>
@@ -3307,6 +3312,7 @@
 <translation id="6433501201775827830">আপনার সার্চ ইঞ্জিন বেছে নিন</translation>
 <translation id="6433595998831338502"><ph name="HOST_NAME" /> সংযোগ করতে প্রত্যাখ্যান করেছে।</translation>
 <translation id="6433797564277305076">এখন থেকে কার্ডগুলি আরও দ্রুত কনফার্ম করতে ডিভাইস আনলক ব্যবহার করুন</translation>
+<translation id="6436994298828707228">কানেকশনটি ব্লক করা হয়েছে, কারণ কোনও সর্বজনীন পৃষ্ঠা থেকে আপনার স্থানীয় নেটওয়ার্কের ডিভাইস বা পরিষেবায় কানেক্ট করার জন্য প্রসেসটি শুরু করা হয়েছিল।</translation>
 <translation id="6437647869369934905">Google Drawings</translation>
 <translation id="643917412048333145">পোশাক</translation>
 <translation id="6440503408713884761">এড়ানো হয়েছে</translation>
@@ -3378,6 +3384,7 @@
 <translation id="6547208576736763147">বাঁদিকে ডুয়াল পাঞ্চ</translation>
 <translation id="6549443526281184652">পরিধান</translation>
 <translation id="6550245281449521513">মাউস লক ব্যবহার করা অনুমতি নেই</translation>
+<translation id="6552566579578780089">পেমেন্ট</translation>
 <translation id="6554732001434021288"><ph name="NUM_DAYS" /> দিন আগে শেষবার দেখেছেন</translation>
 <translation id="6556866813142980365">আবার করুন</translation>
 <translation id="6557715786897013164">১৪ x ১৭ ইঞ্চি</translation>
@@ -3526,6 +3533,7 @@
 <translation id="6817217109584391709">জাভাস্ক্রিপ্ট</translation>
 <translation id="6820143000046097424">সিরিয়াল পোর্ট</translation>
 <translation id="6820686453637990663">CVC</translation>
+<translation id="6820949753458790123">সহজ ইনস্টলমেন্টে পেমেন্ট করুন</translation>
 <translation id="6825578344716086703">আপনি <ph name="DOMAIN" />-এ পৌঁছানোর প্রচেষ্টা করেছেন, কিন্তু সার্ভারটি একটি দুর্বল অ্যালগারিদম স্বাক্ষর  (যেমন SHA-1) ব্যবহার করে একটি স্বাক্ষরিত সার্টিফিকেট উপস্থাপন করেছে। এর অর্থ হল সার্ভার যে সুরক্ষা প্রমাণপত্রাদি উপস্থাপন করেছে তা জাল হতে পারে এবং সার্ভারটি আপনার প্রত্যাশিত সার্ভার নাও হতে পারে (হতে পারে আপনি একজন আক্রমণকারীর সাথে যোগাযোগ করছেন)।</translation>
 <translation id="6826993739343257035">এ আর (AR) ব্যবহার করার অনুমতি দেবেন?</translation>
 <translation id="6828150717884939426">কল করুন</translation>
@@ -3974,6 +3982,7 @@
 <translation id="753556296624075801">Google দ্বারা পরিচালিত</translation>
 <translation id="753713322968419914">Chrome অটোফিল থেকে বাড়ির ঠিকানা সরিয়ে দিতে চান?</translation>
 <translation id="7537536606612762813">বাধ্যতামূলক</translation>
+<translation id="7541043894191476250">প্রাসঙ্গিক টাস্ক</translation>
 <translation id="7543525346216957623">আপনার বাবা-মাকে জিজ্ঞাসা করুন</translation>
 <translation id="7546409722674205727"><ph name="APP_NAME" /> শুরু হচ্ছে</translation>
 <translation id="7548892272833184391">কানেকশনের সমস্যার সমাধান করুন</translation>
@@ -4175,6 +4184,7 @@
 <translation id="7860345425589240791"><ph name="SIDE_OF_CARD" />-এ মেয়াদ শেষের নতুন তারিখ এবং CVC লিখুন</translation>
 <translation id="7862185352068345852">সাইট ছেড়ে যাবেন?</translation>
 <translation id="7865448901209910068">সর্বোচ্চ গতি</translation>
+<translation id="7865482168955081228">'এখন কিনুন, পরে পেমেন্ট করুন' পেমেন্ট পদ্ধতি সম্পর্কিত সমস্যা দেখানো স্ক্রিন বন্ধ আছে।</translation>
 <translation id="7870281855125116701">প্রোডাক্টে ছাড় খুঁজে পাওয়া গেছে</translation>
 <translation id="7871445724586827387">আপনার Google অ্যাকাউন্টের পাসওয়ার্ড পরিবর্তন করুন</translation>
 <translation id="787226752901403048">ট্যাব গ্রুপে শেয়ার করতে ও যোগ দিতে এবং আইডিয়ার উপরে একসাথে কাজ করতে, Chrome-এ সাইন-ইন করুন</translation>
@@ -4498,6 +4508,7 @@
 <translation id="8406071103346257942">পাসওয়ার্ড পূরণ করার জন্য আপনার স্ক্রিন লক ব্যবহার করা বন্ধ করুন</translation>
 <translation id="8407031780528483338">রান্নার বাসনপত্র</translation>
 <translation id="8409413588194360210">পেমেন্ট হ্যান্ডলার</translation>
+<translation id="8410956920192583322">মাসিক বা ৪টি ইনস্টলমেন্ট</translation>
 <translation id="8412145213513410671">ক্র্যাশ (<ph name="CRASH_COUNT" />টি)</translation>
 <translation id="8412392972487953978">আপনাকে একই পাসফ্রেজ অবশ্যই দু'বার প্রবেশ করাতে হবে৷</translation>
 <translation id="8414322570408428950">এক্সটেনশন সম্পর্কিত ইভেন্টের তথ্য</translation>
@@ -4788,6 +4799,7 @@
 <translation id="8922734931659847428"><ph name="BEGIN_LINK" />পুরনো টেকনোলজি ইভেন্ট হচ্ছে<ph name="END_LINK" /> এমন যে পৃষ্ঠা আপনি দেখেন, তার URL-এর সীমিত তালিকা</translation>
 <translation id="892588693504540538">উপরের ডানদিকে পাঞ্চ</translation>
 <translation id="8926389886865778422">আর জিজ্ঞাসা করবেন না</translation>
+<translation id="8926400492587758246">মাসিক কম ইনস্টলমেন্টে পেমেন্ট করুন</translation>
 <translation id="8932102934695377596">আপনার ঘড়ির সময় পিছিয়ে রয়েছে</translation>
 <translation id="893332455753468063">নাম যোগ করুন</translation>
 <translation id="8938242527120341116">আপনার ডিভাইসের কন্টেন্ট ফিল্টার <ph name="BLOCKED_URL" />-কে ব্লক করেছে</translation>

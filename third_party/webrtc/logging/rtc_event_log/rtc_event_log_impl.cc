@@ -28,6 +28,7 @@
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder_legacy.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder_new_format.h"
@@ -181,6 +182,14 @@ RtcEventLogImpl::EventHistories RtcEventLogImpl::ExtractRecentHistories() {
 void RtcEventLogImpl::Log(std::unique_ptr<RtcEvent> event) {
   RTC_CHECK(event);
   MutexLock lock(&mutex_);
+  // Precision is lowered to minimize the change and behave same way as
+  // constructor does using `TimeMillis`, in particular postpone updating all
+  // the unit tests that expects timestamp would be exactly as set in the
+  // default constructor.
+  // TODO: bugs.webrtc.org/439515766 - Simplify by removing rounding letting
+  // rtc event log encoders decide how to better quantize time.
+  event->SetTimestamp(
+      Timestamp::Millis(env_.clock().TimeInMicroseconds() / 1000));
 
   LogToMemory(std::move(event));
   if (logging_state_started_) {

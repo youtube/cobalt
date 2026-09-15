@@ -4,7 +4,9 @@
 
 #include "components/signin/internal/identity_manager/oauth_consumer_registry.h"
 
+#include "ash/constants/ash_features.h"
 #include "base/notreached.h"
+#include "components/signin/public/identity_manager/oauth_consumer_ids.h"
 #include "google_apis/gaia/gaia_constants.h"
 
 namespace {
@@ -96,6 +98,11 @@ constexpr char kProfileDownloaderName[] = "profile_downloader";
 constexpr char kDataSharingAndroidName[] = "data_sharing_android";
 constexpr char kExtensionsIdentityAPIName[] = "extensions_identity_api";
 constexpr char kMantaName[] = "manta";
+constexpr char kChromeMemexName[] = "chrome_memex";
+constexpr char kDevtoolsAidaName[] = "devtools_aida_client";
+constexpr char kChromeOsBabelOrcaName[] = "chromeos_babel_orca";
+constexpr char kChromeOsBocaSchoolToolsAuthName[] =
+    "chromeos_boca_school_tools_auth";
 
 }  // namespace
 
@@ -413,6 +420,22 @@ OAuthConsumer GetOAuthConsumerFromId(OAuthConsumerId oauth_consumer_id) {
       return OAuthConsumer(
           /*name=*/kMantaName,
           /*scopes=*/{GaiaConstants::kMantaOAuth2Scope});
+    case OAuthConsumerId::kChromeMemex:
+      return OAuthConsumer(
+          /*name=*/kChromeMemexName,
+          /*scopes=*/{GaiaConstants::kChromeMemexOAuth2Scope});
+    case OAuthConsumerId::kDevtoolsAida:
+      return OAuthConsumer(
+          /*name=*/kDevtoolsAidaName,
+          /*scopes=*/{GaiaConstants::kAidaOAuth2Scope});
+    case OAuthConsumerId::kChromeOsBabelOrca:
+      return OAuthConsumer(
+          /*name=*/kChromeOsBabelOrcaName,
+          /*scopes=*/{GaiaConstants::kTachyonOAuthScope});
+    case signin::OAuthConsumerId::kChromeOsBocaSchoolToolsAuth:
+      return OAuthConsumer(
+          /*name=*/kChromeOsBocaSchoolToolsAuthName,
+          /*scopes=*/{GaiaConstants::kSchoolToolsAuthScope});
   }
   NOTREACHED();
 }

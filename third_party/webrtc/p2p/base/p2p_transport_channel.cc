@@ -2283,7 +2283,7 @@ void P2PTransportChannel::OnReadPacket(Connection* connection,
 void P2PTransportChannel::OnSentPacket(const SentPacketInfo& sent_packet) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
-  SignalSentPacket(this, sent_packet);
+  NotifySentPacket(this, sent_packet);
 }
 
 void P2PTransportChannel::OnReadyToSend(Connection* connection) {

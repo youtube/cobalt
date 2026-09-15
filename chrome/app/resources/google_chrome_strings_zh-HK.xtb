@@ -274,7 +274,6 @@
 <translation id="409936259433005390">即將升級至 Windows 11？請將 Chrome 安裝程式下載至 OneDrive，預先準備即可隨時開始。</translation>
 <translation id="4110895483821904099">設定新的 Chrome 設定檔</translation>
 <translation id="4111566860456076004">Chrome 無法驗證此擴充程式的來源，因此可能不安全。請從 Chrome 中移除此擴充程式，令其無法再查看及變更你瀏覽的網站相關資料，包括個人資料。</translation>
-<translation id="4128488089242627000">提高 Chrome 執行速度，讓使用 JavaScript 的功能正常運作 (建議)</translation>
 <translation id="4147555960264124640">您已登入受管理的帳戶，並將管理控制權授予您的 Chrome 設定檔。您的 Chrome 數據 (例如應用程式、書籤、記錄、密碼和其他設定) 均將永久與 <ph name="USER_NAME" /> 建立關聯。您可以透過 Google 帳戶資訊主頁刪除這些數據，但您無法將這些數據與其他帳戶建立關聯。<ph name="LEARN_MORE" /></translation>
 <translation id="4148957013307229264">安裝中…</translation>
 <translation id="4149882025268051530">安裝程式無法解壓縮封存檔案，請再次下載 Google Chrome。</translation>
@@ -527,6 +526,7 @@ Google Chrome 無法復原您的設定。</translation>
 <translation id="6967962315388095737">允許 mDNS 流量的 Google Chrome 測試版輸入規則。</translation>
 <translation id="6979589607440534284">了解 Chrome 封鎖部分檔案嘅原因，喺新分頁打開</translation>
 <translation id="6991926986715044139">總是顯示 Google 智能鏡頭捷徑</translation>
+<translation id="6999131147875565462">提高 Chrome 執行速度，並讓使用 JavaScript 的功能正常運作</translation>
 <translation id="7011190694940573312">由於系統不支援此版本的作業系統，因此安裝失敗。</translation>
 <translation id="7024536598735240744">未封裝錯誤：<ph name="UNPACK_ERROR" />。</translation>
 <translation id="7025789849649390912">已停止安裝。</translation>

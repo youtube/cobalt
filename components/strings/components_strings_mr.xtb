@@ -320,7 +320,6 @@
 <translation id="1521655867290435174">Google Sheets</translation>
 <translation id="1524669537550112617">फर्निश केलेली रेंटल</translation>
 <translation id="1527263332363067270">कनेक्शनची वाट पाहत आहे...</translation>
-<translation id="1528311629279578926">कनेक्शन ब्लॉक केले आहे, कारण ते तुमच्या खाजगी नेटवर्कवरील डिव्हाइस किंवा सर्व्हरशी कनेक्ट करण्यासाठी सार्वजनिक पेजवरून सुरू केले होते. कनेक्शनची अनुमती देण्यासाठी हे पेज रीलोड करा.</translation>
 <translation id="1529789484829130889">ट्रे ८</translation>
 <translation id="1530707389502320859">तुम्ही नुकतेच भेट देण्याचा प्रयत्न करत असलेली साइट बनावट असल्याची दिसते. आक्रमणकर्ते काहीवेळा URL मध्ये छोटे व पाहण्यासाठी कठीण असलेले बदल करून बनावट साइट बनवतात.</translation>
 <translation id="1532118530259321453">या पेजचे म्हणणे हे आहे की</translation>
@@ -814,6 +813,7 @@
 <translation id="2321291402658100099">माहिती व्यवस्थापित करा</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{१ विंडो}other{# विंडो}}</translation>
 <translation id="232390861414237658">हे कार्ड Google Pay सह वापरण्यासाठी सेव्ह केलेले असते, तेव्हा Chrome मध्ये केलेल्या खरेदीसाठी ते ऑटोफिल करा</translation>
+<translation id="2326283484705860548">तुम्ही आता Google Wallet मधून आणखी माहिती ऑटोफिल करू शकता</translation>
 <translation id="2328651992442742497">अनुमती आहे (डीफॉल्ट)</translation>
 <translation id="2328955282645810595">बांधकाम आणि मोटारद्वारे चालवली जाणारी टूल</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" />, <ph name="EXPIRATION_DATE_ABBR" /> रोजी एक्स्पायर होईल</translation>
@@ -824,6 +824,7 @@
 <translation id="2346319942568447007">तुम्ही कॉपी केलेली इमेज</translation>
 <translation id="2347764072711098973">कालांतराने पेमेंट करण्यासाठी Affirm, Zip किंवा Klarna वापरा</translation>
 <translation id="2348509731468399833">किमतीचा माग ठेवणे थांबवले आहे.</translation>
+<translation id="2348836501965732644">तुमची माहिती व्यवस्थापित करा किंवा सेटिंग्ज मध्ये या सूचना बंद करा</translation>
 <translation id="2349957959687031096">गुप्त टॅब उघडा बटण, खाजगीरीत्या ब्राउझ करण्यासाठी नवीन गुप्त टॅब उघडण्याकरिता ॲक्टिव्हेट करा</translation>
 <translation id="2350796302381711542"><ph name="HANDLER_HOSTNAME" /> ला <ph name="REPLACED_HANDLER_TITLE" /> ऐवजी सर्व <ph name="PROTOCOL" /> लिंक उघडण्यासाठी अनुमती द्यायची?</translation>
 <translation id="2351718832234620840">या सर्व्हरला तो <ph name="DOMAIN" /> असल्याचे सिद्ध करता आले नाही, कारण तो Chromium द्वारे किंवा वेब ट्रॅफिक एन्क्रिप्शनसाठी तुमच्या सिस्टीम कॉन्फिगरेशनद्वारे विश्वसनीय नसलेले सुरक्षा प्रमाणपत्र वापरत आहे. हे चुकीच्या कॉन्फिगरेशनमुळे किंवा हल्लेखोरांनी तुमच्या कनेक्शनमध्ये आणलेल्या अडथळ्यांमुळे झालेले असू शकते.</translation>
@@ -1237,6 +1238,7 @@
 <translation id="305162504811187366">टाइमस्टॅंप, होस्ट आणि क्लायंट सेशन आयडी यांच्या समावेशासह Chrome रिमोट डेस्कटॉप इतिहास</translation>
 <translation id="3052868890529250114">तुम्ही सामान्यपणे साइटशी सुरक्षितरीत्या कनेक्ट करता, पण Chrome ला या वेळी सुरक्षित कनेक्शन वापरता आले नाही. हल्लेखोर हा तुमच्या नेटवर्क कनेक्शनवरील माहिती चोरण्याचा किंवा त्यामध्ये फेरबदल करण्याचा प्रयत्न करत असू शकतो. <ph name="BEGIN_LEARN_MORE_LINK" />या चेतावणीबद्दल अधिक जाणून घ्या<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138"><ph name="PRODUCT_NAME" /> पासून किमतीमध्ये <ph name="PRICE_DROP" /> घसरण</translation>
+<translation id="3056660797732519147">आता विकत घ्या, नंतर पैसे द्या यासंबंधित एरर स्क्रीन. कीबोर्ड लपवलेला आहे.</translation>
 <translation id="3061707000357573562">पॅच सेवा</translation>
 <translation id="3062655045399308513">ब्राउझिंग डेटा हटवा...</translation>
 <translation id="3063453392496098461">VPN बॅकग्राउंड सेवांचे इंस्टॉलेशन करता आले नाही.</translation>
@@ -1408,7 +1410,6 @@
 <translation id="3325662270238538525">फाइलचे नाव, फाइलमधील आशयाची डिजिटल फिंगरप्रिंट, डाउनलोड स्रोत आणि मेटाडेटा यांसह फाइलचा अलीकडील अ‍ॅक्सेस व त्यामधील फेरबदल</translation>
 <translation id="3329013043687509092">संपृक्तता</translation>
 <translation id="3333762389743153920">व्हर्च्युअल कार्डसाठी पात्र नाही</translation>
-<translation id="3336044043987989409">तुमच्या खाजगी नेटवर्कवरील डिव्हाइस किंवा सर्व्हरशी कनेक्ट करण्याची अनुमती देण्यासाठी रीलोड करा बटण प्रेस करा.</translation>
 <translation id="3338095232262050444">सुरक्षित</translation>
 <translation id="333839153442689579">उच्च तीव्रतेचे इंटर्व्हल प्रशिक्षण</translation>
 <translation id="3339446062576134663">क्लाउड (अ‍ॅश)</translation>
@@ -1452,6 +1453,7 @@
 <translation id="340924996148642843">तुलना करणे सध्या उपलब्ध नाही</translation>
 <translation id="3409896703495473338">सुरक्षा सेटिंग्ज व्यवस्थापित करा</translation>
 <translation id="3411091017011773343"><ph name="HOURS" /> तासांनी अपलोड करा</translation>
+<translation id="341134412449102894"><ph name="ACCOUNT" /> साठी तुमची माहिती <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> मध्ये सेव्ह केली आहे</translation>
 <translation id="3413466783792948876">तुम्ही सार्वजनिक नेटवर्क वापरत असल्यास, या साइटला नंतर भेट देणे सर्वात सुरक्षित आहे. तुमच्या घरामधील किंवा ऑफिसमधील वाय-फाय यासारखे विश्वसनीय नेटवर्क वापरण्यात कमी जोखीम असते.</translation>
 <translation id="3414275587143250384">डिस्ट्रिब्यूटेड आणि क्लाउड कॉंप्युटिंग</translation>
 <translation id="3414952576877147120">आकार:</translation>
@@ -1990,6 +1992,7 @@
 <translation id="4242981939686657948">तुमचा ब्राउझिंग इतिहास आणखी सक्षमपद्धतीने शोधण्यासाठी, हे सुरू करा</translation>
 <translation id="4244926541863471678">फिल्म</translation>
 <translation id="4246517972543675653">परदेशी जाऊन अभ्यास करणे</translation>
+<translation id="4250343410682686342">आता विकत घ्या, नंतर पैसे द्या यासंबंधित एरर स्क्रीन पूर्ण उंचीवर उघडली आहे.</translation>
 <translation id="4250431568374086873">या साइटवरील तुमचे कनेक्शन पूर्णपणे सुरक्षित नाही</translation>
 <translation id="4250680216510889253">नाही</translation>
 <translation id="4250716950689692560">A4x4</translation>
@@ -2506,6 +2509,7 @@
 <translation id="5122786942953798871">एन्व्हलप (कॉटन)</translation>
 <translation id="5123063207673082822">वीकेंड</translation>
 <translation id="5123433949759960244">बास्केटबॉल</translation>
+<translation id="5124797626438336458">आता विकत घ्या, नंतर पैसे द्या यासंबंधित एरर स्क्रीन अर्ध्या उंचीवर उघडली आहे.</translation>
 <translation id="5125575917473813637">ओळखपत्र संपादित करा</translation>
 <translation id="5125751979347152379">चुकीची URL.</translation>
 <translation id="512592033764059484">सॉकर</translation>
@@ -3141,6 +3145,7 @@
 <translation id="6189351761800074311">तुमचा मजकूर आणि पेजचा आशय या गोष्टी Google ला पाठवल्या जातात, पण AI मध्ये सुधारणा करण्यासाठी वापरल्या जाणार नाहीत.
     <ph name="BEGIN_LINK" />अधिक जाणून घ्या<ph name="END_LINK" /></translation>
 <translation id="6190518157737269631">तुमच्या कीबोर्डवरील Esc सारख्या काही की ओव्हरराइड करा</translation>
+<translation id="6192524964213419211">सर्व Google उत्पादनांवर कामे अधिक जलद पूर्ण करण्यासाठी तुमची माहिती सेव्ह करा. <ph name="ACCOUNT" /> साठी तुमची माहिती <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> मध्ये सेव्ह केली आहे</translation>
 <translation id="6194209731893739467">तुमची सर्व माग ठेवलेली उत्पादने येथे पहा</translation>
 <translation id="6195371403461054755">भूशास्त्र</translation>
 <translation id="6195418151868446719">ग्राहकांशी संबंधित इलेक्‍ट्रॉनिक उपकरणे</translation>
@@ -3307,6 +3312,7 @@
 <translation id="6433501201775827830">तुमचे शोध इंजीन निवडा</translation>
 <translation id="6433595998831338502"><ph name="HOST_NAME" /> नी कनेक्ट करण्यास नकार दिला.</translation>
 <translation id="6433797564277305076">आतापासून डिव्‍हाइस अनलॉक वापरून तुमच्‍या कार्डची झटपट खात्री करा</translation>
+<translation id="6436994298828707228">कनेक्शन ब्लॉक केले आहे, कारण ते तुमच्या स्थानिक नेटवर्कवरील डिव्हाइसशी किंवा सर्व्हरशी कनेक्ट करण्यासाठी सार्वजनिक पेजद्वारे सुरू केले होते.</translation>
 <translation id="6437647869369934905">Google Drawings</translation>
 <translation id="643917412048333145">ड्रेस</translation>
 <translation id="6440503408713884761">दुर्लक्ष केले</translation>
@@ -3378,6 +3384,7 @@
 <translation id="6547208576736763147">ड्युअल पंच लेफ्ट</translation>
 <translation id="6549443526281184652">पोशाख</translation>
 <translation id="6550245281449521513">माउस लॉकला अनुमती नाही</translation>
+<translation id="6552566579578780089">पेमेंट</translation>
 <translation id="6554732001434021288"><ph name="NUM_DAYS" /> दिवसांपूर्वी शेवटची भेट दिली</translation>
 <translation id="6556866813142980365">पुन्हा करा</translation>
 <translation id="6557715786897013164">१४ x १७ इं</translation>
@@ -3526,6 +3533,7 @@
 <translation id="6817217109584391709">JavaScript</translation>
 <translation id="6820143000046097424">सिरीअल पोर्ट</translation>
 <translation id="6820686453637990663">CVC</translation>
+<translation id="6820949753458790123">सुलभ हप्त्यांमध्ये पेमेंट करा</translation>
 <translation id="6825578344716086703">तुम्ही <ph name="DOMAIN" /> वर पोहोचण्याचा प्रयत्न केला, परंतु सर्व्हरने एका कमकुवत स्वाक्षरी अल्गोरिदमचा (जसे SHA-1) वापर करून स्वाक्षरीकृत केलेले प्रमाणपत्र सादर केले. याचा अर्थ असा आहे, की सर्व्हरने सादर केलेली सुरक्षितता क्रेडेंशियल बनावट असू शकतात आणि हा सर्व्हर तुम्ही अपेक्षा करत असलेला नसेल. (तुम्ही कदाचित एखाद्या हल्लेखोराशी संभाषण करत आहात).</translation>
 <translation id="6826993739343257035">AR ला अनुमती द्यायची का?</translation>
 <translation id="6828150717884939426">कॉल करा</translation>
@@ -3974,6 +3982,7 @@
 <translation id="753556296624075801">Google द्वारे प्रायोजित</translation>
 <translation id="753713322968419914">Chrome मधून घराचा पत्ता काढून टाकायचा आहे का?</translation>
 <translation id="7537536606612762813">अनिवार्य</translation>
+<translation id="7541043894191476250">संदर्भानुसार टास्क</translation>
 <translation id="7543525346216957623">आपल्या पालकास विचारा</translation>
 <translation id="7546409722674205727"><ph name="APP_NAME" /> सुरू होत आहे</translation>
 <translation id="7548892272833184391">कनेक्शन एरर दुरुस्त करा</translation>
@@ -4175,6 +4184,7 @@
 <translation id="7860345425589240791">तुमची एक्स्पायरीची नवीन तारीख आणि <ph name="SIDE_OF_CARD" /> वरील CVC एंटर करा</translation>
 <translation id="7862185352068345852">साइट सोडायची?</translation>
 <translation id="7865448901209910068">सर्वोत्तम गती</translation>
+<translation id="7865482168955081228">आता विकत घ्या, नंतर पैसे द्या यासंबंधित एरर स्क्रीन बंद केली आहे.</translation>
 <translation id="7870281855125116701">सवलत सापडली</translation>
 <translation id="7871445724586827387">तुमचा Google खाते पासवर्ड बदला</translation>
 <translation id="787226752901403048">टॅब गट शेअर करण्यासाठी आणि त्यात सामील होण्यासाठी आणि कल्पनांवर एकत्रितपणे विचारविनिमय करण्यासाठी Chrome मध्ये साइन इन करा</translation>
@@ -4498,6 +4508,7 @@
 <translation id="8406071103346257942">पासवर्ड भरण्यासाठी तुमचे स्क्रीन लॉक वापरणे थांबवा</translation>
 <translation id="8407031780528483338">स्वयंपाकाच्या वस्तू</translation>
 <translation id="8409413588194360210">पेमेंट हँडलर</translation>
+<translation id="8410956920192583322">मासिक किंवा ४ हप्त्यांमध्ये</translation>
 <translation id="8412145213513410671">क्रॅश (<ph name="CRASH_COUNT" />)</translation>
 <translation id="8412392972487953978">समान सांकेतिक पासफ्रेझ दोनदा एंटर करणे आवश्यक आहे.</translation>
 <translation id="8414322570408428950">एक्स्टेंशनसंबंधित इव्‍हेंट आढळला आहे</translation>
@@ -4788,6 +4799,7 @@
 <translation id="8922734931659847428"><ph name="BEGIN_LINK" />लेगसी तंत्रज्ञानासंबंधित इव्‍हेंट<ph name="END_LINK" /> होत आहेत अशा तुम्ही भेट देता त्या पेजच्या URLs ची मर्यादित सूची</translation>
 <translation id="892588693504540538">पंच टॉप राइट</translation>
 <translation id="8926389886865778422">पुन्हा विचारू नका</translation>
+<translation id="8926400492587758246">कमी मासिक हप्त्यांमध्ये पेमेंट करा</translation>
 <translation id="8932102934695377596">तुमचे घड्याळ मागे आहे</translation>
 <translation id="893332455753468063">नाव जोडा</translation>
 <translation id="8938242527120341116">तुमच्या डिव्हाइसशी संबंधित आशय फिल्टरने <ph name="BLOCKED_URL" /> ब्लॉक केली आहे</translation>

@@ -68,10 +68,10 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."bitflags:2.9.4"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."bytemuck:1.23.2"]
+[policy."bytemuck:1.24.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."bytemuck_derive:1.10.1"]
+[policy."bytemuck_derive:1.10.2"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."bytes:1.10.1"]
@@ -80,7 +80,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."calendrical_calculations:0.2.2"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cc:1.2.39"]
+[policy."cc:1.2.41"]
 criteria = []
 
 [policy."cfg-if:1.0.3"]
@@ -125,7 +125,7 @@ criteria = []
 [policy."derivre:0.3.8"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."diplomat-runtime:0.13.0"]
+[policy."diplomat-runtime:0.13.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."diplomat:0.13.0"]
@@ -152,13 +152,13 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."fend-core:1.5.7"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."find-msvc-tools:0.1.2"]
+[policy."find-msvc-tools:0.1.4"]
 criteria = []
 
 [policy."fixed_decimal:0.7.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."flate2:1.1.2"]
+[policy."flate2:1.1.4"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."foldhash:0.2.0"]
@@ -257,7 +257,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."lazy_static:1.5.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."libc:0.2.176"]
+[policy."libc:0.2.177"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."libm:0.2.15"]
@@ -371,7 +371,7 @@ criteria = ["crypto-safe", "safe-to-run"]
 [policy."smallvec:1.15.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."stable_deref_trait:1.2.0"]
+[policy."stable_deref_trait:1.2.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."static_assertions:1.1.0"]
@@ -434,7 +434,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."unicode-ident:1.0.19"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."unicode-width:0.2.1"]
+[policy."unicode-width:0.2.2"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."winapi-util:0.1.11"]
@@ -471,6 +471,9 @@ criteria = []
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."writeable:0.6.1"]
+criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
+
+[policy."xml:1.0.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."yoke-derive:0.8.0"]

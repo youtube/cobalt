@@ -18,6 +18,7 @@
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/common/actor/task_id.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/views/widget/widget.h"
 
 class Profile;
 namespace content {
@@ -30,6 +31,20 @@ class GlicPageHandler;
 class GlicWindowController;
 class WebUIContentsContainer;
 
+struct PanelStateContext {
+  // Provided only when kGlicMultiInstance is off.
+  raw_ptr<Browser> attached_browser = nullptr;
+  // Provided only when kGlicMultiInstance is off.
+  raw_ptr<views::Widget> glic_widget = nullptr;
+};
+
+// Observes the state of the glic panel.
+class PanelStateObserver : public base::CheckedObserver {
+ public:
+  virtual void PanelStateChanged(const mojom::PanelState& panel_state,
+                                 const PanelStateContext& context) = 0;
+};
+
 // The host owns the WebUI that contains the main glic UI and the web client.
 // TODO(crbug.com/409332639): Better encapsulate details here.
 class Host : public GlicSharingManagerProvider {
@@ -37,8 +52,6 @@ class Host : public GlicSharingManagerProvider {
   class EmbedderDelegate {
    public:
     virtual ~EmbedderDelegate() = default;
-    // Returns the current panel state.
-    virtual const mojom::PanelState& GetPanelState() const = 0;
 
     // Sets the size of the glic window to the specified dimensions. Callback
     // runs when the animation finishes or is destroyed, or soon if the window
@@ -71,9 +84,23 @@ class Host : public GlicSharingManagerProvider {
         mojom::WebClientHandler::SwitchConversationCallback callback) = 0;
   };
 
+  // Functions that are on either GlicInstance or WindowController.
+  // TODO(refactor): This interface should eventually be combined with
+  // InstanceDelegate.
+  // TODO(harringtond): Clarify names of InstanceInterfaceForMigration and
+  // InstanceDelegate.
+  class InstanceInterfaceForMigration {
+   public:
+    virtual void AddStateObserver(PanelStateObserver* observer) = 0;
+    virtual void RemoveStateObserver(PanelStateObserver* observer) = 0;
+    // Returns the current panel state.
+    virtual mojom::PanelState GetPanelState() = 0;
+  };
+
+  // Functions that are on either GlicInstance or GlidKeyedService.
   // Interface for methods that the host can call on an instance.
-  // TODO(refactor): This interface should eventually take the place of
-  // Delegate.
+  // TODO(refactor): This interface should eventually be combined with
+  // InstanceInterfaceForMigration.
   class InstanceDelegate {
    public:
     virtual ~InstanceDelegate() = default;
@@ -92,7 +119,8 @@ class Host : public GlicSharingManagerProvider {
     virtual void StopActorTask(actor::TaskId task_id,
                                mojom::ActorTaskStopReason stop_reason) = 0;
     virtual void PauseActorTask(actor::TaskId task_id,
-                                mojom::ActorTaskPauseReason pause_reason) = 0;
+                                mojom::ActorTaskPauseReason pause_reason,
+                                tabs::TabInterface::Handle tab_handle) = 0;
     virtual void ResumeActorTask(
         actor::TaskId task_id,
         const mojom::GetTabContextOptions& context_options,
@@ -140,9 +168,9 @@ class Host : public GlicSharingManagerProvider {
   };
 
   // When no sharing manager provider is supplied, GlicKeyedService is used.
-  explicit Host(Profile* profile);
   explicit Host(Profile* profile,
                 GlicSharingManagerProvider* sharing_manager_provider,
+                InstanceInterfaceForMigration* instance_interface,
                 InstanceDelegate* instance_delegate);
   Host(const Host&) = delete;
   ~Host() override;
@@ -165,8 +193,6 @@ class Host : public GlicSharingManagerProvider {
 
   void PanelWasClosed();
 
-  void PanelStateChanged(const glic::mojom::PanelState& panel_state);
-
   void SwitchConversation(
       glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback);
@@ -178,7 +204,9 @@ class Host : public GlicSharingManagerProvider {
   // Delete the owned web contents and prepare for destruction.
   void Shutdown();
 
-  // Reload the web contents, if it is present.
+  // Reload the web contents, if it is present and matches.
+  void Reload(content::RenderFrameHost* render_frame_host);
+  // Reload the web contents.
   void Reload();
 
   // Creates the web contents that will own the Glic WebUI.
@@ -219,6 +247,9 @@ class Host : public GlicSharingManagerProvider {
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
+
+  void AddPanelStateObserver(PanelStateObserver* observer);
+  void RemovePanelStateObserver(PanelStateObserver* observer);
 
   // Returns the current WebUI state, or kUninitialized if there is no active
   // glic WebUI.
@@ -295,7 +326,7 @@ class Host : public GlicSharingManagerProvider {
   // Returns true if the widget is visible.
   bool IsWidgetShowing(GlicWebClientAccess* client) const;
   // Returns the current panel state.
-  const mojom::PanelState& GetPanelState(GlicWebClientAccess* client) const;
+  mojom::PanelState GetPanelState(GlicWebClientAccess* client) const;
 
   base::WeakPtr<Host> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 
@@ -340,6 +371,7 @@ class Host : public GlicSharingManagerProvider {
 
   // The instance that owns this host.
   raw_ptr<InstanceDelegate> instance_delegate_;
+  raw_ptr<InstanceInterfaceForMigration> instance_interface_;
 
   // Null before `Initialize()` and after `Shutdown()`.
   raw_ptr<EmbedderDelegate> delegate_;
@@ -370,7 +402,6 @@ class Host : public GlicSharingManagerProvider {
 class EmptyEmbedderDelegate : public Host::EmbedderDelegate {
  public:
   ~EmptyEmbedderDelegate() override = default;
-  const mojom::PanelState& GetPanelState() const override;
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
               base::OnceClosure callback) override;

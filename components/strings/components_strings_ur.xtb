@@ -320,7 +320,6 @@
 <translation id="1521655867290435174">Google Sheets</translation>
 <translation id="1524669537550112617">فرنشڈ رینٹلز</translation>
 <translation id="1527263332363067270">کنکشن کا انتظار ہو رہا ہے…</translation>
-<translation id="1528311629279578926">کنکشن مسدود ہے کیونکہ یہ آپ کے نجی نیٹ ورک پر آلات یا سرورز سے منسلک ہونے کے لیے ایک عوامی صفحہ کے ذریعے شروع کیا گیا تھا۔ کنکشن کی اجازت دینے کے لیے اس صفحہ کو دوبارہ لوڈ کریں۔</translation>
 <translation id="1529789484829130889">ٹرے 8</translation>
 <translation id="1530707389502320859">‏آپ نے ابھی جو سائٹ ملاحظہ کرنے کی کوشش کی ہے وہ جعلی معلوم ہوتی ہے۔ بعض اوقات حملہ آور URL میں چھوٹی، مشکل سے نظر آنے والی تبدیلیاں کر کے سائٹس کی نقل کرتے ہیں۔</translation>
 <translation id="1532118530259321453">اس صفحے کے مطابق</translation>
@@ -814,6 +813,7 @@
 <translation id="2321291402658100099">معلومات کا نظم کریں</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{1 ونڈو}other{# ونڈوز}}</translation>
 <translation id="232390861414237658">‏اس کارڈ کو Google Pay کے ساتھ استعمال کرنے کے لیے محفوظ کئے جانے پر اسے Chrome میں کی جانے والی خریداریوں کے لیے آٹو فل کریں</translation>
+<translation id="2326283484705860548">‏اب آپ Google والٹ سے خودکار طور پر مزید معلومات بھر سکتے ہیں</translation>
 <translation id="2328651992442742497">اجازت ہے (ڈیفالٹ)</translation>
 <translation id="2328955282645810595">تعمیر اور پاور ٹولز</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" /> کی میعاد <ph name="EXPIRATION_DATE_ABBR" /> کو ختم ہو جائے گی</translation>
@@ -824,6 +824,7 @@
 <translation id="2346319942568447007">آپ کی کاپی کردہ تصویر</translation>
 <translation id="2347764072711098973">‏وقت کے ساتھ ادائیگی کے لیے تصدیق کریں، زپ کریں یا Klarna کا استعمال کریں</translation>
 <translation id="2348509731468399833">قیمت کی ٹریکنگ بند ہو گئی۔</translation>
+<translation id="2348836501965732644">اپنی معلومات کا نظم کریں یا ترتیبات میں ان تجاویز کو آف کریں</translation>
 <translation id="2349957959687031096">پوشیدگی ٹیب کھولیں بٹن، نجی طور پر براؤز کرنے کے لیے ایک نیا پوشیدگی ٹیب کھولنے کے لیے فعال کریں</translation>
 <translation id="2350796302381711542"><ph name="HANDLER_HOSTNAME" /> کو <ph name="REPLACED_HANDLER_TITLE" /> کی بجائے سبھی <ph name="PROTOCOL" /> لنکس کھولنے کی اجازت دیں؟</translation>
 <translation id="2351718832234620840">‏یہ سرور ثابت نہیں کر سکا کہ یہ <ph name="DOMAIN" /> ہے کیونکہ یہ ایک سیکیورٹی سرٹیفکیٹ استعمال کر رہا ہے جس پر Chromium یا آپ کے سسٹم کے کنفیگریشن کو ویب ٹریفک کی مرموز کاری کے لیے بھروسہ نہیں ہے۔ یہ غلط کنفیگریشن یا آپ کے کنکشن کو قطع کرنے والے کسی حملہ آور کی وجہ سے ہو سکتا ہے۔</translation>
@@ -1237,6 +1238,7 @@
 <translation id="305162504811187366">‏بشمول ٹائم سٹیمپس، میزبانوں اور کلائنٹ سیشن IDs کے Chrome ریموٹ ڈیسک ٹاپ کی سرگزشت</translation>
 <translation id="3052868890529250114">‏آپ ان سائٹس سے عموماً محفوظ طریقے سے منسلک ہوتے ہیں لیکن اس مرتبہ Chrome محفوظ کنکشن کا استعمال نہیں کر سکا۔ کوئی حملہ آور آپ کے نیٹ ورک کنکشن کی جاسوسی یا اس میں ترمیم کرنے کی کوشش کر سکتا ہے۔ <ph name="BEGIN_LEARN_MORE_LINK" />اس وارننگ کے بارے میں مزید جانیں<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138"><ph name="PRODUCT_NAME" /> سے قیمت میں <ph name="PRICE_DROP" /> گراوٹ</translation>
+<translation id="3056660797732519147">ابھی خریدیں، ادائیگی بعد میں کریں کی خرابی کی اسکرین۔ کی بورڈ پوشیدہ ہے۔</translation>
 <translation id="3061707000357573562">پیچ سروس</translation>
 <translation id="3062655045399308513">براؤزنگ ڈیٹا حذف کریں...</translation>
 <translation id="3063453392496098461">‏‫VPN کی پس منظر سروسز کی انسٹالیشن ناکام ہو گئی۔</translation>
@@ -1409,7 +1411,6 @@
 <translation id="3325662270238538525">فائل تک حالیہ رسائی اور ترامیم، بشمول فائل کے نام، فائل کے مواد کے ڈیجیٹل فنگر پرنٹس، ڈاؤن لوڈ کا ماخذ اور میٹا ڈیٹا</translation>
 <translation id="3329013043687509092">سیرابی</translation>
 <translation id="3333762389743153920">کارڈ نمبر ورچوئل کارڈ کیلئے اہل نہیں ہے</translation>
-<translation id="3336044043987989409">اپنے نجی نیٹ ورک پر آلات یا سرورز سے کنکشن کی اجازت دینے کے لیے دوبارہ لوڈ کریں بٹن دبائیں۔</translation>
 <translation id="3338095232262050444">محفوظ</translation>
 <translation id="333839153442689579">وقفے وقفے سے سخت ورزش</translation>
 <translation id="3339446062576134663">کلاؤڈ (راکھ)</translation>
@@ -1993,6 +1994,7 @@
 <translation id="4242981939686657948">اپنی براؤزنگ کی سرگزشت کو زیادہ آسانی اور جدید طریقے سے تلاش کرنے کے لیے، آن کریں:</translation>
 <translation id="4244926541863471678">فلم</translation>
 <translation id="4246517972543675653">بیرون ملک تعلیم</translation>
+<translation id="4250343410682686342">ابھی خریدیں، ادائیگی بعد میں کریں کی خرابی کی اسکرین پوری کھلی ہے۔</translation>
 <translation id="4250431568374086873">اس سائٹ سے آپ کا کنکشن پوری طرح سے محفوظ نہیں ہے</translation>
 <translation id="4250680216510889253">نہیں</translation>
 <translation id="4250716950689692560">A4x4</translation>
@@ -2509,6 +2511,7 @@
 <translation id="5122786942953798871">لفافہ (کاٹن)</translation>
 <translation id="5123063207673082822">ویک اینڈ</translation>
 <translation id="5123433949759960244">باسکٹ بال</translation>
+<translation id="5124797626438336458">ابھی خریدیں، ادائیگی بعد میں کریں کی خرابی کی اسکرین آدھی کھلی ہے۔</translation>
 <translation id="5125575917473813637">شناختی کارڈ میں ترمیم کریں</translation>
 <translation id="5125751979347152379">‏غلط URL۔</translation>
 <translation id="512592033764059484">فٹبال</translation>
@@ -3144,6 +3147,7 @@
 <translation id="6189351761800074311">‏آپ کے ٹیکسٹ اور صفحہ کے مواد کو Google کو بھیجا جاتا ہے، لیکن AI کو بہتر بنانے کے لیے ان کا استعمال نہیں کیا جائے گا۔
     <ph name="BEGIN_LINK" />مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="6190518157737269631">‏اپنے کی بورڈ پر کچھ کلیدوں کو اوور رائیڈ کریں، جیسے Esc</translation>
+<translation id="6192524964213419211">‏تمام Google پروڈکٹس پر تیزی سے کام مکمل کرنے کے لیے اپنی معلومات محفوظ کریں۔ آپ کی معلومات <ph name="ACCOUNT" /> کے لیے <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> میں محفوظ کی گئی ہے</translation>
 <translation id="6194209731893739467">اپنے تمام ٹریک کردہ پروڈکٹس یہاں دیکھیں</translation>
 <translation id="6195371403461054755">ارضیات</translation>
 <translation id="6195418151868446719">کنزیومر الیکٹرانکس</translation>
@@ -3310,6 +3314,7 @@
 <translation id="6433501201775827830">اپنے تلاش انجن کا انتخاب کریں</translation>
 <translation id="6433595998831338502"><ph name="HOST_NAME" /> نے منسلک ہونے سے منع کر دیا۔</translation>
 <translation id="6433797564277305076">اب سے آلے کو غیر مقفل کرنے کی خصوصیت کا استعمال کر کے تیزی سے اپنے کارڈ کی تصدیق کریں</translation>
+<translation id="6436994298828707228">کنکشن بلاک ہے کیونکہ یہ آپ کے مقامی نیٹ ورک پر آلات یا سرورز سے منسلک ہونے کے لیے ایک عوامی صفحہ کے ذریعے شروع کیا گیا تھا۔</translation>
 <translation id="6437647869369934905">Google Drawings</translation>
 <translation id="643917412048333145">ملبوسات</translation>
 <translation id="6440503408713884761">نظر انداز کردہ</translation>
@@ -3381,6 +3386,7 @@
 <translation id="6547208576736763147">بائیں طرف دُہرا سوراخ</translation>
 <translation id="6549443526281184652">ملبوسات</translation>
 <translation id="6550245281449521513">ماؤس لاک کی اجازت نہیں ہے</translation>
+<translation id="6552566579578780089">ادائیگیاں</translation>
 <translation id="6554732001434021288">سائٹ آخری بار <ph name="NUM_DAYS" /> دن پہلے ملاحظہ کی گئی</translation>
 <translation id="6556866813142980365">واپس لائیں</translation>
 <translation id="6557715786897013164">‏‎14 x 17 انچ</translation>
@@ -3529,6 +3535,7 @@
 <translation id="6817217109584391709">JavaScript</translation>
 <translation id="6820143000046097424">سیریل پورٹس</translation>
 <translation id="6820686453637990663">CVC</translation>
+<translation id="6820949753458790123">آسان قسطوں میں ادائیگی کریں</translation>
 <translation id="6825578344716086703">‏آپ نے <ph name="DOMAIN" /> تک پہنچنے کی کوشش کی، لیکن سرور نے ایک کمزور دستخط الگورتھم (جیسے SHA-1) استعمال کرتے ہوئے دستخط کردہ سرٹیفیکیٹ پیش کیا۔ اس کا مطلب یہ ہے کہ شاید سرور کی پیش کردہ سیکیورٹی اسناد میں جعل سازی کی گئی ہے اور ممکن ہے کہ سرور آپ کا متوقع سرور نہ ہو (ممکن ہے آپ کسی حملہ آور کے ساتھ مواصلت کر رہے ہوں)۔</translation>
 <translation id="6826993739343257035">‏AR کی اجازت دیں؟</translation>
 <translation id="6828150717884939426">کال کریں</translation>
@@ -3976,6 +3983,7 @@
 <translation id="753556296624075801">‏Google کے ذریعے تقویت یافتہ</translation>
 <translation id="753713322968419914">‏‫Chrome آٹو فل سے گھر کا پتہ ہٹائیں؟</translation>
 <translation id="7537536606612762813">لازمی</translation>
+<translation id="7541043894191476250">سیاق و سباق سے متعلق ٹاسکس</translation>
 <translation id="7543525346216957623">اپنے والدین سے پوچھیں</translation>
 <translation id="7546409722674205727"><ph name="APP_NAME" /> کی شروعات</translation>
 <translation id="7548892272833184391">کنکشن کی خرابیاں ٹھیک کریں</translation>
@@ -4177,6 +4185,7 @@
 <translation id="7860345425589240791">‏اپنی نئی تاریخ اختتام اور CVC <ph name="SIDE_OF_CARD" /> پر درج کریں</translation>
 <translation id="7862185352068345852">سائٹ چھوڑیں؟</translation>
 <translation id="7865448901209910068">عمدہ رفتار</translation>
+<translation id="7865482168955081228">ابھی خریدیں، ادائیگی بعد میں کریں کی خرابی کی اسکرین بند ہے۔</translation>
 <translation id="7870281855125116701">رعایت مل گئی</translation>
 <translation id="7871445724586827387">‏اپنے Google اکاؤنٹ کا پاس ورڈ تبدیل کریں</translation>
 <translation id="787226752901403048">‏ٹیب گروپس کا اشتراک کرنے اور ان میں شامل ہونے کے لیے Chrome میں سائن ان کریں اور آئیڈیاز پر مل کر کام کریں</translation>
@@ -4500,6 +4509,7 @@
 <translation id="8406071103346257942">پاس ورڈز درج کرنے کے لیے اپنا اسکرین لاک استعمال کرنا بند کریں</translation>
 <translation id="8407031780528483338">پکانے کے برتن</translation>
 <translation id="8409413588194360210">ادائیگی کے ہینڈلرز</translation>
+<translation id="8410956920192583322">ماہانہ یا 4 قسطیں</translation>
 <translation id="8412145213513410671">کریشز (<ph name="CRASH_COUNT" />)</translation>
 <translation id="8412392972487953978">آپ کو وہی پاس فریز دوبار درج کرنا ضروری ہے۔</translation>
 <translation id="8414322570408428950">ایکسٹینشن سے متعلق ایونٹ ہوتا ہے</translation>
@@ -4790,6 +4800,7 @@
 <translation id="8922734931659847428">‏آپ کے ملاحظہ کردہ صفحات کے URLs کی ایک محدود کردہ فہرست جہاں <ph name="BEGIN_LINK" />ٹیکنالوجی کے پرانے ایونٹس<ph name="END_LINK" /> رونما ہو رہے ہیں</translation>
 <translation id="892588693504540538">اوپر دائیں طرف سوراخ</translation>
 <translation id="8926389886865778422">دوبارہ سوال نہ کریں</translation>
+<translation id="8926400492587758246">کم ماہانہ قسطوں میں ادائیگی کریں</translation>
 <translation id="8932102934695377596">آپ کی گھڑی پیچھے ہے</translation>
 <translation id="893332455753468063">نام شامل کریں</translation>
 <translation id="8938242527120341116">آپ کے آلے کے مواد کے فلٹرز بلاک ہیں <ph name="BLOCKED_URL" /></translation>

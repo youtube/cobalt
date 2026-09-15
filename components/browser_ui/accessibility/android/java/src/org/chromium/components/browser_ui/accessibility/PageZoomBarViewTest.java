@@ -138,6 +138,15 @@ public class PageZoomBarViewTest {
                     public BrowserContextHandle getBrowserContextHandle() {
                         return mBrowserContextHandle;
                     }
+
+                    @Override
+                    public void removeZoomEventsObserver(ZoomEventsObserver observer) {}
+
+                    @Override
+                    public void addZoomEventsObserver(ZoomEventsObserver observer) {}
+
+                    @Override
+                    public void enterImmersiveMode() {}
                 };
 
         ThreadUtils.runOnUiThreadBlocking(

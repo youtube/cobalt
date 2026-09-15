@@ -1334,15 +1334,11 @@ void ArcApps::OnArcSupportedLinksChanged(
   }
 }
 
-void ArcApps::OnSetArcNotificationsInstance(
+void ArcApps::OnArcNotificationManagerInitialized(
     ash::ArcNotificationManagerBase* arc_notification_manager) {
   DCHECK(arc_notification_manager);
   notification_observation_.Observe(arc_notification_manager);
 }
-
-// TODO(crbug.com/442761233): Remove this.
-void ArcApps::OnArcNotificationInitializerDestroyed(
-    ash::ArcNotificationsHostInitializer* initializer) {}
 
 void ArcApps::OnNotificationUpdated(const std::string& notification_id,
                                     const std::string& app_id) {
@@ -1544,7 +1540,8 @@ AppPtr ArcApps::CreateApp(ArcAppListPrefs* prefs,
   // Set hard-coded Play Store intent filters if not set. This is a stop-gap
   // solution to handle Play Store URLs before ARC gets ready.
   // TODO(b/259205050): Remove this once intent filters are properly cached.
-  if (app->intent_filters.empty() && app_id == arc::kPlayStoreAppId) {
+  if ((!app->intent_filters || app->intent_filters->empty()) &&
+      app_id == arc::kPlayStoreAppId) {
     app->intent_filters = GetHardcodedPlayStoreIntentFilters();
   }
 

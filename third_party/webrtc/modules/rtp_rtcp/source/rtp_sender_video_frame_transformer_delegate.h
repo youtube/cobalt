@@ -14,7 +14,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -41,7 +40,7 @@ namespace webrtc {
 class RTPVideoFrameSenderInterface {
  public:
   virtual bool SendVideo(int payload_type,
-                         std::optional<VideoCodecType> codec_type,
+                         VideoCodecType codec_type,
                          uint32_t rtp_timestamp,
                          Timestamp capture_time,
                          ArrayView<const uint8_t> payload,
@@ -75,7 +74,7 @@ class RTPSenderVideoFrameTransformerDelegate : public TransformedFrameCallback {
 
   // Delegates the call to FrameTransformerInterface::TransformFrame.
   bool TransformFrame(int payload_type,
-                      std::optional<VideoCodecType> codec_type,
+                      VideoCodecType codec_type,
                       uint32_t rtp_timestamp,
                       const EncodedImage& encoded_image,
                       RTPVideoHeader video_header,

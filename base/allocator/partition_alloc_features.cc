@@ -9,20 +9,15 @@
 
 #include "base/allocator/partition_alloc_features.h"
 
-#include "base/allocator/miracle_parameter.h"
 #include "base/base_export.h"
 #include "base/feature_list.h"
 #include "base/features.h"
-#include "base/metrics/field_trial_params.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
 #include "partition_alloc/buildflags.h"
-#include "partition_alloc/partition_alloc_base/time/time.h"
 #include "partition_alloc/partition_alloc_constants.h"
 #include "partition_alloc/partition_root.h"
 #include "partition_alloc/shim/allocator_shim_dispatch_to_noop_on_free.h"
-#include "partition_alloc/thread_cache.h"
 
 namespace base::features {
 
@@ -91,17 +86,6 @@ constinit const FeatureParam<DanglingPtrType> kDanglingPtrTypeParam{
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 // Use a larger maximum thread cache cacheable bucket size.
 BASE_FEATURE(kPartitionAllocLargeThreadCacheSize, FEATURE_ENABLED_BY_DEFAULT);
-
-MIRACLE_PARAMETER_FOR_INT(GetPartitionAllocLargeThreadCacheSizeValue,
-                          kPartitionAllocLargeThreadCacheSize,
-                          "PartitionAllocLargeThreadCacheSizeValue",
-                          ::partition_alloc::kThreadCacheLargeSizeThreshold)
-
-MIRACLE_PARAMETER_FOR_INT(
-    GetPartitionAllocLargeThreadCacheSizeValueForLowRAMAndroid,
-    kPartitionAllocLargeThreadCacheSize,
-    "PartitionAllocLargeThreadCacheSizeValueForLowRAMAndroid",
-    ::partition_alloc::kThreadCacheDefaultSizeThreshold)
 
 BASE_FEATURE(kPartitionAllocLargeEmptySlotSpanRing,
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
@@ -379,19 +363,6 @@ BASE_FEATURE_PARAM(bool,
                    false);
 #endif
 
-BASE_FEATURE(kEnableConfigurableThreadCacheMultiplier,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-MIRACLE_PARAMETER_FOR_DOUBLE(GetThreadCacheMultiplier,
-                             kEnableConfigurableThreadCacheMultiplier,
-                             "ThreadCacheMultiplier",
-                             2.)
-
-MIRACLE_PARAMETER_FOR_DOUBLE(GetThreadCacheMultiplierForAndroid,
-                             kEnableConfigurableThreadCacheMultiplier,
-                             "ThreadCacheMultiplierForAndroid",
-                             1.)
-
 constexpr partition_alloc::internal::base::TimeDelta ToPartitionAllocTimeDelta(
     TimeDelta time_delta) {
   return partition_alloc::internal::base::Microseconds(
@@ -402,51 +373,6 @@ constexpr TimeDelta FromPartitionAllocTimeDelta(
     partition_alloc::internal::base::TimeDelta time_delta) {
   return Microseconds(time_delta.InMicroseconds());
 }
-
-BASE_FEATURE(kEnableConfigurableThreadCachePurgeInterval,
-             FEATURE_DISABLED_BY_DEFAULT);
-
-MIRACLE_PARAMETER_FOR_TIME_DELTA(
-    GetThreadCacheMinPurgeIntervalValue,
-    kEnableConfigurableThreadCachePurgeInterval,
-    "ThreadCacheMinPurgeInterval",
-    FromPartitionAllocTimeDelta(partition_alloc::kMinPurgeInterval))
-
-MIRACLE_PARAMETER_FOR_TIME_DELTA(
-    GetThreadCacheMaxPurgeIntervalValue,
-    kEnableConfigurableThreadCachePurgeInterval,
-    "ThreadCacheMaxPurgeInterval",
-    FromPartitionAllocTimeDelta(partition_alloc::kMaxPurgeInterval))
-
-MIRACLE_PARAMETER_FOR_TIME_DELTA(
-    GetThreadCacheDefaultPurgeIntervalValue,
-    kEnableConfigurableThreadCachePurgeInterval,
-    "ThreadCacheDefaultPurgeInterval",
-    FromPartitionAllocTimeDelta(partition_alloc::kDefaultPurgeInterval))
-
-const partition_alloc::internal::base::TimeDelta
-GetThreadCacheMinPurgeInterval() {
-  return ToPartitionAllocTimeDelta(GetThreadCacheMinPurgeIntervalValue());
-}
-
-const partition_alloc::internal::base::TimeDelta
-GetThreadCacheMaxPurgeInterval() {
-  return ToPartitionAllocTimeDelta(GetThreadCacheMaxPurgeIntervalValue());
-}
-
-const partition_alloc::internal::base::TimeDelta
-GetThreadCacheDefaultPurgeInterval() {
-  return ToPartitionAllocTimeDelta(GetThreadCacheDefaultPurgeIntervalValue());
-}
-
-BASE_FEATURE(kEnableConfigurableThreadCacheMinCachedMemoryForPurging,
-             FEATURE_DISABLED_BY_DEFAULT);
-
-MIRACLE_PARAMETER_FOR_INT(
-    GetThreadCacheMinCachedMemoryForPurgingBytes,
-    kEnableConfigurableThreadCacheMinCachedMemoryForPurging,
-    "ThreadCacheMinCachedMemoryForPurgingBytes",
-    partition_alloc::kMinCachedMemoryForPurgingBytes)
 
 // An apparent quarantine leak in the buffer partition unacceptably
 // bloats memory when MiraclePtr is enabled in the renderer process.

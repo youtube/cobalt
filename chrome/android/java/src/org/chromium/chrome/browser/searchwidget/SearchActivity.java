@@ -68,6 +68,7 @@ import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.rlz.RevenueStats;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabFavicon;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.VoiceToolbarButtonController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -327,10 +328,8 @@ public class SearchActivity extends AsyncInitializationActivity
                         this::loadUrl,
                         /* backKeyBehavior= */ this,
                         /* pageInfoAction= */ (tab, pageInfoHighlight) -> {},
-                        this::bringTabToFront,
                         this::bringTabGroupToFront,
                         /*omniboxUma*/ (url, transition, isNtp) -> {},
-                        TabWindowManagerSingleton::getInstance,
                         /* bookmarkState= */ (url) -> false,
                         VoiceToolbarButtonController::isToolbarMicEnabled,
                         /* merchantTrustSignalsCoordinatorSupplier= */ null,
@@ -372,13 +371,15 @@ public class SearchActivity extends AsyncInitializationActivity
                         null,
                         backPressManager,
                         /* omniboxSuggestionsDropdownScrollListener= */ null,
-                        /* tabModelSelectorSupplier= */ null,
+                        /* tabModelSelectorSupplier= */ new ObservableSupplierImpl<>(),
                         mLocationBarUiOverrides,
                         findViewById(R.id.control_container),
                         /* bottomWindowPaddingSupplier */ () -> 0,
                         /* onLongClickListener= */ null,
                         /* browserControlsStateProvider= */ null,
-                        /* isToolbarPositionCustomizationEnabled= */ false);
+                        /* isToolbarPositionCustomizationEnabled= */ false,
+                        /* pageZoomManager= */ null,
+                        TabFavicon::getBitmap);
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
         assumeNonNull(mLocationBarCoordinator.getOmniboxStub()).addUrlFocusChangeListener(this);

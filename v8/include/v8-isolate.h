@@ -668,6 +668,7 @@ class V8_EXPORT Isolate {
     kWithStatement = 180,
     kHtmlWrapperMethods = 181,
     kWasmCustomDescriptors = 182,
+    kWasmResizableBuffers = 183,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -1654,6 +1655,13 @@ class V8_EXPORT Isolate {
 
   /** Set the callback to invoke in case of OOM errors. */
   void SetOOMErrorHandler(OOMErrorCallback that);
+
+  /**
+   * \copydoc SetOOMErrorHandler(OOMErrorCallback)
+   *
+   * \param data Additional data that should be passed to the callback.
+   */
+  void SetOOMErrorHandler(OOMErrorCallbackWithData that, void* data);
 
   /**
    * Add a callback to invoke in case the heap size is close to the heap limit.

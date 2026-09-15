@@ -320,7 +320,6 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="1521655867290435174">Google Sheets</translation>
 <translation id="1524669537550112617">Möblierte Mietobjekte</translation>
 <translation id="1527263332363067270">Warten auf Verbindung…</translation>
-<translation id="1528311629279578926">Die Verbindung wird blockiert, weil sie von einer öffentlichen Seite initiiert wurde, um eine Verbindung zu Geräten oder Servern in deinem privaten Netzwerk herzustellen. Wenn du die Verbindung zulassen möchtest, aktualisiere diese Seite.</translation>
 <translation id="1529789484829130889">Fach 8</translation>
 <translation id="1530707389502320859">Die Website, die du besuchen möchtest, ist möglicherweise eine Fälschung. Angreifer kopieren manchmal Websites und nehmen kleine, unauffällige Änderungen an der URL vor.</translation>
 <translation id="1532118530259321453">Auf dieser Seite wird Folgendes angezeigt</translation>
@@ -814,6 +813,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="2321291402658100099">Informationen verwalten</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{1 Fenster}other{# Fenster}}</translation>
 <translation id="232390861414237658">Diese Karte bei Käufen in Chrome automatisch ausfüllen, wenn sie für die Verwendung mit Google Pay gespeichert wurde</translation>
+<translation id="2326283484705860548">Es können jetzt mehr Informationen aus Google Wallet automatisch ausgefüllt werden</translation>
 <translation id="2328651992442742497">Zugelassen (Standardeinstellung)</translation>
 <translation id="2328955282645810595">Bau- und Elektrowerkzeuge</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" />, läuft am <ph name="EXPIRATION_DATE_ABBR" /> ab</translation>
@@ -824,6 +824,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="2346319942568447007">Von dir kopiertes Bild</translation>
 <translation id="2347764072711098973">Mit Affirm, Zip oder Klarna in Raten bezahlen</translation>
 <translation id="2348509731468399833">Preis-Tracking gestoppt.</translation>
+<translation id="2348836501965732644">Du kannst deine Informationen verwalten oder diese Vorschläge in den Einstellungen deaktivieren</translation>
 <translation id="2349957959687031096">Schaltfläche „Inkognitotab öffnen“ – aktivieren, um einen neuen Inkognitotab zu öffnen und privat zu surfen</translation>
 <translation id="2350796302381711542">Öffnen aller <ph name="PROTOCOL" />-Links durch <ph name="HANDLER_HOSTNAME" /> anstatt <ph name="REPLACED_HANDLER_TITLE" /> zulassen?</translation>
 <translation id="2351718832234620840">Dieser Server konnte nicht beweisen, dass er <ph name="DOMAIN" /> ist, da er ein Sicherheitszertifikat verwendet, das von Chromium oder deiner Systemkonfiguration für die Verschlüsselung von Web-Traffic nicht als vertrauenswürdig eingestuft wird. Mögliche Gründe sind eine fehlerhafte Konfiguration oder ein Angreifer, der deine Verbindung abfängt.</translation>
@@ -1237,6 +1238,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="305162504811187366">Chrome Remote Desktop-Verlauf, einschließlich Zeitstempeln, Hosts und Client-Sitzungs-IDs</translation>
 <translation id="3052868890529250114">Normalerweise verbindest du dich auf sichere Weise mit Websites, aber Chrome konnte dieses Mal keine verschlüsselte Verbindung herstellen. Möglicherweise versucht ein Angreifer, deine Onlineaktivitäten zu beobachten oder deine Netzwerkverbindung zu modifizieren. <ph name="BEGIN_LEARN_MORE_LINK" />Weitere Informationen zu dieser Warnung<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138"><ph name="PRICE_DROP" /> Preisnachlass auf das Produkt „<ph name="PRODUCT_NAME" />“</translation>
+<translation id="3056660797732519147">Fehlerbildschirm für „Jetzt kaufen, später bezahlen“. Tastatur ausgeblendet.</translation>
 <translation id="3061707000357573562">Patchdienst</translation>
 <translation id="3062655045399308513">Browserdaten löschen...</translation>
 <translation id="3063453392496098461">Die Installation der VPN-Hintergrunddienste ist fehlgeschlagen.</translation>
@@ -1408,7 +1410,6 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="3325662270238538525">Letzte Zugriffe auf Dateien und Änderungen, einschließlich Dateinamen, digitale Fingerabdrücke des Dateiinhalts, Downloadquelle und Metadaten</translation>
 <translation id="3329013043687509092">Sättigung</translation>
 <translation id="3333762389743153920">Virtuelle Karte wird nicht unterstützt</translation>
-<translation id="3336044043987989409">Klicke auf die Schaltfläche zum Aktualisieren, um die Verbindung zu Geräten oder Servern in deinem privaten Netzwerk zuzulassen.</translation>
 <translation id="3338095232262050444">Sicher</translation>
 <translation id="333839153442689579">Intervalltraining mit hoher Intensität</translation>
 <translation id="3339446062576134663">Cloud (Ash)</translation>
@@ -1452,6 +1453,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="340924996148642843">Compare ist momentan nicht verfügbar</translation>
 <translation id="3409896703495473338">Sicherheitseinstellungen verwalten</translation>
 <translation id="3411091017011773343">In <ph name="HOURS" /> Std. hochladen</translation>
+<translation id="341134412449102894">Deine Daten für <ph name="ACCOUNT" /> werden in <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> gespeichert</translation>
 <translation id="3413466783792948876">Wenn du ein öffentliches Netzwerk verwendest, ist es am sichersten, diese Website erst später aufzurufen. Das Risiko ist bei einem vertrauenswürdigen Netzwerk – wie dem WLAN zu Hause oder am Arbeitsplatz – geringer.</translation>
 <translation id="3414275587143250384">Verteilte Rechnersysteme und Cloud-Computing</translation>
 <translation id="3414952576877147120">Größe:</translation>
@@ -1989,6 +1991,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="4242981939686657948">Du kannst deinen Browserverlauf jetzt effektiver durchsuchen – aktiviere dazu</translation>
 <translation id="4244926541863471678">Film</translation>
 <translation id="4246517972543675653">Auslandsstudium</translation>
+<translation id="4250343410682686342">Der Fehlerbildschirm für „Jetzt kaufen, später bezahlen“ ist vollständig geöffnet.</translation>
 <translation id="4250431568374086873">Die Verbindung zu dieser Website ist nicht uneingeschränkt sicher</translation>
 <translation id="4250680216510889253">Nein</translation>
 <translation id="4250716950689692560">A4x4</translation>
@@ -2505,6 +2508,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="5122786942953798871">Umschlag (Baumwolle)</translation>
 <translation id="5123063207673082822">Wochenende</translation>
 <translation id="5123433949759960244">Basketball</translation>
+<translation id="5124797626438336458">Der Fehlerbildschirm für „Jetzt kaufen, später bezahlen“ ist halb geöffnet.</translation>
 <translation id="5125575917473813637">Amtlichen Ausweis bearbeiten</translation>
 <translation id="5125751979347152379">Ungültige URL</translation>
 <translation id="512592033764059484">Fußball</translation>
@@ -3139,6 +3143,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="6189351761800074311">Deine Texte und Seiteninhalte werden an Google gesendet, aber nicht zur Verbesserung von KI verwendet.
     <ph name="BEGIN_LINK" />Weitere Informationen<ph name="END_LINK" /></translation>
 <translation id="6190518157737269631">Einige Tasten auf der Tastatur überschreiben, z. B. Esc</translation>
+<translation id="6192524964213419211">Wenn du deine Informationen speicherst, kannst du viele Dinge in Google-Produkten schneller erledigen. Deine Informationen für <ph name="ACCOUNT" /> werden in <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> gespeichert</translation>
 <translation id="6194209731893739467">Alle beobachteten Produkte hier ansehen</translation>
 <translation id="6195371403461054755">Geologie</translation>
 <translation id="6195418151868446719">Unterhaltungselektronik</translation>
@@ -3305,6 +3310,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="6433501201775827830">Wähle deine Suchmaschine</translation>
 <translation id="6433595998831338502"><ph name="HOST_NAME" /> hat die Verbindung abgelehnt.</translation>
 <translation id="6433797564277305076">Mithilfe der Geräteentsperrung kannst du deine Karten ab sofort schneller bestätigen</translation>
+<translation id="6436994298828707228">Die Verbindung wird blockiert, weil sie von einer öffentlichen Seite initiiert wurde, um eine Verbindung zu Geräten oder Servern in deinem lokalen Netzwerk herzustellen.</translation>
 <translation id="6437647869369934905">Google Zeichnungen</translation>
 <translation id="643917412048333145">Kleider</translation>
 <translation id="6440503408713884761">Ignoriert</translation>
@@ -3376,6 +3382,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="6547208576736763147">Doppelte Lochung links</translation>
 <translation id="6549443526281184652">Kostüme</translation>
 <translation id="6550245281449521513">Maussperre nicht zulässig</translation>
+<translation id="6552566579578780089">Zahlungen</translation>
 <translation id="6554732001434021288">Vor <ph name="NUM_DAYS" /> Tagen zuletzt besucht</translation>
 <translation id="6556866813142980365">Wiederholen</translation>
 <translation id="6557715786897013164">14 × 17 Zoll</translation>
@@ -3524,6 +3531,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="6817217109584391709">JavaScript</translation>
 <translation id="6820143000046097424">Serielle Schnittstellen</translation>
 <translation id="6820686453637990663">CVC</translation>
+<translation id="6820949753458790123">In Raten zahlen</translation>
 <translation id="6825578344716086703">Du hast versucht, auf <ph name="DOMAIN" /> zuzugreifen, der Server hat jedoch ein Zertifikat übermittelt, das einen schwachen Signaturalgorithmus verwendet, zum Beispiel SHA-1. Das bedeutet, dass die vom Server übermittelten Sicherheitsinformationen gefälscht sein könnten und es sich möglicherweise gar nicht um den erwarteten Server handelt, sondern du mit einem Hacker kommunizierst.</translation>
 <translation id="6826993739343257035">AR zulassen?</translation>
 <translation id="6828150717884939426">Anrufen</translation>
@@ -3972,6 +3980,7 @@ Weitere Details:
 <translation id="753556296624075801">Powered by Google</translation>
 <translation id="753713322968419914">Privatadresse aus Chrome Autofill entfernen?</translation>
 <translation id="7537536606612762813">Verbindlich</translation>
+<translation id="7541043894191476250">Kontextbezogene Aufgaben</translation>
 <translation id="7543525346216957623">Frag deine Eltern</translation>
 <translation id="7546409722674205727"><ph name="APP_NAME" /> wird gestartet</translation>
 <translation id="7548892272833184391">Verbindungsfehler beheben</translation>
@@ -4173,6 +4182,7 @@ Weitere Details:
 <translation id="7860345425589240791">Gib das neue Ablaufdatum und den CVC auf der <ph name="SIDE_OF_CARD" /> ein</translation>
 <translation id="7862185352068345852">Website verlassen?</translation>
 <translation id="7865448901209910068">Beste Geschwindigkeit</translation>
+<translation id="7865482168955081228">Der Fehlerbildschirm für „Jetzt kaufen, später bezahlen“ ist geschlossen.</translation>
 <translation id="7870281855125116701">Rabatt gefunden</translation>
 <translation id="7871445724586827387">Passwort des Google-Kontos ändern</translation>
 <translation id="787226752901403048">Melde dich in Chrome an, um Tabgruppen zu teilen, ihnen beizutreten und gemeinsam an Ideen zu arbeiten</translation>
@@ -4496,6 +4506,7 @@ Weitere Details:
 <translation id="8406071103346257942">die Displaysperre nicht mehr zum Ausfüllen von Passwörtern zu verwenden</translation>
 <translation id="8407031780528483338">Kochgeschirr</translation>
 <translation id="8409413588194360210">Zahlungs-Handler</translation>
+<translation id="8410956920192583322">Monatlich oder in 4 Raten</translation>
 <translation id="8412145213513410671">Abstürze (<ph name="CRASH_COUNT" />)</translation>
 <translation id="8412392972487953978">Du musst zweimal dieselbe Passphrase eingeben.</translation>
 <translation id="8414322570408428950">Erweiterungsereignis tritt auf</translation>
@@ -4787,6 +4798,7 @@ Weitere Details:
 <translation id="8922734931659847428">Eine begrenzte Liste mit URLs der von dir besuchten Seiten, auf denen <ph name="BEGIN_LINK" />Probleme aufgrund von veralteter Technologie<ph name="END_LINK" /> auftreten</translation>
 <translation id="892588693504540538">Lochung oben rechts</translation>
 <translation id="8926389886865778422">Nicht mehr fragen</translation>
+<translation id="8926400492587758246">In niedrigen monatlichen Raten zahlen</translation>
 <translation id="8932102934695377596">Deine Uhr geht nach</translation>
 <translation id="893332455753468063">Namen hinzufügen</translation>
 <translation id="8938242527120341116">Die Inhaltsfilter deines Geräts haben <ph name="BLOCKED_URL" /> blockiert</translation>

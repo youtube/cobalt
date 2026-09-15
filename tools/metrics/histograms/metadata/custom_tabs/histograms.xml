@@ -60,6 +60,16 @@ chromium-metrics-reviews@google.com.
                wrapper started"/>
 </variants>
 
+<histogram name="CustomTab.AdaptiveToolbarButton.ActionButtons"
+    enum="CustomTabsToolbarButtons" expires_after="2026-03-15">
+  <owner>jinsukkiim@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records which buttons are shown in top toolbar. Recorded when CCT is closed
+    to capture the list of buttons finally presented to users. Android only.
+  </summary>
+</histogram>
+
 <histogram name="CustomTab.AdaptiveToolbarButton.FallbackUi"
     enum="AdaptiveToolbarButtonVariant" expires_after="2025-09-25">
   <owner>jinsukkiim@google.com</owner>
@@ -96,6 +106,28 @@ chromium-metrics-reviews@google.com.
     Records the ranking of the toolbar button variant picked up for display. It
     will be either 0 or 1. Recorded when the suggested list of variants are
     checked in the filtering process. Android only.
+  </summary>
+</histogram>
+
+<histogram name="CustomTabs.AdaptiveToolbarButton.FallbackIndicator.Clicked"
+    enum="AdaptiveToolbarButtonVariant" expires_after="2026-03-15">
+  <owner>jinsukkiim@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records the variant of adaptive toolbar button for which fallback indicator
+    (menu dot) is clicked. Recorded when the overflow menu icon is clicked when
+    the indicator is visible. Android only.
+  </summary>
+</histogram>
+
+<histogram name="CustomTabs.AdaptiveToolbarButton.FallbackIndicator.Shown"
+    enum="AdaptiveToolbarButtonVariant" expires_after="2026-03-15">
+  <owner>jinsukkiim@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records the variant of adaptive toolbar button for which fallback indicator
+    (menu dot) is shown. Recorded when the indicator is shown on the overflow
+    menu icon. Android only.
   </summary>
 </histogram>
 
@@ -671,7 +703,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.PartialCustomTabType"
-    enum="CustomTabsPartialCustomTabType" expires_after="2026-02-01">
+    enum="CustomTabsPartialCustomTabType" expires_after="2026-04-05">
   <owner>kgrosu@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -876,7 +908,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.TimeSpentInEngagementEventIpc" units="ms"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>nafisabedin@google.com</owner>
   <summary>
     The time spent in milliseconds processing IPCs on the UI thread related to

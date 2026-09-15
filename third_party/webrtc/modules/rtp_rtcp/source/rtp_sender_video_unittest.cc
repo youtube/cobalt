@@ -1539,8 +1539,9 @@ TEST_F(RtpSenderVideoRawPacketizationTest, SendRawVideo) {
   RTPVideoHeader video_header;
   video_header.frame_type = VideoFrameType::kVideoFrameKey;
   ASSERT_TRUE(rtp_sender_video_->SendVideo(
-      kPayloadTypeRaw, std::nullopt, 1234, fake_clock_.CurrentTime(), kPayload,
-      sizeof(kPayload), video_header, TimeDelta::PlusInfinity(), {}));
+      kPayloadTypeRaw, VideoCodecType::kVideoCodecGeneric, 1234,
+      fake_clock_.CurrentTime(), kPayload, sizeof(kPayload), video_header,
+      TimeDelta::PlusInfinity(), {}));
 
   ArrayView<const uint8_t> sent_payload =
       transport_.last_sent_packet().payload();

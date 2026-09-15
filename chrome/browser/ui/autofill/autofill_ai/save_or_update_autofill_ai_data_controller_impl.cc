@@ -24,12 +24,12 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/singleton_tabs.h"
+#include "chrome/common/url_constants.h"
 #include "chrome/grit/browser_resources.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_import_utils.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
-#include "components/autofill/core/common/autofill_features.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/navigation_handle.h"
@@ -160,6 +160,7 @@ void SaveOrUpdateAutofillAiDataControllerImpl::SetupPrompt(
     std::optional<EntityInstance> old_entity,
     AutofillClient::EntitySaveOrUpdatePromptResultCallback
         save_prompt_acceptance_callback) {
+  was_bubble_shown_ = false;
   new_entity_ = std::move(new_entity);
   old_entity_ = std::move(old_entity);
   save_prompt_acceptance_callback_ = std::move(save_prompt_acceptance_callback);
@@ -305,16 +306,13 @@ bool SaveOrUpdateAutofillAiDataControllerImpl::IsWalletableEntity() const {
 void SaveOrUpdateAutofillAiDataControllerImpl::OnGoToWalletLinkClicked() {
   if (Browser* browser = chrome::FindBrowserWithTab(web_contents())) {
     reopen_bubble_when_web_contents_becomes_visible_ = true;
-    static constexpr std::string_view kWalletPassesUrl =
-        "https://wallet.google.com/wallet/passes";
-    ShowSingletonTab(browser, GURL(kWalletPassesUrl));
+    ShowSingletonTab(browser, GURL(chrome::kWalletPassesPageURL));
   }
 }
 
 void SaveOrUpdateAutofillAiDataControllerImpl::OnVisibilityChanged(
     content::Visibility visibility) {
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillShowBubblesBasedOnPriorities)) {
+  if (IsBubbleManagerEnabled()) {
     // BubbleManager will handle the effects of tab changes.
     return;
   }
@@ -334,17 +332,31 @@ void SaveOrUpdateAutofillAiDataControllerImpl::OnBubbleClosed(
     SaveOrUpdateAutofillAiDataController::AutofillAiBubbleClosedReason
         close_reason) {
   // Make sure competing close calls does not lead to emitting metrics twice.
-  if (bubble_view()) {
+  if (!bubble_hide_initiated_by_bubble_manager_ && bubble_view()) {
     EmitBubbleFunnelMetrics(IsSavePrompt(), new_entity_->type(), close_reason);
   }
   ResetBubbleViewAndInformBubbleManager();
   UpdatePageActionIcon();
-  if (!save_prompt_acceptance_callback_.is_null()) {
+
+  if (!bubble_hide_initiated_by_bubble_manager_ &&
+      !save_prompt_acceptance_callback_.is_null()) {
     std::move(save_prompt_acceptance_callback_)
         .Run({DidUserDeclineExplicitly(close_reason),
               /*entity=*/close_reason == AutofillAiBubbleClosedReason::kAccepted
                   ? std::exchange(new_entity_, std::nullopt)
                   : std::nullopt});
+  }
+}
+
+void SaveOrUpdateAutofillAiDataControllerImpl::OnBubbleDiscarded() {
+  EmitBubbleFunnelMetrics(IsSavePrompt(), new_entity_->type(),
+                          was_bubble_shown_
+                              ? SaveOrUpdateAutofillAiDataController::
+                                    AutofillAiBubbleClosedReason::kNotInteracted
+                              : SaveOrUpdateAutofillAiDataController::
+                                    AutofillAiBubbleClosedReason::kUnknown);
+  if (!save_prompt_acceptance_callback_.is_null()) {
+    std::move(save_prompt_acceptance_callback_).Run({false, std::nullopt});
   }
 }
 

@@ -322,8 +322,8 @@ class CameraVideoCapturerTestFixtures {
     abstract public void rawCloseCamera(Object camera);
   }
 
-  private PeerConnectionFactory peerConnectionFactory;
-  private TestObjectFactory testObjectFactory;
+  private final PeerConnectionFactory peerConnectionFactory;
+  private final TestObjectFactory testObjectFactory;
 
   CameraVideoCapturerTestFixtures(TestObjectFactory testObjectFactory) {
     PeerConnectionFactory.initialize(

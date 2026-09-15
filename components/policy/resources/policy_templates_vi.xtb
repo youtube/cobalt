@@ -639,6 +639,7 @@ Người dùng có thể phải xác thực lại trực tuyến vì một số 
 <translation id="1438739959477268107">Cài đặt tạo khóa mặc định</translation>
 <translation id="1440408958042020947">Cho phép người dùng đã chọn tham gia Trung tâm điều khiển điện thoại truy cập ảnh và video mới chụp/quay trên điện thoại của họ</translation>
 <translation id="1443532790824582949">Bật bàn phím ảo cảm ứng</translation>
+<translation id="1447252610864877219">Cho phép ứng dụng Gemini thực hiện hành động trên các trang web.</translation>
 <translation id="1449083855104537880">Khi bạn đặt chính sách này thành True, các tùy chọn hỗ trợ tiếp cận sẽ hiển thị trong trình đơn ở khay hệ thống. Nếu bạn đặt chính sách này thành False, thì các tùy chọn sẽ không xuất hiện trong trình đơn.
 
       Nếu bạn đặt chính sách này, thì người dùng sẽ không thể thay đổi được. Nếu bạn không đặt chính sách này, thì các tùy chọn hỗ trợ tiếp cận sẽ không xuất hiện trong trình đơn, nhưng người dùng có thể chọn hiển thị các tùy chọn này thông qua trang Cài đặt.
@@ -789,6 +790,7 @@ Các mẫu URL không được xung đột với <ph name="WEB_PRINTING_ALLOWED_
 <translation id="1523774894176285446">Trình duyệt thay thế để chạy các trang web đã định cấu hình.</translation>
 <translation id="152657506688053119">Danh sách các URL thay thế cho nhà cung cấp dịch vụ tìm kiếm mặc định</translation>
 <translation id="1530812829012954197">Luôn hiển thị các mẫu URL sau đây trong trình duyệt chính</translation>
+<translation id="1533353321560451784">Vids (được hỗ trợ kể từ phiên bản 143)</translation>
 <translation id="1534007181698071943">Cho phép tắt trình xử lý sự kiện "unload" theo mặc định trong thời gian ngừng hoạt động</translation>
 <translation id="1539343118617844331">Trường học</translation>
 <translation id="1542491165152947087">Cho phép người dùng bật hoặc tắt chế độ cài đặt Chủ đề quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> trên thiết bị của họ.</translation>
@@ -1331,6 +1333,17 @@ Khi bạn đặt chính sách này thành False, thì những thông tin có th�
 
 Chính sách này chỉ có hiệu lực khi máy đã đăng ký bằng <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> đối với <ph name="PRODUCT_NAME" />.
 Chính sách này luôn có hiệu lực đối với <ph name="PRODUCT_OS_NAME" />.</translation>
+<translation id="1878535132109943599">Khi bạn đặt chính sách này thành Enabled (Bật), các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" /> sẽ chỉ hiển thị cảnh báo trong <ph name="CHROME_DEVTOOLS_NAME" /> do không kiểm tra được <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Nếu bạn đặt chính sách này thành Disabled (Tắt) hoặc không đặt chính sách này, các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" /> sẽ sử dụng chế độ xử lý mặc định cho các yêu cầu này.
+
+Hãy truy cập vào https://wicg.github.io/local-network-access/ để biết các quy định hạn chế về <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Chính sách doanh nghiệp này chỉ có hiệu lực tạm thời và sẽ bị xoá sau phiên bản M146.
+
+Về lâu dài, bạn có thể sử dụng chính sách <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> để đưa các mẫu URL vào danh sách cho phép. Các mẫu URL này sẽ tự động được cấp quyền <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Xin lưu ý rằng nếu bạn bật chính sách <ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" /> thì chính sách đó sẽ được ưu tiên hơn chính sách này.</translation>
 <translation id="187961648719201562">Xoá các tệp hiện có trên thiết bị (được hỗ trợ kể từ phiên bản 137)</translation>
 <translation id="1883274744253492031">Bật tính năng tự động nâng cấp nội dung hỗn hợp</translation>
 <translation id="1885782360784839335">Cho phép hiển thị nội dung quảng cáo dưới dạng toàn bộ thẻ</translation>
@@ -6915,6 +6928,21 @@ Khi bạn đặt chính sách này cho Kiosk <ph name="PRODUCT_OS_NAME" />, chí
 <translation id="5625771176514429288">Ứng dụng Chrome sẽ được phép chạy trên các nền tảng này.</translation>
 <translation id="5627270992026554674">Không cho phép giáo viên sử dụng danh sách học viên trên Google Lớp học.</translation>
 <translation id="5630352020869108293">Khôi phục phiên trước đó</translation>
+<translation id="5630952076819481843">Khi đặt chính sách này, bạn có thể tạo danh sách các mẫu URL chỉ định trang web mà Chrome có thể tự động chọn chứng chỉ máy khách. Giá trị là một mảng từ điển JSON phân thành chuỗi, mỗi mảng có dạng <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />, trong đó <ph name="URL_PATTERN_PLACEHOLDER" /> là mẫu thông tin cài đặt nội dung. <ph name="FILTER_PLACEHOLDER" /> giới hạn các chứng chỉ máy khách mà trình duyệt sẽ tự động chọn. Bất kể bộ lọc là gì, chỉ các chứng chỉ khớp với yêu cầu chứng chỉ của máy chủ mới được chọn. Trên Android, Chrome chỉ có thể chọn những chứng chỉ máy khách mà trình duyệt này tự cung cấp chứ không thể truy cập vào những chứng chỉ được cài đặt ở cấp hệ điều hành.
+
+      Ví dụ về cách sử dụng phần <ph name="FILTER_PLACEHOLDER" />:
+
+      * Khi bạn đặt <ph name="FILTER_PLACEHOLDER" /> thành <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_FILTER_EXAMPLE" />, chỉ các chứng chỉ máy khách do chứng chỉ có CommonName <ph name="ISSUER_CN_PLACEHOLDER" /> cấp mới được chọn.
+
+      * Khi <ph name="FILTER_PLACEHOLDER" /> chứa cả phần <ph name="ISSUER_STRING_VALUE" /> và <ph name="SUBJECT_STRING_VALUE" />, chỉ các chứng chỉ máy khách thoả mãn cả hai điều kiện mới được chọn.
+
+      * Khi <ph name="FILTER_PLACEHOLDER" /> chứa phần <ph name="SUBJECT_STRING_VALUE" /> với giá trị <ph name="FILTER_STRING_ORGANIZATION" />, chứng chỉ phải có ít nhất một tổ chức khớp với giá trị đã chỉ định thì mới được chọn.
+
+      * Khi <ph name="FILTER_PLACEHOLDER" /> chứa phần <ph name="SUBJECT_STRING_VALUE" /> với giá trị <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" />, chứng chỉ phải có ít nhất một đơn vị tổ chức khớp với giá trị đã chỉ định thì mới được chọn.
+
+      * Khi bạn đặt <ph name="FILTER_PLACEHOLDER" /> thành <ph name="EMPTY_DICTIONARY" />, việc chọn chứng chỉ máy khách sẽ không có các hạn chế bổ sung. Xin lưu ý rằng các bộ lọc mà máy chủ web cung cấp sẽ vẫn áp dụng.
+
+      Nếu bạn không đặt chính sách này thì Chrome sẽ không được tự động chọn đối với bất cứ trang web nào.</translation>
 <translation id="5633871703004128675">Bật tính năng hỗ trợ tiếp cận về làm nổi bật dấu chèn</translation>
 <translation id="5634032995857968056">Bật hộp cát Hộp chứa ứng dụng kết xuất</translation>
 <translation id="5638334542697444045">Không cho phép người dùng sử dụng tính năng Chia sẻ Internet tức thì</translation>
@@ -7130,6 +7158,7 @@ Trên nền tảng máy tính, bạn cũng có thể tắt tính năng tải mô
 <translation id="5774856474228476867">URL tìm kiếm nhà cung cấp dịch vụ tìm kiếm mặc định</translation>
 <translation id="5775235485119094648">Sạc pin khi thiết bị ở trong phạm vi cố định.</translation>
 <translation id="5776485039795852974">Hỏi mỗi lần trang web muốn hiển thị thông báo trên màn hình</translation>
+<translation id="5776508475264864949">Không cho phép ứng dụng Gemini thực hiện hành động trên các trang web.</translation>
 <translation id="5783009211970309878">In đầu trang và chân trang</translation>
 <translation id="5790763087505467169">Hạn chế các thông báo tự động chạy phiên khách được quản lý</translation>
 <translation id="5794205610250307906">Chính sách này kiểm soát việc trình duyệt có sử dụng vùng đệm thích ứng cho
@@ -7719,6 +7748,7 @@ Nếu bạn không đặt hoặc để trống chính sách này thì sẽ khôn
       Việc đặt chính sách này thành <ph name="ASK_LOCAL_FONTS_POLICY_NAME" /> (giá trị 3) sẽ thông báo cho người dùng khi quyền phông chữ trên máy được yêu cầu theo mặc định. Nếu người dùng cho phép quyền này, việc này sẽ mở rộng khả năng trang web xem được thông tin về phông chữ trên máy.
 
       Không đặt chính sách này có nghĩa là hành vi mặc định là thông báo cho người dùng, nhưng người dùng có thể thay đổi chế độ cài đặt này</translation>
+<translation id="6203014458380972093">Tạm thời chọn không áp dụng quy định hạn chế đối với các yêu cầu gửi đến thiết bị đầu cuối trên mạng cục bộ</translation>
 <translation id="6203715554101884845">Nếu đặt chính sách này, bạn có thể thiết lập danh sách các URL chỉ định những trang web được hệ thống tự động cấp quyền truy cập vào thiết bị HID bằng mã sản phẩm và mã nhà cung cấp cụ thể trên màn hình đăng nhập. Mỗi mục trên danh sách này phải có cả trường <ph name="DEVICES_FIELD_NAME" /> và trường <ph name="URLS_FIELD_NAME" /> thì mục đó mới hợp lệ, nếu không thì mục đó sẽ bị bỏ qua. Mỗi mục trong trường <ph name="DEVICES_FIELD_NAME" /> phải có <ph name="VENDOR_ID_FIELD_NAME" /> và có thể có trường <ph name="PRODUCT_ID_FIELD_NAME" />. Nếu bạn bỏ qua trường <ph name="PRODUCT_ID_FIELD_NAME" />, hệ thống sẽ tạo một chính sách áp dụng cho mọi thiết bị có mã nhà cung cấp đã chỉ định. Nếu một mục có trường <ph name="PRODUCT_ID_FIELD_NAME" /> nhưng không có trường <ph name="VENDOR_ID_FIELD_NAME" />, thì mục đó không hợp lệ và bị bỏ qua.
 
 Nếu bạn không đặt chính sách này, một giá trị mặc định chung sẽ được dùng cho tất cả trang web (không có quyền truy cập tự động).</translation>
@@ -9574,6 +9604,7 @@ Chính sách này sẽ thay thế chính sách <ph name="WINDOW_PLACEMENT_BLOCKE
 <translation id="7323896582714668701">Tham số dòng lệnh bổ sung cho <ph name="PRODUCT_NAME" /></translation>
 <translation id="7325801934761922681">Không cho phép Chrome chặn các thao tác di chuyển đến những giao thức bên ngoài nằm bên trong iframe hộp cát</translation>
 <translation id="7326394567531622570">Tương tự như Wipe (giá trị 2) nhưng cố gắng giữ lại mã đăng nhập để người dùng không phải đăng nhập lại.</translation>
+<translation id="7331098674887251788">Cho phép tích hợp ứng dụng Gemini để trực tiếp thực hiện hành động trên các trang web</translation>
 <translation id="7331387825106440104">Không thực thi các quy tắc ràng buộc trong các neo tin cậy được thêm cục bộ</translation>
 <translation id="7331962793961469250">Khi được đặt thành True, kết quả thăng hạng của các ứng dụng trong Cửa hàng Chrome trực tuyến sẽ không xuất hiện trên trang thẻ mới.
 
@@ -10388,6 +10419,7 @@ Chính sách này chỉ mang tính tạm thời và sẽ bị loại bỏ trong 
 <translation id="7985242821674907985"><ph name="PRODUCT_NAME" /></translation>
 <translation id="7985781946183471651">Tiện ích xem nhanh trên <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="7986473886676689183">Bật tính năng báo cáo của Android</translation>
+<translation id="798671159602573821">Chỉ định xem có (tạm thời) chọn không áp dụng các quy định hạn chế về Quyền truy cập mạng cục bộ hay không</translation>
 <translation id="7990280274626154329">Bật <ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /></translation>
 <translation id="7991022023019679916">Lưu ý rằng chúng tôi không dùng chính sách này nữa và sẽ xóa khỏi <ph name="PRODUCT_OS_NAME" /> phiên bản 85. Thay vào đó, vui lòng sử dụng <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />.
 
@@ -10724,6 +10756,15 @@ Hãy xem mục 5.2 của RFC 8828 (https://tools.ietf.org/html/rfc8828.html#sect
       Nếu bạn đặt chính sách này thành Tắt thì các thiết bị đã đăng ký sẽ không nhận được các biện pháp kiểm soát báo cáo chi tiết.</translation>
 <translation id="82530263956734297">Các mã nhận dạng tiện ích sẽ được miễn trừ khỏi danh sách chặn</translation>
 <translation id="8254749125469750814">Không dùng dịch vụ đám mây để kiểm tra xem có thể cài đặt một tiện ích hay không.</translation>
+<translation id="825509998103089977">Kiểm soát việc ứng dụng Gemini có được phép hành động trên các trang web thay mặt người dùng hay không.
+
+0/không đặt  = Ứng dụng Gemini được phép hành động trên các trang web.
+
+1 = Ứng dụng Gemini không được phép hành động trên các trang web.
+
+Chính sách này không có hiệu lực khi ứng dụng Gemini bị tắt. Ví dụ: Ứng dụng Gemini có thể bị tắt theo chính sách <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Để biết thêm thông tin, vui lòng xem https://support.google.com/chrome/a/answer/16291696.</translation>
 <translation id="8256006033157034334">Chính sách này không còn được dùng nữa và không được hỗ trợ, vui lòng dùng <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" />.</translation>
 <translation id="8256688113167012935">Kiểm soát tên tài khoản <ph name="PRODUCT_OS_NAME" /> hiển thị trên màn hình đăng nhập cho tài khoản trong thiết bị tương ứng.
 

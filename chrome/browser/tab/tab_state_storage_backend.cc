@@ -40,16 +40,15 @@ void TabStateStorageBackend::Initialize() {
 }
 
 void TabStateStorageBackend::Save(int id,
-                                  int type,
+                                  TabStorageType type,
                                   std::unique_ptr<StoragePackage> package) {
   std::string payload = package->SerializePayload();
-  // TODO(https://crbug.com/448875689): Get serialized children data from
-  // package.
+  std::string children = package->SerializeChildren();
   db_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&TabStateStorageDatabase::SaveNode,
                      base::Unretained(database_.get()), id, type,
-                     std::move(payload), ""),
+                     std::move(payload), std::move(children)),
       base::BindOnce(&TabStateStorageBackend::OnWrite,
                      weak_ptr_factory_.GetWeakPtr()));
 }

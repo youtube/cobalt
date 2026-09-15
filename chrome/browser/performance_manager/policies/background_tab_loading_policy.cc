@@ -149,11 +149,10 @@ BackgroundTabLoadingPolicy::BackgroundTabLoadingPolicy(
     : all_restored_tabs_loaded_callback_(
           std::move(all_restored_tabs_loaded_callback)),
       page_loader_(std::make_unique<mechanism::PageLoader>()),
-      memory_pressure_listener_(
+      memory_pressure_listener_registration_(
           FROM_HERE,
           base::MemoryPressureListenerTag::kBackgroundTabLoadingPolicy,
-          base::BindRepeating(&BackgroundTabLoadingPolicy::OnMemoryPressure,
-                              base::Unretained(this))) {
+          this) {
   DCHECK(!g_background_tab_loading_policy);
   g_background_tab_loading_policy = this;
   max_simultaneous_tab_loads_ = CalculateMaxSimultaneousTabLoads(
@@ -453,7 +452,7 @@ void BackgroundTabLoadingPolicy::StopLoadingTabs() {
 }
 
 void BackgroundTabLoadingPolicy::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel new_level) {
+    base::MemoryPressureLevel new_level) {
   TRACE_EVENT_INSTANT(
       "browser", "BackgroundTabLoadingPolicy::OnMemoryPressure",
       [&](perfetto::EventContext ctx) {
@@ -463,10 +462,10 @@ void BackgroundTabLoadingPolicy::OnMemoryPressure(
             base::trace_event::MemoryPressureLevelToTraceEnum(new_level));
       });
   switch (new_level) {
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+    case base::MEMORY_PRESSURE_LEVEL_NONE:
       break;
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
+    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
       StopLoadingTabs();
       break;
   }

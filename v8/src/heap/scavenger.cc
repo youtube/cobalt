@@ -1991,6 +1991,8 @@ void ScavengerCollector::ClearOldEphemerons() {
 namespace {
 class ScavengerWeakObjectRetainer : public WeakObjectRetainer {
  public:
+  explicit ScavengerWeakObjectRetainer(const Heap* heap) : heap_(heap) {}
+
   Tagged<Object> RetainAs(Tagged<Object> object) override {
     Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
     if (IsUnscavengedHeapObject(heap_object)) {
@@ -2004,13 +2006,30 @@ class ScavengerWeakObjectRetainer : public WeakObjectRetainer {
     DCHECK(map_word.IsForwardingAddress());
     return map_word.ToForwardingAddress(heap_object);
   }
+
+  bool ShouldRecordSlots() const final { return true; }
+
+  void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                  Tagged<HeapObject> object) final {
+    DCHECK(GCAwareObjectTypeCheck<JSFinalizationRegistry>(host, heap_));
+    DCHECK(GCAwareObjectTypeCheck<JSFinalizationRegistry>(object, heap_));
+    // `JSFinalizationRegsitry` objects are generally long living and thus are
+    // unlikely to be young.
+    if (V8_LIKELY(HeapObjectWillBeOld(heap_, host)) &&
+        V8_UNLIKELY(!HeapObjectWillBeOld(heap_, object))) {
+      AddToRememberedSet<OLD_TO_NEW>(heap_, host, slot.address());
+    }
+  }
+
+ private:
+  const Heap* const heap_;
 };
 }  // namespace
 
 void ScavengerCollector::ProcessWeakObjects(
     Scavenger::JSWeakRefsList& js_weak_refs,
     Scavenger::WeakCellsList& weak_cells) {
-  ScavengerWeakObjectRetainer weak_object_retainer;
+  ScavengerWeakObjectRetainer weak_object_retainer(heap_);
   // Iterate the weak list of dirty finalization registries. Dead registries are
   // dropped from the list, and addresses of live scavenged registries are
   // updated.
@@ -2048,9 +2067,12 @@ void ProcessWeakObjectField(const Heap* heap, Tagged<HeapObject> host,
       // old-to-new remembered set.
       DCHECK(!HeapLayout::InWritableSharedSpace(new_object));
       slot.store(new_object);
-      if (V8_UNLIKELY(HeapObjectWillBeOld(heap, host) &&
-                      !HeapObjectWillBeOld(heap, new_object))) {
-        AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
+      if (HeapObjectWillBeOld(heap, host)) {
+        if (V8_UNLIKELY(!HeapObjectWillBeOld(heap, new_object))) {
+          AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
+        } else if (V8_UNLIKELY(HeapLayout::InWritableSharedSpace(new_object))) {
+          AddToRememberedSet<OLD_TO_SHARED>(heap, host, slot.address());
+        }
       }
     }
   }
@@ -2078,14 +2100,15 @@ void ScavengerCollector::ProcessWeakCells(
     Scavenger::WeakCellsList& weak_cells) {
   const auto on_slot_updated_callback = [this](Tagged<HeapObject> object,
                                                ObjectSlot slot,
-                                               Tagged<Object> target) {
+                                               Tagged<HeapObject> target) {
     DCHECK(!IsUnscavengedHeapObject(target));
     DCHECK(!Cast<HeapObject>(target)
                 ->map_word(kRelaxedLoad)
                 .IsForwardingAddress() ||
-           HeapLayout::IsSelfForwarded(Cast<HeapObject>(target)));
+           HeapLayout::IsSelfForwarded(target));
+    DCHECK(!HeapLayout::InWritableSharedSpace(target));
     if (V8_UNLIKELY(HeapObjectWillBeOld(heap_, object) &&
-                    !HeapObjectWillBeOld(heap_, Cast<HeapObject>(target)))) {
+                    !HeapObjectWillBeOld(heap_, target))) {
       AddToRememberedSet<OLD_TO_NEW>(heap_, object, slot.address());
     }
   };
@@ -2100,7 +2123,8 @@ void ScavengerCollector::ProcessWeakCells(
                                            heap_);
     if (!finalization_registry->scheduled_for_cleanup()) {
       heap_->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
-                                                on_slot_updated_callback);
+                                                on_slot_updated_callback,
+                                                SKIP_WRITE_BARRIER_FOR_GC);
     }
     // We're modifying the pointers in WeakCell and JSFinalizationRegistry
     // during GC; thus we need to record the slots it writes. The normal
@@ -2128,7 +2152,7 @@ void ScavengerCollector::ProcessWeakCells(
         finalization_registry->RemoveUnregisterToken(
             dead_unregister_token, heap_->isolate(),
             JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
-            on_slot_updated_callback);
+            on_slot_updated_callback, SKIP_WRITE_BARRIER_FOR_GC);
       };
 
   Scavenger::WeakCellsList::Local local_weak_cells(weak_cells);

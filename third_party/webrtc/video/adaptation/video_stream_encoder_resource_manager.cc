@@ -284,7 +284,8 @@ VideoStreamEncoderResourceManager::VideoStreamEncoderResourceManager(
       input_state_provider_(input_state_provider),
       adaptation_processor_(nullptr),
       encoder_stats_observer_(encoder_stats_observer),
-      degradation_preference_(DegradationPreference::DISABLED),
+      degradation_preference_(
+          DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION),
       video_source_restrictions_(),
       balanced_settings_(field_trials),
       clock_(clock),
@@ -356,7 +357,8 @@ void VideoStreamEncoderResourceManager::MaybeInitializePixelLimitResource() {
   pixel_limit_resource_ = PixelLimitResource::CreateIfFieldTrialEnabled(
       field_trials_, encoder_queue_, input_state_provider_);
   if (pixel_limit_resource_) {
-    AddResource(pixel_limit_resource_, VideoAdaptationReason::kCpu);
+    AddResource(pixel_limit_resource_,
+                pixel_limit_resource_->adaptation_reason());
   }
 }
 

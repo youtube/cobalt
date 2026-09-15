@@ -275,7 +275,6 @@
 <translation id="409936259433005390">Vas cambiar a Windows 11 dentro de pouco? Descarga o instalador de Chrome en OneDrive para teres todo listo desde o primeiro día.</translation>
 <translation id="4110895483821904099">Configura o teu novo perfil de Chrome</translation>
 <translation id="4111566860456076004">Chrome non pode verificar de onde procede esta extensión, polo que pode non ser segura. Quítaa de Chrome para que deixe de ver e cambiar os teus datos nos sitios que visites, como a túa información persoal.</translation>
-<translation id="4128488089242627000">Chrome execútase máis rápido e as funcións que usen JavaScript deberían funcionar tal como se deseñaron (opción recomendada)</translation>
 <translation id="4147555960264124640">Estás iniciando sesión cunha conta administrada, polo que concedes ao seu administrador o control sobre o teu perfil de Google Chrome. Os tes datos de Chrome, como aplicacións, marcadores, historial, contrasinais e outras opcións quedarán ligados de forma permanente a <ph name="USER_NAME" />. Poderás eliminar estes datos mediante o panel de control de contas de Google, pero non poderás asocialos a outra conta. <ph name="LEARN_MORE" /></translation>
 <translation id="4148957013307229264">Instalando...</translation>
 <translation id="4149882025268051530">O instalador non puido descomprimir o arquivo. Descarga Google Chrome de novo.</translation>
@@ -528,6 +527,7 @@ Google Chrome non pode recuperar a túa configuración.</translation>
 <translation id="6967962315388095737">Regra de entrada para que Google Chrome Beta permita tráfico mDNS.</translation>
 <translation id="6979589607440534284">Descubre por que Chrome bloquea algúns ficheiros (abrirase nunha nova pestana)</translation>
 <translation id="6991926986715044139">Mostrar sempre atallo de Google Lens</translation>
+<translation id="6999131147875565462">Chrome execútase máis rápido e as funcións que usen JavaScript deberían funcionar tal como se deseñaron</translation>
 <translation id="7011190694940573312">Produciuse un erro na instalación porque non se admite esta versión do sistema operativo.</translation>
 <translation id="7024536598735240744">Produciuse un erro na descompresión: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Detívose a instalación.</translation>

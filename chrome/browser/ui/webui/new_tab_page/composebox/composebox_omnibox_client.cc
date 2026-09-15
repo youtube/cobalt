@@ -7,7 +7,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/omnibox/browser/autocomplete_match.h"
-#include "components/omnibox/composebox/composebox_query_controller.h"
+#include "net/base/url_util.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 
 namespace composebox {
@@ -15,11 +15,9 @@ namespace composebox {
 ComposeboxOmniboxClient::ComposeboxOmniboxClient(
     Profile* profile,
     content::WebContents* web_contents,
-    BaseComposeboxHandler* composebox_handler,
-    ComposeboxQueryController* query_controller)
-    : SearchboxOmniboxClient(profile, web_contents),
-      composebox_handler_(composebox_handler),
-      query_controller_(query_controller) {}
+    BaseComposeboxHandler* composebox_handler)
+    : ContextualOmniboxClient(profile, web_contents),
+      composebox_handler_(composebox_handler) {}
 
 ComposeboxOmniboxClient::~ComposeboxOmniboxClient() = default;
 
@@ -45,23 +43,10 @@ void ComposeboxOmniboxClient::OnAutocompleteAccept(
     const AutocompleteMatch& alternative_nav_match) {
   const std::map<std::string, std::string>& additional_params =
       lens::GetParametersMapWithoutQuery(destination_url);
-  // Use text for regular query (verbatim match) or use
-  // matches input text for dropdown matches.
-  composebox_handler_->SubmitQuery(
-      base::UTF16ToUTF8(text.empty() ? match.fill_into_edit : text),
-      disposition, additional_params);
+
+  std::string query_text;
+  net::GetValueForKeyInQuery(destination_url, "q", &query_text);
+  composebox_handler_->SubmitQuery(query_text, disposition, additional_params);
 }
 
-std::optional<lens::proto::LensOverlaySuggestInputs>
-ComposeboxOmniboxClient::GetLensOverlaySuggestInputs() const {
-  if (!query_controller_) {
-    return std::nullopt;
-  }
-  const auto& suggest_inputs = query_controller_->suggest_inputs();
-  if (suggest_inputs.has_encoded_request_id()) {
-    return suggest_inputs;
-  }
-
-  return std::nullopt;
-}
 }  // namespace composebox

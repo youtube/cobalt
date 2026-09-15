@@ -143,10 +143,15 @@ enum class FeedUserActionType {
   // User tapped the "Follow" button on the main menu. (Android)
   // User tapped the "Follow" option on the context menu. (IOS)
   kTappedFollowButton = 44,
+
+  // The following enum values are deprecated as a result of removing the feed
+  // header
+  // toggle.
   // User tapped on the Discover feed from the feed header.
-  kDiscoverFeedSelected = 45,
+  // kDiscoverFeedSelected = 45,
   // User tapped on the Following feed from the feed header.
-  kFollowingFeedSelected = 46,
+  // kFollowingFeedSelected = 46,
+
   // User tapped the "Unfollow" option on the context menu.
   kTappedUnfollowButton = 47,
   // User action caused a follow succeed snackbar to be shown. User action not
@@ -169,13 +174,11 @@ enum class FeedUserActionType {
   // No longer used after the removal of Crow.
   // kTappedCrowButton = 53,
 
-  // User action caused a first follow sheet to be shown. User action not
-  // reported here. iOS only.
-  kFirstFollowSheetShown = 54,
-  // User tapped the "Go To Feed" button on the first follow sheet. (IOS)
-  kFirstFollowSheetTappedGoToFeed = 55,
-  // User tapped the "Got It" button on the first follow sheet. (IOS)
-  kFirstFollowSheetTappedGotIt = 56,
+  // First follow actions on iOS. No longer used after follow removal.
+  // kFirstFollowSheetShown = 54,
+  // kFirstFollowSheetTappedGoToFeed = 55,
+  // kFirstFollowSheetTappedGotIt = 56,
+
   // Page load caused a Follow Recommendation IPH to be shown. User action not
   // reported here. iOS only.
   kFollowRecommendationIPHShown = 57,

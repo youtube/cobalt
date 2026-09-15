@@ -23,6 +23,7 @@
 #include "chrome/grit/omnibox_popup_resources.h"
 #include "chrome/grit/omnibox_popup_resources_map.h"
 #include "components/favicon_base/favicon_url_parser.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/webui/color_change_listener/color_change_handler.h"
 #include "ui/webui/webui_util.h"
@@ -40,12 +41,22 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), chrome::kChromeUIOmniboxPopupHost);
 
-  WebuiOmniboxHandler::SetupWebUIDataSource(source, Profile::FromWebUI(web_ui));
+  SearchboxHandler::SetupWebUIDataSource(source, Profile::FromWebUI(web_ui));
 
   source->AddBoolean("isTopChromeSearchbox", true);
 
-  webui::SetupWebUIDataSource(source, kOmniboxPopupResources,
-                              IDR_OMNIBOX_POPUP_OMNIBOX_POPUP_HTML);
+  source->AddBoolean("reportMetrics", true);
+  source->AddString("charTypedToPaintMetricName",
+                    "Omnibox.WebUI.CharTypedToRepaintLatency.ToPaint");
+  source->AddString(
+      "resultChangedToPaintMetricName",
+      "Omnibox.Popup.WebUI.ResultChangedToRepaintLatency.ToPaint");
+
+  webui::SetupWebUIDataSource(
+      source, kOmniboxPopupResources,
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)
+          ? IDR_OMNIBOX_POPUP_OMNIBOX_POPUP_FULL_HTML
+          : IDR_OMNIBOX_POPUP_OMNIBOX_POPUP_HTML);
   webui::EnableTrustedTypesCSP(source);
 
   content::URLDataSource::Add(profile_,
