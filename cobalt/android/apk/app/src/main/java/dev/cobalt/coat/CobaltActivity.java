@@ -728,19 +728,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     super.onDestroy();
   }
 
-  private boolean isAutoRetryOnNetworkRecoveryEnabled() {
-    return getJavaSwitches().containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
-  }
-
   public void onSplashScreenHidden() {
     mHasHiddenSplashScreen = true;
     unregisterNetworkRecoveryObserver();
   }
 
   private void maybeRegisterNetworkRecoveryObserver() {
-    if (!isAutoRetryOnNetworkRecoveryEnabled()) {
-      return;
-    }
     if (mIsNetworkRecoveryObserverRegistered || mHasHiddenSplashScreen) {
       return;
     }
@@ -771,7 +764,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       unregisterNetworkRecoveryObserver();
       return;
     }
-    if (!isAutoRetryOnNetworkRecoveryEnabled() || !NetworkChangeNotifier.isOnline()) {
+    if (!NetworkChangeNotifier.isOnline()) {
       return;
     }
     WebContents webContents = getActiveWebContents();
