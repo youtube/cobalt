@@ -116,13 +116,23 @@ pipeline () {
     echo "Evergreen Loader (or Bootloader) is not configured."
   fi
 
-  # Copy libchrobalt.so to Kokoro Artifacts Directory for Android builds.
+  # Copy libchrobalt.so and Java sources to Kokoro Artifacts Directory for Android builds.
   if [[ "${TARGET_PLATFORM}" =~ android ]] && [[ -n "${KOKORO_ARTIFACTS_DIR:-}" ]]; then
     local build_out_dir="out/${TARGET_PLATFORM}_${CONFIG}"
     if [[ -d "${build_out_dir}" ]]; then
-      echo "Copying libchrobalt.so to Kokoro Artifacts Directory..."
+      echo "Copying Android artifacts to Kokoro Artifacts Directory..."
       mkdir -p "${KOKORO_ARTIFACTS_DIR}/lib_export"
+
+      # 1. Export the native .so binary
       find "${build_out_dir}" -type f -name "libchrobalt.so" -exec cp {} "${KOKORO_ARTIFACTS_DIR}/lib_export/" \;
+
+      # 2. Export the Java API sources
+      # The base of the Java source tree for Cobalt Android is 'cobalt/android/apk/app/src/main'
+      if [[ -d "cobalt/android/apk/app/src/main/java" ]]; then
+        tar -czf "${KOKORO_ARTIFACTS_DIR}/lib_export/coat_java_sources.tar.gz" -C cobalt/android/apk/app/src/main java
+      else
+        echo "Warning: cobalt/android/apk/app/src/main/java not found, skipping Java sources export."
+      fi
     fi
   fi
 }
