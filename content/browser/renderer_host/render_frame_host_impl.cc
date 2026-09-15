@@ -12120,8 +12120,18 @@ void RenderFrameHostImpl::StartPendingDeletionOnSubtree(
       // unload handler if necessary. So delegate sending IPC on the topmost
       // ancestor using the same process.
       RenderFrameHostImpl* local_ancestor = child;
+#if BUILDFLAG(IS_COBALT)
+      // Stop the traversal at `this` so the ancestor is chosen strictly from
+      // within the subtree being deleted. If `this` were selected as the
+      // local ancestor, `this->DeleteRenderFrame()` would be a no-op because
+      // `this` is already pending deletion, leaving `child` waiting for an
+      // unload ACK that is never requested and hanging navigation.
+      for (auto* rfh = child->parent_.get(); rfh && rfh != this;
+           rfh = rfh->parent_) {
+#else
       for (auto* rfh = child->parent_.get(); rfh != parent_;
            rfh = rfh->parent_) {
+#endif
         if (rfh->GetSiteInstance()->group() ==
             child->GetSiteInstance()->group()) {
           local_ancestor = rfh;
