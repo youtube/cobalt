@@ -45,7 +45,7 @@ BASE_FEATURE(kCobaltEnableModerateMemoryPressure,
 
 BASE_FEATURE(kCobaltMemoryPressureCooldown,
              "CobaltMemoryPressureCooldown",
-             FEATURE_ENABLED_BY_DEFAULT);
+             FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
                    kCobaltMemoryPressureCooldownSeconds,
@@ -58,6 +58,16 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kCobaltInProcessImageTransferCache,
              "CobaltInProcessImageTransferCache",
              FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltCCImageCacheLimitItems,
+             "CobaltCCImageCacheLimitItems",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltCCImageCacheLimitItemsCount,
+                   &kCobaltCCImageCacheLimitItems,
+                   "cc_image_cache_limit_items",
+                   0);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
