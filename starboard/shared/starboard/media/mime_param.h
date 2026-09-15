@@ -19,8 +19,11 @@
 #include <iosfwd>
 #include <string_view>
 
+#include "build/build_config.h"
+
 namespace starboard {
 
+// Represents a MIME type parameter name.
 class MimeParam {
  public:
   template <size_t N>
@@ -41,11 +44,18 @@ class MimeParam {
   std::string_view name_;
 };
 
+// MIME parameters recognized and used by Cobalt. Cobalt mainly uses these to
+// receive additional information from the JavaScript layer.
+//
+// Historically, MIME parameters were used to run playback experiments. Modern
+// player experiments should use H5VCC settings instead, as long as it is not
+// per playback setting.
+
 // General MIME parameter.
 inline constexpr MimeParam kMimeParamCodecs{"codecs"};
 
-// Format capability MIME parameters defined in:
-// http://google3/video/youtube/web/player/formats/capability.ts;l=9-94;rcl=770319862
+// Format capability MIME parameters defined in the web player (capability.ts).
+
 // keep-sorted start
 inline constexpr MimeParam kMimeParamBitrate{"bitrate"};
 inline constexpr MimeParam kMimeParamChannels{"channels"};
@@ -59,8 +69,18 @@ inline constexpr MimeParam kMimeParamTunnelMode{"tunnelmode"};
 inline constexpr MimeParam kMimeParamWidth{"width"};
 // keep-sorted end
 
-// Cobalt-specific playback experiment MIME parameters defined in:
-// http://google3/video/youtube/web/player/dash/manifest.ts;l=1112-1125;rcl=954649899
+// Cobalt-specific MIME parameters that are not used by the web player.
+
+// Attribute passed within the |key_system| string of
+// SbMediaCanPlayMimeAndKeySystem() (starboard/media.h) to convey the EME
+// encryption scheme (e.g., "cenc", "cbcs"). Used by NPLB tests
+// (media_can_play_mime_and_key_system_test.cc) and platform ports since the C
+// API does not take a separate encryption scheme argument.
+inline constexpr MimeParam kMimeParamEncryptionScheme{"encryptionscheme"};
+
+#if BUILDFLAG(IS_ANDROID)
+// Playback experiment MIME parameters defined in the web player (manifest.ts).
+
 // keep-sorted start
 inline constexpr MimeParam kMimeParamEnableFlushDuringSeek{
     "enableflushduringseek"};
@@ -69,19 +89,12 @@ inline constexpr MimeParam kMimeParamEnableResetAudioDecoder{
 // keep-sorted end
 
 // Cobalt-specific MIME parameters that are not used by the web player.
-// keep-sorted start newline_separated=yes
-// Attribute passed within the |key_system| string of
-// SbMediaCanPlayMimeAndKeySystem() (starboard/media.h) to convey the EME
-// encryption scheme (e.g., "cenc", "cbcs"). Used by NPLB tests
-// (media_can_play_mime_and_key_system_test.cc) and platform ports since the C
-// API does not take a separate encryption scheme argument.
-inline constexpr MimeParam kMimeParamEncryptionScheme{"encryptionscheme"};
 
 // Decode-To-Texture(used by WebGL video shaders) may use this param.
 // TODO: b/490474392 - Move this param accordingly, when it is actually used.
 // Main tracking bug: b/490474392, DRM exploration: b/494037632
 inline constexpr MimeParam kMimeParamSoftwareDecoder{"softwaredecoder"};
-// keep-sorted end
+#endif
 
 }  // namespace starboard
 
