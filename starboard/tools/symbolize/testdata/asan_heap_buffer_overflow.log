@@ -1,0 +1,16 @@
+=================================================================
+==31555==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x602000001014 at pc 0x7f8b22b12345 bp 0x7ffe5d1b3100 sp 0x7ffe5d1b30f8
+WRITE of size 4 at 0x602000001014 thread T0 (CrBrowserMain)
+    #0 0x7f8b22b12345 in cobalt::loader::Buffer::Append(char const*, unsigned long) /home/user/cobalt/src/out/Release/../../cobalt/loader/buffer.cc:85:12
+    #1 0x7f8b22b13456 in cobalt::loader::ResourceLoader::OnDataReceived(char const*, unsigned long) /home/user/cobalt/src/out/Release/../../cobalt/loader/resource_loader.cc:142:18
+    #2 0x7f8b21856712 in cobalt::network::URLFetcher::OnReadCompleted() /home/user/cobalt/src/out/Release/../../cobalt/network/url_fetcher.cc:210:9
+    #3 0x564821e3cf8c in SbEventHandle /home/user/cobalt/src/starboard/shared/starboard/application.cc:350:7
+
+0x602000001014 is located 4 bytes to the right of 16-byte region [0x602000001000,0x602000001010)
+allocated by thread T0 (CrBrowserMain) here:
+    #0 0x7f8b248a1567 in malloc /build/llvm/projects/compiler-rt/lib/asan/asan_malloc_linux.cpp:145
+    #1 0x7f8b22b12000 in cobalt::loader::Buffer::Buffer(unsigned long) /home/user/cobalt/src/out/Release/../../cobalt/loader/buffer.cc:32:15
+    #2 0x7f8b22b13000 in cobalt::loader::ResourceLoader::Start() /home/user/cobalt/src/out/Release/../../cobalt/loader/resource_loader.cc:90:5
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow /home/user/cobalt/src/out/Release/../../cobalt/loader/buffer.cc:85:12 in cobalt::loader::Buffer::Append(char const*, unsigned long)
+=================================================================
