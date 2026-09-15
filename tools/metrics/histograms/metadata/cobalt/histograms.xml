@@ -780,6 +780,66 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.VirtualAddress.FragmentationRatio"
+    units="%" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Percentage of free virtual address (VA) space that lies outside the single
+    largest free gap: 100 * (1 - LargestFreeGap / TotalUnmappedVa). 0% means all
+    free address space is one contiguous block, 50% means the largest block
+    holds half of it, and 90% means it is spread across the equivalent of ten
+    equal blocks. This measures how concentrated the free space is, not how much
+    of it there is, so a low value on its own does not imply headroom; read it
+    alongside LargestFreeGapMb and TotalUnmappedVaMb. Reported as 100% when
+    there is no free space at all between the lowest and highest mapping.
+    Recorded at regular intervals when memory metrics are emitted.
+    Only emitted on 32-bit Android, where the ~3GB user address space is
+    exhaustible, and on Linux for test coverage.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.LargestFreeGapMb"
+    units="MB" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Size in MB of the single largest contiguous unmapped gap between the lowest
+    and highest mapped regions of the process address space.
+    Only emitted on 32-bit Android, where the ~3GB user address space is,
+    exhaustible and on Linux for test coverage.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"
+    units="MB" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Total size in MB of unmapped virtual address space, summed over every gap
+    between the lowest and highest mapped regions of the process address space.
+    Space below the lowest mapping and above the highest mapping is excluded,
+    since neither lies between two mappings. Recorded at regular intervals when
+    memory metrics are emitted.
+    Only emitted on 32-bit Android, where the ~3GB user address space is
+    exhaustible, and on Linux for test coverage.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.VmaCount" units="count"
+    expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Total count of Virtual Memory Areas (VMAs) parsed from /proc/self/maps.
+    Guards against reaching the kernel vm.max_map_count limit and tracks virtual
+    address space fragmentation. Recorded at regular intervals when memory
+    metrics are emitted.
+    Only emitted on 32-bit Android, where the ~3GB user address space
+    is exhaustible, and on Linux for test coverage.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"
     expires_after="never">
   <owner>tasunny@google.com</owner>
@@ -814,54 +874,6 @@ Always run the pretty print utility on this file after editing:
     all memory the process can access, including shared libraries, stack, heap,
     and memory-mapped files. Recorded at regular intervals when memory metrics
     are emitted.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Experimental.VirtualAddress.FragmentationRatio"
-    units="%" expires_after="never">
-  <owner>linxinan@google.com</owner>
-  <owner>johnx@google.com</owner>
-  <summary>
-    The fragmentation ratio of the virtual address (VA) space, defined as
-    1.0 - (LargestFreeGap / TotalUnmappedVa). A value close to 100% indicates
-    that free virtual memory is fragmented into small, unusable slivers.
-    Recorded at regular intervals when memory metrics are emitted on Android and
-    Linux.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Experimental.VirtualAddress.LargestFreeGapMb"
-    units="MB" expires_after="never">
-  <owner>linxinan@google.com</owner>
-  <owner>johnx@google.com</owner>
-  <summary>
-    The size in MB of the single largest contiguous unmapped virtual address
-    gap. Lower values (&lt; 64 MB) indicate severe virtual address fragmentation
-    and imminent allocator abort on 32-bit platforms. Recorded at regular
-    intervals when memory metrics are emitted on Android and Linux.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"
-    units="MB" expires_after="never">
-  <owner>linxinan@google.com</owner>
-  <owner>johnx@google.com</owner>
-  <summary>
-    The total unallocated virtual address capacity between lowest and highest
-    mapped regions in the process address space. Recorded at regular intervals
-    when memory metrics are emitted on Android and Linux.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Experimental.VirtualAddress.VmaCount" units="count"
-    expires_after="never">
-  <owner>linxinan@google.com</owner>
-  <owner>johnx@google.com</owner>
-  <summary>
-    Total count of Virtual Memory Areas (VMAs) parsed from /proc/self/maps.
-    Guards against reaching the kernel vm.max_map_count limit and tracks
-    virtual address space fragmentation. Recorded at regular intervals when
-    memory metrics are emitted on Android and Linux.
   </summary>
 </histogram>
 

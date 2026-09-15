@@ -35,14 +35,14 @@
 #include "base/android/meminfo_dump_provider.h"
 #endif
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
 #include <inttypes.h>
 
 #include <algorithm>
 #include <cmath>
-#include <sstream>
 
 #include "base/files/scoped_file.h"
+#include "base/numerics/safe_conversions.h"
 #endif
 
 using base::trace_event::MemoryAllocatorDump;
@@ -331,11 +331,28 @@ static const char* MetricSizeToVersionSuffix(
   }
 }
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+// Parses the address ranges out of /proc/self/maps and derives VA space
+// fragmentation metrics from the gaps between consecutive mappings.
+//
+// base/debug/proc_maps_linux.h already parses this file, but it builds a
+// std::string of the whole file plus a std::vector<MappedMemoryRegion> (which
+// itself holds a std::string path per region). This code runs from the memory
+// metrics emitter while we are trying to measure memory, and on a 32-bit TV
+// device with thousands of VMAs that allocation churn would perturb the very
+// numbers we are collecting. Parsing into a fixed stack buffer keeps this
+// zero-heap.
+//
+// `get_line(char* buf, size_t size)` must fill `buf` with the next NUL
+// terminated line and return false at end of input.
 template <typename LineReader>
 std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
 CalculateVirtualAddressSpaceMetricsInternal(LineReader&& get_line) {
-  char line[512];
+  // Matches base/profiler/stack_base_address_posix.cc, which reads
+  // /proc/self/maps on Android with the same fgets()/sscanf() pattern and the
+  // same buffer size; base/third_party/symbolize/symbolize.cc uses 1024 as
+  // well.
+  char line[1024];
   uintptr_t prev_vm_end = 0;
   uintptr_t largest_free_gap = 0;
   uint64_t total_unmapped_va = 0;
@@ -346,6 +363,20 @@ CalculateVirtualAddressSpaceMetricsInternal(LineReader&& get_line) {
     uintptr_t vm_start = 0;
     uintptr_t vm_end = 0;
     if (sscanf(line, "%" SCNxPTR "-%" SCNxPTR, &vm_start, &vm_end) != 2) {
+      continue;
+    }
+
+    // The kernel emits VMAs in strictly ascending, non-overlapping address
+    // order, so anything that violates that is not a real record: most likely
+    // the tail of a truncated long path that happens to look like "<hex>-<hex>"
+    // (version numbers and hashes in APK/dex paths can do this). Accepting it
+    // would both inflate vma_count and rewind prev_vm_end, which would turn the
+    // next genuine VMA into an enormous phantom gap and dominate
+    // largest_free_gap. Skip it instead.
+    if (vm_end < vm_start) {
+      continue;
+    }
+    if (!first_vma && vm_start < prev_vm_end) {
       continue;
     }
 
@@ -379,6 +410,7 @@ CalculateVirtualAddressSpaceMetricsInternal(LineReader&& get_line) {
     metrics.fragmentation_ratio_pct =
         std::clamp(static_cast<int>(std::round(ratio * 100.0)), 0, 100);
   } else {
+    // No unmapped space at all between the lowest and highest mapping.
     metrics.fragmentation_ratio_pct = 100;
   }
 
@@ -401,22 +433,26 @@ void EmitVirtualAddressSpaceMetrics() {
     return;
   }
 
+  // These are uint64_t and can exceed INT_MAX on 64-bit hosts (a 57-bit
+  // address space yields gaps of ~10^11 MB), where narrowing with a plain
+  // static_cast would be undefined behavior. The values land in the histogram's
+  // overflow bucket either way; saturated_cast just gets there safely.
   base::UmaHistogramMemoryLargeMB(
       "Memory.Experimental.VirtualAddress.LargestFreeGapMb",
-      static_cast<int>(metrics->largest_free_gap_mb));
+      base::saturated_cast<int>(metrics->largest_free_gap_mb));
 
   base::UmaHistogramMemoryLargeMB(
       "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb",
-      static_cast<int>(metrics->total_unmapped_va_mb));
+      base::saturated_cast<int>(metrics->total_unmapped_va_mb));
 
   base::UmaHistogramPercentage(
       "Memory.Experimental.VirtualAddress.FragmentationRatio",
       metrics->fragmentation_ratio_pct);
 
   base::UmaHistogramCounts100000("Memory.Experimental.VirtualAddress.VmaCount",
-                                 static_cast<int>(metrics->vma_count));
+                                 base::saturated_cast<int>(metrics->vma_count));
 }
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
 
 }  // namespace
 
@@ -681,7 +717,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
   base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
                                   static_cast<int>(vm_size_total_kb / kKiB));
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
   EmitVirtualAddressSpaceMetrics();
 #endif
   // UMA metrics for media buffer memory usage
@@ -703,13 +739,30 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
 std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
 CobaltMemoryMetricsEmitter::CalculateVirtualAddressSpaceMetricsForTesting(
     const std::string& maps_content) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
-  std::istringstream stream(maps_content);
-  return CalculateVirtualAddressSpaceMetricsInternal(
-      [&stream](char* buf, size_t size) {
-        return static_cast<bool>(
-            stream.getline(buf, static_cast<std::streamsize>(size)));
-      });
+#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+  // Deliberately mirrors fgets() rather than using std::istream::getline():
+  // getline() sets failbit when a line exceeds the buffer, whereas fgets()
+  // returns the head and hands back the tail on the next call. Reproducing the
+  // fgets() behavior here is what lets tests cover the truncated-line path that
+  // the production /proc/self/maps reader can actually hit. It also keeps
+  // <sstream> out of this translation unit.
+  size_t pos = 0;
+  auto get_line = [&maps_content, &pos](char* buf, size_t size) {
+    if (size == 0 || pos >= maps_content.size()) {
+      return false;
+    }
+    size_t written = 0;
+    while (written + 1 < size && pos < maps_content.size()) {
+      const char c = maps_content[pos++];
+      buf[written++] = c;
+      if (c == '\n') {
+        break;
+      }
+    }
+    buf[written] = '\0';
+    return written > 0;
+  };
+  return CalculateVirtualAddressSpaceMetricsInternal(get_line);
 #else
   return std::nullopt;
 #endif
