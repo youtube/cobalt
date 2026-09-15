@@ -253,7 +253,17 @@ jobs:
       - name: Check test results
         env:
           RUN_TESTS_RESULT: ${{ needs.run-tests.result }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
+          jq -n \
+            --arg platform "tvos" \
+            --argjson needs "${NEEDS_JSON}" \
+            '{
+              platform: $platform,
+              checks: ($needs | map_values(.result)),
+              test_failures: {}
+            }' > shepherd_report.json
+
           if [[ "${RUN_TESTS_RESULT}" == "success" ]]; then
             echo "All tvOS tests passed successfully!"
             exit 0
@@ -261,3 +271,10 @@ jobs:
             echo "tvOS test job failed with result: ${RUN_TESTS_RESULT}"
             exit 1
           fi
+      - name: Upload Shepherd Report
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: shepherd-report-tvos
+          path: shepherd_report.json
+          retention-days: 30
