@@ -197,9 +197,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                               int* min_frames_per_append) const override {
     SB_CHECK(max_cached_frames);
     SB_CHECK(min_frames_per_append);
-    SB_DCHECK_EQ(AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend %
-                     AudioRendererSink::kAudioSinkFramesAlignment,
-                 0);
     *min_frames_per_append =
         AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
 
@@ -369,19 +366,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
       return PlayerComponents::Factory::CreateComponents(creation_parameters);
-    }
-
-    if (!creation_parameters.audio_mime().empty()) {
-      auto audio_mime_type = MimeType::Create(creation_parameters.audio_mime());
-      if (!audio_mime_type ||
-          !audio_mime_type->ValidateBoolParameter("audiopassthrough")) {
-        return Failure("Invalid audio mime type.");
-      }
-      if (!audio_mime_type->GetParamBoolValue("audiopassthrough", true)) {
-        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
-                        "false. Passthrough is disabled.";
-        return Failure("Passthrough disabled by mime attribute.");
-      }
     }
 
     bool enable_flush_during_seek = ShouldEnableFlushDuringSeek(
