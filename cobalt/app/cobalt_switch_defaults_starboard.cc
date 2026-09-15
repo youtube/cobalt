@@ -129,13 +129,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
       // Limit GPU memory available to 64MB.
-<<<<<<< HEAD
       {blink::switches::kForceGpuMemAvailableMb, "64"},
-      // Disable CC image cache items limit.
-      {::switches::kCCImageCacheLimitItems, "0"},
-=======
-      {::switches::kForceGpuMemAvailableMb, "64"},
->>>>>>> d6b62b6af0 (cobalt: Gate --cc-image-cache-limit-items with base::Feature (#12600))
   };
   return kCobaltSwitchDefaults;
 }
