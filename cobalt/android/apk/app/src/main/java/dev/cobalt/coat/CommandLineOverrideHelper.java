@@ -107,6 +107,10 @@ public final class CommandLineOverrideHelper {
     // Starboard threads bypass base::PlatformThread entirely.
     paramOverrides.add("ReduceAndroidThreadStackSize");
 
+    // Enable memory-pressure-driven MSE SourceBuffer GC for MSE buffer
+    // reclamation under critical/moderate memory pressure.
+    paramOverrides.add("MemoryPressureBasedSourceBufferGC");
+
     return paramOverrides;
   }
 
