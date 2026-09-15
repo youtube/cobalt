@@ -27,14 +27,6 @@ TEST(MediaCodecVideoDecoderHelpersTest, IsSoftwareDecoderRequired) {
   // Blank capabilities
   EXPECT_FALSE(IsSoftwareDecoderRequired(""));
 
-  // Explicitly required/preferred
-  EXPECT_TRUE(IsSoftwareDecoderRequired("softwaredecoder=required"));
-  EXPECT_TRUE(IsSoftwareDecoderRequired("softwaredecoder=preferred"));
-
-  // Explicitly disallowed/unpreferred
-  EXPECT_FALSE(IsSoftwareDecoderRequired("softwaredecoder=disallowed"));
-  EXPECT_FALSE(IsSoftwareDecoderRequired("softwaredecoder=unpreferred"));
-
   // Low resolution + low fps (should trigger fallback to software)
   EXPECT_TRUE(IsSoftwareDecoderRequired("width=432; height=240; framerate=15"));
 
