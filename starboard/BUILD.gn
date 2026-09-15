@@ -84,10 +84,7 @@ if (!is_cobalt) {
   }
 
   group("default") {
-    deps = [
-      ":starboard_group",
-      "//starboard/tools:build_app_launcher_zip",
-    ]
+    deps = [ ":starboard_group" ]
     if (is_starboard) {
       deps += [
         "//starboard/loader_app($starboard_toolchain)",
