@@ -17,6 +17,7 @@ import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
 import("//starboard/content/fonts/variables.gni")
 import("//starboard/content/ssl/certs.gni")
+import("//third_party/icu/config.gni")
 
 template("modular_apk") {
   _name = invoker.module_name
@@ -62,6 +63,12 @@ template("modular_apk") {
       renaming_sources += [ _cert ]
       renaming_destinations +=
           [ "app/cobalt/content/ssl/certs/" + get_path_info(_cert, "file") ]
+    }
+
+    if (icu_use_data_file) {
+      renaming_sources += [ "$root_build_dir/icudtl.dat" ]
+      renaming_destinations += [ "app/cobalt/content/icudtl.dat" ]
+      deps += [ "//third_party/icu:icudata($default_toolchain)" ]
     }
 
     if (_name == "cobalt") {
