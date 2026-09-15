@@ -78,9 +78,7 @@ source_set("utility") {
     "//url",
   ]
 
-<<<<<<< HEAD
-=======
-  if (is_cobalt) {
+if (is_cobalt) {
     deps -= [
       "//content/utility/on_device_model:on_device_model_sandbox_init",
       "//services/on_device_model:on_device_model_service",
@@ -95,10 +93,7 @@ source_set("utility") {
     if (is_linux) {
       deps += [ "//services/video_effects:sandbox_hook" ]
     }
-  }
-
->>>>>>> parent of 221f8052284 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  # When library CDMs are supported, we support running the CDM in the utility
+  }  # When library CDMs are supported, we support running the CDM in the utility
   # process using mojo MediaService. On Windows, we use MediaFoundationService.
   if (enable_library_cdms || is_win) {
     deps += [

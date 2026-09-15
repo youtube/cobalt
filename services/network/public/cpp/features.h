@@ -366,12 +366,11 @@ BASE_DECLARE_FEATURE_PARAM(bool, kNetworkServiceTaskSchedulerResourceScheduler);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(bool, kNetworkServiceTaskSchedulerURLLoader);
 
-<<<<<<< HEAD
 // When enabled, Network Service Task Scheduler supports
 // per-net::RequestrPriority task queues for each RequestPriority variant.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kNetworkServicePerPriorityTaskQueues);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
@@ -382,8 +381,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingSubresourceSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 221f8052284 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
 }  // namespace network::features
 
 #endif  // SERVICES_NETWORK_PUBLIC_CPP_FEATURES_H_

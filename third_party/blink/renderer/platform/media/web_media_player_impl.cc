@@ -2944,14 +2944,13 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
   media_metrics_provider_->SetRendererType(renderer_type_);
   media_log_->SetProperty<MediaLogProperty::kRendererName>(renderer_type_);
 
-<<<<<<< HEAD
-  // Recreate the watch time reporter if renderer type is changed so that
+// Recreate the watch time reporter if renderer type is changed so that
   // WatchTimeReporter constructor can take PlaybackProperties with the updated
   // renderer type.
   if (old_renderer_type != renderer_type_ && watch_time_reporter_) {
     CreateWatchTimeReporter();
   }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "Renderer Type is " << GetRendererName(renderer_type_) << ".";
   if (renderer_type_ == media::RendererType::kStarboard) {
@@ -2959,8 +2958,6 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
     overlay_info_.is_fullscreen = true;
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 221f8052284 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),
       compositor_.get(), std::move(request_overlay_info_cb),
