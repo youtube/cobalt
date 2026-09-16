@@ -146,12 +146,15 @@ jobs:
               desc="Failed"
             else
               has_failures=$(jq -s '
-                any(.[];
-                  ([.checks // {} | to_entries[] | select(.value == "failure" or .value == "cancelled")] | length > 0)
-                  or
-                  ([.test_failures // {} | .[]? | length] | add // 0 > 0)
-                )
-              ' "${reports[@]}")
+                if length == 0 then true
+                else
+                  any(.[];
+                    any(.checks | objects | .[]?; . == "failure" or . == "cancelled")
+                    or
+                    any((.test_failures | objects | .failing_tests // .) | objects | .[]?; (arrays | length) > 0)
+                  )
+                end
+              ' "${reports[@]}" 2>/dev/null || echo "true")
 
               if [[ "${has_failures}" == "true" ]]; then
                 state="failure"
