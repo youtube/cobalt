@@ -18,6 +18,7 @@ import warnings
 from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
+    format_history_records,
     get_clean_build_env,
 )
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
@@ -36,91 +37,117 @@ class GNDiagnostic:
   line_number: int = 1
 
 
+# Each row maps a regex over gn/ninja output to the files it implicates.
+# Steps 1, 2 and 4 below were previously three verbatim copies of the
+# same four lines differing only in the pattern, so they are data now.
+# The "kind" selects how a captured group becomes a path:
+#   "target_dir" -> //dir:name      => <dir>/BUILD.gn
+#   "gn_file"    -> //path/file.gn  => that file, with optional :line
+#   "source"     -> ERROR at //f.cc => that file AND its sibling BUILD.gn
+_GN_TARGET_DIR_PATTERNS = (
+    # 1. Target definitions: "The target: //dir:target"
+    re.compile(r"The target:\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):"),
+    # 2. Caller targets missing a dependency: "dependency of //dir:target"
+    re.compile(r"dependency of\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):"),
+    # 4. Resolve GN targets: "target(s): //dir:target" or "needs //dir:target"
+    re.compile(r"(?:target(?:\(s\))?:\s+|needs\s+)//([a-zA-Z0-9_/\.\-]+):"),
+)
+
+# 3. Universal scan: any //path/to/file.gn[i] with an optional line number.
+_GN_FILE_PATTERN = re.compile(r"//([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?")
+
+# 5. Source files named by a GN error: "ERROR at //path/to/file.cc:line".
+_GN_SOURCE_PATTERN = re.compile(
+    r"ERROR at //([a-zA-Z0-9_/\.\-]+\.(?:cc|h|mm|cpp|c))(?::(\d+))?")
+
+
+def _add_build_file_for_dir(
+    found: Dict[str, Optional[int]],
+    repo_path: str,
+    target_dir: str,
+) -> None:
+  """Adds <target_dir>/BUILD.gn if it exists and is not already known."""
+  gn_path = os.path.join(repo_path, target_dir, "BUILD.gn")
+  if os.path.isfile(gn_path) and gn_path not in found:
+    found[gn_path] = None
+
+
+def _collect_dependency_cycle_files(
+    found: Dict[str, Optional[int]],
+    repo_path: str,
+) -> None:
+  """Prioritizes locally modified build files for a dependency cycle.
+
+  A cycle has no single culprit line, so the files this rebase already
+  touched are the best starting point.
+  """
+  try:
+    proc = subprocess.run(
+        ["git", "status", "--porcelain", "--", "*.gn", "*.gni"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    for line in proc.stdout.splitlines():
+      f_rel = line.strip().split()[-1]
+      if f_rel.endswith((".gn", ".gni")):
+        abs_f = os.path.join(repo_path, f_rel)
+        if os.path.isfile(abs_f):
+          found[abs_f] = None
+  except (OSError, subprocess.SubprocessError):
+    pass
+
+
 def extract_gn_target_files(
     output: str,
     repo_path: str,
 ) -> Dict[str, Optional[int]]:
-  """Extracts all referenced GN build files and line numbers from output."""
+  """Extracts all referenced GN build files and line numbers from output.
+
+  This is an accumulating chain, not a fallback chain: every step runs
+  and the first insertion for a path wins, so the order below is the
+  precedence order for line numbers.
+  """
   unique_gn_files: Dict[str, Optional[int]] = {}
 
-  # Priority 0: Dependency Cycle -> prioritize locally modified BUILD.gn files
+  # Priority 0: Dependency cycle -> locally modified BUILD.gn files.
   if "Dependency cycle:" in output:
-    try:
-      proc = subprocess.run(
-          ["git", "status", "--porcelain", "--", "*.gn", "*.gni"],
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          check=False,
-      )
-      for line in proc.stdout.splitlines():
-        f_rel = line.strip().split()[-1]
-        if f_rel.endswith((".gn", ".gni")):
-          abs_f = os.path.join(repo_path, f_rel)
-          if os.path.isfile(abs_f):
-            unique_gn_files[abs_f] = None
-    except (OSError, subprocess.SubprocessError):
-      pass
+    _collect_dependency_cycle_files(unique_gn_files, repo_path)
 
-  # 1. Target definitions: "The target: //dir:target" (e.g. missing sources)
-  target_def_matches = re.findall(
-      r"The target:\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):",
-      output,
-  )
-  for t_dir in target_def_matches:
-    gn_path = os.path.join(repo_path, t_dir, "BUILD.gn")
-    if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
-      unique_gn_files[gn_path] = None
+  # Steps 1 and 2: //dir:target references that imply <dir>/BUILD.gn.
+  for pattern in _GN_TARGET_DIR_PATTERNS[:2]:
+    for target_dir in pattern.findall(output):
+      _add_build_file_for_dir(unique_gn_files, repo_path, target_dir)
 
-  # 2. Caller targets missing dependency: "dependency of //dir:target"
-  caller_matches = re.findall(
-      r"dependency of\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):",
-      output,
-  )
-  for c_dir in caller_matches:
-    gn_path = os.path.join(repo_path, c_dir, "BUILD.gn")
-    if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
-      unique_gn_files[gn_path] = None
-
-  # 3. Universal scan: Match ANY //path/to/file.gn[i] with optional line number
-  all_gn_matches = re.findall(
-      r"//([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?",
-      output,
-  )
+  # Step 3: any explicitly named .gn/.gni file.
+  #
+  # BUILDCONFIG.gn is deferred rather than dropped: it is global, so
+  # when the output also names a specific target or missing source, the
+  # narrower file is the better patch target and should be offered
+  # first. BUILDCONFIG.gn is still appended at the end as a fallback.
   deferred_gn_files: Dict[str, Optional[int]] = {}
-  for f, line_str in all_gn_matches:
+  defer_buildconfig = ("Source file not found" in output or
+                       "The target:" in output)
+  for f, line_str in _GN_FILE_PATTERN.findall(output):
     full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
     if os.path.isfile(full_p) and full_p not in unique_gn_files:
       target_line = int(line_str) if line_str else None
-      if f.endswith("BUILDCONFIG.gn") and ("Source file not found" in output or
-                                           "The target:" in output):
+      if f.endswith("BUILDCONFIG.gn") and defer_buildconfig:
         deferred_gn_files[full_p] = target_line
       else:
         unique_gn_files[full_p] = target_line
 
-  # 4. Resolve GN targets: "target(s): //dir:target" or "needs //dir:target"
-  target_matches = re.findall(
-      r"(?:target(?:\(s\))?:\s+|needs\s+)//([a-zA-Z0-9_/\.\-]+):",
-      output,
-  )
-  for t_dir in target_matches:
-    gn_path = os.path.join(repo_path, t_dir, "BUILD.gn")
-    if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
-      unique_gn_files[gn_path] = None
+  # Step 4: remaining //dir:target forms.
+  for target_dir in _GN_TARGET_DIR_PATTERNS[2].findall(output):
+    _add_build_file_for_dir(unique_gn_files, repo_path, target_dir)
 
-  # 5. Resolve source files and BUILD.gn: "ERROR at //path/to/file.cc:line"
-  src_pattern = re.findall(
-      r"ERROR at //([a-zA-Z0-9_/\.\-]+\.(?:cc|h|mm|cpp|c))(?::(\d+))?",
-      output,
-  )
-  for s_rel, line_str in src_pattern:
+  # Step 5: source files named by a GN error, plus their sibling BUILD.gn.
+  for s_rel, line_str in _GN_SOURCE_PATTERN.findall(output):
     s_abs = os.path.join(repo_path, s_rel)
     if os.path.isfile(s_abs) and s_abs not in unique_gn_files:
       unique_gn_files[s_abs] = int(line_str) if line_str else None
-    s_dir = os.path.dirname(s_rel)
-    gn_path = os.path.join(repo_path, s_dir, "BUILD.gn")
-    if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
-      unique_gn_files[gn_path] = None
+    _add_build_file_for_dir(unique_gn_files, repo_path, os.path.dirname(s_rel))
 
   for p, line_no in deferred_gn_files.items():
     if p not in unique_gn_files:
@@ -264,19 +291,7 @@ class GNGenResolver(BaseResolver):
       except OSError:
         pass
 
-    history_items = []
-    investigation_items = []
-    for h in history_records[-6:]:
-      it = str(h.get("iteration", ""))
-      hf = h.get("file", "")
-      he = h.get("error", "")
-      if it.startswith("Tool-"):
-        investigation_items.append(
-            f"Tool Call: `{hf}`\nResult:\n```\n{he}\n```")
-      else:
-        history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
-    history_str = "\n".join(history_items)
-    investigation_str = "\n\n".join(investigation_items)
+    history_str, investigation_str = format_history_records(history_records)
 
     anti_oscillation_note = ""
     if "Source file not found" in diagnostic.raw_output:

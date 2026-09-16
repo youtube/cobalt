@@ -19,6 +19,8 @@ from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
     execute_local_tool,
+    extract_line_anchored_tool_commands,
+    extract_tool_commands,
     is_unmodified_third_party,
 )
 from token_usage import TokenUsage
@@ -384,16 +386,16 @@ def resolve_file_conflicts(
             mode="conflict",
         )
         expert_guidance = guidance_res.get("guidance", "")
-        if expert_guidance and re.search(r"^(TOOL_[A-Z_]+:.*)$",
-                                         expert_guidance.strip(), re.MULTILINE):
-          tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$",
-                                 expert_guidance.strip(), re.MULTILINE)
-          if tool_match:
-            t_cmd = tool_match.group(1).strip()
-            t_out = execute_local_tool(
-                t_cmd, repo_path, session_changes=session_changes)
-            expert_guidance += (
-                f"\n\nTool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
+        # Shared parser, not a local '^TOOL_...$' regex. The anchored
+        # version missed any directive the model indented and merged
+        # run-on directives into one corrupted path. Sliced to one to
+        # keep the existing pre-flight pacing.
+        pre_flight_cmds = extract_tool_commands(expert_guidance)[:1]
+        for t_cmd in pre_flight_cmds:
+          t_out = execute_local_tool(
+              t_cmd, repo_path, session_changes=session_changes)
+          expert_guidance += (
+              f"\n\nTool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
         if expert_guidance:
           first_g_line = expert_guidance.splitlines()[0][:100]
           print(
@@ -453,10 +455,12 @@ def resolve_file_conflicts(
         elif isinstance(res, str):
           raw_replacement = res
 
-        tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", raw_replacement.strip(),
-                               re.MULTILINE)
-        if tool_match:
-          tool_cmd = tool_match.group(1).strip()
+        # Line-anchored, not the permissive scanner: this payload is
+        # source code, where an indented 'case TOOL_TIP:' would
+        # otherwise parse as a tool request and burn the round.
+        tool_cmds = extract_line_anchored_tool_commands(raw_replacement)[:1]
+        if tool_cmds:
+          tool_cmd = tool_cmds[0]
           print(f"    [TOOL_USE] Model requested: {tool_cmd}", file=sys.stderr)
           tool_output = execute_local_tool(
               tool_cmd, repo_path, session_changes=session_changes)

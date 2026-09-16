@@ -766,6 +766,39 @@ def extract_tool_commands(text: str,
   return commands
 
 
+# Directives that occupy a line of their own, ignoring indentation.
+_TOOL_CMD_LINE_PATTERN = re.compile(r"^[ \t]*(TOOL_[A-Z_]+:[^\n]*)$",
+                                    re.MULTILINE)
+
+
+def extract_line_anchored_tool_commands(
+    text: str,
+    max_commands: int = _MAX_TOOL_CMDS_PER_TURN,
+) -> List[str]:
+  """Extracts TOOL_ directives that occupy a line of their own.
+
+  Use this when the response payload is source code; use
+  extract_tool_commands when it is prose.
+
+  extract_tool_commands scans anywhere in the text, which is required to
+  split run-on directives in prose but misfires on code: an indented
+  C++ 'case TOOL_TIP:' parses as a directive named TOOL_TIP. Requiring
+  the directive to own its line rejects those while still accepting the
+  indented requests that a strictly column-0 anchor would miss.
+  """
+  commands: List[str] = []
+  seen = set()
+  for match in _TOOL_CMD_LINE_PATTERN.finditer(text or ""):
+    cmd = match.group(1).strip().strip("`'\"").strip()
+    if not cmd or cmd in seen:
+      continue
+    seen.add(cmd)
+    commands.append(cmd)
+    if len(commands) >= max_commands:
+      break
+  return commands
+
+
 def find_roll_commit(repo_path: str, conflicted: bool) -> Optional[str]:
   """Locates a commit from the most recent Chromium autoroll.
 
@@ -835,364 +868,425 @@ def show_roll_diff(
   return f"No {label} changes in {sha} for: {target_path}"
 
 
+@dataclasses.dataclass(frozen=True)
+class ToolContext:
+  """Ambient state a tool handler may need beyond its own argument string."""
+
+  repo_path: str
+  session_changes: Optional[List[AgentChangeRecord]] = None
+
+
+def split_clean_tokens(raw: str) -> List[str]:
+  """Splits on whitespace, stripping quoting and punctuation noise.
+
+  Models routinely wrap paths in backticks or angle brackets and append
+  trailing punctuation (e.g. "`foo/bar.h`," or "<foo/bar.h>"). Only the
+  leading and trailing characters are stripped, so an interior colon in a
+  "path:line-range" token is preserved for the caller to interpret.
+  """
+  return [t.strip("`'\"<>,;:") for t in raw.split() if t.strip("`'\"<>,;:")]
+
+
+def _tool_read_file(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_READ_FILE: <path> [line_range] - reads a file or a line range."""
+  tokens = split_clean_tokens(args)
+  if not tokens:
+    return "[ERROR] No file path provided."
+  target_rel = tokens[0]
+  line_range = ""
+  for t in tokens[1:]:
+    if re.match(r"^\d+-\d+$", t) or re.match(r"^\d+\.\.\d+$", t):
+      line_range = t.replace("..", "-")
+      break
+  if ":" in target_rel and not line_range:
+    parts = target_rel.split(":", 1)
+    target_rel = parts[0]
+    if (re.match(r"^\d+-\d+$", parts[1]) or
+        re.match(r"^\d+\.\.\d+$", parts[1])):
+      line_range = parts[1].replace("..", "-")
+
+  target_abs = resolve_repo_file_path(target_rel, ctx.repo_path)
+  if not os.path.isfile(target_abs):
+    return f"[ERROR] File does not exist: {target_rel}"
+  try:
+    with open(target_abs, "r", encoding="utf-8", errors="replace") as f:
+      lines = f.readlines()
+    if line_range and "-" in line_range:
+      s_str, e_str = line_range.split("-", 1)
+      s_line = max(1, int(s_str))
+      e_line = min(len(lines), int(e_str))
+      selected = lines[s_line - 1:e_line]
+      numbered = [f"{s_line + i}: {l}" for i, l in enumerate(selected)]
+      return "".join(numbered)
+    if len(lines) <= 250:
+      numbered = [f"{i + 1}: {l}" for i, l in enumerate(lines)]
+      return "".join(numbered)
+    preview = lines[:150]
+    numbered = [f"{i + 1}: {l}" for i, l in enumerate(preview)]
+    numbered.append(
+        f"\n[... Truncated {len(lines) - 150} lines. Use TOOL_READ_FILE: "
+        f"{target_rel} <start>-<end> to view specific lines]\n")
+    return "".join(numbered)
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] Could not read {target_rel}: {e}"
+
+
+def _tool_grep(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_GREP: <query> [path_or_glob] - git grep across source files."""
+  query = ""
+  path_filter = ""
+  q_match = re.match(r'^([\'"])(.*?)\1(?:\s+(.*))?$', args)
+  if q_match:
+    query = q_match.group(2).strip()
+    path_filter = (q_match.group(3) or "").strip().strip("`'\"")
+  else:
+    parts = args.split(None, 1)
+    if len(parts) == 2:
+      query = parts[0].strip("`'\"")
+      path_filter = parts[1].strip("`'\"")
+    elif len(parts) == 1:
+      query = parts[0].strip("`'\"")
+    else:
+      return "[ERROR] No query provided to TOOL_GREP."
+
+  query = re.sub(r"\s*\(\s*\)\s*$", "", query).strip()
+  if not query:
+    return "[ERROR] Empty query in TOOL_GREP."
+
+  grep_cmd = ["git", "grep", "-n", "-I", "--max-count=15", query]
+  if path_filter:
+    grep_cmd.extend(["--", path_filter])
+  else:
+    grep_cmd.extend([
+        "--",
+        "*.gn",
+        "*.gni",
+        "*.h",
+        "*.cc",
+        "*.cpp",
+        "*.inc",
+        "*.java",
+        "*.rs",
+        "*.py",
+    ])
+  try:
+    res = subprocess.run(
+        grep_cmd,
+        cwd=ctx.repo_path,
+        capture_output=True,
+        text=True,
+        errors="replace",
+        check=False,
+    )
+    lines = res.stdout.splitlines()[:30]
+    text = "\n".join(lines)
+    filt_desc = path_filter or "codebase"
+    return (text[:6000].strip()
+            if text else f"No matches found for: {query} (filter: {filt_desc})")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] Grep failed: {e}"
+
+
+def _tool_find_file(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_FIND_FILE: <pattern> - locates files by name fragment."""
+  tokens = split_clean_tokens(args)
+  pattern = tokens[0] if tokens else args.strip("`'\"")
+  if not pattern.startswith("*") and not pattern.endswith("*"):
+    pattern = f"*{pattern}*"
+  try:
+    res = subprocess.run(
+        ["find", ".", "-iname", pattern, "-not", "-path", "*/.*"],
+        cwd=ctx.repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    lines = [l.lstrip("./") for l in res.stdout.splitlines()[:25]]
+    return "\n".join(lines) if lines else f"No matches found for: {pattern}"
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] Find failed: {e}"
+
+
+def _tool_list_dir(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_LIST_DIR: <dir_path> - lists directory entries."""
+  tokens = split_clean_tokens(args)
+  dir_rel = tokens[0] if tokens else "."
+  dir_abs = resolve_repo_file_path(dir_rel, ctx.repo_path)
+  if not os.path.isdir(dir_abs):
+    return f"[ERROR] Directory does not exist: {dir_rel}"
+  try:
+    entries = sorted(os.listdir(dir_abs))[:50]
+    formatted = []
+    for e in entries:
+      full_e = os.path.join(dir_abs, e)
+      is_d = "/" if os.path.isdir(full_e) else ""
+      formatted.append(f"{e}{is_d}")
+    return "\n".join(formatted) if formatted else "(Directory is empty)"
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] List directory failed: {e}"
+
+
+def _tool_git_show(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_GIT_SHOW: <ref> - shows a commit or object."""
+  tokens = split_clean_tokens(args)
+  ref = tokens[0] if tokens else args
+  try:
+    res = subprocess.run(
+        ["git", "show", "--no-color", ref],
+        cwd=ctx.repo_path,
+        capture_output=True,
+        text=True,
+        errors="replace",
+        check=False,
+    )
+    return (res.stdout[:4000] if res.stdout else f"Could not show ref: {ref}")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] Git show failed: {e}"
+
+
+def _tool_read_pr(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_READ_PR: <number> - fetches PR metadata via the gh CLI."""
+  match = re.search(r"(\d+)", args)
+  if not match:
+    return f"[ERROR] Could not extract PR number from: {args}"
+  pr_target = match.group(1)
+  try:
+    res = subprocess.run(
+        ["gh", "pr", "view", pr_target, "--json", "number,title,body,commits"],
+        cwd=ctx.repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return (res.stdout[:8000]
+            if res.stdout else f"Could not view PR: {pr_target} ({res.stderr})")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] gh pr view failed: {e}"
+
+
+def _tool_pr_diff(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_PR_DIFF: <number> - fetches a PR diff via the gh CLI."""
+  match = re.search(r"(\d+)", args)
+  if not match:
+    return f"[ERROR] Could not extract PR number from: {args}"
+  pr_target = match.group(1)
+  try:
+    res = subprocess.run(
+        ["gh", "pr", "diff", pr_target],
+        cwd=ctx.repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return (res.stdout[:16384]
+            if res.stdout else f"Could not diff PR: {pr_target} ({res.stderr})")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] gh pr diff failed: {e}"
+
+
+def _tool_git_diff(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_GIT_DIFF: <args> - runs git diff with caller-supplied arguments."""
+  diff_args = args.split()
+  try:
+    res = subprocess.run(
+        ["git", "diff"] + diff_args,
+        cwd=ctx.repo_path,
+        capture_output=True,
+        text=True,
+        errors="replace",
+        check=False,
+    )
+    return (res.stdout[:16384]
+            if res.stdout else f"Git diff empty or failed for: {diff_args}")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] Git diff failed: {e}"
+
+
+def _tool_git_log(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_GIT_LOG: [count] [path] - shows recent commits, optionally scoped."""
+  arg_list = args.split()
+  try:
+    count = 5
+    target_path = ""
+    if arg_list and arg_list[0].isdigit():
+      count = int(arg_list[0])
+      target_path = " ".join(arg_list[1:])
+    else:
+      target_path = " ".join(arg_list)
+    cmd = ["git", "log", f"-n{count}", "--oneline"]
+    if target_path:
+      cmd.extend(["--", target_path])
+    res = subprocess.run(
+        cmd,
+        cwd=ctx.repo_path,
+        capture_output=True,
+        text=True,
+        errors="replace",
+        check=False,
+    )
+    return (res.stdout[:4000]
+            if res.stdout else f"No git log found for: {target_path}")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] Git log failed: {e}"
+
+
+def _tool_upstream_diff(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_UPSTREAM_DIFF: <path> - shows the pure Chromium roll's changes."""
+  target_path = sanitize_filepath_token(args)
+  try:
+    upstream_sha = find_roll_commit(ctx.repo_path, conflicted=False)
+    if not upstream_sha:
+      return "Could not find upstream roll commit ('Update to <milestone>')"
+    return show_roll_diff(ctx.repo_path, upstream_sha, target_path, "upstream")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] Upstream diff failed: {e}"
+
+
+def _tool_cobalt_diff(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_COBALT_DIFF: <path> - shows Cobalt's re-applied delta on the roll."""
+  target_path = sanitize_filepath_token(args)
+  try:
+    cobalt_sha = find_roll_commit(ctx.repo_path, conflicted=True)
+    if not cobalt_sha:
+      return ("Could not find Cobalt cherry-pick commit "
+              "('CONFLICTED Cherry pick ...: Update to <milestone>')")
+    return show_roll_diff(ctx.repo_path, cobalt_sha, target_path, "Cobalt")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] Cobalt diff failed: {e}"
+
+
+def _tool_gclient_sync(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_GCLIENT_SYNC - resyncs dependencies. Takes no arguments."""
+  del args  # This directive carries no arguments.
+  try:
+    clean_env = get_clean_build_env()
+    res = subprocess.run(
+        ["gclient", "sync", "-D"],
+        cwd=ctx.repo_path,
+        capture_output=True,
+        text=True,
+        env=clean_env,
+        check=False,
+    )
+    out = f"{res.stdout}\n{res.stderr}".strip()
+    if out:
+      return out[:4000]
+    return f"gclient sync completed with exit code {res.returncode}"
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    return f"[ERROR] gclient sync failed: {e}"
+
+
+def _tool_get_history(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_GET_HISTORY: <count | all | iteration | start-end | filepath>.
+
+  Returns None when the argument parses as numeric but matches no branch,
+  letting the dispatcher fall through to the unknown-command error exactly
+  as the original if-chain did.
+  """
+  session_changes = ctx.session_changes
+  if not session_changes:
+    return "[NOTICE] No recorded change history available in this session yet."
+
+  if args.lower() in ("all", "full"):
+    return (
+        f"=== Full Change History ({len(session_changes)} records) ===\n\n" +
+        "\n\n".join(r.to_prompt_str() for r in session_changes))
+
+  clean_target = args.strip("`'\"")
+  # A non-numeric argument is treated as a file path (or a substring of one).
+  if not re.match(
+      r"^(?:iteration|iter|#)?\s*\d+(?:\s*(?:-|to|\.\.)\s*\d+)?$",
+      clean_target,
+      re.IGNORECASE,
+  ):
+    matched_files = [
+        r for r in session_changes if (clean_target in r.target_file or any(
+            clean_target in f for f in r.modified_files))
+    ]
+    if matched_files:
+      return (f"=== Change Records for '{clean_target}' "
+              f"({len(matched_files)} records) ===\n\n" +
+              "\n\n".join(r.to_prompt_str() for r in matched_files))
+    return f"[NOTICE] No change records found matching file '{clean_target}'."
+
+  # Iteration range: e.g. "1-5" or "1..5".
+  m_range = re.search(r"(\d+)\s*(?:-|to|\.\.)\s*(\d+)", args)
+  if m_range:
+    s_iter = int(m_range.group(1))
+    e_iter = int(m_range.group(2))
+    matched = [r for r in session_changes if s_iter <= r.iteration <= e_iter]
+    if not matched:
+      return ("[NOTICE] No change records found in iteration range "
+              f"{s_iter}-{e_iter}.")
+    return (f"=== Change Records for Iterations {s_iter}-{e_iter} "
+            f"({len(matched)} records) ===\n\n" +
+            "\n\n".join(r.to_prompt_str() for r in matched))
+
+  # Specific iteration, or a trailing count of recent records.
+  m_iter = re.search(r"(?:iteration|iter|#)?\s*(\d+)", args, re.IGNORECASE)
+  if m_iter:
+    num = int(m_iter.group(1))
+    if "iter" in args.lower():
+      matched = [r for r in session_changes if r.iteration == num]
+      if not matched:
+        return f"[NOTICE] No change record found for iteration {num}."
+      return (f"=== Change Record for Iteration {num} ===\n\n" +
+              "\n\n".join(r.to_prompt_str() for r in matched))
+    matched = (
+        session_changes[-num:]
+        if num < len(session_changes) else session_changes)
+    return (f"=== Last {len(matched)} Change Records (out of "
+            f"{len(session_changes)}) ===\n\n" +
+            "\n\n".join(r.to_prompt_str() for r in matched))
+
+  return None
+
+
+# Maps a directive prefix to its handler. Prefixes are matched longest-first,
+# so adding a shorter prefix later cannot shadow an existing longer one.
+# TOOL_GCLIENT_SYNC is intentionally colon-less: it takes no arguments.
+_TOOL_HANDLERS: Dict[str, Callable[[str, ToolContext], Optional[str]]] = {
+    "TOOL_READ_FILE:": _tool_read_file,
+    "TOOL_GREP:": _tool_grep,
+    "TOOL_FIND_FILE:": _tool_find_file,
+    "TOOL_LIST_DIR:": _tool_list_dir,
+    "TOOL_GIT_SHOW:": _tool_git_show,
+    "TOOL_READ_PR:": _tool_read_pr,
+    "TOOL_PR_DIFF:": _tool_pr_diff,
+    "TOOL_GIT_DIFF:": _tool_git_diff,
+    "TOOL_GIT_LOG:": _tool_git_log,
+    "TOOL_UPSTREAM_DIFF:": _tool_upstream_diff,
+    "TOOL_COBALT_DIFF:": _tool_cobalt_diff,
+    "TOOL_GCLIENT_SYNC": _tool_gclient_sync,
+    "TOOL_GET_HISTORY:": _tool_get_history,
+    "TOOL_CHANGE_HISTORY:": _tool_get_history,
+    "TOOL_HISTORY:": _tool_get_history,
+}
+
+
 def execute_local_tool(
     cmd: str,
     repo_path: str,
     session_changes: Optional[List[AgentChangeRecord]] = None,
 ) -> str:
-  """Executes safe read-only multi-turn inspection tools for LLM."""
+  """Executes safe read-only multi-turn inspection tools for LLM.
+
+  Dispatches to the handler registered in _TOOL_HANDLERS for the directive's
+  prefix. The handler receives the text following the first colon, already
+  stripped. A handler returning None means "not handled", which surfaces the
+  unknown-command error.
+  """
   clean_cmd = cmd.strip()
+  ctx = ToolContext(repo_path=repo_path, session_changes=session_changes)
 
-  # 1. TOOL_READ_FILE: <path> [line_range]
-  if clean_cmd.startswith("TOOL_READ_FILE:"):
-    raw_args = clean_cmd.split(":", 1)[1].strip()
-    tokens = [
-        t.strip("`'\"<>,;:") for t in raw_args.split() if t.strip("`'\"<>,;:")
-    ]
-    if not tokens:
-      return "[ERROR] No file path provided."
-    target_rel = tokens[0]
-    line_range = ""
-    for t in tokens[1:]:
-      if re.match(r"^\d+-\d+$", t) or re.match(r"^\d+\.\.\d+$", t):
-        line_range = t.replace("..", "-")
-        break
-    if ":" in target_rel and not line_range:
-      parts = target_rel.split(":", 1)
-      target_rel = parts[0]
-      if (re.match(r"^\d+-\d+$", parts[1]) or
-          re.match(r"^\d+\.\.\d+$", parts[1])):
-        line_range = parts[1].replace("..", "-")
-
-    target_abs = resolve_repo_file_path(target_rel, repo_path)
-    if not os.path.isfile(target_abs):
-      return f"[ERROR] File does not exist: {target_rel}"
-    try:
-      with open(target_abs, "r", encoding="utf-8", errors="replace") as f:
-        lines = f.readlines()
-      if line_range and "-" in line_range:
-        s_str, e_str = line_range.split("-", 1)
-        s_line = max(1, int(s_str))
-        e_line = min(len(lines), int(e_str))
-        selected = lines[s_line - 1:e_line]
-        numbered = [f"{s_line + i}: {l}" for i, l in enumerate(selected)]
-        return "".join(numbered)
-      if len(lines) <= 250:
-        numbered = [f"{i + 1}: {l}" for i, l in enumerate(lines)]
-        return "".join(numbered)
-      preview = lines[:150]
-      numbered = [f"{i + 1}: {l}" for i, l in enumerate(preview)]
-      numbered.append(
-          f"\n[... Truncated {len(lines) - 150} lines. Use TOOL_READ_FILE: "
-          f"{target_rel} <start>-<end> to view specific lines]\n")
-      return "".join(numbered)
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Could not read {target_rel}: {e}"
-
-  # 2. TOOL_GREP: <query> [path_or_glob]
-  if clean_cmd.startswith("TOOL_GREP:"):
-    raw_args = clean_cmd.split(":", 1)[1].strip()
-    query = ""
-    path_filter = ""
-    q_match = re.match(r'^([\'"])(.*?)\1(?:\s+(.*))?$', raw_args)
-    if q_match:
-      query = q_match.group(2).strip()
-      path_filter = (q_match.group(3) or "").strip().strip("`'\"")
-    else:
-      parts = raw_args.split(None, 1)
-      if len(parts) == 2:
-        query = parts[0].strip("`'\"")
-        path_filter = parts[1].strip("`'\"")
-      elif len(parts) == 1:
-        query = parts[0].strip("`'\"")
-      else:
-        return "[ERROR] No query provided to TOOL_GREP."
-
-    query = re.sub(r"\s*\(\s*\)\s*$", "", query).strip()
-    if not query:
-      return "[ERROR] Empty query in TOOL_GREP."
-
-    grep_cmd = ["git", "grep", "-n", "-I", "--max-count=15", query]
-    if path_filter:
-      grep_cmd.extend(["--", path_filter])
-    else:
-      grep_cmd.extend([
-          "--",
-          "*.gn",
-          "*.gni",
-          "*.h",
-          "*.cc",
-          "*.cpp",
-          "*.inc",
-          "*.java",
-          "*.rs",
-          "*.py",
-      ])
-    try:
-      res = subprocess.run(
-          grep_cmd,
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          errors="replace",
-          check=False,
-      )
-      lines = res.stdout.splitlines()[:30]
-      text = "\n".join(lines)
-      filt_desc = path_filter or "codebase"
-      return (text[:6000].strip() if text else
-              f"No matches found for: {query} (filter: {filt_desc})")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Grep failed: {e}"
-
-  # 3. TOOL_FIND_FILE: <pattern>
-  if clean_cmd.startswith("TOOL_FIND_FILE:"):
-    raw_pat = clean_cmd.split(":", 1)[1].strip()
-    tokens = [
-        t.strip("`'\"<>,;:") for t in raw_pat.split() if t.strip("`'\"<>,;:")
-    ]
-    pattern = tokens[0] if tokens else raw_pat.strip("`'\"")
-    if not pattern.startswith("*") and not pattern.endswith("*"):
-      pattern = f"*{pattern}*"
-    try:
-      res = subprocess.run(
-          ["find", ".", "-iname", pattern, "-not", "-path", "*/.*"],
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          check=False,
-      )
-      lines = [l.lstrip("./") for l in res.stdout.splitlines()[:25]]
-      return "\n".join(lines) if lines else f"No matches found for: {pattern}"
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Find failed: {e}"
-
-  # 4. TOOL_LIST_DIR: <dir_path>
-  if clean_cmd.startswith("TOOL_LIST_DIR:"):
-    raw_dir = clean_cmd.split(":", 1)[1].strip()
-    tokens = [
-        t.strip("`'\"<>,;:") for t in raw_dir.split() if t.strip("`'\"<>,;:")
-    ]
-    dir_rel = tokens[0] if tokens else "."
-    dir_abs = resolve_repo_file_path(dir_rel, repo_path)
-    if not os.path.isdir(dir_abs):
-      return f"[ERROR] Directory does not exist: {dir_rel}"
-    try:
-      entries = sorted(os.listdir(dir_abs))[:50]
-      formatted = []
-      for e in entries:
-        full_e = os.path.join(dir_abs, e)
-        is_d = "/" if os.path.isdir(full_e) else ""
-        formatted.append(f"{e}{is_d}")
-      return "\n".join(formatted) if formatted else "(Directory is empty)"
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] List directory failed: {e}"
-
-  # 5. TOOL_GIT_SHOW: <ref>
-  if clean_cmd.startswith("TOOL_GIT_SHOW:"):
-    raw_ref = clean_cmd.split(":", 1)[1].strip()
-    tokens = [
-        t.strip("`'\"<>,;:") for t in raw_ref.split() if t.strip("`'\"<>,;:")
-    ]
-    ref = tokens[0] if tokens else raw_ref
-    try:
-      res = subprocess.run(
-          ["git", "show", "--no-color", ref],
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          errors="replace",
-          check=False,
-      )
-      return (res.stdout[:4000] if res.stdout else f"Could not show ref: {ref}")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Git show failed: {e}"
-
-  if clean_cmd.startswith("TOOL_READ_PR:"):
-    raw_pr = clean_cmd.split(":", 1)[1].strip()
-    match = re.search(r"(\d+)", raw_pr)
-    if not match:
-      return f"[ERROR] Could not extract PR number from: {raw_pr}"
-    pr_target = match.group(1)
-    try:
-      res = subprocess.run(
-          [
-              "gh", "pr", "view", pr_target, "--json",
-              "number,title,body,commits"
-          ],
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          check=False,
-      )
-      return (res.stdout[:8000] if res.stdout else
-              f"Could not view PR: {pr_target} ({res.stderr})")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] gh pr view failed: {e}"
-
-  if clean_cmd.startswith("TOOL_PR_DIFF:"):
-    raw_pr = clean_cmd.split(":", 1)[1].strip()
-    match = re.search(r"(\d+)", raw_pr)
-    if not match:
-      return f"[ERROR] Could not extract PR number from: {raw_pr}"
-    pr_target = match.group(1)
-    try:
-      res = subprocess.run(
-          ["gh", "pr", "diff", pr_target],
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          check=False,
-      )
-      return (res.stdout[:16384] if res.stdout else
-              f"Could not diff PR: {pr_target} ({res.stderr})")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] gh pr diff failed: {e}"
-
-  if clean_cmd.startswith("TOOL_GIT_DIFF:"):
-    diff_args = clean_cmd.split(":", 1)[1].strip().split()
-    try:
-      res = subprocess.run(
-          ["git", "diff"] + diff_args,
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          errors="replace",
-          check=False,
-      )
-      return (res.stdout[:16384]
-              if res.stdout else f"Git diff empty or failed for: {diff_args}")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Git diff failed: {e}"
-
-  if clean_cmd.startswith("TOOL_GIT_LOG:"):
-    args = clean_cmd.split(":", 1)[1].strip().split()
-    try:
-      count = 5
-      target_path = ""
-      if args and args[0].isdigit():
-        count = int(args[0])
-        target_path = " ".join(args[1:])
-      else:
-        target_path = " ".join(args)
-      cmd = ["git", "log", f"-n{count}", "--oneline"]
-      if target_path:
-        cmd.extend(["--", target_path])
-      res = subprocess.run(
-          cmd,
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          errors="replace",
-          check=False,
-      )
-      return (res.stdout[:4000]
-              if res.stdout else f"No git log found for: {target_path}")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Git log failed: {e}"
-
-  if clean_cmd.startswith("TOOL_UPSTREAM_DIFF:"):
-    raw_path = clean_cmd.split(":", 1)[1].strip()
-    target_path = sanitize_filepath_token(raw_path)
-    try:
-      upstream_sha = find_roll_commit(repo_path, conflicted=False)
-      if not upstream_sha:
-        return "Could not find upstream roll commit ('Update to <milestone>')"
-      return show_roll_diff(repo_path, upstream_sha, target_path, "upstream")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Upstream diff failed: {e}"
-
-  if clean_cmd.startswith("TOOL_COBALT_DIFF:"):
-    raw_path = clean_cmd.split(":", 1)[1].strip()
-    target_path = sanitize_filepath_token(raw_path)
-    try:
-      cobalt_sha = find_roll_commit(repo_path, conflicted=True)
-      if not cobalt_sha:
-        return ("Could not find Cobalt cherry-pick commit "
-                "('CONFLICTED Cherry pick ...: Update to <milestone>')")
-      return show_roll_diff(repo_path, cobalt_sha, target_path, "Cobalt")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Cobalt diff failed: {e}"
-
-  if clean_cmd.startswith("TOOL_GCLIENT_SYNC"):
-    try:
-      clean_env = get_clean_build_env()
-      res = subprocess.run(
-          ["gclient", "sync", "-D"],
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          env=clean_env,
-          check=False,
-      )
-      out = f"{res.stdout}\n{res.stderr}".strip()
-      return (out[:4000] if out else
-              f"gclient sync completed with exit code {res.returncode}")
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] gclient sync failed: {e}"
-
-  # 10. TOOL_GET_HISTORY: <count | all | iteration_number | start-end |
-  # filepath>
-  if clean_cmd.startswith(
-      ("TOOL_GET_HISTORY:", "TOOL_CHANGE_HISTORY:", "TOOL_HISTORY:")):
-    raw_args = clean_cmd.split(":", 1)[1].strip()
-    if not session_changes:
-      return (
-          "[NOTICE] No recorded change history available in this session yet.")
-
-    if raw_args.lower() in ("all", "full"):
-      return (
-          f"=== Full Change History ({len(session_changes)} records) ===\n\n" +
-          "\n\n".join(r.to_prompt_str() for r in session_changes))
-
-    clean_target = raw_args.strip("`'\"")
-    # Check if raw_args specifies a file path (or substring matching a file
-    # path)
-    if not re.match(
-        r"^(?:iteration|iter|#)?\s*\d+(?:\s*(?:-|to|\.\.)\s*\d+)?$",
-        clean_target,
-        re.IGNORECASE,
-    ):
-      matched_files = [
-          r for r in session_changes if (clean_target in r.target_file or any(
-              clean_target in f for f in r.modified_files))
-      ]
-      if matched_files:
-        return (f"=== Change Records for '{clean_target}' "
-                f"({len(matched_files)} records) ===\n\n" +
-                "\n\n".join(r.to_prompt_str() for r in matched_files))
-      return f"[NOTICE] No change records found matching file '{clean_target}'."
-
-    # Check for iteration range: e.g. "1-5" or "1..5"
-    m_range = re.search(r"(\d+)\s*(?:-|to|\.\.)\s*(\d+)", raw_args)
-    if m_range:
-      s_iter = int(m_range.group(1))
-      e_iter = int(m_range.group(2))
-      matched = [r for r in session_changes if s_iter <= r.iteration <= e_iter]
-      if not matched:
-        return ("[NOTICE] No change records found in iteration range "
-                f"{s_iter}-{e_iter}.")
-      return (f"=== Change Records for Iterations {s_iter}-{e_iter} "
-              f"({len(matched)} records) ===\n\n" +
-              "\n\n".join(r.to_prompt_str() for r in matched))
-
-    # Check for specific iteration or count
-    m_iter = re.search(r"(?:iteration|iter|#)?\s*(\d+)", raw_args,
-                       re.IGNORECASE)
-    if m_iter:
-      num = int(m_iter.group(1))
-      if "iter" in raw_args.lower():
-        matched = [r for r in session_changes if r.iteration == num]
-        if not matched:
-          return f"[NOTICE] No change record found for iteration {num}."
-        return (f"=== Change Record for Iteration {num} ===\n\n" +
-                "\n\n".join(r.to_prompt_str() for r in matched))
-      matched = (
-          session_changes[-num:]
-          if num < len(session_changes) else session_changes)
-      return (f"=== Last {len(matched)} Change Records (out of "
-              f"{len(session_changes)}) ===\n\n" +
-              "\n\n".join(r.to_prompt_str() for r in matched))
+  for prefix in sorted(_TOOL_HANDLERS, key=len, reverse=True):
+    if not clean_cmd.startswith(prefix):
+      continue
+    args = clean_cmd.split(":", 1)[1].strip() if ":" in clean_cmd else ""
+    result = _TOOL_HANDLERS[prefix](args, ctx)
+    if result is not None:
+      return result
+    break
 
   return f"[ERROR] Unknown tool command: {clean_cmd}"
 
@@ -1307,6 +1401,44 @@ def extract_meaningful_error_summary(raw_msg: str) -> str:
       continue
     return l_strip
   return raw_msg.strip().splitlines()[0]
+
+
+def format_history_records(
+    history_records: List[Dict[str, Any]],
+    window: int = 6,
+) -> Tuple[str, str]:
+  """Splits resolver history into (patch history, investigation log).
+
+  Records whose iteration is tagged 'Tool-' are read-only investigations
+  rather than patch attempts, and the two belong in different sections
+  of the model prompt: history says what was already tried, while the
+  investigation log says what was already learned.
+
+  This was previously duplicated verbatim in gn_gen, autoninja and
+  gclient_sync. Three copies of a prompt-shaping rule is how the two
+  diff-scoring implementations drifted apart, so it lives here now.
+
+  Args:
+    history_records: Resolver iteration records, oldest first.
+    window: How many trailing records to include.
+
+  Returns:
+    A (history_str, investigation_str) pair, either of which may be "".
+  """
+  history_items = []
+  investigation_items = []
+  for record in history_records[-window:]:
+    iteration = str(record.get("iteration", ""))
+    rec_file = record.get("file", "")
+    rec_error = record.get("error", "")
+    if iteration.startswith("Tool-"):
+      investigation_items.append(
+          f"Tool Call: `{rec_file}`\nResult:\n```\n{rec_error}\n```")
+    else:
+      history_items.append(
+          f"- Iteration {iteration}: Modified {rec_file} to fix "
+          f"\"{rec_error}\"")
+  return "\n".join(history_items), "\n\n".join(investigation_items)
 
 
 class BaseResolver(abc.ABC):

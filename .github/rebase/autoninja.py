@@ -18,6 +18,7 @@ import warnings
 from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
+    format_history_records,
     get_clean_build_env,
     is_unmodified_third_party,
     resolve_repo_file_path,
@@ -142,196 +143,266 @@ def find_action_target_in_gn(
   return 1
 
 
-def parse_compiler_errors(build_output: str,
-                          repo_path: str) -> List[CompilerDiagnostic]:
-  """Parses compiler/linker/action diagnostics with universal catch-all."""
-  diagnostics: List[CompilerDiagnostic] = []
-  clean_output = re.sub(r"\x1b\[[0-9;]*m", "", build_output)
-  lines = clean_output.splitlines()
+# Diagnostic patterns are compiled once at import rather than on every
+# call, and are named so each parser below can be read on its own.
+_ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
-  # Pre-scan for Siso/Ninja action failures, which is ahead to the
-  # compile errors.
-  #e.g.: FAILED: ... ACTION //third_party/blink/...:character_data(...)
-  action_fail_pattern = re.compile(
-      r"FAILED:.*?\s+ACTION\s+//([a-zA-Z0-9_/\.\-]+):([a-zA-Z0-9_]+)")
-  failing_action_note = None
-  failing_action_gn = None
-  failing_action_line = 1
-  for line in lines:
-    m_act = action_fail_pattern.search(line.strip())
+# e.g.: FAILED: ... ACTION //third_party/blink/...:character_data(...)
+_ACTION_FAIL_PATTERN = re.compile(
+    r"FAILED:.*?\s+ACTION\s+//([a-zA-Z0-9_/\.\-]+):([a-zA-Z0-9_]+)")
+
+_STANDARD_ERROR_PATTERN = re.compile(
+    r"^([a-zA-Z0-9_/\.\-]+\.[a-zA-Z0-9_]+):(\d+):(?:(\d+):)?\s*"
+    r"(?:fatal\s+)?error:\s*(.+)$")
+
+_CLANG_ERROR_PATTERN = re.compile(r"^\s*(?:\d+\.\d+s\s+)?(?:fatal\s+)?"
+                                  r"(?:error|Error|ERROR):\s*(?:@config//|//)?"
+                                  r"([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+"
+                                  r"(.+)$")
+
+_LLD_PATTERN = re.compile(r"(?:ld\.lld|lld-link|lld|gold|ld):\s+error:\s+(.+)$")
+_OBJ_PATTERN = re.compile(
+    r"obj/([a-zA-Z0-9_/\.\-]+(?:\([a-zA-Z0-9_/\.\-]+\))?)")
+_REF_FILE_PATTERN = re.compile(
+    r"referenced by\s+([a-zA-Z0-9_/\.\-]+\.[a-zA-Z0-9_]+):(\d+)")
+
+# e.g.: [0910/211026.345187:FATAL:path/to/file.cc:48] Check failed: ...
+_FATAL_LOG_PATTERN = re.compile(
+    r"^\s*(?:\[\d+/\d+\.\d+:FATAL:([a-zA-Z0-9_/\.\-]+):(\d+)\]|"
+    r"\[FATAL:([a-zA-Z0-9_/\.\-]+):(\d+)\])\s*(.+)$")
+
+_PY_TB_PATTERN = re.compile(
+    r'^\s*File "([a-zA-Z0-9_/\.\-]+\.py)", line (\d+)(?:, in (.+))?')
+_PY_ERR_PATTERN = re.compile(r"^([a-zA-Z0-9_.]+(?:Error|Exception):\s*.+)$")
+
+
+@dataclasses.dataclass
+class ParseContext:
+  """Pre-scanned build output shared by every diagnostic parser.
+
+  The Siso/Ninja action pre-scan runs once up front because the failing
+  action is reported ahead of the compile errors it caused, so every
+  parser needs its result regardless of which one ends up matching.
+  """
+
+  lines: List[str]
+  repo_path: str
+  failing_action_note: Optional[str] = None
+  failing_action_gn: Optional[str] = None
+  failing_action_line: int = 1
+
+  def action_notes(self) -> List[str]:
+    """Returns a fresh notes list so diagnostics never share one."""
+    return [self.failing_action_note] if self.failing_action_note else []
+
+  def snippet(self, idx: int, before: int, after: int) -> str:
+    """Returns the build output around idx, clamped to the output."""
+    start = max(0, idx - before)
+    end = min(len(self.lines), idx + after)
+    return "\n".join(self.lines[start:end])
+
+
+def _build_parse_context(build_output: str, repo_path: str) -> ParseContext:
+  """Strips ANSI codes and pre-scans for the failing Siso/Ninja action."""
+  clean_output = _ANSI_PATTERN.sub("", build_output)
+  ctx = ParseContext(lines=clean_output.splitlines(), repo_path=repo_path)
+
+  for line in ctx.lines:
+    m_act = _ACTION_FAIL_PATTERN.search(line.strip())
     if m_act:
       target_dir, target_name = m_act.group(1), m_act.group(2)
       gn_cand = os.path.join(repo_path, target_dir, "BUILD.gn")
-      failing_action_line = find_action_target_in_gn(gn_cand, target_name)
-      failing_action_gn = gn_cand
-      failing_action_note = (f"Failing Action: //{target_dir}:{target_name} "
-                             f"({target_dir}/BUILD.gn:{failing_action_line})")
+      ctx.failing_action_line = find_action_target_in_gn(gn_cand, target_name)
+      ctx.failing_action_gn = gn_cand
+      ctx.failing_action_note = (
+          f"Failing Action: //{target_dir}:{target_name} "
+          f"({target_dir}/BUILD.gn:{ctx.failing_action_line})")
       break
 
-  # 1. Fast Path: Standard Clang / GCC error format
-  standard_error_pattern = re.compile(
-      r"^([a-zA-Z0-9_/\.\-]+\.[a-zA-Z0-9_]+):(\d+):(?:(\d+):)?\s*"
-      r"(?:fatal\s+)?error:\s*(.+)$")
-  clang_error_pattern = re.compile(
-      r"^\s*(?:\d+\.\d+s\s+)?(?:fatal\s+)?"
-      r"(?:error|Error|ERROR):\s*(?:@config//|//)?"
-      r"([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+(.+)$")
+  return ctx
 
-  for idx, line in enumerate(lines):
+
+def _parse_standard_compiler_error(
+    ctx: ParseContext) -> Optional[CompilerDiagnostic]:
+  """Fast path: standard Clang / GCC 'file:line:col: error:' format."""
+  for idx, line in enumerate(ctx.lines):
     l_strip = line.strip()
-    match = standard_error_pattern.match(l_strip) or clang_error_pattern.match(
-        l_strip)
+    match = (
+        _STANDARD_ERROR_PATTERN.match(l_strip) or
+        _CLANG_ERROR_PATTERN.match(l_strip))
     if match:
       raw_path, line_str, col_str, error_msg = match.groups()
-      line_no = int(line_str)
-      col_no = int(col_str) if col_str else 0
-      abs_path = resolve_repo_file_path(raw_path, repo_path)
+      # 30 lines of lead-in captures the #include stack above the error.
+      return CompilerDiagnostic(
+          file_path=resolve_repo_file_path(raw_path, ctx.repo_path),
+          line_number=int(line_str),
+          column=int(col_str) if col_str else 0,
+          error_message=error_msg.strip(),
+          raw_snippet=ctx.snippet(idx, 30, 20),
+          notes=ctx.action_notes(),
+      )
+  return None
 
-      # Grab surrounding compiler lines (up to 30 lines before to capture
-      # include stacks, 20 lines after)
-      snippet_lines = lines[max(0, idx - 30):min(len(lines), idx + 20)]
-      notes = [failing_action_note] if failing_action_note else []
-      diagnostics.append(
-          CompilerDiagnostic(
-              file_path=abs_path,
-              line_number=line_no,
-              column=col_no,
-              error_message=error_msg.strip(),
-              raw_snippet="\n".join(snippet_lines),
-              notes=notes,
-          ))
+
+def _parse_linker_error(ctx: ParseContext) -> Optional[CompilerDiagnostic]:
+  """Linker errors (ld.lld / lld-link / gold / ld).
+
+  Unlike the other parsers this accumulates across the whole output: the
+  error line names the symbol, while the object file and the referencing
+  source appear on later '>>>' continuation lines.
+  """
+  linker_lines = []
+  primary_err = ""
+  target_build_file = None
+  ref_file = None
+  ref_line = 1
+
+  for line in ctx.lines:
+    l_strip = line.strip()
+    if m := _LLD_PATTERN.search(l_strip):
+      if not primary_err:
+        primary_err = m.group(1).strip()
+      linker_lines.append(l_strip)
+      if not target_build_file:
+        if obj_m := _OBJ_PATTERN.search(l_strip):
+          target_build_file = find_build_file_for_object(
+              obj_m.group(0), ctx.repo_path)
+    elif primary_err and (l_strip.startswith(">>>") or
+                          "referenced by" in l_strip):
+      linker_lines.append(l_strip)
+      if not target_build_file:
+        if obj_m := _OBJ_PATTERN.search(l_strip):
+          target_build_file = find_build_file_for_object(
+              obj_m.group(0), ctx.repo_path)
+      if not ref_file:
+        if ref_m := _REF_FILE_PATTERN.search(l_strip):
+          cand_ref = resolve_repo_file_path(ref_m.group(1), ctx.repo_path)
+          if os.path.isfile(cand_ref):
+            ref_file = cand_ref
+            ref_line = int(ref_m.group(2))
+
+  if not primary_err:
+    return None
+
+  target_f = target_build_file or ref_file or os.path.join(
+      ctx.repo_path, "BUILD.gn")
+  return CompilerDiagnostic(
+      file_path=target_f,
+      line_number=ref_line if target_f == ref_file else 1,
+      column=1,
+      error_message=f"Linker error: {primary_err}",
+      raw_snippet="\n".join(linker_lines[:30]),
+      notes=ctx.action_notes(),
+  )
+
+
+def _parse_fatal_log(ctx: ParseContext) -> Optional[CompilerDiagnostic]:
+  """Chromium base logging FATAL / CHECK assertions."""
+  for idx, line in enumerate(ctx.lines):
+    m_fatal = _FATAL_LOG_PATTERN.match(line.strip())
+    if m_fatal:
+      f1, l1, f2, l2, err_msg = m_fatal.groups()
+      return CompilerDiagnostic(
+          file_path=resolve_repo_file_path(f1 or f2, ctx.repo_path),
+          line_number=int(l1 or l2),
+          column=1,
+          error_message=err_msg.strip(),
+          raw_snippet=ctx.snippet(idx, 20, 20),
+          notes=ctx.action_notes(),
+      )
+  return None
+
+
+def _parse_python_traceback(ctx: ParseContext) -> Optional[CompilerDiagnostic]:
+  """Python traceback raised inside a GN action script.
+
+  Takes the last in-repo frame, not the first: the deepest frame that
+  still resolves to a real file is the one worth patching.
+  """
+  matched_py_file = None
+  matched_py_line = 1
+  matched_py_err = ""
+  py_idx = -1
+
+  for idx, line in enumerate(ctx.lines):
+    l_strip = line.strip()
+    if m_tb := _PY_TB_PATTERN.match(l_strip):
+      cand_f = resolve_repo_file_path(m_tb.group(1), ctx.repo_path)
+      if os.path.isfile(cand_f):
+        matched_py_file = cand_f
+        matched_py_line = int(m_tb.group(2))
+        py_idx = idx
+    elif m_err := _PY_ERR_PATTERN.match(l_strip):
+      if not matched_py_err:
+        matched_py_err = m_err.group(1).strip()
+
+  if not matched_py_file:
+    return None
+
+  return CompilerDiagnostic(
+      file_path=matched_py_file,
+      line_number=matched_py_line,
+      column=1,
+      error_message=matched_py_err or "Python script execution error",
+      raw_snippet=ctx.snippet(py_idx, 10, 25),
+      notes=ctx.action_notes(),
+  )
+
+
+def _parse_gn_action_failure(ctx: ParseContext) -> Optional[CompilerDiagnostic]:
+  """Last resort: a GN action failed with no parseable source error.
+
+  Points at the action's BUILD.gn. Carries no action note because the
+  note is already the error message here.
+  """
+  if not ctx.failing_action_gn:
+    return None
+
+  cand_snippet = []
+  for idx, line in enumerate(ctx.lines):
+    if _ACTION_FAIL_PATTERN.search(line.strip()):
+      start = max(0, idx - 5)
+      end = min(len(ctx.lines), idx + 35)
+      cand_snippet = ctx.lines[start:end]
       break
 
-  # 2. Linker errors (ld.lld / lld-link / gold / ld)
-  if not diagnostics:
-    lld_pattern = re.compile(
-        r"(?:ld\.lld|lld-link|lld|gold|ld):\s+error:\s+(.+)$")
-    obj_pattern = re.compile(
-        r"obj/([a-zA-Z0-9_/\.\-]+(?:\([a-zA-Z0-9_/\.\-]+\))?)")
-    ref_file_pattern = re.compile(
-        r"referenced by\s+([a-zA-Z0-9_/\.\-]+\.[a-zA-Z0-9_]+):(\d+)")
-    linker_lines = []
-    primary_err = ""
-    target_build_file = None
-    ref_file = None
-    ref_line = 1
+  return CompilerDiagnostic(
+      file_path=ctx.failing_action_gn,
+      line_number=ctx.failing_action_line,
+      column=1,
+      error_message=ctx.failing_action_note or "Action execution failed",
+      raw_snippet=("\n".join(cand_snippet)
+                   if cand_snippet else "\n".join(ctx.lines[:30])),
+      notes=[],
+  )
 
-    for line in lines:
-      l_strip = line.strip()
-      if m := lld_pattern.search(l_strip):
-        if not primary_err:
-          primary_err = m.group(1).strip()
-        linker_lines.append(l_strip)
-        if not target_build_file:
-          if obj_m := obj_pattern.search(l_strip):
-            target_build_file = find_build_file_for_object(
-                obj_m.group(0), repo_path)
-      elif primary_err and (l_strip.startswith(">>>") or
-                            "referenced by" in l_strip):
-        linker_lines.append(l_strip)
-        if not target_build_file:
-          if obj_m := obj_pattern.search(l_strip):
-            target_build_file = find_build_file_for_object(
-                obj_m.group(0), repo_path)
-        if not ref_file:
-          if ref_m := ref_file_pattern.search(l_strip):
-            cand_ref = resolve_repo_file_path(ref_m.group(1), repo_path)
-            if os.path.isfile(cand_ref):
-              ref_file = cand_ref
-              ref_line = int(ref_m.group(2))
 
-    if primary_err:
-      target_f = target_build_file or ref_file or os.path.join(
-          repo_path, "BUILD.gn")
-      diagnostics.append(
-          CompilerDiagnostic(
-              file_path=target_f,
-              line_number=ref_line if target_f == ref_file else 1,
-              column=1,
-              error_message=f"Linker error: {primary_err}",
-              raw_snippet="\n".join(linker_lines[:30]),
-              notes=[failing_action_note] if failing_action_note else [],
-          ))
+# Ordered, not keyed: this is a priority fallback chain, so the sequence
+# is load-bearing. A real compiler error outranks a linker error, which
+# outranks a FATAL assertion, which outranks a Python traceback, and the
+# bare GN action is only used when nothing else parsed.
+_PARSERS = (
+    _parse_standard_compiler_error,
+    _parse_linker_error,
+    _parse_fatal_log,
+    _parse_python_traceback,
+    _parse_gn_action_failure,
+)
 
-  # 3. Chromium base logging FATAL / CHECK / ERROR assertions
-  # e.g.: [0910/211026.345187:FATAL:path/to/file.cc:48] Check failed: ...
-  if not diagnostics:
-    fatal_log_pattern = re.compile(
-        r"^\s*(?:\[\d+/\d+\.\d+:FATAL:([a-zA-Z0-9_/\.\-]+):(\d+)\]|"
-        r"\[FATAL:([a-zA-Z0-9_/\.\-]+):(\d+)\])\s*(.+)$")
-    for idx, line in enumerate(lines):
-      l_strip = line.strip()
-      m_fatal = fatal_log_pattern.match(l_strip)
-      if m_fatal:
-        f1, l1, f2, l2, err_msg = m_fatal.groups()
-        raw_path = f1 or f2
-        line_no = int(l1 or l2)
-        abs_path = resolve_repo_file_path(raw_path, repo_path)
-        snippet_lines = lines[max(0, idx - 20):min(len(lines), idx + 20)]
-        notes = [failing_action_note] if failing_action_note else []
-        diagnostics.append(
-            CompilerDiagnostic(
-                file_path=abs_path,
-                line_number=line_no,
-                column=1,
-                error_message=err_msg.strip(),
-                raw_snippet="\n".join(snippet_lines),
-                notes=notes,
-            ))
-        break
 
-  # 4. Python traceback in action scripts
-  if not diagnostics:
-    py_tb_pattern = re.compile(
-        r'^\s*File "([a-zA-Z0-9_/\.\-]+\.py)", line (\d+)(?:, in (.+))?')
-    py_err_pattern = re.compile(r"^([a-zA-Z0-9_.]+(?:Error|Exception):\s*.+)$")
-    matched_py_file = None
-    matched_py_line = 1
-    matched_py_err = ""
-    py_idx = -1
-    for idx, line in enumerate(lines):
-      l_strip = line.strip()
-      if m_tb := py_tb_pattern.match(l_strip):
-        cand_f = resolve_repo_file_path(m_tb.group(1), repo_path)
-        if os.path.isfile(cand_f):
-          matched_py_file = cand_f
-          matched_py_line = int(m_tb.group(2))
-          py_idx = idx
-      elif m_err := py_err_pattern.match(l_strip):
-        if not matched_py_err:
-          matched_py_err = m_err.group(1).strip()
-    if matched_py_file:
-      snippet_lines = lines[max(0, py_idx - 10):min(len(lines), py_idx + 25)]
-      notes = [failing_action_note] if failing_action_note else []
-      diagnostics.append(
-          CompilerDiagnostic(
-              file_path=matched_py_file,
-              line_number=matched_py_line,
-              column=1,
-              error_message=matched_py_err or "Python script execution error",
-              raw_snippet="\n".join(snippet_lines),
-              notes=notes,
-          ))
+def parse_compiler_errors(build_output: str,
+                          repo_path: str) -> List[CompilerDiagnostic]:
+  """Parses compiler/linker/action diagnostics with universal catch-all.
 
-  # 5. GN Action failure without direct source crash -> target BUILD.gn
-  if not diagnostics and failing_action_gn:
-    cand_snippet = []
-    for idx, line in enumerate(lines):
-      if action_fail_pattern.search(line.strip()):
-        cand_snippet = lines[max(0, idx - 5):min(len(lines), idx + 35)]
-        break
-    diagnostics.append(
-        CompilerDiagnostic(
-            file_path=failing_action_gn,
-            line_number=failing_action_line,
-            column=1,
-            error_message=failing_action_note or "Action execution failed",
-            raw_snippet=("\n".join(cand_snippet)
-                         if cand_snippet else "\n".join(lines[:30])),
-            notes=[],
-        ))
-
-  return diagnostics
+  Returns at most one diagnostic: the first parser in _PARSERS that
+  matches wins. The list return type is kept for callers.
+  """
+  ctx = _build_parse_context(build_output, repo_path)
+  for parser in _PARSERS:
+    diagnostic = parser(ctx)
+    if diagnostic is not None:
+      return [diagnostic]
+  return []
 
 
 def read_siso_output_snippet(siso_out_path: str, max_bytes: int = 65536) -> str:
@@ -570,19 +641,7 @@ class AutoninjaResolver(BaseResolver):
                    f"{notes_str}"
                    f"{guard_msg}")
 
-    history_items = []
-    investigation_items = []
-    for h in history_records[-6:]:
-      it = str(h.get("iteration", ""))
-      hf = h.get("file", "")
-      he = h.get("error", "")
-      if it.startswith("Tool-"):
-        investigation_items.append(
-            f"Tool Call: `{hf}`\nResult:\n```\n{he}\n```")
-      else:
-        history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
-    history_str = "\n".join(history_items)
-    investigation_str = "\n\n".join(investigation_items)
+    history_str, investigation_str = format_history_records(history_records)
 
     res = self.reasoning_engine.heal_compiler_error(
         error_trace=error_trace,

@@ -18,6 +18,7 @@ import warnings
 from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
+    format_history_records,
     get_clean_build_env,
     resolve_repo_file_path,
 )
@@ -278,19 +279,7 @@ class GClientSyncResolver(BaseResolver):
       context_snippet = current_deps if len(lines) <= 250 else "".join(
           lines[:250])
 
-    history_items = []
-    investigation_items = []
-    for h in history_records[-6:]:
-      it = str(h.get("iteration", ""))
-      hf = h.get("file", "")
-      he = h.get("error", "")
-      if it.startswith("Tool-"):
-        investigation_items.append(
-            f"Tool Call: `{hf}`\nResult:\n```\n{he}\n```")
-      else:
-        history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
-    history_str = "\n".join(history_items)
-    investigation_str = "\n\n".join(investigation_items)
+    history_str, investigation_str = format_history_records(history_records)
 
     deps_context = (
         f"### Excerpt from {rel_deps} (around line {target_line or 1}):\n"
