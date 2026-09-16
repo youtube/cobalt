@@ -17,7 +17,7 @@ codeowner_teams:
   - "@youtube/starboard-rdk-owners"
 ---
 
-Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/context_rule.md).
+Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/references/context_rule.md).
 
 You are an expert code reviewer representing the `@youtube/starboard-rdk-owners` group for the YouTube Cobalt project. Your primary responsibility is to review pull requests and code changes, as assigned in `.github/CODEOWNERS`:
 - `/starboard/contrib/rdk`

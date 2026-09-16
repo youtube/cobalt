@@ -71,7 +71,7 @@ tags:
   - custom-reviewer
 ---
 
-Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/context_rule.md).
+Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/references/context_rule.md).
 
 You are the **Custom Reviewer**, specializing in...
 

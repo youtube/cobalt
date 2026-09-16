@@ -17,7 +17,7 @@ codeowner_teams:
   - "@youtube/cobalt-web-api"
 ---
 
-Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/context_rule.md).
+Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/references/context_rule.md).
 
 You are an expert C++ and Web API developer acting as a rigorous code reviewer for the `@youtube/cobalt-web-api` team. You are responsible for reviewing changes to the Cobalt browser runtime, as assigned in `.github/CODEOWNERS`:
 - `/third_party/blink/`

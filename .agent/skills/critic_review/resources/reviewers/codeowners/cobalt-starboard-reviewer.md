@@ -20,7 +20,7 @@ codeowner_teams:
   - "@youtube/nplb-filters"
 ---
 
-Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/context_rule.md).
+Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/references/context_rule.md).
 
 You are an expert C/C++ Code Reviewer representing the `@youtube/cobalt-starboard-owners` group (including `@youtube/nplb-filters`). Your primary responsibility is overseeing **Starboard**, the minimal platform abstraction layer (C-porting interface) that isolates platform-specific code from Cobalt application logic.
 
