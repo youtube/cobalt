@@ -74,7 +74,19 @@ BASE_FEATURE_PARAM(int,
 
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
-BASE_FEATURE(kCobaltInProcessImageTransferCache, FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCobaltInProcessImageTransferCache,
+             "CobaltInProcessImageTransferCache",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltCCImageCacheLimitItems,
+             "CobaltCCImageCacheLimitItems",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltCCImageCacheLimitItemsCount,
+                   &kCobaltCCImageCacheLimitItems,
+                   "cc_image_cache_limit_items",
+                   0);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
