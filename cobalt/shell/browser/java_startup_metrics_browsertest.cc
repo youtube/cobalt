@@ -15,7 +15,9 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/test/browser_test.h"
@@ -56,6 +58,9 @@ class JavaStartupMetricsValidTest : public JavaStartupMetricsBrowserTestBase {
 
 IN_PROC_BROWSER_TEST_F(JavaStartupMetricsValidTest,
                        HarvestsPreviousSessionMetrics) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
   histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 1, 1);
   histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 3, 1);
   histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 2, 0);
@@ -70,7 +75,13 @@ class JavaStartupMetricsMissingTest : public JavaStartupMetricsBrowserTestBase {
 
 IN_PROC_BROWSER_TEST_F(JavaStartupMetricsMissingTest,
                        HandlesMissingFileQuietly) {
-  histogram_tester_->ExpectTotalCount("Cobalt.Startup.MilestoneReached", 0);
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 1, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 2, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 3, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 4, 0);
   EXPECT_FALSE(base::PathExists(prev_state_file_));
 }
 
@@ -85,7 +96,13 @@ class JavaStartupMetricsCorruptTest : public JavaStartupMetricsBrowserTestBase {
 
 IN_PROC_BROWSER_TEST_F(JavaStartupMetricsCorruptTest,
                        DeletesCorruptFileSafely) {
-  histogram_tester_->ExpectTotalCount("Cobalt.Startup.MilestoneReached", 0);
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 1, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 2, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 3, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 4, 0);
   // It should STILL delete the corrupted file so it doesn't block future tests
   EXPECT_FALSE(base::PathExists(prev_state_file_));
 }
