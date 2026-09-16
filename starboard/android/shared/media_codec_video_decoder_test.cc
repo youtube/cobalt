@@ -64,15 +64,14 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
         /*surface_view=*/dummy_surface_.obj(),
         max_video_capabilities};
 
-    MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
     pipeline_config.experimental_features = std::move(experimental_features);
     MediaCodecVideoDecoder::PlatformOptions platform_options;
 
     auto result = MediaCodecVideoDecoder::CreateForTesting(
         std::move(factory),  // Transfer ownership
-        &job_queue_, stream_config, tunnel_config, pipeline_config,
-        platform_options);
+        &job_queue_, stream_config, /*tunnel_mode_config=*/std::nullopt,
+        pipeline_config, platform_options);
 
     ASSERT_TRUE(result);
     decoder_ = std::move(result.value());

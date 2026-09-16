@@ -253,6 +253,7 @@ static_library("starboard_platform") {
     "text_to_speech_helper.h",
     "thread_platform_android.cc",
     "time_zone_get_name.cc",
+    "tunnel_mode_config.h",
     "video_frame_tracker.cc",
     "video_frame_tracker.h",
     "video_max_video_input_size.cc",
