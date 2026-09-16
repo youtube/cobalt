@@ -1,10 +1,4 @@
 {
   "failing_tests": [
-<<<<<<< HEAD
-    "DecimalTest.Remainder"
-=======
-    "CobaltMetricsServiceClientTest.IdleTimerIsRepeatingAndKeepsFiring",
-    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
->>>>>>> 92549f2d8d6 (Remove DecimalTest.Remainder from cobalt_unittests filter (#12548))
   ]
 }
